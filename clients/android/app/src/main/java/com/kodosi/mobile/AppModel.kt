@@ -17,6 +17,7 @@ import com.kodosi.mobile.runtime.RuntimeEnvironment
 import com.kodosi.mobile.runtime.RuntimeEvent
 import com.kodosi.mobile.runtime.RuntimeFailure
 import com.kodosi.mobile.runtime.RuntimeHandle
+import com.kodosi.mobile.runtime.fields
 import com.kodosi.mobile.terminals.RuntimeSession
 import com.kodosi.mobile.terminals.TerminalConnection
 import com.kodosi.mobile.terminals.TerminalNotifications
@@ -82,6 +83,7 @@ class AppModel(
     private var stopping: Job? = null
     private var accountKnown = false
     private var accountEpoch = 0L
+    private var inFront = false
 
     init {
         commands.onFailure = ::notify
@@ -131,6 +133,18 @@ class AppModel(
         documents.reset()
         canvas.reset()
         start()
+    }
+
+    fun present(inFront: Boolean) {
+        notifications.foreground = inFront
+        if (this.inFront == inFront) return
+        this.inFront = inFront
+        reportPresence()
+    }
+
+    private fun reportPresence() {
+        if (phase.value != Phase.Ready) return
+        commands.perform("app.presence", fields("state" to if (inFront) "kodosi" else "away"))
     }
 
     fun languageChanged() {
@@ -250,6 +264,7 @@ class AppModel(
         when (event.type.substringBefore('.')) {
             "system" -> if (event.type == "system.ready") {
                 mutablePhase.value = Phase.Ready
+                reportPresence()
                 refresh()
             }
 
