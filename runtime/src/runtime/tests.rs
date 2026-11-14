@@ -2815,7 +2815,7 @@ fn a_terminal_comes_back_to_the_conversation_its_agent_had_when_the_agent_stops_
     );
     assert!(known.ask(now));
     assert!(!known.ask(later(11)));
-    known.found(Some("copilot --resume=A".to_owned()));
+    known.found(named("copilot --resume=A"));
     assert!(!known.ask(later(29)));
     assert!(known.ask(later(31)));
     known.found(None);
@@ -2851,6 +2851,47 @@ fn a_terminal_comes_back_to_the_conversation_its_agent_had_when_the_agent_stops_
     assert_eq!(
         chosen(listing(), &known, later(12)).as_deref(),
         Some("copilot --resume")
+    );
+}
+
+#[cfg(feature = "host")]
+#[test]
+fn an_agent_whose_conversation_is_not_known_yet_comes_back_with_its_account_and_choices() {
+    use restore::{AgentLine, Conversation};
+    let now = Instant::now();
+    let line = |line: &str, named| {
+        Some(AgentLine {
+            line: line.to_owned(),
+            named,
+        })
+    };
+    let chosen = |fresh, known: &Conversation| restore::chosen_line(fresh, known, now);
+    let listing = "env CODEX_HOME=/home/ana/.codex-work codex -m gpt-5.6-sol --dangerously-bypass-approvals-and-sandbox resume";
+
+    let mut known = Conversation::default();
+    assert!(known.ask(now));
+    known.found(line(listing, false));
+    assert_eq!(
+        chosen(None, &known).as_deref(),
+        Some(listing),
+        "a host that ends without asking keeps the account and the choices"
+    );
+    assert_eq!(
+        chosen(line("codex -m gpt-5.6-terra resume", false), &known).as_deref(),
+        Some("codex -m gpt-5.6-terra resume"),
+        "a host that asks at its end takes the choices of that moment"
+    );
+    let named = format!("{listing} 0198f0c4-5e6f-7a8b-9c0d-1e2f3a4b5c6d");
+    known.found(line(&named, true));
+    assert_eq!(chosen(None, &known), Some(named));
+
+    let mut ended = Conversation::default();
+    ended.found(line(listing, false));
+    ended.program_changed(true, now, None);
+    assert_eq!(
+        chosen(None, &ended),
+        None,
+        "an agent that ended before its conversation was known stays ended"
     );
 }
 
@@ -4002,6 +4043,12 @@ async fn a_change_of_the_agent_waits_for_its_next_prompt_and_types_its_own_comma
             changed: crate::agents::AgentSettings::default(),
         },
     );
+    let conversation = &mut runtime.local.get_mut(&id).unwrap().conversation;
+    assert!(conversation.ask(Instant::now()));
+    conversation.found(Some(restore::AgentLine {
+        line: "claude --model opus --resume 0198f0c4-5e6f-7a8b-9c0d-1e2f3a4b5c6d".to_owned(),
+        named: true,
+    }));
     let set = |runtime: &mut Runtime, state| {
         runtime.local.get_mut(&id).unwrap().entry.program_status = Some(ProgramStatus {
             state,
@@ -4053,6 +4100,15 @@ async fn a_change_of_the_agent_waits_for_its_next_prompt_and_types_its_own_comma
             runtime.local[&id].changed.model.is_some()
         })
         .await
+    );
+    assert!(
+        runtime
+            .local
+            .get_mut(&id)
+            .unwrap()
+            .conversation
+            .ask(Instant::now()),
+        "the line that brings the agent back is asked for again with its new model"
     );
     assert!(
         !types_until(&mut runtime, Duration::from_secs(4), |runtime| {
