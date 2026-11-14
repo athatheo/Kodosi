@@ -10,7 +10,8 @@ internal sealed record PushNotice(Guid OwnerId, IReadOnlyList<PushedTerminal> Pu
 
 internal sealed partial class TerminalAlerts(ConnectionDirectory directory, TimeProvider clock, ILogger<TerminalAlerts> logger)
 {
-    internal static readonly TimeSpan Delay = TimeSpan.FromSeconds(10);
+    // As long as the presence grace, the wait also keeps the server from pushing in the first graceSeconds after its start.
+    internal static readonly TimeSpan Delay = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan SoundSpacing = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan Hour = TimeSpan.FromHours(1);
     internal static readonly TimeSpan Remembered = TimeSpan.FromDays(1);
@@ -22,7 +23,6 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     private readonly Dictionary<Guid, Dictionary<Guid, Pushed>> pushed = [];
     private readonly Dictionary<Guid, Queue<DateTimeOffset>> sent = [];
     private readonly Dictionary<Guid, DateTimeOffset> sounded = [];
-    private readonly DateTimeOffset started = clock.GetUtcNow();
     private List<PushNotice> outbox = [];
     private int remembered;
 
@@ -54,7 +54,7 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
                 push = null;
             }
             if (status is { Attention: true } && push is null && waiting.Count < ConnectionDirectory.MaximumHostedTerminals)
-                waiting[report.SessionId] = new Waiting(report.OwnerId, status, clock.GetUtcNow() + Delay);
+                waiting[report.SessionId] = new Waiting(report.OwnerId, status, clock.GetUtcNow() + Delay, "its status waited while the person was away");
         }
     }
 
@@ -62,14 +62,11 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     {
         lock (sync)
         {
-            var now = clock.GetUtcNow();
-            if (Starting(now) || !directory.Away(ownerId)) return;
+            if (!directory.Away(ownerId)) return;
+            var due = clock.GetUtcNow() + Delay;
             foreach (var (terminalId, status) in directory.WithAttention(ownerId))
                 if (status.State == "blocked" && pushed.GetValueOrDefault(ownerId)?.GetValueOrDefault(terminalId) is not { Status.State: "blocked" })
-                {
-                    waiting.Remove(terminalId);
-                    Send(terminalId, ownerId, status, now, "the person became away");
-                }
+                    waiting.TryAdd(terminalId, new Waiting(ownerId, status, due, "the person became away"));
         }
     }
 
@@ -78,11 +75,10 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
         lock (sync)
         {
             var now = clock.GetUtcNow();
-            foreach (var (terminalId, wait) in Starting(now) ? [] : waiting.Where(x => x.Value.Due <= now).ToArray())
+            foreach (var (terminalId, wait) in waiting.Where(x => x.Value.Due <= now).ToArray())
             {
                 waiting.Remove(terminalId);
-                if (directory.Live(terminalId) == (true, wait.Status) && directory.Away(wait.OwnerId))
-                    Send(terminalId, wait.OwnerId, wait.Status, now, "its status waited while the person was away");
+                if (directory.Live(terminalId) == (true, wait.Status) && directory.Away(wait.OwnerId)) Send(terminalId, wait.OwnerId, wait.Status, now, wait.Reason);
             }
             ForgetOld(now);
             var taken = outbox;
@@ -95,8 +91,6 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     {
         lock (sync) return Listed(ownerId);
     }
-
-    private bool Starting(DateTimeOffset now) => now - started < ConnectionDirectory.PresenceGrace;
 
     private void Send(Guid terminalId, Guid ownerId, TerminalStatus status, DateTimeOffset now, string reason)
     {
@@ -164,7 +158,7 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     private bool StillWaits(Guid terminalId, Pushed push) =>
         directory.Live(terminalId) is (true, { Attention: true } status) && status.State == push.Status.State;
 
-    private sealed record Waiting(Guid OwnerId, TerminalStatus Status, DateTimeOffset Due);
+    private sealed record Waiting(Guid OwnerId, TerminalStatus Status, DateTimeOffset Due, string Reason);
 
     private sealed record Pushed(TerminalStatus Status, DateTimeOffset At);
 
