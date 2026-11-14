@@ -12,6 +12,12 @@ func runtimeEvent(_ type: String, epoch: UInt64 = 1, userId: String? = "owner", 
     return try JSONDecoder().decode(RuntimeEvent.self, from: JSONEncoder().encode(value))
 }
 
+func runtimeReady(epoch: UInt64 = 1, userId: String? = "owner") throws -> RuntimeEvent {
+    try runtimeEvent("system.ready", epoch: epoch, userId: userId, fields: [
+        "protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion)), "awaySeconds": .uint(180),
+    ])
+}
+
 func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind: String = "remote",
                     connection: String = "offline", status: String = "running", owner: Bool = true,
                     directory: String? = "/remote/project", restoredFrom: String? = nil,
@@ -229,7 +235,6 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
     )
     #expect(elsewhere.needsUser)
     #expect(elsewhere.sign(unseen: false) == .question)
-    #expect(elsewhere.alert == nil)
 }
 
 @Test func `a terminal names where its program runs and whether as root`() throws {

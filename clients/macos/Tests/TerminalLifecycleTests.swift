@@ -13,7 +13,7 @@ import Testing
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
     defer { app.shutdownProcess() }
     app.commandSink.transport = { _ in 0 }
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     let id = UUIDv7.generate()
     let incarnation = UUIDv7.generate()
     var renderer: ManagedTerminalSession?
@@ -58,7 +58,7 @@ import Testing
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
     defer { app.shutdownProcess() }
     app.commandSink.transport = { _ in 0 }
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     func snapshot(activity: String) throws {
         try app.receive(runtimeEvent("sessions.snapshot", epoch: 0, userId: nil, fields: ["sessions": .array([.object([
             "id": .string("01992e43-53db-7040-8e02-f6ebf4149b28"), "incarnationId": .string("01992e43-53db-7040-8e02-f6ebf4149b29"),

@@ -48,7 +48,7 @@ import Testing
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
     defer { app.shutdownProcess() }
     app.commandSink.transport = { _ in 0 }
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     try app.receive(runtimeEvent("auth.restoring", epoch: 0, userId: nil, fields: ["reason": .string("offline")]))
     #expect(app.account.restoring == "offline")
     #expect(app.signInPrompt == String(localized: "Signing in…"))
@@ -75,7 +75,7 @@ import Testing
             "connectionState": .string("local"), "sharedWith": .array([]),
         ])])])
     }
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     try app.receive(snapshot("running"))
     #expect(app.listedSessions.map(\.id) == [id])
     try app.receive(snapshot("closing"))
@@ -94,14 +94,14 @@ import Testing
         }
         return 0
     }
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
-    #expect(sent == ["session.list", "session.visible"])
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
+    #expect(sent == ["app.presence", "session.list", "session.visible"])
     try app.receive(runtimeEvent("auth.finalizing", epoch: 0, userId: nil))
     app.refresh()
-    #expect(sent == ["session.list", "session.visible", "session.list"])
+    #expect(sent == ["app.presence", "session.list", "session.visible", "session.list"])
     try app.receive(runtimeEvent("auth.required", epoch: 0, userId: nil, fields: ["reason": .string("signedOut")]))
     app.refresh()
-    #expect(sent.filter { $0 != "session.list" } == ["session.visible", "session.restore"])
+    #expect(sent.filter { $0 != "session.list" } == ["app.presence", "session.visible", "session.restore"])
     #expect(app.errorMessage == nil)
     try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner")]))
     sent.removeAll()
@@ -124,7 +124,7 @@ import Testing
     let id = "01992e43-53db-7040-8e02-f6ebf4149b28"
     let url = try #require(URL(string: "kodosi://session/\(id)"))
     app.pendingDeepLink = DeepLinkRouter.destination(for: url)
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     try app.receive(runtimeEvent("auth.finalizing", epoch: 0, userId: nil))
     try app.receive(runtimeEvent("sessions.snapshot", epoch: 0, userId: nil, fields: ["sessions": .array([])]))
     #expect(app.pendingDeepLink?.sessionId == id)

@@ -188,7 +188,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
         app.session(id).flatMap(app.canvas.current)?.key
     }
 
-    try app.receive(runtimeEvent("system.ready", epoch: 0, userId: nil, fields: ["protocolVersion": .int(Int64(RuntimeHandle.expectedProtocolVersion))]))
+    try app.receive(runtimeReady(epoch: 0, userId: nil))
     try deliver()
     app.workbench.showSession(id)
     try app.receive(runtimeEvent("sessions.snapshot", epoch: 0, userId: nil, fields: ["sessions": .array([.object(terminalFields(id, canvas: [

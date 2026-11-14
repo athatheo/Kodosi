@@ -3,8 +3,7 @@ import KodosiBridge
 
 public extension RuntimeSession {
     var alert: String? {
-        guard canCall, waiting != nil else { return nil }
-        return programStatus?.caption ?? sign(unseen: true)?.label
+        programStatus?.caption ?? sign(unseen: true)?.label
     }
 
     func mark(rested: AgentMark.Activity) -> AgentMark.Activity {

@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationDidFinishLaunching(_: Notification) {
         UNUserNotificationCenter.current().delegate = self
+        SystemPresenceSignals.observe(dependencies.presence)
         dependencies.start()
         if !storageBootstrap.isIsolated {
             if dependencies.updater.configured {
@@ -94,11 +95,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationDidBecomeActive(_: Notification) {
         Task { await dependencies.launcher.refresh() }
+        dependencies.presence.update()
         dependencies.reportVisible()
         dependencies.projects.markShownRead()
     }
 
     func applicationDidResignActive(_: Notification) {
+        dependencies.presence.update()
         dependencies.reportVisible()
     }
 
@@ -184,9 +187,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 continue
             }
             dependencies.pendingDeepLink = destination
-            dependencies.openMainWindow()
-            MainWindowLocator.activate()
+            dependencies.showWindow()
         }
+    }
+
+    /// macOS shows nothing while Kodosi is in front unless this says so, and the runtime posts
+    /// only where the person is.
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+    ) async -> UNNotificationPresentationOptions {
+        notification.request.content.sound == nil ? [.banner, .list] : [.banner, .list, .sound]
     }
 
     func userNotificationCenter(
@@ -194,8 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         didReceive response: UNNotificationResponse,
     ) async {
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
-        dependencies.openMainWindow()
-        MainWindowLocator.activate()
+        dependencies.showWindow()
         if let terminal = response.notification.request.content.userInfo[TerminalNotifications.terminalKey] as? String {
             dependencies.openNotification(of: terminal)
         }

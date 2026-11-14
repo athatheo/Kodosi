@@ -72,7 +72,7 @@ extension AppDependencies {
     }
 
     private func receiveError(_ event: RuntimeEvent, delivery: CommandSink.Delivery) {
-        guard delivery == .app, !["provider.", "canvas.", "document."].contains(where: event.type.hasPrefix),
+        guard delivery == .app, !["provider.", "canvas.", "document.", "app."].contains(where: event.type.hasPrefix),
               event.string("operation") != "project.act" else { return }
         people.absorb(error: event)
         let message = event.string("message") ?? String(localized: "That did not work.")
@@ -98,7 +98,7 @@ extension AppDependencies {
             return
         }
         if event.type == "session.show", let id = event.string("sessionId") {
-            bringToFront()
+            showWindow()
             workbench.section = .sessions
             activateSession(id)
             return
@@ -107,10 +107,9 @@ extension AppDependencies {
             terminalManager.receivePicture(event)
             return
         }
+        let interrupt = event.payload["interrupt"] == .bool(true)
         if event.type == "term.attention", let id = event.string("sessionId"), let current = session(id) {
-            if let alert = current.alert, !isFront() {
-                terminalNotifications.alert(alert, session: current)
-            }
+            terminalNotifications.alert(current.alert, session: current, interrupt: interrupt)
             return
         }
         guard event.type == "term.notification",
@@ -118,7 +117,12 @@ extension AppDependencies {
               let incarnation = event.string("runtimeIncarnationId"),
               let current = session(id), current.kind == .local, current.incarnationId == incarnation
         else { return }
-        terminalNotifications.post(title: event.string("title"), body: event.string("body"), session: current)
+        terminalNotifications.post(title: event.string("title"), body: event.string("body"), session: current, interrupt: interrupt)
+    }
+
+    func showWindow() {
+        openMainWindow()
+        bringToFront()
     }
 
     func openNotification(of terminal: String) {
@@ -160,6 +164,8 @@ extension AppDependencies {
         guard version == RuntimeHandle.expectedProtocolVersion else {
             throw RuntimeError.invalidResponse(String(localized: "This copy of Kodosi is damaged. Install it again."))
         }
+        let awaySeconds: UInt64 = try event.value("awaySeconds")
+        presence.connected(awaySeconds: TimeInterval(awaySeconds))
         appState = .ready
         restoreAsked = false
         refresh()
@@ -247,7 +253,7 @@ extension AppDependencies {
         switch event.type {
         case "project.show":
             guard let id = event.string("projectId") else { return }
-            bringToFront()
+            showWindow()
             workbench.section = .projects
             openProject(id: id)
         case "projects.snapshot":
@@ -267,9 +273,6 @@ extension AppDependencies {
         commandSink.perform("session.visible", [
             "sessionIds": .array(report.sessionIds.map(JSONValue.string)), "watching": .bool(report.watching),
         ])
-        if report.watching {
-            report.sessionIds.forEach(terminalNotifications.withdrawAlert)
-        }
     }
 
     var shownSessionIds: [String] {
