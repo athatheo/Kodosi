@@ -828,6 +828,8 @@ void TerminalView::focusInEvent(QFocusEvent* event)
     QQuickItem::focusInEvent(event);
     sendFocus(true);
     updateBlinkTimer();
+    if (event->reason() != Qt::ActiveWindowFocusReason)
+        emit focused();
 }
 
 void TerminalView::focusOutEvent(QFocusEvent* event)

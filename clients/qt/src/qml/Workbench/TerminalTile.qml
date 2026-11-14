@@ -629,10 +629,7 @@ Item {
                 selectionBackground: KodosiTheme.terminalAccent
                 selectionForeground: "#160e0a"
 
-                onActiveFocusChanged: {
-                    if (activeFocus)
-                        root.select();
-                }
+                onFocused: root.select()
                 onContextMenuRequested: (x, y) => {
                     const point = terminal.mapToItem(root, x, y);
                     context.popup(point.x, point.y);

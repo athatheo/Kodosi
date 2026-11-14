@@ -150,6 +150,8 @@ signals:
     void asksBeforeClipboardReadChanged();
     void otherComputerChanged();
     void frameChanged();
+    // Focus that comes back with the window does not count: the window can come back for another terminal.
+    void focused();
     void terminalError(QString message);
     void operationError(QString message);
     void contextMenuRequested(qreal x, qreal y);
