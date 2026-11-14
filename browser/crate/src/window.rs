@@ -968,14 +968,22 @@ fn keep_latest(
     waiting.push((method, params));
 }
 
+/// A view that is narrower than Chrome's window gets a wider page of its own shape, drawn with
+/// fewer pixels for each point, so that the picture fills the view and still has its pixels.
 fn fitted(size: Size) -> Option<Size> {
-    (SIZES.contains(&size.width) && SIZES.contains(&size.height) && size.scale > 0.0).then_some(
-        Size {
-            width: size.width.max(NARROWEST),
-            height: size.height,
-            scale: size.scale.clamp(1.0, 4.0),
-        },
-    )
+    if !(SIZES.contains(&size.width) && SIZES.contains(&size.height) && size.scale > 0.0) {
+        return None;
+    }
+    let width = size.width.max(NARROWEST);
+    let height = (u64::from(size.height) * u64::from(width) + u64::from(size.width) / 2)
+        / u64::from(size.width);
+    let scale = size.scale * f32::from(u16::try_from(size.width).ok()?)
+        / f32::from(u16::try_from(width).ok()?);
+    Some(Size {
+        width,
+        height: u32::try_from(height).map_or(*SIZES.end(), |height| height.min(*SIZES.end())),
+        scale: scale.clamp(1.0, 4.0),
+    })
 }
 
 fn cut(text: &str, most: usize) -> String {
@@ -1077,13 +1085,31 @@ mod tests {
     }
 
     #[test]
-    fn a_narrow_view_keeps_the_browser_at_its_narrowest() {
-        let size = fitted(Size {
-            width: 300,
-            height: 400,
-            scale: 2.0,
-        });
-        assert_eq!(size.map(|size| size.width), Some(NARROWEST));
+    fn a_narrow_view_gets_a_wider_page_of_its_own_shape_with_its_own_pixels() {
+        assert_eq!(
+            fitted(Size {
+                width: 440,
+                height: 717,
+                scale: 3.0,
+            }),
+            Some(Size {
+                width: NARROWEST,
+                height: 815,
+                scale: 2.64,
+            })
+        );
+        assert_eq!(
+            fitted(Size {
+                width: 1280,
+                height: 800,
+                scale: 2.0,
+            }),
+            Some(Size {
+                width: 1280,
+                height: 800,
+                scale: 2.0,
+            })
+        );
     }
 
     #[test]
