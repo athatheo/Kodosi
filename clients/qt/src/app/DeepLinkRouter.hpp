@@ -10,6 +10,7 @@ namespace kodosi {
 
 struct DeepLinkDestination {
     QString sessionId;
+    bool notification = false;
 
     bool operator==(const DeepLinkDestination&) const = default;
 };

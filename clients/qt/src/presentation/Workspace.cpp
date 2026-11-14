@@ -394,10 +394,6 @@ void Workspace::apply(const QJsonObject& event, std::uint64_t accountEpoch)
         m_dosi.apply(type, event);
         return;
     }
-    if (type == QStringLiteral("term.attention")) {
-        m_sessions.alert(event.value(QStringLiteral("sessionId")).toString());
-        return;
-    }
     if (type == QStringLiteral("session.picture")) {
         m_sessions.receivePicture(event);
         return;

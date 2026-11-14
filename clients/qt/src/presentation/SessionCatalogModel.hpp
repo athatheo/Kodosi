@@ -85,7 +85,7 @@ public:
     [[nodiscard]] QStringList visible() const;
     Q_INVOKABLE void setVisible(const QString& id, bool visible);
     [[nodiscard]] bool waiting(const QString& id) const;
-    void alert(const QString& id);
+    [[nodiscard]] QString attentionText(const QString& id) const;
     // The last part of a folder path between separators, or the path if it has none, for
     // example `/`. Hosts report `/…` on Linux and macOS, and `C:\…` or `\\server\share\…` on Windows.
     Q_INVOKABLE [[nodiscard]] static QString folderName(const QString& path);
@@ -100,6 +100,7 @@ public:
     [[nodiscard]] static QString computerOf(const Session& session);
     [[nodiscard]] QString afterLocalRestart(const QString& id) const;
     [[nodiscard]] std::optional<QString> restartedAs(const QString& id, const QString& owner, const QString& host) const;
+    [[nodiscard]] std::optional<QString> ownRestart(const QString& id) const;
     [[nodiscard]] std::optional<PresentationSession> presentationSession(const QString& id) const;
     [[nodiscard]] std::optional<QString> incarnationForSession(const QString& id) const;
     void apply(const QJsonObject& event);
@@ -113,7 +114,6 @@ signals:
     void authoritativeSnapshotApplied();
     void attentionChanged();
     void visibleChanged();
-    void alertChanged(const QString& sessionId, const QString& text);
     void picturesChanged();
     void pictureFailed(const QString& sessionId, const QString& message);
     void sessionsHidden(const QStringList& sessionIds);

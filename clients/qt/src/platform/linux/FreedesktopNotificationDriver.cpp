@@ -85,6 +85,20 @@ FreedesktopNotificationDriver::FreedesktopNotificationDriver(QObject* parent)
         });
 }
 
+// A later Kodosi cannot act on a click on a notification of this one.
+FreedesktopNotificationDriver::~FreedesktopNotificationDriver()
+{
+    QList<QDBusPendingCall> closing;
+    for (auto id = m_keysById.cbegin(); id != m_keysById.cend(); ++id) {
+        auto request = method(QStringLiteral("CloseNotification"));
+        request.setArguments({QVariant::fromValue(id.key())});
+        closing.append(m_bus.asyncCall(request, 1000));
+    }
+    for (auto& call : closing) {
+        call.waitForFinished();
+    }
+}
+
 void FreedesktopNotificationDriver::post(
     const DesktopNotification& notification)
 {
@@ -93,9 +107,10 @@ void FreedesktopNotificationDriver::post(
         return;
     }
 
-    withdraw(notification.key);
-    if (m_pendingPosts >= 32 || m_idsByKey.size() >= 256
+    const auto replaced = m_idsByKey.value(notification.key);
+    if (m_pendingPosts >= 32 || (replaced == 0 && m_idsByKey.size() >= 256)
         || m_nextPostGeneration == std::numeric_limits<quint64>::max()) {
+        withdraw(notification.key);
         emit notificationClosed(notification.key);
         return;
     }
@@ -109,12 +124,17 @@ void FreedesktopNotificationDriver::post(
         QStringLiteral("com.kodosi.Kodosi"));
     hints.insert(
         QStringLiteral("urgency"),
-        QVariant::fromValue(static_cast<uchar>(1)));
+        QVariant::fromValue(static_cast<uchar>(notification.interrupt ? 1 : 0)));
+    // GNOME plays a sound only for a notification that names one.
+    if (notification.interrupt)
+        hints.insert(QStringLiteral("sound-name"), QStringLiteral("message-new-instant"));
+    else
+        hints.insert(QStringLiteral("suppress-sound"), true);
 
     auto request = method(QStringLiteral("Notify"));
     request.setArguments({
         QStringLiteral("Kodosi"),
-        QVariant::fromValue(uint {0}),
+        QVariant::fromValue(replaced),
         QStringLiteral("com.kodosi.Kodosi"),
         notification.title.toHtmlEscaped(),
         notification.body.toHtmlEscaped(),
@@ -140,7 +160,7 @@ void FreedesktopNotificationDriver::post(
                     || m_serviceGeneration != serviceGeneration) {
                     return;
                 }
-                m_postGenerations.remove(key);
+                withdraw(key);
                 emit notificationClosed(key);
                 return;
             }
@@ -148,13 +168,13 @@ void FreedesktopNotificationDriver::post(
             const auto id = reply.value();
             if (id == 0 && m_postGenerations.value(key) == generation
                 && m_serviceGeneration == serviceGeneration) {
-                m_postGenerations.remove(key);
+                withdraw(key);
                 emit notificationClosed(key);
                 return;
             }
             if (m_postGenerations.value(key) != generation
                 || m_serviceGeneration != serviceGeneration) {
-                if (m_serviceGeneration == serviceGeneration) {
+                if (m_serviceGeneration == serviceGeneration && !m_keysById.contains(id)) {
                     close(id);
                 }
                 return;
@@ -163,6 +183,11 @@ void FreedesktopNotificationDriver::post(
             if (const auto prior = m_keysById.constFind(id);
                 prior != m_keysById.cend() && prior.value() != key) {
                 m_idsByKey.remove(prior.value());
+            }
+            if (const auto previous = m_idsByKey.value(key); previous != 0 && previous != id) {
+                m_keysById.remove(previous);
+                m_activationTokens.remove(previous);
+                close(previous);
             }
             m_idsByKey.insert(key, id);
             m_keysById.insert(id, key);
@@ -205,7 +230,11 @@ void FreedesktopNotificationDriver::onNotificationClosed(
     const uint id,
     const uint reason)
 {
-    Q_UNUSED(reason)
+    // A notification that only expired can stay in the desktop's list, where a click still opens
+    // it and a withdrawal must still remove it.
+    constexpr uint expired = 1;
+    if (reason == expired)
+        return;
     const auto key = m_keysById.value(id);
     forget(id);
     if (!key.isEmpty()) {

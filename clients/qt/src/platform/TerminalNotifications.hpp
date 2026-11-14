@@ -6,9 +6,6 @@
 
 #include <QHash>
 #include <QObject>
-#include <QQueue>
-
-#include <functional>
 
 namespace kodosi {
 
@@ -21,35 +18,31 @@ public:
         DesktopNotificationDriver& driver,
         QObject* parent = nullptr);
 
-    std::function<bool()> isFront;
-
     void apply(const QJsonObject& event);
 
 signals:
     void sessionRequested(QString sessionId, QString activationToken);
 
 private:
+    enum class Cue { State, Program };
     struct Context {
         QString sessionId;
         QString runtimeIncarnationId;
-        bool alert = false;
+        Cue cue = Cue::State;
     };
 
     SessionCatalogModel& m_sessions;
     DesktopNotificationDriver& m_driver;
     QHash<QString, Context> m_contexts;
-    QQueue<QString> m_order;
 
+    void post(const Context& context, QString title, QString body, bool interrupt);
     void handleAction(
         const QString& key,
         const QString& action,
         const QString& activationToken);
-    void alert(const QString& sessionId, const QString& text);
-    void track(const QString& key, const Context& context);
-    void remove(const QString& key, bool withdraw);
+    void remove(const QString& key);
     void prune();
     [[nodiscard]] bool current(const Context& context) const;
-    [[nodiscard]] static bool owns(const QString& key);
 };
 
 }

@@ -2,6 +2,8 @@
 
 #include "platform/DesktopNotificationDriver.hpp"
 
+#include <QHash>
+
 #include <memory>
 
 namespace kodosi {
@@ -19,6 +21,7 @@ public:
 private:
     struct Relay;
     std::shared_ptr<Relay> m_relay;
+    QHash<QString, QString> m_computers;
 };
 
 }

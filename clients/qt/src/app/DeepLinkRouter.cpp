@@ -70,7 +70,8 @@ DeepLinkParseResult DeepLinkRouter::parse(const QStringView rawUrl)
     }
     auto remainder = rawUrl.sliced(schemeSeparator + 3);
     const auto slash = remainder.indexOf(u'/');
-    if (slash < 0 || remainder.first(slash) != QStringLiteral("session")) {
+    const auto route = slash < 0 ? QStringView() : remainder.first(slash);
+    if (route != QStringLiteral("session") && route != QStringLiteral("notification")) {
         return failure(DeepLinkParseError::UnsupportedRoute);
     }
     remainder = remainder.sliced(slash + 1);
@@ -86,13 +87,15 @@ DeepLinkParseResult DeepLinkRouter::parse(const QStringView rawUrl)
     return {
         .destination = DeepLinkDestination {
             .sessionId = std::move(*session),
+            .notification = route == QStringLiteral("notification"),
         },
     };
 }
 
 QString DeepLinkRouter::url(const DeepLinkDestination& destination)
 {
-    return QStringLiteral("kodosi://session/") + destination.sessionId;
+    return (destination.notification ? QStringLiteral("kodosi://notification/") : QStringLiteral("kodosi://session/"))
+        + destination.sessionId;
 }
 
 std::optional<QString> DeepLinkRouter::sessionId(const QStringView value)

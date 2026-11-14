@@ -36,6 +36,7 @@ public:
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE bool activate(const QString& sessionId);
+    void openNotified(const QString& sessionId, const QString& activationToken);
     Q_INVOKABLE bool activateInProject(const QString& sessionId);
     Q_INVOKABLE bool minimize(const QString& sessionId);
     Q_INVOKABLE bool create(const QString& name, const QString& directory, const QString& command = {},
@@ -73,6 +74,7 @@ private:
     DesktopStateModel& m_desktop;
     DesktopSettings& m_settings;
     std::optional<DeepLinkDestination> m_activeLink;
+    std::optional<QString> m_notified;
     QList<DeepLinkDestination> m_links;
     QHash<QString, QString> m_projectCreations;
     QSet<QString> m_created;
@@ -93,6 +95,7 @@ private:
     bool command(QString type, const QString& id, QJsonObject values = {}, bool ownerOnly = false);
     void route(const DeepLinkDestination& destination);
     void activatePendingLink();
+    void showNotified(const QString& sessionId);
     void reset(bool clearLinks);
 };
 }

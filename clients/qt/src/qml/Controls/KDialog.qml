@@ -15,6 +15,15 @@ Dialog {
     onModalChanged: Models.DesktopState.setModalVisible(root, visible && modal)
     Component.onDestruction: Models.DesktopState.setModalVisible(root, false)
 
+    readonly property Connections dismissal: Connections {
+        target: Models.DesktopState
+
+        function onDialogsDismissed() {
+            if (root.visible && root.modal && (root.closePolicy & Popup.CloseOnEscape))
+                root.reject()
+        }
+    }
+
     modal: true
     padding: 22
     topPadding: 8

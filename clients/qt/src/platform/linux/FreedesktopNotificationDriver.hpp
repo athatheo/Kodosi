@@ -13,6 +13,7 @@ class FreedesktopNotificationDriver final : public DesktopNotificationDriver {
 
 public:
     explicit FreedesktopNotificationDriver(QObject* parent = nullptr);
+    ~FreedesktopNotificationDriver() override;
 
     void post(const DesktopNotification& notification) override;
     void withdraw(const QString& key) override;

@@ -16,17 +16,20 @@ namespace {
 namespace notifications = winrt::Windows::UI::Notifications;
 using winrt::Windows::Data::Xml::Dom::XmlDocument;
 
-constexpr wchar_t group[] = L"kodosi";
-
 winrt::hstring wide(const QString& text)
 {
     return { reinterpret_cast<const wchar_t*>(text.utf16()), static_cast<winrt::hstring::size_type>(text.size()) };
 }
 
-// Windows limits a toast tag to 64 characters.
-winrt::hstring tag(const QString& key)
+// Windows limits a toast tag and a toast group to 64 characters.
+winrt::hstring shortened(const QString& text)
 {
-    return wide(QString::fromLatin1(QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha256).toHex().left(32)));
+    return wide(QString::fromLatin1(QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Sha256).toHex().left(32)));
+}
+
+winrt::hstring group(const QString& computer)
+{
+    return shortened(computer.isEmpty() ? QStringLiteral("this computer") : computer);
 }
 
 XmlDocument content(const DesktopNotification& notification)
@@ -34,10 +37,16 @@ XmlDocument content(const DesktopNotification& notification)
     XmlDocument xml;
     xml.LoadXml(
         LR"(<toast activationType="protocol"><visual><binding template="ToastGeneric"><text/><text/></binding></visual></toast>)");
-    xml.DocumentElement().SetAttribute(L"launch", wide(DeepLinkRouter::url(notification.destination)));
+    xml.DocumentElement().SetAttribute(L"launch",
+        wide(DeepLinkRouter::url({ .sessionId = notification.sessionId, .notification = true })));
     const auto texts = xml.GetElementsByTagName(L"text");
     texts.Item(0).InnerText(wide(notification.title));
     texts.Item(1).InnerText(wide(notification.body));
+    if (!notification.interrupt) {
+        const auto audio = xml.CreateElement(L"audio");
+        audio.SetAttribute(L"silent", L"true");
+        xml.DocumentElement().AppendChild(audio);
+    }
     return xml;
 }
 
@@ -72,7 +81,7 @@ ToastNotificationDriver::~ToastNotificationDriver()
         m_relay->driver = nullptr;
     }
     try {
-        notifications::ToastNotificationManager::History().RemoveGroup(group);
+        notifications::ToastNotificationManager::History().Clear();
     } catch (const winrt::hresult_error&) {
     }
 }
@@ -84,18 +93,29 @@ void ToastNotificationDriver::post(const DesktopNotification& notification)
         return;
     }
     const auto key = notification.key;
+    if (const auto computer = m_computers.constFind(key);
+        computer != m_computers.cend() && computer.value() != notification.computer)
+        withdraw(key);
     try {
         notifications::ToastNotification toast(content(notification));
-        toast.Tag(tag(key));
-        toast.Group(group);
+        toast.Tag(shortened(key));
+        toast.Group(group(notification.computer));
+        toast.SuppressPopup(!notification.interrupt);
         toast.Dismissed([relay = m_relay, key](const auto&, const notifications::ToastDismissedEventArgs& args) {
             if (args.Reason() == notifications::ToastDismissalReason::UserCanceled)
-                relay->post([key](ToastNotificationDriver& driver) { emit driver.notificationClosed(key); });
+                relay->post([key](ToastNotificationDriver& driver) {
+                    driver.m_computers.remove(key);
+                    emit driver.notificationClosed(key);
+                });
         });
         toast.Failed([relay = m_relay, key](const auto&, const auto&) {
-            relay->post([key](ToastNotificationDriver& driver) { emit driver.notificationClosed(key); });
+            relay->post([key](ToastNotificationDriver& driver) {
+                driver.m_computers.remove(key);
+                emit driver.notificationClosed(key);
+            });
         });
         notifications::ToastNotificationManager::CreateToastNotifier().Show(toast);
+        m_computers.insert(key, notification.computer);
     } catch (const winrt::hresult_error&) {
         emit notificationClosed(key);
     }
@@ -103,10 +123,14 @@ void ToastNotificationDriver::post(const DesktopNotification& notification)
 
 void ToastNotificationDriver::withdraw(const QString& key)
 {
+    const auto computer = m_computers.find(key);
+    if (computer == m_computers.end())
+        return;
     try {
-        notifications::ToastNotificationManager::History().Remove(tag(key), group);
+        notifications::ToastNotificationManager::History().Remove(shortened(key), group(computer.value()));
     } catch (const winrt::hresult_error&) {
     }
+    m_computers.erase(computer);
 }
 
 }

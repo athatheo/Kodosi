@@ -12,6 +12,15 @@ private slots:
         QCOMPARE(parsed.destination->sessionId, QStringLiteral("0198aaaa-0000-7000-8000-00000000000b"));
         QCOMPARE(kodosi::DeepLinkRouter::parse(kodosi::DeepLinkRouter::url(*parsed.destination)).destination,
             parsed.destination);
+        QVERIFY(!parsed.destination->notification);
+    }
+    void aNotificationLinkSaysItCameFromANotification()
+    {
+        const kodosi::DeepLinkDestination notified { .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-00000000000b"),
+            .notification = true };
+        const auto parsed = kodosi::DeepLinkRouter::parse(kodosi::DeepLinkRouter::url(notified));
+        QCOMPARE(parsed.destination, std::optional(notified));
+        QVERIFY(!kodosi::DeepLinkRouter::parse(QStringLiteral("kodosi://notification/123")).destination);
     }
     void rejectsOtherDestinations_data()
     {

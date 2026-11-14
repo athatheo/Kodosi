@@ -84,6 +84,7 @@ public:
     bool modalOpen() const { return !m_modals.isEmpty(); }
     bool watching() const;
     Q_INVOKABLE void setModalVisible(QObject* modal, bool visible);
+    void dismissDialogs();
     Q_INVOKABLE void clearError();
     QStringList notedOutside() const { return m_notedOutside; }
     Q_INVOKABLE void noteOutside(const QString& id);
@@ -110,6 +111,7 @@ signals:
     void stageLayoutModeChanged();
     void lastErrorChanged();
     void modalOpenChanged();
+    void dialogsDismissed();
     void notedOutsideChanged();
     void launcherDraftChanged();
     void restored(const QStringList& sessionIds);

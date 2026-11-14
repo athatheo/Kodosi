@@ -67,6 +67,8 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void postsHandlesActionsAndWithdraws();
+    void replacesInPlaceQuietlyAndKeepsExpiredNotifications();
+    void closesItsNotificationsWhenKodosiQuits();
     void pendingPostsRemainBoundedAfterWithdrawal();
 
 private:
@@ -108,7 +110,9 @@ void FreedesktopNotificationDriverTest::postsHandlesActionsAndWithdraws()
         .key = QStringLiteral("request-identity"),
         .title = QStringLiteral("Bash <Session>"),
         .body = QStringLiteral("<b>plain text</b>"),
-        .destination = { .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-000000000001") },
+        .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-000000000001"),
+        .computer = {},
+        .interrupt = true,
     });
 
     QTRY_COMPARE(m_service.notifications.size(), 1);
@@ -134,6 +138,9 @@ void FreedesktopNotificationDriverTest::postsHandlesActionsAndWithdraws()
     QCOMPARE(
         notification.hints.value(QStringLiteral("desktop-entry")).toString(),
         QStringLiteral("com.kodosi.Kodosi"));
+    QCOMPARE(notification.hints.value(QStringLiteral("urgency")).value<uchar>(), uchar {1});
+    QVERIFY(!notification.hints.value(QStringLiteral("sound-name")).toString().isEmpty());
+    QVERIFY(!notification.hints.contains(QStringLiteral("suppress-sound")));
     QCOMPARE(notification.timeout, -1);
 
     QTest::qWait(20);
@@ -158,14 +165,64 @@ void FreedesktopNotificationDriverTest::postsHandlesActionsAndWithdraws()
     QTRY_COMPARE(m_service.closed, QVector<uint> {42});
 }
 
+void FreedesktopNotificationDriverTest::replacesInPlaceQuietlyAndKeepsExpiredNotifications()
+{
+    m_service.notifications.clear();
+    m_service.closed.clear();
+    kodosi::FreedesktopNotificationDriver driver;
+    QSignalSpy actions(&driver, &kodosi::DesktopNotificationDriver::actionInvoked);
+    QSignalSpy closed(&driver, &kodosi::DesktopNotificationDriver::notificationClosed);
+    const auto post = [&driver](bool interrupt) {
+        driver.post({ .key = QStringLiteral("terminal"), .title = QStringLiteral("Terminal"),
+            .body = QStringLiteral("Needs your approval"), .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-000000000001"),
+            .computer = {}, .interrupt = interrupt });
+    };
+    post(true);
+    QTRY_COMPARE(m_service.notifications.size(), 1);
+    QTest::qWait(20);
+    post(false);
+    QTRY_COMPARE(m_service.notifications.size(), 2);
+    const auto& quiet = m_service.notifications.constLast();
+    QCOMPARE(quiet.replacesId, uint {42});
+    QCOMPARE(quiet.hints.value(QStringLiteral("urgency")).value<uchar>(), uchar {0});
+    QCOMPARE(quiet.hints.value(QStringLiteral("suppress-sound")).toBool(), true);
+    QVERIFY(!quiet.hints.contains(QStringLiteral("sound-name")));
+    QTest::qWait(20);
+    QVERIFY(m_service.closed.isEmpty());
+
+    constexpr uint expired = 1;
+    emit m_service.NotificationClosed(42, expired);
+    emit m_service.ActionInvoked(42, QStringLiteral("default"));
+    QTRY_COMPARE(actions.size(), 1);
+    QCOMPARE(actions.constFirst().at(0).toString(), QStringLiteral("terminal"));
+    QVERIFY(closed.isEmpty());
+
+    driver.withdraw(QStringLiteral("terminal"));
+    QTRY_COMPARE(m_service.closed, QVector<uint> {42});
+}
+
+void FreedesktopNotificationDriverTest::closesItsNotificationsWhenKodosiQuits()
+{
+    m_service.closed.clear();
+    {
+        kodosi::FreedesktopNotificationDriver driver;
+        const auto count = m_service.notifications.size();
+        driver.post({ .key = QStringLiteral("terminal"), .title = QStringLiteral("Terminal"), .body = QStringLiteral("Done"),
+            .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-000000000001"), .computer = {}, .interrupt = false });
+        QTRY_COMPARE(m_service.notifications.size(), count + 1);
+        QTest::qWait(20);
+    }
+    QTRY_COMPARE(m_service.closed, QVector<uint> {42});
+}
+
 void FreedesktopNotificationDriverTest::pendingPostsRemainBoundedAfterWithdrawal()
 {
     kodosi::FreedesktopNotificationDriver driver;
     QSignalSpy closed(&driver, &kodosi::DesktopNotificationDriver::notificationClosed);
     for (int i = 0; i < 1000; ++i) {
         const auto key = QString::number(i);
-        driver.post({key, QStringLiteral("Terminal"), QStringLiteral("Complete"),
-            {QStringLiteral("0198aaaa-0000-7000-8000-000000000001")}});
+        driver.post({ .key = key, .title = QStringLiteral("Terminal"), .body = QStringLiteral("Complete"),
+            .sessionId = QStringLiteral("0198aaaa-0000-7000-8000-000000000001"), .computer = {}, .interrupt = false });
         driver.withdraw(key);
     }
     QCOMPARE(closed.count(), 968);

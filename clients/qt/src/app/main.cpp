@@ -269,21 +269,23 @@ int main(int argc, char* argv[])
     files.setTransientParent(window);
     desktop.attachWindow(window, windowSize);
     const auto open = [&](const kodosi::AppActivation& activation) {
+        const auto destination = activation.route ? activation.route->destination : std::nullopt;
+        if (destination && destination->notification) {
+            workspace.sessionActions().openNotified(destination->sessionId, activation.token);
+            return;
+        }
         desktop.bringToFront(activation.token);
         if (!activation.appVersion.isEmpty())
             lifecycle.offerRestart(activation.appVersion, QStringLiteral(KODOSI_VERSION));
         if (!activation.route)
             return;
-        if (activation.route->destination)
-            workspace.route(*activation.route->destination);
+        if (destination)
+            workspace.route(*destination);
         else
             workspace.setError(kodosi::DeepLinkRouter::userMessage(activation.route->error));
     };
     QObject::connect(&terminalNotifications, &kodosi::TerminalNotifications::sessionRequested, &app,
-        [&](const QString& id, const QString& token) {
-            if (workspace.sessionActions().activate(id))
-                desktop.bringToFront(token);
-        });
+        [&](const QString& id, const QString& token) { workspace.sessionActions().openNotified(id, token); });
     QObject::connect(&workspace, &kodosi::Workspace::showRequested, &app, [&](const QString& id) {
         if (workspace.sessionActions().activate(id))
             desktop.bringToFront();
