@@ -115,6 +115,8 @@
     <string name="members">Miembros</string>
     <string name="owner">Propietario</string>
     <string name="invite_friends">Invitar a amigos</string>
+    <string name="all_friends_here">Todos tus amigos están aquí.</string>
+    <string name="add_friends_to_invite">Añade amigos en Ajustes para invitarlos.</string>
     <string name="invite">Invitar</string>
     <string name="leave_project">Salir del proyecto</string>
     <string name="delete_project">Eliminar proyecto</string>
@@ -166,6 +168,7 @@
     <string name="share">Compartir</string>
     <string name="verify_identity">Verificar identidad</string>
     <string name="verified">Verificado</string>
+    <string name="invite_matches_identity">La invitación que te ha enviado %1$s coincide con esta identidad.</string>
     <string name="identity_changed">Su identidad ha cambiado</string>
     <string name="trust_identity">Confiar en esta identidad</string>
     <string name="verify_invite">Pega su invitación</string>

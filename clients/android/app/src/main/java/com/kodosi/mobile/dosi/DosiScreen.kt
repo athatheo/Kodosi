@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,12 +92,13 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
         model.dosi.see()
         onPauseOrDispose { visible = false }
     }
+    val rows = remember(state.items) { dosiRows(state.items) }
     LaunchedEffect(state.items.lastOrNull()?.id, state.busy, visible) {
         if (visible) model.dosi.see()
-        if (state.items.isNotEmpty() &&
-            (scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: Int.MAX_VALUE) >= state.items.size - 4
+        if (rows.isNotEmpty() &&
+            (scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: Int.MAX_VALUE) >= rows.size - 4
         ) {
-            scroll.scrollToItem(state.items.size)
+            scroll.scrollToItem(rows.size)
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -134,18 +136,20 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
                     )
                 }
             }
-            items(state.items, key = { it.id }) { item ->
-                DosiItemView(model, item, target)
-                state.snapshot?.asks?.firstOrNull { it.string("item") == item.id }?.let {
-                    Row {
-                        Text(
-                            stringResource(R.string.queued_message),
-                            style = KodosiType.footnote,
-                            modifier = Modifier.weight(1f)
-                        )
-                        KodosiTextButton(onClick = {
-                            model.dosi.takeBack(item.id)
-                        }) { Text(stringResource(R.string.take_back)) }
+            items(rows, key = { it.key }) { row ->
+                if (row.steps) DosiSteps(row, target) else DosiItemView(model, row.items.first(), target)
+                row.items.forEach { item ->
+                    state.snapshot?.asks?.firstOrNull { it.string("item") == item.id }?.let {
+                        Row {
+                            Text(
+                                stringResource(R.string.queued_message),
+                                style = KodosiType.footnote,
+                                modifier = Modifier.weight(1f)
+                            )
+                            KodosiTextButton(onClick = {
+                                model.dosi.takeBack(item.id)
+                            }) { Text(stringResource(R.string.take_back)) }
+                        }
                     }
                 }
             }
@@ -228,6 +232,53 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
     }
 }
 
+/** Several steps in a row fold into one line, as on the iPhone; a tap shows each of them. */
+@Composable
+private fun DosiSteps(row: DosiRow, open: (String, String) -> Unit) {
+    if (row.items.size == 1) {
+        DosiStep(row.items.first(), open)
+        return
+    }
+    var shown by remember(row.key) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        KodosiTextButton(
+            onClick = { shown = !shown },
+            modifier = Modifier.background(KodosiTheme.colors.sheet, RoundedCornerShape(50))
+        ) {
+            AppIcon(
+                if (row.items.any { it.body.string("status") == "running" }) AppSymbol.DOSI else AppSymbol.CHECK,
+                Modifier.size(12.dp)
+            )
+            Text(row.line, modifier = Modifier.padding(start = 7.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (shown) row.items.forEach { DosiStep(it, open) }
+    }
+}
+
+@Composable
+private fun DosiStep(item: DosiItem, open: (String, String) -> Unit) {
+    val body = item.body
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val target = body["target"] as? JsonObject
+        KodosiTextButton(onClick = {
+            target?.string("kind")?.let { targetKind ->
+                target.string("value")?.let { open(targetKind, it) }
+            }
+        }, modifier = Modifier.background(KodosiTheme.colors.sheet, RoundedCornerShape(50))) {
+            AppIcon(
+                if (body.string("status") == "running") AppSymbol.DOSI else AppSymbol.CHECK,
+                Modifier.size(12.dp)
+            )
+            Text(item.stepName, modifier = Modifier.padding(start = 7.dp))
+        }
+        body.string("output")?.takeIf { it.isNotBlank() }?.let { output ->
+            var expanded by remember { mutableStateOf(false) }
+            KodosiTextButton(onClick = { expanded = !expanded }) { Text(stringResource(R.string.result)) }
+            if (expanded) SelectableWords(output)
+        }
+    }
+}
+
 @Composable
 private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String) -> Unit) {
     val colors = KodosiTheme.colors
@@ -243,12 +294,13 @@ private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String)
                         colors.accentSoft,
                         RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomStart = 14.dp, bottomEnd = 4.dp)
                     )
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    markdown = true
                 )
             }
         }
 
-        "text", "note", "notice" -> body.string("text")?.let { SelectableWords(it) }
+        "text", "note", "notice" -> body.string("text")?.let { SelectableWords(it, markdown = true) }
 
         "reasoning" -> {
             var expanded by remember { mutableStateOf(false) }
@@ -258,28 +310,7 @@ private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String)
             }
         }
 
-        "tool" -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val target = body["target"] as? JsonObject
-            KodosiTextButton(onClick = {
-                target?.string("kind")?.let { targetKind ->
-                    target.string("value")?.let { open(targetKind, it) }
-                }
-            }, modifier = Modifier.background(colors.sheet, RoundedCornerShape(50))) {
-                AppIcon(
-                    if (body.string("status") == "running") AppSymbol.DOSI else AppSymbol.CHECK,
-                    Modifier.size(12.dp)
-                )
-                Text(
-                    body.string("text") ?: target?.string("value") ?: body.string("action").orEmpty(),
-                    modifier = Modifier.padding(start = 7.dp)
-                )
-            }
-            body.string("output")?.takeIf { it.isNotBlank() }?.let { output ->
-                var expanded by remember { mutableStateOf(false) }
-                KodosiTextButton(onClick = { expanded = !expanded }) { Text(stringResource(R.string.result)) }
-                if (expanded) SelectableWords(output)
-            }
-        }
+        "tool" -> DosiStep(item, open)
 
         "question" -> {
             val answered = body["answer"]?.toString()?.takeIf { it != "null" } != null

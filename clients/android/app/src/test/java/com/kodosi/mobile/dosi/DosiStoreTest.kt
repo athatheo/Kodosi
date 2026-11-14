@@ -12,6 +12,33 @@ class DosiStoreTest {
     private val store = DosiStore(SentCommands().sink)
 
     @Test
+    fun toolStepsThatFollowOneAnotherFoldIntoOneRow() {
+        fun item(id: String, kind: String, text: String? = null) = DosiItem(
+            id,
+            "turn",
+            0,
+            fields(
+                "kind" to kind,
+                "text" to text
+            )
+        )
+        val rows = dosiRows(
+            listOf(
+                item("a", "person"),
+                item("b", "tool", "checkout"),
+                item("c", "tool", "search filters"),
+                item("d", "tool", "release notes"),
+                item("e", "text"),
+                item("f", "tool", "checkout")
+            )
+        )
+        assertEquals(listOf("a", "b", "e", "f"), rows.map { it.key })
+        assertEquals(listOf(false, true, false, true), rows.map { it.steps })
+        assertEquals("checkout, search filters +1", rows[1].line)
+        assertEquals("checkout", rows[3].line)
+    }
+
+    @Test
     fun anAnswerReplacesItsQuestionInsteadOfLeavingADuplicateBadge() {
         val question = DosiItem("question", "turn", 0, fields("kind" to "question", "answer" to null))
         snapshot(listOf(question), "one")

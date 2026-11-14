@@ -123,6 +123,8 @@
     <string name="members">Members</string>
     <string name="owner">Owner</string>
     <string name="invite_friends">Invite friends</string>
+    <string name="all_friends_here">All your friends are here.</string>
+    <string name="add_friends_to_invite">Add friends in Settings to invite them.</string>
     <string name="invite">Invite</string>
     <string name="leave_project">Leave project</string>
     <string name="delete_project">Delete project</string>
@@ -174,6 +176,7 @@
     <string name="share">Share</string>
     <string name="verify_identity">Verify identity</string>
     <string name="verified">Verified</string>
+    <string name="invite_matches_identity">The invite that %1$s sent you matches this identity.</string>
     <string name="identity_changed">Their identity changed</string>
     <string name="trust_identity">Trust this identity</string>
     <string name="verify_invite">Paste their invite</string>
@@ -201,7 +204,7 @@
     <string name="approve_device_title">Approve this device?</string>
     <string name="remove_device_message">It disconnects. Approve it again to use it. Kodosi does not undo the commands that it already ran.</string>
     <string name="create_recovery_key">Make a recovery key</string>
-    <string name="recovery_message">Approves a new device when you have no other</string>
+    <string name="recovery_message">Approves a new device when you have no other device</string>
     <string name="keep_recovery_key">Keep this key somewhere safe. It is shown only once.</string>
     <string name="replace_recovery_key_message">The earlier recovery key stops working. Keep the new key somewhere safe.</string>
     <string name="start_fresh_wait">You can start fresh after %1$s. An approved device can stop this request.</string>
