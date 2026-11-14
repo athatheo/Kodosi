@@ -24,10 +24,7 @@ SessionActionsModel::SessionActionsModel(Workspace& workspace, SessionCatalogMod
 {
     connect(
         &sessions, &SessionCatalogModel::authoritativeSnapshotApplied, this, &SessionActionsModel::activatePendingLink);
-    connect(&sessions, &SessionCatalogModel::authoritativeSnapshotApplied, this, [this] {
-        if (const auto notified = std::exchange(m_notified, std::nullopt))
-            showNotified(*notified);
-    });
+    connect(&sessions, &SessionCatalogModel::authoritativeSnapshotApplied, this, &SessionActionsModel::showNotified);
     connect(&sessions, &SessionCatalogModel::sessionsHidden, this, [this](const QStringList& ids) {
         for (const auto& id : ids) minimize(id);
     });
@@ -84,6 +81,7 @@ bool SessionActionsModel::activate(const QString& id)
 
 bool SessionActionsModel::activateSession(const QString& id, bool inProject)
 {
+    m_notified.reset();
     const auto session = m_sessions.session(id);
     if (!session && m_workspace.account().signedIn()) {
         if (opening(id))
@@ -124,20 +122,27 @@ void SessionActionsModel::openNotified(const QString& id, const QString& activat
 {
     m_desktop.bringToFront(activationToken);
     m_desktop.dismissDialogs();
-    if (m_sessions.hasAuthoritativeSnapshot())
-        showNotified(id);
-    else
-        m_notified = id;
+    m_notified = NotifiedTerminal { .sessionId = id, .until = QDeadlineTimer(std::chrono::seconds(30)) };
+    showNotified();
 }
 
-void SessionActionsModel::showNotified(const QString& id)
+// After a crash or a forced end of Kodosi, its terminals come back a moment after the first list, under new IDs.
+void SessionActionsModel::showNotified()
 {
+    if (!m_notified || !m_sessions.hasAuthoritativeSnapshot())
+        return;
+    if (m_notified->until.hasExpired()) {
+        m_notified.reset();
+        return;
+    }
+    const auto id = m_notified->sessionId;
+    const bool listShown = std::exchange(m_notified->listShown, true);
     const auto open = [this](const std::optional<QString>& candidate) {
         const auto session = candidate ? m_sessions.session(*candidate) : std::nullopt;
         return session && session->connectionState != QStringLiteral("blocked")
             && session->status != QStringLiteral("closing") && activate(session->id);
     };
-    if (open(id) || open(m_sessions.ownRestart(id)))
+    if (open(id) || open(m_sessions.ownRestart(id)) || listShown)
         return;
     m_desktop.setActiveView(DesktopStateModel::Sessions);
     m_desktop.setSidebarOpen(true);
