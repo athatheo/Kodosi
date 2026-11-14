@@ -236,6 +236,7 @@
 "This account's identity is not the identity that was approved.": "Die Identität dieses Kontos ist nicht die freigegebene Identität.",
 "This code adds a new device. Scan it with the device that you want to add.": "Dieser Code fügt ein neues Gerät hinzu. Scanne ihn mit dem Gerät, das du hinzufügen möchtest.",
 "This code is from another account. Sign in to the same account on both devices.": "Dieser Code gehört zu einem anderen Konto. Melde dich auf beiden Geräten mit demselben Konto an.",
+"This computer cannot open more terminals. Close a terminal and try again.": "Dieser Computer kann keine weiteren Terminals öffnen. Schließe ein Terminal und versuche es erneut.",
 "This computer did not finish in time.": "Dieser Computer ist nicht rechtzeitig fertig geworden.",
 "This computer takes only the choices and the start of a new terminal from your other devices.": "Von deinen anderen Geräten nimmt dieser Computer nur Auswahlen und den Start neuer Terminals an.",
 "This device cannot start terminals.": "Dieses Gerät kann keine Terminals starten.",

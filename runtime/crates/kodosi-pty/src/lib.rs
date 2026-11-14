@@ -51,6 +51,8 @@ pub enum KodosiError {
     Io(#[from] std::io::Error),
     #[error("failed to spawn child process: {0}")]
     Spawn(String),
+    #[error("the computer has no free pseudo-terminal")]
+    NoFreePty,
 }
 
 pub use pty::{

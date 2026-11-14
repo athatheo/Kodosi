@@ -10,6 +10,7 @@ use std::{
 
 use crate::{KodosiError, Result};
 use nix::{
+    errno::Errno,
     fcntl::{FcntlArg, FdFlag, OFlag, fcntl},
     pty::{Winsize, openpty},
     sys::signal::{Signal, killpg},
@@ -140,7 +141,7 @@ impl KodosiPty {
 
         let openpty_result = {
             let _serial = OPEN_PTY.lock().unwrap_or_else(PoisonError::into_inner);
-            openpty(None, &None).map_err(|error| io::Error::from_raw_os_error(error as i32))?
+            openpty(None, &None).map_err(open_failure)?
         };
         let master_raw = openpty_result.master.as_raw_fd();
         let slave_raw = openpty_result.slave.as_raw_fd();
@@ -322,6 +323,21 @@ impl KodosiPty {
             }
             result => result,
         }
+    }
+}
+
+/// The answer of `/dev/ptmx` when every pseudo-terminal of the computer is in use: macOS stops at
+/// `kern.tty.ptmx_max`, Linux at `kernel.pty.max`.
+#[cfg(target_os = "macos")]
+const NO_FREE_PTY: Errno = Errno::ENXIO;
+#[cfg(not(target_os = "macos"))]
+const NO_FREE_PTY: Errno = Errno::ENOSPC;
+
+fn open_failure(error: Errno) -> KodosiError {
+    if error == NO_FREE_PTY {
+        KodosiError::NoFreePty
+    } else {
+        io::Error::from_raw_os_error(error as i32).into()
     }
 }
 

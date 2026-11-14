@@ -123,6 +123,9 @@ impl From<kodosi_pty::KodosiError> for Error {
         match error {
             kodosi_pty::KodosiError::Io(error) => Self::Io(error),
             error @ kodosi_pty::KodosiError::Spawn(_) => Self::Other(error.to_string()),
+            kodosi_pty::KodosiError::NoFreePty => Self::Text(text!(
+                "This computer cannot open more terminals. Close a terminal and try again."
+            )),
         }
     }
 }

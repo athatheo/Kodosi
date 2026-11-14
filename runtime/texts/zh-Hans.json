@@ -236,6 +236,7 @@
 "This account's identity is not the identity that was approved.": "此账号的身份不是已批准的身份。",
 "This code adds a new device. Scan it with the device that you want to add.": "此二维码用于添加新设备。请用要添加的设备扫描它。",
 "This code is from another account. Sign in to the same account on both devices.": "此二维码来自另一个账号。请在两台设备上登录同一个账号。",
+"This computer cannot open more terminals. Close a terminal and try again.": "这台电脑无法再打开更多终端。请关闭一个终端后重试。",
 "This computer did not finish in time.": "这台电脑未能及时完成操作。",
 "This computer takes only the choices and the start of a new terminal from your other devices.": "这台电脑只接受你其他设备发来的选择和新终端启动请求。",
 "This device cannot start terminals.": "此设备无法启动终端。",

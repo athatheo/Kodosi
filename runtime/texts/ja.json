@@ -236,6 +236,7 @@
 "This account's identity is not the identity that was approved.": "このアカウントの ID は、承認された ID と異なります。",
 "This code adds a new device. Scan it with the device that you want to add.": "このコードは新しいデバイスを追加するためのものです。追加したいデバイスでスキャンしてください。",
 "This code is from another account. Sign in to the same account on both devices.": "このコードは別のアカウントのものです。両方のデバイスで同じアカウントにサインインしてください。",
+"This computer cannot open more terminals. Close a terminal and try again.": "このコンピュータではこれ以上ターミナルを開けません。ターミナルを 1 つ閉じて、もう一度お試しください。",
 "This computer did not finish in time.": "このコンピュータで時間内に処理が完了しませんでした。",
 "This computer takes only the choices and the start of a new terminal from your other devices.": "ほかのデバイスからこのコンピュータで受け付けるのは、選択と新しいターミナルの起動だけです。",
 "This device cannot start terminals.": "このデバイスではターミナルを起動できません。",
