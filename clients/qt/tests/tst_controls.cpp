@@ -25,6 +25,7 @@ private slots:
     void modalControlsSuppressNativeTerminalAccessibility();
     void terminalCloseConfirmsAndMinimizeOnlyHidesView();
     void terminalTilesAskBeforeAClipboardReadOnlyInAnotherPersonsTerminal();
+    void agentMenuShowsChoicesThatNeverChanged();
     void clipboardReadAnswersOnceTheTerminalTakesInputAgain();
     void terminalLinkDialogAsksOrTellsWhyAndCopiesTheLink();
     void leavingTerminalsLeavesNoDeferredWork();
@@ -446,6 +447,88 @@ void ControlsTest::terminalTilesAskBeforeAClipboardReadOnlyInAnotherPersonsTermi
     QVERIFY(terminal(1) && terminal(2));
     QCOMPARE(terminal(1)->property("asksBeforeClipboardRead").toBool(), false);
     QCOMPARE(terminal(2)->property("asksBeforeClipboardRead").toBool(), true);
+}
+
+void ControlsTest::agentMenuShowsChoicesThatNeverChanged()
+{
+    class Commands final : public kodosi::CommandDispatcher {
+    public:
+        Result send(QByteArrayView) override { return {}; }
+    } commands;
+    QTemporaryDir directory;
+    const auto ini = [&directory](const char* name) {
+        return std::make_unique<QSettings>(directory.filePath(QLatin1String(name)), QSettings::IniFormat);
+    };
+    kodosi::AppearanceModel appearance(ini("appearance.ini"),
+        { [] { return Qt::ColorScheme::Dark; }, [](Qt::ColorScheme) {}, [] {} });
+    kodosi::DesktopStateModel desktop(ini("desktop.ini"));
+    kodosi::DesktopSettings settings(ini("settings.ini"));
+    kodosi::SessionCatalogModel sessions;
+    desktop.attachSessionCatalog(&sessions);
+    kodosi::Workspace workspace(commands, sessions, desktop, settings);
+    kodosi::AgentLauncherModel launcher(commands);
+    kodosi::TerminalSessionRegistry registry;
+    kodosi::RuntimeBridge runtime;
+    kodosi::TerminalSurfaceController surfaces(registry, runtime, sessions);
+    kodosi::qml::AppearanceModelForeign::instance = &appearance;
+    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
+    kodosi::qml::DesktopSettingsForeign::instance = &settings;
+    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
+    kodosi::qml::AppStateForeign::instance = &workspace;
+    kodosi::qml::AccountModelForeign::instance = &workspace.account();
+    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
+    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
+    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
+    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
+    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
+    kodosi::qml::AgentLauncherModelForeign::instance = &launcher;
+    kodosi::qml::TerminalSurfaceControllerForeign::instance = &surfaces;
+    kodosi::CanvasModel canvas(commands, sessions);
+    kodosi::qml::CanvasModelForeign::instance = &canvas;
+    const auto running = [](const QString& program, QJsonArray livePermissions, QJsonObject chosen) {
+        auto entry = test::session(1);
+        entry.insert(QStringLiteral("program"), program);
+        entry.insert(QStringLiteral("programLive"),
+            QJsonObject { { QStringLiteral("model"), true }, { QStringLiteral("effort"), true },
+                { QStringLiteral("keeps"), false }, { QStringLiteral("permissions"), livePermissions } });
+        entry.insert(QStringLiteral("programSettings"), chosen);
+        return entry;
+    };
+    workspace.apply(test::snapshot({ running(QStringLiteral("claude"), {},
+                        { { QStringLiteral("output"), QStringLiteral("standard") } }) }),
+        0);
+    QQmlEngine engine;
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import Kodosi 1.0
+        ApplicationWindow {
+            width: 720; height: 480; visible: true
+            TerminalTile {
+                anchors.fill: parent
+                sessionId: "0198aaaa-0000-7000-8000-000000000001"
+            }
+        }
+    )", {});
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    std::unique_ptr<QObject> root(component.create());
+    QVERIFY2(root, qPrintable(component.errorString()));
+    const auto hint = [&root](const char* choice) {
+        auto* menu = root->findChild<QObject*>(
+            QStringLiteral("stage.tile.") + test::id(1) + QStringLiteral(".agent.") + QLatin1String(choice));
+        return menu ? menu->property("hint").toString() : QStringLiteral("no menu");
+    };
+    QCOMPARE(hint("model"), QStringLiteral("Default"));
+    QCOMPARE(hint("output"), QStringLiteral("Standard"));
+
+    workspace.apply(test::snapshot({ running(QStringLiteral("codex"), { QStringLiteral("ask"), QStringLiteral("auto") },
+                        { { QStringLiteral("permissions"), QStringLiteral("auto") },
+                            { QStringLiteral("output"), QStringLiteral("detailed") } }) }),
+        0);
+    QCOMPARE(hint("model"), QStringLiteral("Default"));
+    QCOMPARE(hint("permissions"), QStringLiteral("Auto"));
+    QCOMPARE(hint("output"), QStringLiteral("Detailed"));
 }
 
 void ControlsTest::terminalCloseConfirmsAndMinimizeOnlyHidesView()
