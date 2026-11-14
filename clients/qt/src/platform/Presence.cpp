@@ -36,9 +36,8 @@ PresenceDecision decidePresence(const PresenceFacts& facts, const std::chrono::m
     if (facts.away)
         return { .state = Presence::Away, .next = std::nullopt };
     if (facts.system) {
-        if (facts.system->quiet)
-            return { .state = Presence::Idle, .next = std::nullopt };
-        return { .state = facts.active ? Presence::Kodosi : Presence::Here, .next = facts.system->quietIn };
+        const auto state = facts.system->quiet ? Presence::Idle : facts.active ? Presence::Kodosi : Presence::Here;
+        return { .state = state, .next = facts.system->readAgainIn };
     }
     if (facts.active && facts.kodosiInputAge < awayTime)
         return { .state = Presence::Kodosi, .next = awayTime - facts.kodosiInputAge };
@@ -54,8 +53,7 @@ PresenceReporter::PresenceReporter(CommandDispatcher& commands, PresenceSource& 
     connect(&m_next, &QTimer::timeout, this, &PresenceReporter::decide);
     connect(&m_source, &PresenceSource::changed, this, &PresenceReporter::decide);
     m_kodosiInput.start();
-    if (!m_source.reportsInput())
-        QCoreApplication::instance()->installEventFilter(this);
+    QCoreApplication::instance()->installEventFilter(this);
 }
 
 void PresenceReporter::apply(const QJsonObject& event)

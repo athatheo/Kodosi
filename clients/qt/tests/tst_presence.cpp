@@ -75,7 +75,8 @@ private slots:
     void decidesFromTheFacts_data();
     void decidesFromTheFacts();
     void reportsAfterEachReadyAndThenOnlyChanges();
-    void asksTheSystemAgainWhenItsInputCanBecomeQuiet();
+    void readsTheSystemAgainWhenItSaysSo();
+    void inputIntoKodosiDecidesAtOnce();
     void withoutSystemInputOnlyInputIntoKodosiCounts();
 };
 
@@ -83,9 +84,10 @@ void PresenceTest::decidesFromTheFacts_data()
 {
     QTest::addColumn<kodosi::PresenceFacts>("facts");
     QTest::addColumn<kodosi::PresenceDecision>("decision");
-    const Input recent { .quiet = false, .quietIn = 40s };
-    const Input signalled { .quiet = false, .quietIn = std::nullopt };
-    const Input quiet { .quiet = true, .quietIn = std::nullopt };
+    const Input recent { .quiet = false, .readAgainIn = 40s };
+    const Input signalled { .quiet = false, .readAgainIn = std::nullopt };
+    const Input quiet { .quiet = true, .readAgainIn = std::nullopt };
+    const Input quietRead { .quiet = true, .readAgainIn = 10s };
     QTest::newRow("locked")
         << kodosi::PresenceFacts { .active = true, .away = true, .system = recent, .kodosiInputAge = 0s }
         << kodosi::PresenceDecision { .state = Presence::Away, .next = std::nullopt };
@@ -100,6 +102,9 @@ void PresenceTest::decidesFromTheFacts_data()
     QTest::newRow("no input for the away time")
         << kodosi::PresenceFacts { .active = true, .away = false, .system = quiet, .kodosiInputAge = 0s }
         << kodosi::PresenceDecision { .state = Presence::Idle, .next = std::nullopt };
+    QTest::newRow("no input for the away time, read again")
+        << kodosi::PresenceFacts { .active = false, .away = false, .system = quietRead, .kodosiInputAge = 900s }
+        << kodosi::PresenceDecision { .state = Presence::Idle, .next = 10s };
     QTest::newRow("only Kodosi's input, recent")
         << kodosi::PresenceFacts { .active = true, .away = false, .system = std::nullopt, .kodosiInputAge = 60s }
         << kodosi::PresenceDecision { .state = Presence::Kodosi, .next = 120s };
@@ -125,7 +130,7 @@ void PresenceTest::reportsAfterEachReadyAndThenOnlyChanges()
 {
     Commands commands;
     Source source(true);
-    source.given = { .quiet = false, .quietIn = std::nullopt };
+    source.given = { .quiet = false, .readAgainIn = std::nullopt };
     kodosi::PresenceReporter reporter(commands, source);
     source.tell();
     reporter.setActive(true);
@@ -159,16 +164,31 @@ void PresenceTest::reportsAfterEachReadyAndThenOnlyChanges()
     QCOMPARE(commands.sent.size(), 5);
 }
 
-void PresenceTest::asksTheSystemAgainWhenItsInputCanBecomeQuiet()
+void PresenceTest::readsTheSystemAgainWhenItSaysSo()
 {
     Commands commands;
     Source source(true);
-    source.given = { .quiet = false, .quietIn = 30ms };
+    source.given = { .quiet = false, .readAgainIn = 30ms };
     kodosi::PresenceReporter reporter(commands, source);
     reporter.apply(ready(180));
     QCOMPARE(commands.states(), QStringList { QStringLiteral("here") });
-    source.given = { .quiet = true, .quietIn = std::nullopt };
+    source.given = { .quiet = true, .readAgainIn = 30ms };
     QTRY_COMPARE(commands.states(), QStringList({ QStringLiteral("here"), QStringLiteral("idle") }));
+    source.given = { .quiet = false, .readAgainIn = 1h };
+    QTRY_COMPARE(commands.states(), QStringList({ QStringLiteral("here"), QStringLiteral("idle"), QStringLiteral("here") }));
+}
+
+void PresenceTest::inputIntoKodosiDecidesAtOnce()
+{
+    Commands commands;
+    Source source(true);
+    source.given = { .quiet = true, .readAgainIn = 1h };
+    kodosi::PresenceReporter reporter(commands, source);
+    reporter.apply(ready(180));
+    QCOMPARE(commands.states(), QStringList { QStringLiteral("idle") });
+    source.given = { .quiet = false, .readAgainIn = 1h };
+    press();
+    QCOMPARE(commands.states(), QStringList({ QStringLiteral("idle"), QStringLiteral("here") }));
 }
 
 void PresenceTest::withoutSystemInputOnlyInputIntoKodosiCounts()

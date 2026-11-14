@@ -19,7 +19,7 @@ public:
     ~LinuxPresenceSource() override;
 
     [[nodiscard]] bool reportsInput() const override { return m_idle != nullptr; }
-    [[nodiscard]] Input input() override { return { .quiet = m_quiet, .quietIn = std::nullopt }; }
+    [[nodiscard]] Input input() override { return { .quiet = m_quiet, .readAgainIn = std::nullopt }; }
     [[nodiscard]] bool away() const override { return m_locked || m_sleeping; }
     void setAwayTime(std::chrono::milliseconds time) override;
 

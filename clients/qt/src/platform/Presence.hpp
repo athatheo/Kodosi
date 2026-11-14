@@ -24,9 +24,8 @@ public:
     struct Input {
         // No input on this computer for the away time.
         bool quiet = false;
-        // For a source that does not signal by itself when the input becomes quiet: the time until
-        // it is quiet if no input comes.
-        std::optional<std::chrono::milliseconds> quietIn;
+        // For a source that does not signal a change of `quiet` by itself: when to read it again.
+        std::optional<std::chrono::milliseconds> readAgainIn;
     };
 
     using QObject::QObject;

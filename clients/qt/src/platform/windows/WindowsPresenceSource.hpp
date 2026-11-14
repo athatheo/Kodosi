@@ -15,7 +15,7 @@ public:
 
     [[nodiscard]] bool reportsInput() const override { return true; }
     [[nodiscard]] Input input() override;
-    [[nodiscard]] bool away() const override { return m_locked || m_displayOff || m_sleeping; }
+    [[nodiscard]] bool away() const override { return m_locked || m_disconnected || m_displayOff || m_sleeping; }
     void setAwayTime(std::chrono::milliseconds time) override;
 
     // Called by the window procedure of the hidden window that receives the session and power notices.
@@ -26,11 +26,10 @@ private:
     void* m_displayNotices = nullptr;
     std::chrono::milliseconds m_awayTime {};
     bool m_locked = false;
+    bool m_disconnected = false;
     bool m_displayOff = false;
     bool m_sleeping = false;
-    bool m_watchingInput = false;
 
-    void watchInput(bool watch);
     void set(bool& fact, bool value);
 };
 
