@@ -54,7 +54,7 @@ internal static class TerminalAccess
     public static async Task RevokeAsync(KodosiDbContext db, ConnectionDirectory connections, IReadOnlyCollection<Session> sessions,
         CancellationToken ct, Func<Guid, string, bool>? keepDevice = null)
     {
-        foreach (var session in sessions.Where(x => x.Ended)) connections.RemoveSession(session.Id);
+        foreach (var session in sessions.Where(x => x.Ended)) connections.RemoveSession(session.Id, session.OwnerUserId);
         var live = sessions.Where(x => !x.Ended).Select(x => x.Id).ToArray();
         if (live.Length == 0) return;
         var people = await PeopleAsync(db, live, ct);

@@ -51,29 +51,24 @@ internal sealed class Fcm(FcmSettings settings, IHttpClientFactory http, TimePro
         }
     }
 
-    internal static byte[] Payload(string token, PushNotice notice)
+    internal static byte[] Payload(string token, PushNotice notice) => PushJson.Written(json =>
     {
-        var status = notice.Status;
-        return PushJson.Written(json =>
-        {
-            json.WriteStartObject();
-            json.WriteStartObject("message");
-            json.WriteString("token", token);
-            json.WriteStartObject("data");
-            json.WriteString("terminal", notice.TerminalId);
-            if (status.Program is { } agent) json.WriteString("agent", agent);
-            json.WriteString("state", status.State);
-            if (status.Kind is { } kind) json.WriteString("kind", kind);
-            json.WriteEndObject();
-            json.WriteStartObject("android");
-            json.WriteString("priority", status.State == "blocked" ? "HIGH" : "NORMAL");
-            json.WriteString("collapse_key", notice.TerminalId);
-            json.WriteString("ttl", "3600s");
-            json.WriteEndObject();
-            json.WriteEndObject();
-            json.WriteEndObject();
-        });
-    }
+        var alert = notice.Alert;
+        json.WriteStartObject();
+        json.WriteStartObject("message");
+        json.WriteString("token", token);
+        json.WriteStartObject("data");
+        json.WriteString("pushed", string.Join(' ', notice.Pushed.Select(pushed =>
+            $"{pushed.TerminalId}:{pushed.Status.Program}:{pushed.Status.State}:{pushed.Status.Kind}:{(alert is { Sound: true } && alert.TerminalId == pushed.TerminalId ? "1" : "0")}")));
+        json.WriteEndObject();
+        json.WriteStartObject("android");
+        json.WriteString("priority", alert?.Status.State == "blocked" ? "HIGH" : "NORMAL");
+        json.WriteString("collapse_key", "pushed");
+        json.WriteString("ttl", "3600s");
+        json.WriteEndObject();
+        json.WriteEndObject();
+        json.WriteEndObject();
+    });
 
     private async Task<string> AccessAsync(HttpClient client, CancellationToken ct)
     {

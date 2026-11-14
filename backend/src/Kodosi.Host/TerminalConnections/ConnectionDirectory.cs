@@ -20,6 +20,7 @@ public sealed class ConnectionDirectory
 
     internal event Action<Guid>? HostChanged;
     internal event Action<TerminalReport>? Reported;
+    internal event Action<Guid>? PersonAway;
 
     public ConnectionDirectory(TimeProvider clock) : this(clock, RelayBudget.ServerBytes) { }
 
@@ -43,6 +44,17 @@ public sealed class ConnectionDirectory
                 ? devices.Values.Where(entry => entry.Connection.IsOpen)
                     .Sum(entry => entry.Hosted.Count(sessionId => hosted[sessionId].Status?.State == "blocked"))
                 : 0;
+    }
+
+    internal IReadOnlyList<(Guid SessionId, TerminalStatus Status)> WithAttention(Guid userId)
+    {
+        lock (sync)
+            return accounts.TryGetValue(userId, out var devices)
+                ? devices.Values.Where(entry => entry.Connection.IsOpen)
+                    .SelectMany(entry => entry.Hosted.Select(sessionId => (SessionId: sessionId, hosted[sessionId].Status)))
+                    .Where(terminal => terminal.Status is { Attention: true })
+                    .Select(terminal => (terminal.SessionId, terminal.Status!)).ToList()
+                : [];
     }
 
     internal bool Away(Guid userId)
@@ -116,32 +128,38 @@ public sealed class ConnectionDirectory
 
     internal void Present(DeviceConnection connection, Presence presence)
     {
+        var afterUnlock = new AfterUnlock();
         lock (sync)
         {
             if (!entries.TryGetValue(connection, out var entry)) return;
+            var away = AwayLocked(connection.UserId);
             entry.Presence = presence;
             entry.Renewed = clock.GetUtcNow();
             if (presence == Presence.Away) present.Remove(entry);
             else present.Add(entry);
-            TellPresenceLocked(connection.UserId);
+            PresenceChangedLocked(connection.UserId, away, afterUnlock);
         }
+        afterUnlock.Apply(this);
     }
 
     internal void ExpirePresence()
     {
+        var afterUnlock = new AfterUnlock();
         lock (sync)
         {
             var now = clock.GetUtcNow();
             foreach (var person in present.Where(entry => now - entry.Renewed >= PresenceLease).GroupBy(entry => entry.Connection.UserId).ToArray())
             {
+                var away = AwayLocked(person.Key);
                 foreach (var entry in person)
                 {
                     entry.Presence = Presence.Away;
                     present.Remove(entry);
                 }
-                TellPresenceLocked(person.Key);
+                PresenceChangedLocked(person.Key, away, afterUnlock);
             }
         }
+        afterUnlock.Apply(this);
     }
 
     internal void Remove(DeviceConnection connection)
@@ -171,8 +189,9 @@ public sealed class ConnectionDirectory
             {
                 if (live.Host == entry && live.IncarnationId == session.IncarnationId) return;
                 EndPipesLocked(live.Pipes, 409, "This terminal was replaced.", afterUnlock);
+                if (live.Status is not null) afterUnlock.Reports.Add(new TerminalReport(session.Id, live.Host.Connection.UserId, null));
                 live.Host.Hosted.Remove(session.Id);
-                live.Host = entry; live.IncarnationId = session.IncarnationId; live.Status = null; live.Reported = false;
+                live.Host = entry; live.IncarnationId = session.IncarnationId; live.Status = null;
             }
             else
             {
@@ -187,33 +206,33 @@ public sealed class ConnectionDirectory
 
     internal void Share(DeviceConnection connection, Guid sessionId, Guid incarnationId, TerminalStatus? status)
     {
-        TerminalReport report;
         lock (sync)
         {
-            if (!hosted.TryGetValue(sessionId, out var live) || live.Host.Connection != connection || live.IncarnationId != incarnationId) return;
-            var first = !live.Reported;
-            live.Reported = true;
-            if (live.Status == status) return;
-            report = new TerminalReport(sessionId, connection.UserId, live.Status, status, first);
+            if (!hosted.TryGetValue(sessionId, out var live) || live.Host.Connection != connection || live.IncarnationId != incarnationId
+                || live.Status == status)
+                return;
             live.Status = status;
         }
         HostChanged?.Invoke(sessionId);
-        Reported?.Invoke(report);
+        Reported?.Invoke(new TerminalReport(sessionId, connection.UserId, status));
     }
 
     internal void Unhost(DeviceConnection connection, Guid sessionId)
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (hosted.TryGetValue(sessionId, out var live) && live.Host.Connection == connection) RemoveHostedLocked(sessionId, live, afterUnlock);
+            if (hosted.TryGetValue(sessionId, out var live) && live.Host.Connection == connection) RemoveHostedLocked(sessionId, live, afterUnlock, ended: true);
         afterUnlock.Apply(this);
     }
 
-    public void RemoveSession(Guid sessionId)
+    public void RemoveSession(Guid sessionId, Guid ownerId)
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (hosted.TryGetValue(sessionId, out var live)) RemoveHostedLocked(sessionId, live, afterUnlock);
+        {
+            if (hosted.TryGetValue(sessionId, out var live)) RemoveHostedLocked(sessionId, live, afterUnlock, ended: true);
+            else afterUnlock.Reports.Add(new TerminalReport(sessionId, ownerId, null));
+        }
         afterUnlock.Apply(this);
     }
 
@@ -327,7 +346,8 @@ public sealed class ConnectionDirectory
     private void DetachLocked(Entry entry, AfterUnlock afterUnlock)
     {
         var connection = entry.Connection;
-        foreach (var sessionId in entry.Hosted.ToArray()) RemoveHostedLocked(sessionId, hosted[sessionId], afterUnlock, 409, "The terminal's computer is offline.");
+        var away = AwayLocked(connection.UserId);
+        foreach (var sessionId in entry.Hosted.ToArray()) RemoveHostedLocked(sessionId, hosted[sessionId], afterUnlock, ended: false);
         foreach (var pipe in entry.Pipes.Select(id => pipes[id]).ToArray())
             if (RemovePipeLocked(pipe))
             {
@@ -342,12 +362,18 @@ public sealed class ConnectionDirectory
             if (devices.Count == 0) accounts.Remove(connection.UserId);
         }
         if (entry.Ready && connection.Hosts) TellHostsLocked(connection.UserId);
-        TellPresenceLocked(connection.UserId);
+        PresenceChangedLocked(connection.UserId, away, afterUnlock);
         afterUnlock.Aborted.Add(connection);
     }
 
     private bool AwayLocked(Guid userId) =>
         !accounts.TryGetValue(userId, out var devices) || devices.Values.All(entry => entry.Presence == Presence.Away);
+
+    private void PresenceChangedLocked(Guid userId, bool wasAway, AfterUnlock afterUnlock)
+    {
+        TellPresenceLocked(userId);
+        if (!wasAway && AwayLocked(userId)) afterUnlock.Away.Add(userId);
+    }
 
     private void TellPresenceLocked(Guid userId)
     {
@@ -371,12 +397,17 @@ public sealed class ConnectionDirectory
         foreach (var entry in ready.Where(x => only is null || x.Connection == only)) entry.Connection.Send(notice);
     }
 
-    private void RemoveHostedLocked(Guid sessionId, Hosted live, AfterUnlock afterUnlock, int status = 404, string message = "This terminal is no longer available.")
+    private void RemoveHostedLocked(Guid sessionId, Hosted live, AfterUnlock afterUnlock, bool ended)
     {
         hosted.Remove(sessionId);
         live.Host.Hosted.Remove(sessionId);
-        EndPipesLocked(live.Pipes, status, message, afterUnlock);
         afterUnlock.Changed.Add(sessionId);
+        if (ended)
+        {
+            EndPipesLocked(live.Pipes, 404, "This terminal is no longer available.", afterUnlock);
+            afterUnlock.Reports.Add(new TerminalReport(sessionId, live.Host.Connection.UserId, null));
+        }
+        else EndPipesLocked(live.Pipes, 409, "The terminal's computer is offline.", afterUnlock);
     }
 
     private void EndPipesLocked(IEnumerable<Guid> ids, int status, string message, AfterUnlock afterUnlock)
@@ -420,7 +451,6 @@ public sealed class ConnectionDirectory
         public Guid IncarnationId { get; set; } = incarnationId;
         public Entry Host { get; set; } = host;
         public TerminalStatus? Status { get; set; }
-        public bool Reported { get; set; }
         public HashSet<Guid> Pipes { get; } = [];
     }
 
@@ -429,6 +459,8 @@ public sealed class ConnectionDirectory
         public List<(Pipe Pipe, int Status, string Message, DeviceConnection? Silent)> Pipes { get; } = [];
         public List<DeviceConnection> Aborted { get; } = [];
         public List<Guid> Changed { get; } = [];
+        public List<TerminalReport> Reports { get; } = [];
+        public List<Guid> Away { get; } = [];
 
         public void Apply(ConnectionDirectory directory)
         {
@@ -440,6 +472,8 @@ public sealed class ConnectionDirectory
                 if (pipe.Host != silent && pipe.Host != pipe.Viewer) pipe.Host.Send(closed);
             }
             foreach (var sessionId in Changed) directory.HostChanged?.Invoke(sessionId);
+            foreach (var report in Reports) directory.Reported?.Invoke(report);
+            foreach (var userId in Away) directory.PersonAway?.Invoke(userId);
         }
     }
 }

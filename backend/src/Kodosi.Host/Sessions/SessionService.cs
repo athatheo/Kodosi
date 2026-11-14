@@ -190,7 +190,7 @@ public sealed class SessionService(KodosiDbContext db, ConnectionDirectory conne
         if (session.Ended) return;
         End(session, clock.GetUtcNow());
         await db.SaveChangesAsync(ct);
-        connections.RemoveSession(id);
+        connections.RemoveSession(id, session.OwnerUserId);
         connections.Notify(await TerminalAccess.PeopleAsync(db, id, ct), "sessions");
     }
 

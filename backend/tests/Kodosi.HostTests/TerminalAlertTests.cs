@@ -8,114 +8,195 @@ namespace Kodosi.HostTests;
 
 public sealed class TerminalAlertTests
 {
-    private readonly ConnectionDirectory directory = new(TimeProvider.System);
     private readonly ManualClock clock = new();
+    private readonly ConnectionDirectory directory;
     private readonly TerminalAlerts alerts;
     private readonly Guid owner = Guid.CreateVersion7();
 
     public TerminalAlertTests()
     {
+        directory = new ConnectionDirectory(clock);
         alerts = new TerminalAlerts(directory, clock, NullLogger<TerminalAlerts>.Instance);
-        directory.Reported += alerts.Observe;
+        alerts.Follow();
     }
 
-    private DeviceConnection Connect()
+    private DeviceConnection Connect(string device, bool hosts = false)
     {
-        var host = new DeviceConnection(new FakeSocket(), owner, "computer", directory.Relays, TimeProvider.System, hosts: true);
-        directory.Register(host);
-        return host;
+        var connection = new DeviceConnection(new FakeSocket(), owner, device, directory.Relays, clock, hosts);
+        directory.Register(connection);
+        directory.Ready(connection);
+        return connection;
     }
 
-    private Session Hosted(DeviceConnection host)
+    private Session Hosted(DeviceConnection host, Session? terminal = null)
     {
-        var terminal = new Session { Id = Guid.CreateVersion7(), IncarnationId = Guid.CreateVersion7() };
+        terminal ??= new Session { Id = Guid.CreateVersion7(), IncarnationId = Guid.CreateVersion7() };
         directory.Host(host, terminal);
         return terminal;
     }
 
-    private void Report(DeviceConnection host, Session terminal, string state, string? kind = null) =>
-        directory.Share(host, terminal.Id, terminal.IncarnationId, new TerminalStatus("claude", state, kind, 1));
+    private void Report(DeviceConnection host, Session terminal, string state, bool attention = true, string? kind = null) =>
+        directory.Share(host, terminal.Id, terminal.IncarnationId, new TerminalStatus("claude", state, kind, 1, attention ? true : null));
+
+    private List<PushNotice> After(TimeSpan time)
+    {
+        clock.Advance(time);
+        return alerts.Take();
+    }
+
+    private static PushAlert Alert(List<PushNotice> notices) => Assert.Single(notices).Alert!;
+
+    private static Guid[] Withdrawn(List<PushNotice> notices)
+    {
+        var notice = Assert.Single(notices);
+        Assert.Null(notice.Alert);
+        return [.. notice.Pushed.Select(x => x.TerminalId)];
+    }
 
     [Fact]
-    public async Task AChangeIntoWaitingIsSentFifteenSecondsLaterWithTheNewestStatus()
+    public async Task AStatusThatTheOwnerDidNotSeeIsPushedTenSecondsLaterOnlyWhileTheOwnerIsAway()
     {
-        await using var host = Connect();
-        var terminal = Hosted(host); var other = Hosted(host);
-        Report(host, other, "blocked");
-        Report(host, terminal, "working");
-        Report(host, terminal, "blocked", "permission");
-        clock.Advance(TerminalAlerts.Delay - TimeSpan.FromSeconds(1));
-        Assert.Empty(alerts.TakeDue());
-        Report(host, terminal, "blocked", "question");
+        await using var computer = Connect("computer", hosts: true);
+        var terminal = Hosted(computer);
+        directory.Present(computer, Presence.Kodosi);
+        Report(computer, terminal, "done");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        directory.Present(computer, Presence.Here);
+        Report(computer, terminal, "error");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        directory.Present(computer, Presence.Away);
+        Assert.Empty(alerts.Take());
+
+        Report(computer, terminal, "blocked", kind: "permission");
+        Assert.Empty(After(TerminalAlerts.Delay - TimeSpan.FromSeconds(1)));
+        Report(computer, terminal, "blocked", kind: "question");
+        Assert.Empty(After(TimeSpan.FromSeconds(1)));
+        var notice = Assert.Single(After(TerminalAlerts.Delay));
+        Assert.Equal(owner, notice.OwnerId);
+        Assert.Equal(new PushAlert(terminal.Id, new TerminalStatus("claude", "blocked", "question", 1, true), Sound: true, Blocked: 1), notice.Alert);
+        Assert.Equal([terminal.Id], notice.Pushed.Select(x => x.TerminalId));
+        Assert.Empty(After(TerminalAlerts.Delay));
+    }
+
+    [Fact]
+    public async Task TheWaitsThatTheOwnerDidNotSeeArePushedWhenTheOwnerLeaves()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        var waiting = Hosted(computer); var seen = Hosted(computer); var finished = Hosted(computer); var failed = Hosted(computer);
+        directory.Present(computer, Presence.Kodosi);
+        Report(computer, waiting, "blocked", kind: "permission");
+        Report(computer, seen, "blocked", attention: false);
+        Report(computer, finished, "done");
+        Report(computer, failed, "error");
+        Assert.Empty(After(TerminalAlerts.Delay));
+
+        directory.Present(computer, Presence.Away);
+        Assert.Equal(new PushAlert(waiting.Id, new TerminalStatus("claude", "blocked", "permission", 1, true), Sound: true, Blocked: 2),
+            Alert(alerts.Take()));
+        directory.Present(computer, Presence.Kodosi);
+        directory.Present(computer, Presence.Away);
+        Assert.Empty(After(TerminalAlerts.Delay));
+    }
+
+    [Fact]
+    public async Task ADeviceIsAwayWhenItDoesNotRenewItsPresenceOrItsConnectionEnds()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        var phone = Connect("phone");
+        var first = Hosted(computer);
+        directory.Present(phone, Presence.Kodosi);
+        Report(computer, first, "blocked");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        clock.Advance(ConnectionDirectory.PresenceLease - TerminalAlerts.Delay - TimeSpan.FromSeconds(1));
+        directory.ExpirePresence();
+        Assert.Empty(alerts.Take());
         clock.Advance(TimeSpan.FromSeconds(1));
-        var notice = Assert.Single(alerts.TakeDue());
-        Assert.Equal((terminal.Id, owner, 2), (notice.TerminalId, notice.OwnerId, notice.Blocked));
-        Assert.Equal(new TerminalStatus("claude", "blocked", "question", 1), notice.Status);
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Empty(alerts.TakeDue());
+        directory.ExpirePresence();
+        Assert.Equal(first.Id, Alert(alerts.Take()).TerminalId);
+
+        directory.Present(phone, Presence.Kodosi);
+        var second = Hosted(computer);
+        Report(computer, second, "blocked");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        directory.Remove(phone);
+        await phone.DisposeAsync();
+        var notice = Assert.Single(alerts.Take());
+        Assert.Equal(second.Id, notice.Alert!.TerminalId);
+        Assert.Equal([second.Id, first.Id], notice.Pushed.Select(x => x.TerminalId));
     }
 
     [Fact]
-    public async Task OnlyTheNewestStateCountsAndAChangeAwayOrAnEndDropsIt()
+    public async Task AHostThatConnectsAgainWithTheSameStatusIsNotPushedAgain()
     {
-        await using var host = Connect();
-        var terminal = Hosted(host);
-        Report(host, terminal, "working");
-        Report(host, terminal, "blocked");
-        clock.Advance(TimeSpan.FromSeconds(10));
-        Report(host, terminal, "done");
-        clock.Advance(TimeSpan.FromSeconds(5));
-        Assert.Empty(alerts.TakeDue());
-        clock.Advance(TimeSpan.FromSeconds(10));
-        Assert.Equal("done", Assert.Single(alerts.TakeDue()).Status.State);
+        var computer = Connect("computer", hosts: true);
+        var terminal = Hosted(computer);
+        Report(computer, terminal, "blocked");
+        Assert.Equal(terminal.Id, Alert(After(TerminalAlerts.Delay)).TerminalId);
+        directory.Remove(computer);
+        await computer.DisposeAsync();
+        Assert.Empty(After(TerminalAlerts.Delay));
 
-        Report(host, terminal, "error");
-        clock.Advance(TimeSpan.FromSeconds(5));
-        Report(host, terminal, "working");
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Empty(alerts.TakeDue());
-
-        Report(host, terminal, "blocked");
-        directory.Unhost(host, terminal.Id);
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Empty(alerts.TakeDue());
+        await using var again = Connect("computer", hosts: true);
+        Hosted(again, terminal);
+        Report(again, terminal, "blocked");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        Report(again, terminal, "done");
+        Assert.Empty(Withdrawn(alerts.Take()));
+        Assert.Equal("done", Alert(After(TerminalAlerts.Delay)).Status.State);
     }
 
     [Fact]
-    public async Task TheFirstStatusThatAHostReportsAfterItConnectsSendsNothing()
+    public async Task APushIsWithdrawnWhenItsTerminalIsSeenChangesOrEndsButNotWhenItsHostDisconnects()
     {
-        var first = Connect();
-        var terminal = Hosted(first);
-        Report(first, terminal, "blocked");
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Empty(alerts.TakeDue());
+        var computer = Connect("computer", hosts: true);
+        var seen = Hosted(computer); var changed = Hosted(computer); var closed = Hosted(computer); var ended = Hosted(computer);
+        foreach (var terminal in new[] { seen, changed, closed, ended })
+        {
+            Report(computer, terminal, "blocked");
+            Assert.Equal(terminal.Id, Alert(After(TerminalAlerts.Delay)).TerminalId);
+        }
 
-        directory.Remove(first);
-        await first.DisposeAsync();
-        await using var again = Connect();
-        directory.Host(again, terminal);
-        Report(again, terminal, "error");
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Empty(alerts.TakeDue());
-        Report(again, terminal, "working");
-        Report(again, terminal, "error");
-        clock.Advance(TerminalAlerts.Delay);
-        Assert.Equal("error", Assert.Single(alerts.TakeDue()).Status.State);
+        Report(computer, seen, "blocked", attention: false);
+        Assert.Equal([ended.Id, closed.Id, changed.Id], Withdrawn(alerts.Take()));
+        Report(computer, changed, "working", attention: false);
+        Assert.Equal([ended.Id, closed.Id], Withdrawn(alerts.Take()));
+        directory.Unhost(computer, closed.Id);
+        Assert.Equal([ended.Id], Withdrawn(alerts.Take()));
+        directory.Remove(computer);
+        await computer.DisposeAsync();
+        Assert.Empty(alerts.Take());
+        directory.RemoveSession(ended.Id, owner);
+        Assert.Empty(Withdrawn(alerts.Take()));
     }
 
     [Fact]
-    public async Task APersonGetsAtMostAHundredAndTwentyPushesAnHour()
+    public async Task OnlyAWaitHasASoundAndAPersonHearsAtMostOneEachThirtySeconds()
     {
-        await using var host = Connect();
-        var terminal = Hosted(host);
-        Report(host, terminal, "working");
+        await using var computer = Connect("computer", hosts: true);
+        var finished = Hosted(computer); var first = Hosted(computer); var second = Hosted(computer); var third = Hosted(computer);
+        Report(computer, finished, "done");
+        Assert.False(Alert(After(TerminalAlerts.Delay)).Sound);
+        Report(computer, first, "blocked");
+        Assert.True(Alert(After(TerminalAlerts.Delay)).Sound);
+        clock.Advance(TerminalAlerts.SoundSpacing - TerminalAlerts.Delay - TimeSpan.FromSeconds(1));
+        Report(computer, second, "blocked");
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Report(computer, third, "blocked");
+        Assert.False(Alert(After(TerminalAlerts.Delay - TimeSpan.FromSeconds(1))).Sound);
+        Assert.True(Alert(After(TimeSpan.FromSeconds(1))).Sound);
+    }
+
+    [Fact]
+    public async Task APersonGetsAtMostAHundredAndTwentyPushesAnHourAndWithdrawalsDoNotCount()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        var terminal = Hosted(computer);
         int Wait()
         {
-            Report(host, terminal, "blocked");
-            clock.Advance(TerminalAlerts.Delay);
-            var sent = alerts.TakeDue().Count;
-            Report(host, terminal, "working");
-            return sent;
+            Report(computer, terminal, "blocked");
+            var pushed = After(TerminalAlerts.Delay).Count(x => x.Alert is not null);
+            Report(computer, terminal, "working", attention: false);
+            return pushed;
         }
         Assert.Equal(TerminalAlerts.MostEachHour, Enumerable.Range(0, TerminalAlerts.MostEachHour).Sum(_ => Wait()));
         Assert.Equal(0, Wait());

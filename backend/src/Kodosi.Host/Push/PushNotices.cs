@@ -1,30 +1,30 @@
 using System.Threading.Channels;
-using Kodosi.TerminalConnections;
 
 namespace Kodosi.Push;
 
-internal sealed partial class PushNotices(ConnectionDirectory directory, TerminalAlerts alerts, PushDelivery delivery, PushSettings settings,
-    TimeProvider clock, ILogger<PushNotices> logger) : BackgroundService
+internal sealed partial class PushNotices(TerminalAlerts alerts, PushDelivery delivery, PushSettings settings, TimeProvider clock,
+    ILogger<PushNotices> logger) : BackgroundService
 {
     private const int MostQueued = 1024;
     private const int MostSending = 8;
     private static readonly TimeSpan Tick = TimeSpan.FromSeconds(1);
-    private readonly Channel<PushNotice> queued = Channel.CreateBounded<PushNotice>(new BoundedChannelOptions(MostQueued) { SingleWriter = true });
+    private readonly Channel<PushNotice>[] lanes = [.. Enumerable.Range(0, MostSending).Select(_ => Channel.CreateBounded<PushNotice>(
+        new BoundedChannelOptions(MostQueued / MostSending) { SingleReader = true, SingleWriter = true }))];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!settings.Sends) return;
-        directory.Reported += alerts.Observe;
+        alerts.Follow();
         try
         {
-            await Task.WhenAll(QueueAsync(stoppingToken), SendAsync(stoppingToken));
+            await Task.WhenAll([QueueAsync(stoppingToken), .. lanes.Select(lane => SendAsync(lane, stoppingToken))]);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
         }
         finally
         {
-            directory.Reported -= alerts.Observe;
+            alerts.Unfollow();
         }
     }
 
@@ -32,24 +32,31 @@ internal sealed partial class PushNotices(ConnectionDirectory directory, Termina
     {
         using var timer = new PeriodicTimer(Tick, clock);
         while (await timer.WaitForNextTickAsync(ct))
-            foreach (var notice in alerts.TakeDue())
-                if (!queued.Writer.TryWrite(notice)) Dropped(logger);
+        {
+            foreach (var notice in alerts.Take()) Queue(notice);
+            foreach (var (ownerId, deviceId) in delivery.Released()) Queue(new PushNotice(ownerId, alerts.PushedOf(ownerId), DeviceId: deviceId));
+        }
     }
 
-    private Task SendAsync(CancellationToken ct) =>
-        Parallel.ForEachAsync(queued.Reader.ReadAllAsync(ct), new ParallelOptions { MaxDegreeOfParallelism = MostSending, CancellationToken = ct },
-            async (notice, token) =>
+    // Each notice carries the whole list of a person's pushes, so the notices of one person go out in order and the newest list arrives last.
+    private void Queue(PushNotice notice)
+    {
+        if (!lanes[(uint)notice.OwnerId.GetHashCode() % MostSending].Writer.TryWrite(notice)) Dropped(logger);
+    }
+
+    private async Task SendAsync(Channel<PushNotice> lane, CancellationToken ct)
+    {
+        await foreach (var notice in lane.Reader.ReadAllAsync(ct))
+            try
             {
-                try
-                {
-                    await delivery.DeliverAsync(notice, token);
-                }
-                catch (Exception error) when (!token.IsCancellationRequested)
-                {
-                    if (Failures.IsDatabaseUnavailable(error)) Unreachable(logger, Failures.Describe(error));
-                    else Failed(logger, error);
-                }
-            });
+                await delivery.DeliverAsync(notice, ct);
+            }
+            catch (Exception error) when (!ct.IsCancellationRequested)
+            {
+                if (Failures.IsDatabaseUnavailable(error)) Unreachable(logger, Failures.Describe(error));
+                else Failed(logger, error);
+            }
+    }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "A push notification was dropped, because too many wait to be sent")]
     private static partial void Dropped(ILogger logger);
