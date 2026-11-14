@@ -9,7 +9,8 @@ Install `just`, Python 3 and the toolchains of the part you change.
 [rust-toolchain.toml](../rust-toolchain.toml) pins Rust and
 [backend/global.json](../backend/global.json) pins .NET; put that .NET SDK in
 `backend/.tools/dotnet/`. `just rust-tools-install` puts the Rust check tools in
-`.tools/rust/`. Keep every tool and dependency inside the project. The
+`.tools/rust/`. The Keycloak extension of the sign-in builds with Maven in Docker, with its
+downloads in `.tools/maven/`. Keep every tool and dependency inside the project. The
 [Mac](../clients/macos/README.md), [Linux and Windows](../clients/qt/README.md),
 [iOS](../clients/ios/README.md) and [Android](../clients/android/README.md) guides list the
 native prerequisites; on Windows run the recipes in Git Bash. The apps need Bun for the
@@ -37,7 +38,7 @@ Run these from the repository root; `just --list` shows the rest.
 | `just windows-rust-lint` | Lint the runtime for Windows in Docker, from any host |
 | `just ios-build`, `just ios-check` | Build or check the iPhone and iPad app |
 | `just android-build`, `just android-check` | Build or check the Android app |
-| `just sign-in-check` | Check and build the sign-in pages |
+| `just sign-in-check` | Check and build the sign-in pages, and build and test their Keycloak extension (needs Docker) |
 | `just translations-check` | Check that each text has its words in each language |
 
 `gitleaks git`, run by hand, looks for secrets in the Git history and skips the reviewed
