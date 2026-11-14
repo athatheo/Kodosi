@@ -95,8 +95,9 @@ El icono de cada terminal muestra lo que hace su programa.
 
 La marca de verificación y la advertencia desaparecen cuando abres el terminal en cualquiera
 de tus dispositivos. Cuando uno de tus terminales empieza a esperar, termina o falla, Kodosi
-te avisa una vez, donde estés. En Kodosi, ves la señal. En tu ordenador, en otra app,
-recibes allí una notificación. Lejos de tus ordenadores, la recibes en tu teléfono. Solo un
+te avisa donde estés. En Kodosi, ves la señal. En tu ordenador, en otra app, recibes allí
+una notificación. Lejos de tus ordenadores, la recibes en tu teléfono. Un terminal que aún
+te espera cuando te alejas de tu ordenador te avisa entonces en tu teléfono. Solo un
 terminal que espera emite un sonido. Los programas indican su estado con el
 [Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status) o con
 una barra de progreso. Un programa que no indica nada no muestra estado.
