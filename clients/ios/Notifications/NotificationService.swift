@@ -29,7 +29,14 @@ final class NotificationService: UNNotificationServiceExtension {
         let center = UNUserNotificationCenter.current()
         center.getDeliveredNotifications { delivered in
             center.removeDeliveredNotifications(withIdentifiers: pushed.withdrawn(from: delivered.map(\.request)))
-            deliver(content)
+            // A push has a badge only while a terminal waits: a badge of 0 in a push takes every
+            // notification of the app away.
+            if content.badge == nil {
+                center.setBadgeCount(0)
+            }
+            // The system can stop the extension when it has the content, so the content goes
+            // after one more answer of the notification center, which comes after the removal.
+            center.getDeliveredNotifications { _ in deliver(content) }
         }
     }
 }

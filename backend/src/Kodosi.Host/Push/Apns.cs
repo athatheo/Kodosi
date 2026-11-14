@@ -105,7 +105,8 @@ internal sealed class Apns(ApnsSettings settings, IHttpClientFactory http, TimeP
         json.WriteString("interruption-level", state == "blocked" ? "active" : "passive");
         json.WritePropertyName("relevance-score");
         json.WriteRawValue(state switch { "blocked" => "1.0", "error" => "0.6", _ => "0.3" });
-        json.WriteNumber("badge", alert.Blocked);
+        // A badge of 0 takes every notification of the app off the phone, the new one too.
+        if (alert.Blocked > 0) json.WriteNumber("badge", alert.Blocked);
     }
 
     private static (string Key, string? Agent) Alert(TerminalStatus status)

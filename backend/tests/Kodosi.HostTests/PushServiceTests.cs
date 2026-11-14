@@ -65,7 +65,7 @@ public sealed class PushServiceTests
             """{"aps":{"alert":{"loc-key":"%@ asks for permission","loc-args":["Claude Code"]},"sound":"default","mutable-content":1,"interruption-level":"active","relevance-score":1.0,"badge":2},"kodosi":{"terminal":"0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","agent":"claude","state":"blocked","kind":"permission","pushed":["0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0e"]}}""",
             blocked.Body);
         Assert.Equal(
-            """{"aps":{"alert":{"loc-key":"A terminal finished"},"mutable-content":1,"interruption-level":"passive","relevance-score":0.3,"badge":0},"kodosi":{"terminal":"0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","agent":"aider","state":"done","kind":null,"pushed":["0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0e"]}}""",
+            """{"aps":{"alert":{"loc-key":"A terminal finished"},"mutable-content":1,"interruption-level":"passive","relevance-score":0.3},"kodosi":{"terminal":"0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","agent":"aider","state":"done","kind":null,"pushed":["0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0e"]}}""",
             done.Body);
         Assert.Equal(
             """{"aps":{"alert":{"loc-key":"%@ failed","loc-args":["Codex"]},"mutable-content":1,"interruption-level":"passive","relevance-score":0.6,"badge":1},"kodosi":{"terminal":"0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","agent":"codex","state":"error","kind":null,"pushed":["0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d","0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0e"]}}""",
