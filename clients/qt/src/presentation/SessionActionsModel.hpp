@@ -3,6 +3,7 @@
 #include "app/DeepLinkRouter.hpp"
 #include "presentation/TerminalTypeAhead.hpp"
 
+#include <QDeadlineTimer>
 #include <QJsonObject>
 #include <QHash>
 #include <QList>
@@ -74,7 +75,12 @@ private:
     DesktopStateModel& m_desktop;
     DesktopSettings& m_settings;
     std::optional<DeepLinkDestination> m_activeLink;
-    std::optional<QString> m_notified;
+    struct NotifiedTerminal {
+        QString sessionId;
+        QDeadlineTimer until;
+        bool listShown = false;
+    };
+    std::optional<NotifiedTerminal> m_notified;
     QList<DeepLinkDestination> m_links;
     QHash<QString, QString> m_projectCreations;
     QSet<QString> m_created;
@@ -95,7 +101,7 @@ private:
     bool command(QString type, const QString& id, QJsonObject values = {}, bool ownerOnly = false);
     void route(const DeepLinkDestination& destination);
     void activatePendingLink();
-    void showNotified(const QString& sessionId);
+    void showNotified();
     void reset(bool clearLinks);
 };
 }

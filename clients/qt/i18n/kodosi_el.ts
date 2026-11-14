@@ -2038,6 +2038,14 @@
         <translation>Τα τερματικά σας συνεχίζουν να τρέχουν. Ανοίξτε ξανά το Kodosi για να τα δείτε.</translation>
     </message>
     <message>
+        <source>Notifications</source>
+        <translation>Ειδοποιήσεις</translation>
+    </message>
+    <message>
+        <source>When a terminal waits for you, finishes or fails</source>
+        <translation>Όταν ένα τερματικό σας περιμένει, τελειώνει ή αποτυγχάνει</translation>
+    </message>
+    <message>
         <source>Open the canvas by itself</source>
         <translation>Αυτόματο άνοιγμα του canvas</translation>
     </message>

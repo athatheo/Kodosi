@@ -1491,6 +1491,38 @@ private slots:
         QVERIFY(f.desktop.lastError().isEmpty());
         QVERIFY(!opened(f.commands, test::id(8)) && !opened(f.commands, test::id(7)));
     }
+    void aNotificationOfAnEndedKodosiWaitsForItsTerminalToStartAgain()
+    {
+        Fixture f;
+        const auto again = [](int number, int from) {
+            auto entry = test::session(number);
+            entry.insert(QStringLiteral("restoredFrom"), test::id(from));
+            return entry;
+        };
+        f.workspace.apply(accountEvent(test::id(50), 1), 1);
+        f.desktop.setActiveView(kodosi::DesktopStateModel::Settings);
+        f.desktop.setSidebarOpen(false);
+        f.workspace.sessionActions().openNotified(test::id(9), {});
+        f.workspace.apply(test::snapshot({ test::session(1) }), 1);
+        QCOMPARE(f.desktop.activeView(), kodosi::DesktopStateModel::Sessions);
+        QVERIFY(f.desktop.sidebarOpen());
+        QVERIFY(f.desktop.stagedSessionIds().isEmpty());
+        f.workspace.apply(test::snapshot({ test::session(1), again(2, 9) }), 1);
+        QCOMPARE(f.desktop.selectedSessionId(), test::id(2));
+        QVERIFY(f.desktop.selectSession(test::id(1)));
+        f.workspace.apply(test::snapshot({ test::session(1), again(2, 9) }), 1);
+        QCOMPARE(f.desktop.selectedSessionId(), test::id(1));
+
+        f.workspace.sessionActions().openNotified(test::id(8), {});
+        QVERIFY(f.workspace.sessionActions().activate(test::id(2)));
+        f.workspace.apply(test::snapshot({ test::session(1), again(2, 9), again(3, 8) }), 1);
+        QCOMPARE(f.desktop.selectedSessionId(), test::id(2));
+
+        f.workspace.sessionActions().openNotified(test::id(7), {});
+        f.workspace.apply(accountEvent({}, 1), 1);
+        f.workspace.apply(test::snapshot({ again(4, 7) }), 1);
+        QVERIFY(!f.desktop.stagedSessionIds().contains(test::id(4)));
+    }
     void aTerminalThatAnotherComputerStartedAgainTakesThePlaceAndFocusOfTheOneThatEnded()
     {
         Fixture f;

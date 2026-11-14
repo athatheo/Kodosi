@@ -200,6 +200,25 @@ ColumnLayout {
             }
         }
         ListRow {
+            iconName: "bell"
+            tint: "#cf6a62"
+            title: qsTr("Notifications")
+            subtitle: qsTr("When a terminal waits for you, finishes or fails")
+
+            KSwitch {
+                Accessible.id: objectName
+                Accessible.name: qsTr("Notifications")
+                checked: Models.DesktopSettings.notifies
+                objectName: "settings.notifies"
+
+                onToggled: {
+                    const wanted = checked;
+                    checked = Qt.binding(() => Models.DesktopSettings.notifies);
+                    Models.DesktopSettings.notifies = wanted;
+                }
+            }
+        }
+        ListRow {
             iconName: "canvas"
             tint: "#d98a5f"
             title: qsTr("Open the canvas by itself")

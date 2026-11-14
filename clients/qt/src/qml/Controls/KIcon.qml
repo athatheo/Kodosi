@@ -91,6 +91,7 @@ Item {
         case "document": return "M6 3 H14 L19 8 V21 H6 Z M14 3 V8 H19 M9 11.5 H13 M9 15 H16 M9 18 H16"
         case "sheet": return "M4 5 H20 V19 H4 Z M4 9.5 H20 M4 14 H20 M9.5 5 V19"
         case "presentation": return "M3 4.5 H21 M4.5 4.5 V15.5 H19.5 V4.5 M12 15.5 V20 M8.5 20 H15.5"
+        case "bell": return "M12 3 V5 M6 16.5 V11 A6 6 0 0 1 18 11 V16.5 L19.5 18 H4.5 Z M10 20.5 A2 2 0 0 0 14 20.5"
         case "globe": return "M12 3.5 A8.5 8.5 0 1 0 12 20.5 A8.5 8.5 0 1 0 12 3.5 M3.5 12 H20.5 M12 3.5 Q7 12 12 20.5 M12 3.5 Q17 12 12 20.5"
         case "save": return "M12 4 V15 M7.5 10.5 L12 15 L16.5 10.5 M5 14 V19 H19 V14"
         case "open": return "M14 4 H20 V10 M20 4 L11 13 M18 14 V19 H5 V6 H10"
