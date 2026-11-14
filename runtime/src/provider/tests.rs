@@ -605,10 +605,14 @@ fn sub_agent(parent: u128) -> serde_json::Value {
 #[cfg(unix)]
 #[test]
 fn the_codex_conversation_of_a_process_group_is_the_rollout_that_it_wrote_last() {
+    use std::{
+        io::{BufRead as _, BufReader},
+        os::unix::process::CommandExt as _,
+        process::{Command, Stdio},
+    };
     let home = tempfile::tempdir().unwrap();
     let root = home.path().join(".codex-work");
     let directory = workspace(home.path());
-    let group = kodosi_pty::process_group(std::process::id()).unwrap();
     let day = "2026/11/08";
     let shown = codex_rollout(&root, day, 1, &directory, &serde_json::json!({}));
     let helper = codex_rollout(&root, day, 2, &directory, &sub_agent(1));
@@ -616,13 +620,34 @@ fn the_codex_conversation_of_a_process_group_is_the_rollout_that_it_wrote_last()
     for (rollout, seconds) in [(&shown, 10), (&helper, 30), (&other, 40)] {
         touch(rollout, seconds);
     }
+    // Other tests start processes at the same time, and such a process holds a copy of each open
+    // file of the test process until it starts its program. So a process in a group of its own
+    // holds the rollouts.
+    let mut holder = Command::new("/bin/sh")
+        .args([
+            "-c",
+            r#"echo READY; read line; exec 3<"$1" 4<"$2"; echo HOLDS; read line"#,
+            "sh",
+        ])
+        .args([&shown, &helper])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .process_group(0)
+        .spawn()
+        .unwrap();
+    let group = holder.id();
+    let mut said = BufReader::new(holder.stdout.take().unwrap()).lines();
+    let mut answers = holder.stdin.take().unwrap();
+    assert_eq!(said.next().unwrap().unwrap(), "READY");
     assert_eq!(codex::conversation(&root, group, Some(&directory)), None);
-    let held = [&shown, &helper].map(|rollout| File::open(rollout).unwrap());
+    writeln!(answers).unwrap();
+    assert_eq!(said.next().unwrap().unwrap(), "HOLDS");
     assert_eq!(
         codex::conversation(&root, group, Some(&directory)),
         Some(id(1))
     );
-    drop(held);
+    drop(answers);
+    holder.wait().unwrap();
 }
 
 #[test]
