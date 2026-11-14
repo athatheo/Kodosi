@@ -101,11 +101,13 @@ Die Markierung jedes Terminals zeigt, was sein Programm tut.
 
 Haken und Warnzeichen verschwinden, wenn du das Terminal auf irgendeinem deiner Geräte
 öffnest. Wenn eines deiner Terminals zu warten beginnt, fertig wird oder fehlschlägt,
-sagt Kodosi es dir dort, wo du bist. In Kodosi bekommst du das Zeichen. Bist du an
-deinem Computer in einer anderen App, bekommst du dort eine Mitteilung. Bist du nicht
-an deinen Computern, bekommst du sie auf deinem Telefon. Ein Terminal, das noch auf
+sagt Kodosi es dir einmal, auf dem Gerät, das du nutzt. In Kodosi bekommst du das Zeichen.
+Bist du an deinem Computer in einer anderen App, bekommst du dort eine Mitteilung. Nutzt du
+keinen deiner Computer, bekommst du sie auf deinem Telefon. Ein Terminal, das noch auf
 dich wartet, wenn du deinen Computer verlässt, sagt es dir dann auf deinem Telefon. Nur
-ein Terminal, das wartet, gibt einen Ton aus. Programme melden ihren Zustand über das
+ein Terminal, das wartet, gibt einen Ton aus. Um die Mitteilungen eines Geräts
+auszuschalten, öffne auf diesem Gerät die Einstellungen in Kodosi. Programme melden ihren
+Zustand über das
 [Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status) oder
 einen Fortschrittsbalken. Ein Programm, das nichts meldet, zeigt keinen Zustand.
 

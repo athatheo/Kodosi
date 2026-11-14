@@ -38,8 +38,8 @@
 
 Claude Code, Codex et d'autres agents de code s'arrêtent et vous attendent. Kodosi réunit les
 terminaux de tous vos ordinateurs dans une fenêtre, et chacun indique si son agent travaille,
-attend votre réponse, a terminé ou a échoué. Une notification vous prévient quand vous n'êtes
-pas là, y compris sur votre téléphone. Vos agents tournent tels quels, avec leurs propres
+attend votre réponse, a terminé ou a échoué. Une notification vous prévient sur l'appareil que
+vous utilisez, y compris sur votre téléphone. Vos agents tournent tels quels, avec leurs propres
 réglages et connexions.
 
 ### Demandez ce qui a besoin de vous

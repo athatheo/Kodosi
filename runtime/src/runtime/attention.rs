@@ -271,8 +271,8 @@ impl Attention {
         self.clients.insert(client, Client { presence, lifetime });
     }
 
-    /// A client that never says where its person is, such as an attached command, is a person
-    /// at the terminal.
+    /// A client that never says how its person uses the device, such as an attached command,
+    /// has a person who looks at the terminal.
     pub(super) fn looks(&self, client: &Uuid) -> bool {
         self.clients
             .get(client)
@@ -325,7 +325,7 @@ impl Attention {
     }
 
     /// A device that lost its connection hears nothing about the others, and that is no change
-    /// of where the person is.
+    /// of the devices that the person uses.
     pub(super) fn lose_elsewhere(&mut self) {
         self.elsewhere = Elsewhere::default();
         self.present = self.person_present();
@@ -336,7 +336,8 @@ impl Attention {
         self.listed = None;
     }
 
-    /// A wait that its person saw and did not answer follows the person who leaves.
+    /// A wait that its person saw and did not answer tells the person again when the person
+    /// stops using every device.
     pub(super) fn mark_seen_waits(&mut self, watched: &BTreeSet<String>) -> bool {
         let mut marked = false;
         for (id, kept) in &mut self.kept {

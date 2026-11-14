@@ -66,8 +66,8 @@ confidential client with only a service account and the `realm-management` role
 ## Push notifications
 
 The backend sends a push notification to a person's iPhone, iPad and Android devices when
-one of their terminals starts to wait, finishes or fails while the person is away from
-all their devices. Without these settings it sends none. Set those of Apple, of Google or both. Apple delivers only to the apps of the team
+one of their terminals starts to wait, finishes or fails while the person uses none of
+their devices. Without these settings it sends none. Set those of Apple, of Google or both. Apple delivers only to the apps of the team
 that owns the key, and Google only to the apps of the Firebase project:
 
 | Variable | Value |

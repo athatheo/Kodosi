@@ -42,11 +42,12 @@ Kodosi-Updates trägt und der Download den SHA-256 hat, den der Feed angibt.
 Der Dienst sieht Konto- und Gerätedaten, Projektmitgliedschaften, Metadaten von Projekten und
 Terminals, den Agent und den Zustand jedes Terminals (etwa arbeitet oder wartet auf eine
 Freigabe, nie seinen Text) und ob du diesen Zustand schon gesehen hast, Routing-Felder,
-Zeitpunkte und die Größen der Chiffretexte. Er sieht auch für jedes deiner Geräte, ob du in
-Kodosi bist, an diesem Computer in einer anderen App oder weg, damit eine Benachrichtigung nur
-dorthin geht, wo du bist. Push-Benachrichtigungen an dein iPhone, iPad oder Android-Gerät
-laufen über den Push-Dienst von Apple oder Google, der die IDs deiner Terminals, die warten,
-fertig oder fehlgeschlagen sind, ihre Agents und ihre Zustände sieht, nie Namen oder Text.
+Zeitpunkte und die Größen der Chiffretexte. Er sieht auch für jedes deiner Geräte, ob du
+Kodosi darauf nutzt, an diesem Computer eine andere App nutzt oder das Gerät nicht nutzt,
+damit eine Mitteilung nur an ein Gerät geht, das du nutzt. Push-Benachrichtigungen an dein
+iPhone, iPad oder Android-Gerät laufen über den Push-Dienst von Apple oder Google, der die IDs
+deiner Terminals, die warten, fertig oder fehlgeschlagen sind, ihre Agents und ihre Zustände
+sieht, nie Namen oder Text.
 Verschlüsselung verbirgt diese Metadaten nicht und verhindert keinen Ausfall. Ein Gerät, das du
 entfernst, verliert ab dann den Zugriff. Nachdem du ein verlorenes oder gestohlenes Gerät
 entfernt hast, erstelle einen neuen Wiederherstellungsschlüssel, um dieses Gerät draußen zu

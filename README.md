@@ -38,8 +38,8 @@
 
 Claude Code, Codex and other coding agents stop and wait for you. Kodosi keeps the terminals
 of all your computers in one window, and each one shows whether its agent works, waits for
-your answer, is done or failed. A notification reaches you when you are away, also on your
-phone. Your agents run as they are, with their own settings and sign-in.
+your answer, is done or failed. A notification reaches you on the device that you use, also
+on your phone. Your agents run as they are, with their own settings and sign-in.
 
 ### Ask what needs you
 

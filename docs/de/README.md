@@ -38,8 +38,8 @@
 
 Claude Code, Codex und andere Coding-Agents bleiben stehen und warten auf dich. Kodosi hält die
 Terminals all deiner Computer in einem Fenster, und jedes zeigt, ob sein Agent arbeitet, auf
-deine Antwort wartet, fertig ist oder fehlgeschlagen ist. Eine Mitteilung erreicht dich, wenn du
-weg bist, auch auf deinem Telefon. Deine Agents laufen unverändert, mit ihren eigenen
+deine Antwort wartet, fertig ist oder fehlgeschlagen ist. Eine Mitteilung erreicht dich auf dem
+Gerät, das du nutzt, auch auf deinem Telefon. Deine Agents laufen unverändert, mit ihren eigenen
 Einstellungen und Anmeldungen.
 
 ### Frag, wo du gebraucht wirst

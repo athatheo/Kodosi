@@ -416,7 +416,7 @@ pub enum Command {
         session_ids: Vec<String>,
         watching: bool,
     },
-    /// Each app sends it on each change of where its person is.
+    /// Each app sends it on each change of how its person uses the device.
     #[serde(rename = "app.presence")]
     Presence {
         #[serde(rename = "requestId")]
