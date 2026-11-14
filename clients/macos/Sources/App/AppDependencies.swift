@@ -53,6 +53,9 @@ final class AppDependencies {
         didSet { consumeDeepLink() }
     }
 
+    @ObservationIgnored var notified: (terminal: String, until: ContinuousClock.Instant)?
+    @ObservationIgnored var openMainWindow: () -> Void = {}
+
     var accountEpoch: UInt64 = 0
     var accountKnown = false
     @ObservationIgnored private(set) lazy var dosiPlace = DosiPlace(

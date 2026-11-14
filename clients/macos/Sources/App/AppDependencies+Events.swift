@@ -121,15 +121,31 @@ extension AppDependencies {
         terminalNotifications.post(title: event.string("title"), body: event.string("body"), session: current)
     }
 
-    @discardableResult
-    func openTerminalNotification(identifier: String) -> Bool {
-        guard let id = terminalNotifications.sessionToOpen(identifier: identifier) else { return false }
+    func openNotification(of terminal: String) {
         workbench.showsHistory = false
+        workbench.showsPalette = false
+        workbench.showsNewProject = false
         workbench.launcher = nil
         workbench.detailsSessionId = nil
         workbench.sharingSessionId = nil
-        activateSession(id)
-        return true
+        workbench.trusting = nil
+        workbench.reporting = nil
+        workbench.section = .sessions
+        notified = (terminal, .now + .seconds(30))
+        showNotifiedTerminal()
+    }
+
+    /// A notification that started the app arrives before the terminal list, and a terminal of
+    /// the earlier run comes back under a new ID, so the notification waits a short time for it.
+    private func showNotifiedTerminal() {
+        guard let notified else { return }
+        guard ContinuousClock.now < notified.until else {
+            self.notified = nil
+            return
+        }
+        guard let target = sessions.notificationTarget(notified.terminal) else { return }
+        self.notified = nil
+        activateSession(target.id)
     }
 
     private func receiveSystem(_ event: RuntimeEvent) throws {
@@ -224,6 +240,7 @@ extension AppDependencies {
         restored.forEach(openStaged)
         followCanvas()
         consumeDeepLink()
+        showNotifiedTerminal()
     }
 
     private func receiveProject(_ event: RuntimeEvent) throws {

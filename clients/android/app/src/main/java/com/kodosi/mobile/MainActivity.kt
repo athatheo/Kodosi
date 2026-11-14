@@ -41,7 +41,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         model.start()
-        receive(intent)
+        // Android gives an activity that it recreates, or that Recents opens, the intent that first started it.
+        if (savedInstanceState == null && (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            receive(intent)
+        }
         setContent {
             val preferences by model.preferences.state.collectAsStateWithLifecycle()
             val dark = when (preferences.appearance) {

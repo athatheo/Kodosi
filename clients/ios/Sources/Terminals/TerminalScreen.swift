@@ -12,6 +12,7 @@ struct TerminalScreen: View {
 
     var body: some View {
         TerminalScreenContent(store: model.terminals, lock: model.lock, sessionId: sessionId)
+            .id(sessionId)
     }
 }
 

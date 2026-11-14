@@ -41,6 +41,7 @@ private struct MenuBarMenu: View {
 struct RootView: View {
     @Environment(AppDependencies.self) private var deps
     @Environment(\.theme) private var theme
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -93,6 +94,7 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { GroundBackdrop() }
+        .onAppear { deps.openMainWindow = { [openWindow] in openWindow(id: "main") } }
     }
 
     private static func describe(_ failure: RuntimeStartFailure) -> String {

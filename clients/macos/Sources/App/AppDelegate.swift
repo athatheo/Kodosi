@@ -184,19 +184,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 continue
             }
             dependencies.pendingDeepLink = destination
+            dependencies.openMainWindow()
             MainWindowLocator.activate()
         }
     }
 
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
     ) async {
-        let identifier = response.notification.request.identifier
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
-        await MainActor.run {
-            guard self.dependencies.openTerminalNotification(identifier: identifier) else { return }
-            MainWindowLocator.activate()
+        dependencies.openMainWindow()
+        MainWindowLocator.activate()
+        if let terminal = response.notification.request.content.userInfo[TerminalNotifications.terminalKey] as? String {
+            dependencies.openNotification(of: terminal)
         }
     }
 

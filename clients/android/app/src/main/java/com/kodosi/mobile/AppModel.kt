@@ -15,7 +15,9 @@ import com.kodosi.mobile.runtime.CommandSink
 import com.kodosi.mobile.runtime.InvalidEvent
 import com.kodosi.mobile.runtime.RuntimeEnvironment
 import com.kodosi.mobile.runtime.RuntimeEvent
+import com.kodosi.mobile.runtime.RuntimeFailure
 import com.kodosi.mobile.runtime.RuntimeHandle
+import com.kodosi.mobile.terminals.RuntimeSession
 import com.kodosi.mobile.terminals.TerminalConnection
 import com.kodosi.mobile.terminals.TerminalNotifications
 import com.kodosi.mobile.terminals.TerminalStore
@@ -178,11 +180,17 @@ class AppModel(
         return TerminalConnection(sessionId, handle, commands, terminals, scope, words)
     }
 
-    suspend fun resolve(target: TerminalTarget): Boolean {
-        if (!account.state.value.isReady || account.state.value.userId != target.account) return false
-        if (terminals.session(target.id) == null) commands.request("session.list")
-        return account.state.value.isReady && account.state.value.userId == target.account &&
-            terminals.session(target.id) != null
+    suspend fun resolve(target: TerminalTarget): RuntimeSession? {
+        fun shown() = terminals.notificationTarget(target.id)
+            ?.takeIf { account.state.value.isReady && account.state.value.userId == target.account }
+        if (!account.state.value.isReady || account.state.value.userId != target.account) return null
+        shown()?.let { return it }
+        try {
+            commands.request("session.list")
+        } catch (_: RuntimeFailure) {
+            return null
+        }
+        return shown()
     }
 
     private suspend fun consume(handle: RuntimeHandle) {

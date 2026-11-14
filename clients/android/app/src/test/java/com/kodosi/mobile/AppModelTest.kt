@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -16,6 +18,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -93,23 +96,83 @@ class AppModelTest {
     @Test
     fun aNotificationForANewTerminalWaitsForAFreshCatalog() = runTest {
         val sent = SentCommands()
+        val model = signedIn(sent)
+        val opening = async(start = CoroutineStart.UNDISPATCHED) {
+            model.resolve(AppModel.TerminalTarget("new-terminal", "ana"))
+        }
+        assertFalse(opening.isCompleted)
+        model.receive(snapshot(terminal("new-terminal")))
+        listed(model, sent)
+        assertEquals("new-terminal", opening.await()?.id)
+    }
+
+    @Test
+    fun aNotificationFollowsOnlyYourOwnRestartOfItsTerminal() = runTest {
+        val sent = SentCommands()
+        val model = signedIn(sent)
+        val opening = async(start = CoroutineStart.UNDISPATCHED) {
+            model.resolve(AppModel.TerminalTarget("ended", "ana"))
+        }
+        model.receive(
+            snapshot(
+                terminal("theirs", owner = false, restoredFrom = "ended"),
+                terminal("again", restoredFrom = "ended")
+            )
+        )
+        listed(model, sent)
+        assertEquals("again", opening.await()?.id)
+    }
+
+    @Test
+    fun aNotificationOfAGoneOrUnreachableTerminalOpensNothingAndSaysNothing() = runTest {
+        val sent = SentCommands()
+        val model = signedIn(sent)
+        val notices = mutableListOf<String>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.notices.toList(notices) }
+        val gone = async(start = CoroutineStart.UNDISPATCHED) {
+            model.resolve(AppModel.TerminalTarget("gone", "ana"))
+        }
+        model.receive(snapshot(terminal("hidden", hidden = true)))
+        listed(model, sent)
+        assertNull(gone.await())
+        val unreachable = async(start = CoroutineStart.UNDISPATCHED) {
+            model.resolve(AppModel.TerminalTarget("hidden", "ana"))
+        }
+        val request = sent.last("session.list").string("requestId")
+        model.receive(
+            event(
+                """{"type":"session.error","accountUserId":"ana","accountEpoch":1,
+                   "requestId":"$request","operation":"session.list","message":"No connection."}"""
+            )
+        )
+        assertNull(unreachable.await())
+        assertEquals(emptyList<String>(), notices)
+    }
+
+    @Test
+    fun aNotificationCannotOpenAnotherAccountsTerminal() = runTest {
         val model = AppModel(RuntimeEnvironment.getApplication())
+        assertNull(model.resolve(AppModel.TerminalTarget("terminal", "another-account")))
+    }
+
+    private fun signedIn(sent: SentCommands) = AppModel(RuntimeEnvironment.getApplication()).also { model ->
         model.commands.transport = sent.sink.transport
         model.receive(event("""{"type":"system.ready","accountUserId":"ana","accountEpoch":1}"""))
         model.receive(
             event("""{"type":"auth.ready","accountUserId":"ana","accountEpoch":1,"userId":"ana","enrolled":true}""")
         )
-        val opening = async(start = CoroutineStart.UNDISPATCHED) {
-            model.resolve(AppModel.TerminalTarget("new-terminal", "ana"))
-        }
-        assertFalse(opening.isCompleted)
-        model.receive(
-            event(
-                """{"type":"sessions.snapshot","accountUserId":"ana","accountEpoch":1,"sessions":[{
-                   "id":"new-terminal","incarnationId":"current","name":"Review","kind":"remote",
-                   "status":"running","connectionState":"connecting","working":false}]}"""
-            )
-        )
+    }
+
+    private fun snapshot(vararg terminals: String) = terminals.joinToString(",").let { sessions ->
+        event("""{"type":"sessions.snapshot","accountUserId":"ana","accountEpoch":1,"sessions":[$sessions]}""")
+    }
+
+    private fun terminal(id: String, owner: Boolean = true, restoredFrom: String? = null, hidden: Boolean = false) =
+        """{"id":"$id","incarnationId":"1","name":"Review","kind":"remote","status":"running",
+           "connectionState":"connecting","working":false,"isOwner":$owner,"hidden":$hidden,
+           "restoredFrom":${restoredFrom?.let { "\"$it\"" } ?: "null"}}"""
+
+    private fun listed(model: AppModel, sent: SentCommands) {
         val request = sent.last("session.list").string("requestId")
         model.receive(
             event(
@@ -117,12 +180,5 @@ class AppModelTest {
                    "requestId":"$request","operation":"session.list"}"""
             )
         )
-        assertTrue(opening.await())
-    }
-
-    @Test
-    fun aNotificationCannotOpenAnotherAccountsTerminal() = runTest {
-        val model = AppModel(RuntimeEnvironment.getApplication())
-        assertFalse(model.resolve(AppModel.TerminalTarget("terminal", "another-account")))
     }
 }
