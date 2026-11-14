@@ -28,6 +28,11 @@ class TerminalStore(private val commands: CommandSink) {
 
     fun session(id: String): RuntimeSession? = mutableState.value.sessions.firstOrNull { it.id == id }
 
+    fun notificationTarget(id: String): RuntimeSession? {
+        val listed = mutableState.value.sessions.filterNot { it.hidden }
+        return listed.firstOrNull { it.id == id } ?: listed.firstOrNull { it.restoredFrom == id && it.isOwner }
+    }
+
     fun reset() {
         mutableState.value = TerminalsState()
         listing = null

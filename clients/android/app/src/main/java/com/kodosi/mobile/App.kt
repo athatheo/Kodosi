@@ -231,17 +231,13 @@ private fun Home(model: AppModel) {
         dosi.badge,
         people.incoming.size + account.requests.size + if (account.reset?.thisDevice == false) 1 else 0
     )
-    val terminalUnavailable = stringResource(R.string.terminal_not_available)
     LaunchedEffect(target) {
         val requested = target ?: return@LaunchedEffect
-        model.runAction {
-            if (model.resolve(requested)) {
-                tab = 0
-                openTerminal(requested.id, 0)
-            } else if (model.account.state.value.userId == requested.account) {
-                model.notify(terminalUnavailable)
-            }
-        }
+        val shown = model.resolve(requested)
+        starting = null
+        tab = 0
+        while (stacks[0].size > 1) stacks[0].removeAt(stacks[0].lastIndex)
+        shown?.let { openTerminal(it.id, 0) }
         if (model.terminalTarget.value == requested) model.terminalTarget.value = null
     }
     val invite by model.friendInvite.collectAsStateWithLifecycle()
