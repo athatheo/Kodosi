@@ -8,7 +8,7 @@ namespace Kodosi.HostTests;
 
 public sealed class TerminalAlertTests
 {
-    private readonly ConnectionDirectory directory = new();
+    private readonly ConnectionDirectory directory = new(TimeProvider.System);
     private readonly ManualClock clock = new();
     private readonly TerminalAlerts alerts;
     private readonly Guid owner = Guid.CreateVersion7();

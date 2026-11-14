@@ -15,7 +15,7 @@ internal sealed class TestStore : IAsyncDisposable
 {
     private TestStore(KodosiDbContext db) { Db = db; }
     public KodosiDbContext Db { get; }
-    public ConnectionDirectory Connections { get; } = new();
+    public ConnectionDirectory Connections { get; } = new(TimeProvider.System);
     public DeviceSessions DeviceSessions { get; } = new(TimeProvider.System);
     public PlanCatalog Plans { get; set; } = PlanCatalog.None;
     public DeviceService Devices => new(Db, Connections, DeviceSessions, TimeProvider.System, Plans);

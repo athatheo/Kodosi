@@ -29,6 +29,7 @@ builder.Services.AddSingleton<ServerMetrics>();
 builder.Services.AddSingleton<ConnectionLease>();
 builder.Services.AddHostedService(services => services.GetRequiredService<ConnectionLease>());
 builder.Services.AddHostedService<ConnectionWatchdog>();
+builder.Services.AddHostedService<PresenceExpiry>();
 builder.Services.AddHostedService<ConnectionMaintenance>();
 builder.Services.AddHostedService<TerminalPresence>();
 builder.Services.AddHostedService<DataCleanup>();

@@ -152,11 +152,15 @@ public sealed class IntegrationTests(PostgresFixture postgres)
         Assert.True(online.GetProperty("online").GetBoolean());
         Assert.Equal(JsonValueKind.Null, online.GetProperty("status").ValueKind);
 
-        var status = new { program = "claude", state = "blocked", kind = "permission" };
+        var status = new { program = "claude", state = "blocked", kind = "permission", attention = true };
         await SendAsync(host, new { type = "status", sessionId = id, incarnationId = incarnation, status });
-        Assert.Equal("permission", (await TerminalAsync(viewer)).GetProperty("status").GetProperty("kind").GetString());
-        var listed = (await CallAsync(member, HttpMethod.Get, "/api/sessions")).EnumerateArray().Single();
-        Assert.Equal("blocked", listed.GetProperty("status").GetProperty("state").GetString());
+        var heard = (await TerminalAsync(viewer)).GetProperty("status");
+        Assert.Equal("permission", heard.GetProperty("kind").GetString());
+        Assert.False(heard.TryGetProperty("attention", out _));
+        var listed = (await CallAsync(member, HttpMethod.Get, "/api/sessions")).EnumerateArray().Single().GetProperty("status");
+        Assert.Equal("blocked", listed.GetProperty("state").GetString());
+        Assert.False(listed.TryGetProperty("attention", out _));
+        Assert.True((await CallAsync(owner, HttpMethod.Get, $"/api/sessions/{id}")).GetProperty("status").GetProperty("attention").GetBoolean());
 
         await host.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct);
         var offline = await TerminalAsync(viewer);
@@ -167,6 +171,34 @@ public sealed class IntegrationTests(PostgresFixture postgres)
         await SendAsync(stranger, new { type = "ping" });
         for (var message = await JsonAsync(stranger); message.GetProperty("type").GetString() != "pong"; message = await JsonAsync(stranger))
             Assert.NotEqual("terminal", message.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task ADeviceTellsWhereItsPersonIsWithinItsLimitAndAnUnknownPlaceEndsItsConnection()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var app = new BackendApplication(await postgres.CreateDatabaseAsync(ct));
+        using var owner = await app.EnrollAsync("owner");
+        var directory = app.Services.GetRequiredService<Kodosi.TerminalConnections.ConnectionDirectory>();
+        using var socket = await app.ConnectAsync(owner);
+        async Task<bool> AwayAsync()
+        {
+            await SendAsync(socket, new { type = "ping" });
+            Assert.Equal("pong", (await JsonAsync(socket)).GetProperty("type").GetString());
+            return directory.Away(owner.Fixture.UserId);
+        }
+        Assert.True(await AwayAsync());
+        for (var sent = 1; sent < 30; sent++) await SendAsync(socket, new { type = "presence", state = "here" });
+        await SendAsync(socket, new { type = "presence", state = "away" });
+        await SendAsync(socket, new { type = "presence", state = "kodosi" });
+        Assert.True(await AwayAsync());
+        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        await SendAsync(socket, new { type = "presence", state = "kodosi" });
+        Assert.False(await AwayAsync());
+
+        await SendAsync(socket, new { type = "presence", state = "busy" });
+        await Assert.ThrowsAnyAsync<Exception>(() => JsonAsync(socket));
+        Assert.True(directory.Away(owner.Fixture.UserId));
     }
 
     [Fact]
