@@ -41,15 +41,18 @@ Kodosi-Updates trägt und der Download den SHA-256 hat, den der Feed angibt.
 
 Der Dienst sieht Konto- und Gerätedaten, Projektmitgliedschaften, Metadaten von Projekten und
 Terminals, den Agent und den Zustand jedes Terminals (etwa arbeitet oder wartet auf eine
-Freigabe, nie seinen Text), Routing-Felder, Zeitpunkte und die Größen der Chiffretexte.
-Push-Benachrichtigungen an dein iPhone, iPad oder Android-Gerät laufen über den Push-Dienst
-von Apple oder Google, der die ID des Terminals, seinen Agent und seinen Zustand sieht, nie
-Namen oder Text. Verschlüsselung verbirgt diese Metadaten nicht und verhindert keinen Ausfall.
-Ein Gerät, das du entfernst, verliert ab dann den Zugriff. Nachdem du ein verlorenes oder
-gestohlenes Gerät entfernt hast, erstelle einen neuen Wiederherstellungsschlüssel, um dieses
-Gerät draußen zu halten. Wenn jemand auf deinem Konto neu beginnt, während du Geräte hast,
-wartet das einen Tag, und deine Geräte zeigen es an, damit du es stoppen kannst. Zugangsdaten
-für GitHub und Gitea bleiben auf deinem Computer.
+Freigabe, nie seinen Text) und ob du diesen Zustand schon gesehen hast, Routing-Felder,
+Zeitpunkte und die Größen der Chiffretexte. Er sieht auch für jedes deiner Geräte, ob du in
+Kodosi bist, an diesem Computer in einer anderen App oder weg, damit eine Benachrichtigung nur
+dorthin geht, wo du bist. Push-Benachrichtigungen an dein iPhone, iPad oder Android-Gerät
+laufen über den Push-Dienst von Apple oder Google, der die IDs deiner Terminals, die warten,
+fertig oder fehlgeschlagen sind, ihre Agents und ihre Zustände sieht, nie Namen oder Text.
+Verschlüsselung verbirgt diese Metadaten nicht und verhindert keinen Ausfall. Ein Gerät, das du
+entfernst, verliert ab dann den Zugriff. Nachdem du ein verlorenes oder gestohlenes Gerät
+entfernt hast, erstelle einen neuen Wiederherstellungsschlüssel, um dieses Gerät draußen zu
+halten. Wenn jemand auf deinem Konto neu beginnt, während du Geräte hast, wartet das einen Tag,
+und deine Geräte zeigen es an, damit du es stoppen kannst. Zugangsdaten für GitHub und Gitea
+bleiben auf deinem Computer.
 
 Wer ein Konto löscht, entfernt seine Geräte, Wiederherstellungsdaten, Freunde, geteilten
 Terminals und eigenen Projekte; Nachrichten in Projekten anderer bleiben ohne Konto stehen. 30 Tage lang behält

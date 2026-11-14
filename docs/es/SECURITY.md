@@ -39,15 +39,17 @@ actualizaciones de Kodosi y la descarga tiene el SHA-256 que indica el feed.
 
 El servicio ve los registros de cuentas y dispositivos, los miembros de los proyectos, los
 metadatos de proyectos y terminales, el agente y el estado de cada terminal (como trabajando o
-esperando una aprobación, nunca su texto), los campos de enrutamiento, los tiempos y los
-tamaños del texto cifrado. Las notificaciones push a tu iPhone, iPad o dispositivo Android
-pasan por el servicio push de Apple o de Google, que ve el ID del terminal, su agente y su
-estado, nunca nombres ni texto. El cifrado no oculta estos metadatos ni evita una caída del
-servicio. Un dispositivo que quitas pierde el acceso desde ese momento. Después de quitar un
-dispositivo perdido o robado, crea una clave de recuperación nueva para mantenerlo fuera.
-Cuando alguien empieza de cero en tu cuenta mientras tienes dispositivos, eso espera un día y
-tus dispositivos lo muestran, para que puedas detenerlo. Las credenciales de GitHub y Gitea se
-quedan en tu ordenador.
+esperando una aprobación, nunca su texto) y si ya has visto ese estado, los campos de
+enrutamiento, los tiempos y los tamaños del texto cifrado. También ve, para cada uno de tus
+dispositivos, si estás en Kodosi, en ese ordenador en otra app o lejos, para que una
+notificación vaya solo adonde estás. Las notificaciones push a tu iPhone, iPad o dispositivo
+Android pasan por el servicio push de Apple o de Google, que ve los ID de tus terminales que
+esperan, han terminado o han fallado, sus agentes y sus estados, nunca nombres ni texto. El
+cifrado no oculta estos metadatos ni evita una caída del servicio. Un dispositivo que quitas
+pierde el acceso desde ese momento. Después de quitar un dispositivo perdido o robado, crea una
+clave de recuperación nueva para mantenerlo fuera. Cuando alguien empieza de cero en tu cuenta
+mientras tienes dispositivos, eso espera un día y tus dispositivos lo muestran, para que puedas
+detenerlo. Las credenciales de GitHub y Gitea se quedan en tu ordenador.
 
 Eliminar una cuenta quita sus dispositivos, sus datos de recuperación, sus amigos, lo que
 comparte y los proyectos que son suyos; los mensajes en proyectos de otras personas se quedan sin

@@ -48,13 +48,12 @@ never its text) and whether you saw that state yet, routing fields, timing and c
 sizes. It also sees, for each of your devices, whether you are in Kodosi, at that
 computer in another app, or away, so that a notification goes only where you are. Push
 notifications to your iPhone, iPad or Android device go through Apple's or Google's push
-service, which sees the IDs of your terminals that wait, finished or failed, their
-agents and their states, never names or text. Encryption does not
-hide this metadata or prevent an outage. A device that you remove loses access from then
-on. After you remove a lost or stolen device, make a new recovery key to keep that device
-out. When someone starts fresh on your account while you have devices, it waits a day and
-your devices show it, so that you can stop it. GitHub and Gitea credentials stay on your
-computer.
+service, which sees the IDs of your terminals that wait, finished or failed, their agents
+and their states, never names or text. Encryption does not hide this metadata or prevent
+an outage. A device that you remove loses access from then on. After you remove a lost or
+stolen device, make a new recovery key to keep that device out. When someone starts fresh
+on your account while you have devices, it waits a day and your devices show it, so that
+you can stop it. GitHub and Gitea credentials stay on your computer.
 
 Deleting an account removes its devices, recovery data, friends, sharing and owned
 projects; messages in other people's projects stay without an account. For 30 days the service

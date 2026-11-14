@@ -93,9 +93,11 @@ L'icona di ogni terminale mostra cosa fa il suo programma.
 | Una spunta verde | Finito. |
 | Un segnale di avviso giallo | Non riuscito. |
 
-La spunta e l'avviso spariscono quando apri il terminale. Mentre Kodosi è in background, una
-notifica ti avvisa quando uno dei tuoi terminali inizia ad attendere, finisce o non riesce. I
-programmi comunicano il loro stato con il
+La spunta e l'avviso spariscono quando apri il terminale su uno qualsiasi dei tuoi
+dispositivi. Quando uno dei tuoi terminali inizia ad attendere, finisce o non riesce, Kodosi
+ti avvisa una volta, dove sei. In Kodosi, vedi il segnale. Al tuo computer, in un'altra app,
+ricevi lì una notifica. Lontano dai tuoi computer, la ricevi sul tuo telefono. Solo un
+terminale che attende emette un suono. I programmi comunicano il loro stato con il
 [Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status) o con
 una barra di avanzamento. Un programma che non comunica nulla non mostra uno stato.
 
