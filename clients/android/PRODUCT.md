@@ -55,10 +55,12 @@ reading provider conversations stay on the computer. The app needs Android 15 or
 - Settings holds devices, the recovery key, appearance, terminal text size, whether the
   screen stays on, document viewers, notifications, app lock, language, licenses, links
   to the privacy policy, terms of use and support, sign-out and account deletion.
-- Notifications name your terminal and computer from this device's cache, with generic
-  words when they are unknown. Waiting has its own urgent channel. A tap opens the
-  terminal after sign-in and app lock; opening it clears its notifications. Nothing
-  shows while the app is in front, and Settings can turn notifications off.
+- Notifications come from the server while you are away from all your devices. They
+  name your terminal and computer from this device's cache, with generic words when
+  they are unknown. Waiting has its own urgent channel, a finish or a failure a quiet
+  one, and the notifications of one computer are one group. A tap opens the terminal
+  after sign-in and app lock. A notification goes away when you see its terminal on any
+  device, and Settings can turn notifications off.
 - App lock uses the device's biometrics or screen lock when the app opens and after a
   minute away. It keeps the app's contents out of the app switcher and protects the
   background window during screen sharing. Device keys and sign-in credentials use
