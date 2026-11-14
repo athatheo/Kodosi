@@ -86,7 +86,7 @@ bool PresenceReporter::eventFilter(QObject* watched, QEvent* event)
     case QEvent::TouchBegin:
     case QEvent::TabletPress:
         m_kodosiInput.restart();
-        if (m_reported != Presence::Kodosi)
+        if (m_reported == Presence::Idle)
             decide();
         break;
     default:
