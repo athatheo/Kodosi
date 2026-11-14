@@ -22,9 +22,12 @@ export function CheckPage({
     kcContext.pageId === "turnstile-registration-form.ftl" ||
     ("isRegistrationFlow" in kcContext && !!kcContext.isRegistrationFlow);
 
+  // A check that the server refused waits for the person, so that a refusal that stays does not
+  // post again and again.
+  const stopped = check.refused && !check.retried;
   useEffect(() => {
-    if (check.passed && check.config) body.current?.requestSubmit();
-  }, [check.passed, check.config]);
+    if (check.passed && check.config && !stopped) body.current?.requestSubmit();
+  }, [check.passed, check.config, stopped]);
 
   return (
     <Stage
@@ -32,7 +35,7 @@ export function CheckPage({
       i18n={i18n}
       title={msgStr(reset ? "kdsForgotTitle" : joins ? "kdsJoinTitle" : "kdsSignIn")}
       lead={msgStr("kdsPersonCheckLead")}
-      wrong={check.refused && !check.retried}
+      wrong={stopped}
       quiet={check.refused}
       waits={!check.passed && !check.failed}
       below={<QuietLink href={url.loginUrl}>{msgStr("kdsBackToSignIn")}</QuietLink>}
