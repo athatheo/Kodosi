@@ -307,6 +307,9 @@
     <string name="notifications">알림</string>
     <string name="notifications_description">터미널이 대기, 완료 또는 실패 상태가 될 때</string>
     <string name="notifications_waiting">응답을 기다리는 중</string>
+    <string name="notifications_waiting_description">터미널에 응답이 필요할 때</string>
+    <string name="notifications_ended">완료 또는 실패</string>
+    <string name="notifications_ended_description">터미널이 완료 또는 실패 상태가 될 때</string>
     <string name="terminal_notification_title">내 터미널</string>
     <string name="enable_notifications">알림 사용</string>
     <string name="clipboard_request">이 터미널이 클립보드를 읽도록 허용할까요?</string>

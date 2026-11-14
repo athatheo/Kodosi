@@ -1459,6 +1459,38 @@ private slots:
         restarted.workspace.apply(openFailure(link), 1);
         QCOMPARE(restarted.workspace.error(), QStringLiteral("Kodosi could not reach the terminal connection service."));
     }
+    void aNotificationOpensItsTerminalOrTheOneThatStartedAgainOrElseTheList()
+    {
+        Fixture f;
+        QObject dialog;
+        f.desktop.setModalVisible(&dialog, true);
+        QSignalSpy dismissed(&f.desktop, &kodosi::DesktopStateModel::dialogsDismissed);
+        f.workspace.sessionActions().openNotified(test::id(1), {});
+        QCOMPARE(dismissed.size(), 1);
+        auto again = test::session(2);
+        again.insert(QStringLiteral("restoredFrom"), test::id(9));
+        auto friendsAgain = test::session(3, true, false);
+        friendsAgain.insert(QStringLiteral("restoredFrom"), test::id(8));
+        f.workspace.apply(test::snapshot({ test::session(1), again, friendsAgain }), 0);
+        QCOMPARE(f.desktop.selectedSessionId(), test::id(1));
+
+        f.desktop.setActiveView(kodosi::DesktopStateModel::Settings);
+        f.workspace.sessionActions().openNotified(test::id(9), {});
+        QCOMPARE(f.desktop.selectedSessionId(), test::id(2));
+        QCOMPARE(f.desktop.activeView(), kodosi::DesktopStateModel::Sessions);
+
+        for (const int gone : { 8, 7 }) {
+            f.desktop.setActiveView(kodosi::DesktopStateModel::Settings);
+            f.desktop.setSidebarOpen(false);
+            f.workspace.sessionActions().openNotified(test::id(gone), {});
+            QCOMPARE(f.desktop.selectedSessionId(), test::id(2));
+            QCOMPARE(f.desktop.activeView(), kodosi::DesktopStateModel::Sessions);
+            QVERIFY(f.desktop.sidebarOpen());
+        }
+        QVERIFY(f.workspace.error().isEmpty());
+        QVERIFY(f.desktop.lastError().isEmpty());
+        QVERIFY(!opened(f.commands, test::id(8)) && !opened(f.commands, test::id(7)));
+    }
     void aTerminalThatAnotherComputerStartedAgainTakesThePlaceAndFocusOfTheOneThatEnded()
     {
         Fixture f;

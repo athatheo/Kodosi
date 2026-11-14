@@ -297,6 +297,10 @@ pub struct TerminalStatus {
     pub state: Option<crate::terminal::ProgramState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<crate::terminal::BlockedKind>,
+    /// The owner of the terminal did not see its state yet. The server gives it only to the
+    /// owner's devices.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub attention: bool,
 }
 
 impl TerminalStatus {
@@ -307,7 +311,20 @@ impl TerminalStatus {
             account: metadata.account.filter(|_| metadata.program.is_some()),
             state: metadata.status.as_ref().map(|status| status.state),
             kind: metadata.status.as_ref().and_then(|status| status.kind),
+            attention: false,
         }
+    }
+
+    /// A new state can reach the publication before the runtime ends the mark of the state
+    /// before it.
+    #[cfg(feature = "host")]
+    pub(crate) fn marked(mut self, marked: Option<crate::terminal::Waiting>) -> Self {
+        self.attention = marked.is_some() && self.waiting() == marked;
+        self
+    }
+
+    pub(crate) fn waiting(&self) -> Option<crate::terminal::Waiting> {
+        self.state.and_then(|state| state.waiting(false))
     }
 
     pub(crate) fn is_valid(&self) -> bool {
@@ -316,6 +333,7 @@ impl TerminalStatus {
             .is_none_or(crate::agents::is_agent_name)
             && (self.account.is_none() || self.program.is_some())
             && (self.kind.is_none() || self.state == Some(crate::terminal::ProgramState::Blocked))
+            && (!self.attention || self.waiting().is_some())
     }
 
     pub(crate) fn program_status(&self) -> Option<crate::terminal::ProgramStatus> {
@@ -357,6 +375,7 @@ pub enum TerminalControl {
     Agent {
         change: Box<crate::agents::AgentSettings>,
     },
+    Seen,
 }
 
 #[derive(Debug)]
@@ -576,6 +595,8 @@ impl Drop for RemoteConnection {
 }
 
 pub type PublicationOutput = broadcast::Receiver<PublishedFrame>;
+/// The state of a hosted terminal whose owner did not see it yet.
+pub type PublishedMark = tokio::sync::watch::Receiver<Option<crate::terminal::Waiting>>;
 
 #[cfg(test)]
 pub(crate) use terminal_connections::RemoteRequest as TestRemoteRequest;
@@ -584,6 +605,7 @@ pub(crate) use terminal_connections::Wait;
 pub(crate) use terminal_connections::{
     CONTROL_TIMEOUT, RECONNECT_WAIT, STABLE_CONNECTION, input_not_sent,
 };
+pub(crate) use wire::Elsewhere;
 
 #[cfg(test)]
 pub(crate) fn test_remote_connection(

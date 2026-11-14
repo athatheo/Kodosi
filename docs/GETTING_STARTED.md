@@ -90,9 +90,12 @@ The mark of each terminal shows what its program does.
 | A green check | Done. |
 | A yellow warning sign | Failed. |
 
-The check and the warning go away when you open the terminal. While Kodosi is in the
-background, a notification tells you when one of your terminals starts to wait, finishes
-or fails. Programs report their state with the
+The check and the warning go away when you open the terminal on any of your devices.
+When one of your terminals starts to wait, finishes or fails, Kodosi tells you where you
+are. In Kodosi, you get the sign. At your computer in another app, you get a notification
+there. Away from your computers, you get it on your phone. A terminal that still waits
+for you when you leave your computer tells your phone then. Only a terminal that waits
+makes a sound. Programs report their state with the
 [Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status) or a
 progress bar. A program that reports nothing shows no state.
 

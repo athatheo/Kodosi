@@ -307,6 +307,9 @@
     <string name="notifications">Notifications</string>
     <string name="notifications_description">Lorsqu\'un terminal attend, termine ou échoue</string>
     <string name="notifications_waiting">En attente de votre action</string>
+    <string name="notifications_waiting_description">Lorsqu\'un terminal a besoin de vous</string>
+    <string name="notifications_ended">Terminé ou en échec</string>
+    <string name="notifications_ended_description">Lorsqu\'un terminal termine ou échoue</string>
     <string name="terminal_notification_title">Votre terminal</string>
     <string name="enable_notifications">Activer les notifications</string>
     <string name="clipboard_request">Autoriser ce terminal à lire votre presse-papiers ?</string>

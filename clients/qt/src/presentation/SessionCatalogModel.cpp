@@ -162,14 +162,13 @@ bool SessionCatalogModel::waiting(const QString& id) const
     return found && !found->waiting.isEmpty();
 }
 
-void SessionCatalogModel::alert(const QString& id)
+QString SessionCatalogModel::attentionText(const QString& id) const
 {
     const auto found = session(id);
-    if (!found)
-        return;
-    const bool calls = found->isOwner || presentation(*found).canControl;
+    if (!found || found->waiting.isEmpty())
+        return {};
     const auto words = report(*found);
-    emit alertChanged(id, !calls || found->waiting.isEmpty() ? QString {} : words.isEmpty() ? signLabel(*found) : words);
+    return words.isEmpty() ? signLabel(*found) : words;
 }
 
 void SessionCatalogModel::receivePicture(const QJsonObject& event)
@@ -282,6 +281,12 @@ std::optional<QString> SessionCatalogModel::restartedAs(const QString& id, const
     const auto found = std::find_if(m_sessions.cbegin(), m_sessions.cend(), [&](const auto& s) {
         return s.restoredFrom == id && s.ownerUserId == owner && s.hostDeviceId == host;
     });
+    return found == m_sessions.cend() ? std::nullopt : std::optional(found->id);
+}
+std::optional<QString> SessionCatalogModel::ownRestart(const QString& id) const
+{
+    const auto found = std::find_if(m_sessions.cbegin(), m_sessions.cend(),
+        [&](const auto& s) { return s.restoredFrom == id && s.isOwner; });
     return found == m_sessions.cend() ? std::nullopt : std::optional(found->id);
 }
 bool SessionCatalogModel::containsSession(const QString& id) const

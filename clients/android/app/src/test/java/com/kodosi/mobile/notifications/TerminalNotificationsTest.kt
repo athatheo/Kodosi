@@ -3,13 +3,18 @@ package com.kodosi.mobile.notifications
 import android.Manifest
 import android.app.Application
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.kodosi.mobile.AppPreferences
 import com.kodosi.mobile.R
-import com.kodosi.mobile.terminals.ProgramStatus
 import com.kodosi.mobile.terminals.RuntimeSession
 import com.kodosi.mobile.terminals.TerminalNotifications
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -25,21 +30,10 @@ class TerminalNotificationsTest {
     private val application: Application = RuntimeEnvironment.getApplication()
     private val preferences = AppPreferences(application)
     private val manager = application.getSystemService(NotificationManager::class.java)
-    private val session = RuntimeSession(
-        id = "019363fc-6fca-7000-8000-000000000001",
-        incarnationId = "019363fc-6fca-7000-8000-000000000002",
-        name = "Review",
-        kind = RuntimeSession.Kind.REMOTE,
-        status = RuntimeSession.Status.RUNNING,
-        connectionState = RuntimeSession.Connection.CONNECTED,
-        isWorking = false,
-        isOwner = true,
-        hostDeviceId = "computer-key",
-        hostName = "Work computer"
-    )
-    private val alert = TerminalAlert.parse(
-        mapOf("terminal" to session.id, "state" to "blocked", "agent" to "claude")
-    )!!
+    private val review = session("0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c01", "Review", "work-key", "Work computer")
+    private val build = session("0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c02", "Build", "work-key", "Work computer")
+    private val deploy = session("0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c03", "Deploy", "home-key", "Home computer")
+    private val unknown = "0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c04"
 
     @Before
     fun allowNotifications() {
@@ -47,82 +41,193 @@ class TerminalNotificationsTest {
     }
 
     @Test
-    fun aColdReceiverUsesOnlyItsAccountCacheAndAnUrgentWaitingChannel() {
-        TerminalNotifications(application, preferences).observe(listOf(session), "ana")
+    fun aColdReceiverUsesOnlyItsAccountCacheForTheTextAndTheTap() {
+        TerminalNotifications(application, preferences).observe(listOf(review), "ana")
         val receiver = TerminalNotifications(application, preferences)
-        receiver.receive(alert)
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
 
-        val notification = manager.activeNotifications.single().notification
+        val notification = terminal(review.id)!!
         assertEquals("Review", notification.extras.getString(Notification.EXTRA_TITLE))
         assertTrue(notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("Work computer"))
-        assertEquals(
-            NotificationManager.IMPORTANCE_HIGH,
-            manager.getNotificationChannel(notification.channelId).importance
-        )
+        assertEquals(Notification.VISIBILITY_PRIVATE, notification.visibility)
         val target = shadowOf(notification.contentIntent).savedIntent
         assertEquals("ana", target.getStringExtra(TerminalNotifications.ACCOUNT))
-        assertEquals(session.id, target.getStringExtra(TerminalNotifications.TERMINAL))
-        receiver.showing(session.id)
+        assertEquals(review.id, target.getStringExtra(TerminalNotifications.TERMINAL))
+        receiver.showing(review.id)
         assertTrue(manager.activeNotifications.isEmpty())
     }
 
     @Test
-    fun runtimeWaitingStartsAndClearsAnAlertWithoutAProgramStatus() {
-        val receiver = TerminalNotifications(application, preferences)
-        receiver.observe(listOf(session), "ana")
-        receiver.observe(
-            listOf(session.copy(waitState = ProgramStatus.State.DONE, activity = "Build complete")),
-            "ana"
+    fun eachListPostsOnlyNewOrChangedTerminalsAndTakesBackTheOthers() {
+        val receiver = signedIn()
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1 ${build.id}:codex:done::0"))
+        val waiting = terminal(review.id)!!
+        val done = terminal(build.id)!!
+
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:0 ${build.id}:codex:error::0"))
+        assertSame(waiting, terminal(review.id))
+        assertNotSame(done, terminal(build.id))
+
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:question:1"))
+        assertNotSame(waiting, terminal(review.id))
+        assertNull(terminal(build.id))
+
+        receiver.receive(PushedTerminal.list(""))
+        assertTrue(manager.activeNotifications.isEmpty())
+    }
+
+    @Test
+    fun aTerminalThatThePersonSwipedAwayComesBackOnlyWhenItChanges() {
+        val receiver = signedIn()
+        val list = "${review.id}:claude:blocked:permission:1 ${build.id}:codex:done::0"
+        receiver.receive(PushedTerminal.list(list))
+        manager.cancel(review.id, 0)
+
+        receiver.receive(PushedTerminal.list(list.replace("done", "error")))
+        assertNull(terminal(review.id))
+        receiver.receive(PushedTerminal.list("${review.id}:claude:done::0"))
+        assertNotNull(terminal(review.id))
+    }
+
+    @Test
+    fun aWaitAlertsWithItsSoundAndAFinishOrFailureStaysQuiet() {
+        manager.createNotificationChannel(
+            NotificationChannel("terminal-updates", "Terminals", NotificationManager.IMPORTANCE_DEFAULT)
         )
-        val notification = manager.activeNotifications.single().notification
-        assertEquals("Review", notification.extras.getString(Notification.EXTRA_TITLE))
-        assertTrue(notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("Build complete"))
+        val receiver = signedIn()
+        receiver.receive(
+            PushedTerminal.list(
+                "${review.id}:claude:blocked:permission:1 ${build.id}:claude:blocked:auth:0 " +
+                    "${deploy.id}:codex:done::0 $unknown:codex:error::0"
+            )
+        )
 
-        receiver.observe(listOf(session.copy(isWorking = true)), "ana")
-        assertTrue(manager.activeNotifications.isEmpty())
+        val loud = terminal(review.id)!!
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, manager.getNotificationChannel(loud.channelId).importance)
+        assertFalse(loud.muted)
+        val quiet = terminal(build.id)!!
+        assertEquals(loud.channelId, quiet.channelId)
+        assertTrue(quiet.muted)
+        val finished = terminal(deploy.id)!!
+        val failed = terminal(unknown)!!
+        assertEquals(finished.channelId, failed.channelId)
+        assertEquals(NotificationManager.IMPORTANCE_LOW, manager.getNotificationChannel(failed.channelId).importance)
+        assertNull(manager.getNotificationChannel("terminal-updates"))
     }
 
     @Test
-    fun foregroundAndDisabledNotificationsStaySilentAndAppLockHidesTheirContent() {
-        val receiver = TerminalNotifications(application, preferences)
-        receiver.observe(listOf(session), "ana")
+    fun theTerminalsOfOneComputerAreOneGroupWithItsName() {
+        val receiver = signedIn()
+        receiver.receive(
+            PushedTerminal.list(
+                "${review.id}:claude:done::0 ${build.id}:claude:blocked:permission:1 " +
+                    "${deploy.id}:claude:done::0 $unknown:claude:done::0"
+            )
+        )
+
+        val work = terminal(review.id)!!.group
+        assertEquals(work, terminal(build.id)!!.group)
+        assertTrue(work != terminal(deploy.id)!!.group)
+        assertNull(summary(terminal(unknown)!!.group))
+        val summary = summary(work)!!
+        assertEquals("Work computer", summary.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals(terminal(build.id)!!.channelId, summary.channelId)
+        assertEquals(Notification.GROUP_ALERT_CHILDREN, summary.groupAlertBehavior)
+        assertEquals("Home computer", summary(terminal(deploy.id)!!.group)!!.extras.getString(Notification.EXTRA_TITLE))
+
+        receiver.receive(PushedTerminal.list("${review.id}:claude:done::0 $unknown:claude:done::0"))
+        assertEquals(terminal(review.id)!!.channelId, summary(work)!!.channelId)
+        assertEquals(1, manager.activeNotifications.count { it.notification.isSummary })
+        receiver.showing(review.id)
+        assertNull(summary(work))
+    }
+
+    @Test
+    fun nothingShowsWhileTheAppIsInFront() {
+        val receiver = signedIn()
+        receiver.receive(PushedTerminal.list("${review.id}:claude:done::0"))
         receiver.foreground = true
-        receiver.receive(alert)
-        assertTrue(manager.activeNotifications.isEmpty())
+        receiver.receive(PushedTerminal.list("${review.id}:claude:done::0 ${build.id}:claude:blocked:permission:1"))
+        assertNull(terminal(build.id))
 
-        receiver.foreground = false
-        preferences.update { it.copy(notifications = false) }
-        receiver.receive(alert)
+        receiver.receive(PushedTerminal.list(""))
         assertTrue(manager.activeNotifications.isEmpty())
-        preferences.update { it.copy(notifications = true, lock = true) }
-        receiver.receive(alert)
-        assertEquals(Notification.VISIBILITY_SECRET, manager.activeNotifications.single().notification.visibility)
     }
 
     @Test
-    fun anAlertForAHiddenTerminalStaysSilent() {
-        val receiver = TerminalNotifications(application, preferences)
-        receiver.observe(listOf(session.copy(hidden = true)), "ana")
-        receiver.receive(alert)
+    fun aTerminalThatIsSeenElsewhereOrGoneLosesItsNotification() {
+        val receiver = signedIn(review.copy(attention = true), build.copy(attention = true))
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1 ${build.id}:claude:done::0"))
+
+        receiver.observe(listOf(review, build.copy(attention = true)), "ana")
+        assertNull(terminal(review.id))
+        receiver.observe(listOf(review), "ana")
+        assertTrue(manager.activeNotifications.isEmpty())
+    }
+
+    @Test
+    fun disabledNotificationsStaySilentAndAppLockHidesTheirContent() {
+        val receiver = signedIn()
+        preferences.update { it.copy(notifications = false) }
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
+        assertTrue(manager.activeNotifications.isEmpty())
+
+        preferences.update { it.copy(notifications = true, lock = true) }
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
+        assertEquals(Notification.VISIBILITY_SECRET, terminal(review.id)!!.visibility)
+    }
+
+    @Test
+    fun aPushForAHiddenTerminalStaysSilent() {
+        val receiver = signedIn(review.copy(hidden = true))
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
 
         assertTrue(manager.activeNotifications.isEmpty())
     }
 
     @Test
     fun changingAccountsCannotReuseThePreviousPersonsTerminalNames() {
-        val receiver = TerminalNotifications(application, preferences)
-        receiver.observe(listOf(session), "ana")
+        val receiver = signedIn()
         receiver.account("bob")
-        receiver.receive(alert)
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
 
-        val notification = manager.activeNotifications.single().notification
+        val notification = terminal(review.id)!!
         assertEquals(
             application.getString(R.string.terminal_notification_title),
             notification.extras.getString(Notification.EXTRA_TITLE)
         )
-        assertTrue(!notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("Work computer"))
+        assertFalse(notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("Work computer"))
         receiver.account(null)
-        receiver.receive(alert)
+        receiver.receive(PushedTerminal.list("${review.id}:claude:blocked:permission:1"))
         assertTrue(manager.activeNotifications.isEmpty())
     }
+
+    private val Notification.muted: Boolean
+        get() = !group.isNullOrEmpty() && !isSummary && groupAlertBehavior == Notification.GROUP_ALERT_SUMMARY
+
+    private val Notification.isSummary: Boolean get() = flags and Notification.FLAG_GROUP_SUMMARY != 0
+
+    private fun signedIn(vararg sessions: RuntimeSession) = TerminalNotifications(application, preferences).also {
+        it.observe(sessions.toList().ifEmpty { listOf(review, build, deploy) }, "ana")
+    }
+
+    private fun terminal(id: String): Notification? =
+        manager.activeNotifications.firstOrNull { it.tag == id && !it.notification.isSummary }?.notification
+
+    private fun summary(group: String?): Notification? =
+        manager.activeNotifications.firstOrNull { it.notification.isSummary && it.notification.group == group }
+            ?.notification
+
+    private fun session(id: String, name: String, computer: String, computerName: String) = RuntimeSession(
+        id = id,
+        incarnationId = "019363fc-6fca-7000-8000-000000000002",
+        name = name,
+        kind = RuntimeSession.Kind.REMOTE,
+        status = RuntimeSession.Status.RUNNING,
+        connectionState = RuntimeSession.Connection.CONNECTED,
+        isWorking = false,
+        isOwner = true,
+        hostDeviceId = computer,
+        hostName = computerName
+    )
 }

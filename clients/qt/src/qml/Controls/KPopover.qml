@@ -18,6 +18,15 @@ Popup {
     onModalChanged: Models.DesktopState.setModalVisible(root, visible && modal)
     Component.onDestruction: Models.DesktopState.setModalVisible(root, false)
 
+    readonly property Connections dismissal: Connections {
+        target: Models.DesktopState
+
+        function onDialogsDismissed() {
+            if (root.visible && root.modal && (root.closePolicy & Popup.CloseOnEscape))
+                root.close()
+        }
+    }
+
     padding: 0
     palette.window: KodosiTheme.lifted
     palette.windowText: KodosiTheme.ink

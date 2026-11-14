@@ -40,14 +40,17 @@ degli aggiornamenti di Kodosi e il download ha lo SHA-256 indicato dal feed.
 
 Il servizio vede i dati di account e dispositivi, i membri dei progetti, i metadati di progetti
 e terminali, l'agente e lo stato di ogni terminale (ad esempio al lavoro o in attesa di
-un'approvazione, mai il suo testo), i campi di instradamento, i tempi e le dimensioni del testo
-cifrato. Le notifiche push al tuo iPhone, iPad o dispositivo Android passano dal servizio push
-di Apple o di Google, che vede l'ID del terminale, il suo agente e il suo stato, mai nomi o
-testo. La crittografia non nasconde questi metadati e non evita un'interruzione del servizio.
-Un dispositivo che rimuovi perde l'accesso da quel momento. Dopo aver rimosso un dispositivo
-perso o rubato, crea una nuova chiave di recupero per tenerlo fuori. Quando qualcuno ricomincia
-da zero sul tuo account mentre hai dei dispositivi, si attende un giorno e i tuoi dispositivi
-lo mostrano, così puoi fermarlo. Le credenziali di GitHub e Gitea restano sul tuo computer.
+un'approvazione, mai il suo testo) e se hai già visto quello stato, i campi di instradamento, i
+tempi e le dimensioni del testo cifrato. Vede anche, per ognuno dei tuoi dispositivi, se sei in
+Kodosi, a quel computer in un'altra app, o lontano, così che una notifica arrivi solo dove sei.
+Le notifiche push al tuo iPhone, iPad o dispositivo Android passano dal servizio push di Apple
+o di Google, che vede gli ID dei tuoi terminali che attendono, hanno finito o non sono
+riusciti, i loro agenti e i loro stati, mai nomi o testo. La crittografia non nasconde questi
+metadati e non evita un'interruzione del servizio. Un dispositivo che rimuovi perde l'accesso
+da quel momento. Dopo aver rimosso un dispositivo perso o rubato, crea una nuova chiave di
+recupero per tenerlo fuori. Quando qualcuno ricomincia da zero sul tuo account mentre hai dei
+dispositivi, si attende un giorno e i tuoi dispositivi lo mostrano, così puoi fermarlo. Le
+credenziali di GitHub e Gitea restano sul tuo computer.
 
 Eliminare un account rimuove i suoi dispositivi, i dati di recupero, gli amici, le
 condivisioni e i progetti di sua proprietà; i messaggi nei progetti di altri restano, senza

@@ -307,6 +307,9 @@
     <string name="notifications">Notificaciones</string>
     <string name="notifications_description">Cuando un terminal espera, termina o falla</string>
     <string name="notifications_waiting">Esperándote</string>
+    <string name="notifications_waiting_description">Cuando un terminal te necesita</string>
+    <string name="notifications_ended">Terminado o fallido</string>
+    <string name="notifications_ended_description">Cuando un terminal termina o falla</string>
     <string name="terminal_notification_title">Tu terminal</string>
     <string name="enable_notifications">Activar notificaciones</string>
     <string name="clipboard_request">¿Permitir que este terminal lea el portapapeles?</string>

@@ -35,7 +35,7 @@ final class AppDependencies {
     var dosiTouched: Set<String> = []
     var signInPresented = false
     var openExternalURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
-    var bringToFront: () -> Void = { NSApp.activate() }
+    var bringToFront: () -> Void = { MainWindowLocator.activate() }
     var copyText: (String) -> Void = { text in
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
@@ -79,12 +79,14 @@ final class AppDependencies {
     let terminalManager: TerminalSessionManager
     let terminalFocus: TerminalProcessFocusCoordinator
     let terminalNotifications: TerminalNotifications
+    let presence: PresenceReporter
     let typeAhead = TerminalTypeAhead()
     var shortcutMonitor: Any?
     var shortcutRecorder: ((NSEvent) -> Bool)?
 
     init(defaults: UserDefaults, storageBootstrap: RuntimeStorageBootstrap,
-         notificationDriver: any DesktopNotificationDriving = SystemNotificationDriver())
+         notificationDriver: any DesktopNotificationDriving = SystemNotificationDriver(),
+         presenceSource: PresenceSource = .system)
     {
         terminalNotifications = TerminalNotifications(driver: notificationDriver)
         self.storageBootstrap = storageBootstrap
@@ -92,6 +94,9 @@ final class AppDependencies {
         self.settings = settings
         let commands = CommandSink()
         commandSink = commands
+        presence = PresenceReporter(source: presenceSource) { [commands] state in
+            CommandSink.didAcceptSynchronously(commands.send("app.presence", ["state": .string(state.rawValue)]))
+        }
         let canvas = CanvasStore(commands: commands)
         self.canvas = canvas
         workbench = WorkbenchState(defaults: defaults, canvas: canvas)
@@ -221,6 +226,7 @@ final class AppDependencies {
         signInPresented = false
         account.endSignIn()
         terminalNotifications.clear()
+        presence.disconnected()
         activationTasks.values.forEach { $0.cancel() }
         activationTasks.removeAll()
         for session in sessions {

@@ -94,6 +94,29 @@ class AppModelTest {
     }
 
     @Test
+    fun theRuntimeHearsWhereThePersonIsAfterEachReadyAndOnEachChange() {
+        val sent = SentCommands()
+        val model = AppModel(RuntimeEnvironment.getApplication())
+        model.commands.transport = sent.sink.transport
+        fun presence() = sent.commands.filter { it.string("type") == "app.presence" }.map { it.string("state") }
+
+        model.present(true)
+        assertEquals(emptyList<String>(), presence())
+        model.receive(event("system.ready", """"awaySeconds":180"""))
+        assertEquals(listOf("app.presence", "session.list"), sent.types)
+        assertEquals(listOf("kodosi"), presence())
+
+        model.present(true)
+        model.present(false)
+        model.present(false)
+        assertEquals(listOf("kodosi", "away"), presence())
+        model.receive(event("system.ready", """"awaySeconds":180"""))
+        assertEquals(listOf("kodosi", "away", "away"), presence())
+        model.present(true)
+        assertEquals(listOf("kodosi", "away", "away", "kodosi"), presence())
+    }
+
+    @Test
     fun aNotificationForANewTerminalWaitsForAFreshCatalog() = runTest {
         val sent = SentCommands()
         val model = signedIn(sent)

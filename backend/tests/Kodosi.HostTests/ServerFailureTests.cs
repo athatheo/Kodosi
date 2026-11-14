@@ -17,7 +17,7 @@ public sealed class ServerFailureTests(PostgresFixture postgres)
     private static ServerMetrics Metrics()
     {
         var meters = new ServiceCollection().AddMetrics().BuildServiceProvider().GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>();
-        return new ServerMetrics(meters, new ConnectionDirectory(), new Kodosi.Security.DeviceSessions(TimeProvider.System));
+        return new ServerMetrics(meters, new ConnectionDirectory(TimeProvider.System), new Kodosi.Security.DeviceSessions(TimeProvider.System));
     }
 
     private static async Task<(int Status, JsonElement? Body)> AnswerAsync(Exception error, ServerMetrics metrics, bool aborted = false)

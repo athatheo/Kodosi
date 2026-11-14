@@ -307,6 +307,9 @@
     <string name="notifications">Γνωστοποιήσεις</string>
     <string name="notifications_description">Όταν ένα τερματικό περιμένει, ολοκληρώνει ή αποτυγχάνει</string>
     <string name="notifications_waiting">Περιμένει εσάς</string>
+    <string name="notifications_waiting_description">Όταν ένα τερματικό σας χρειάζεται</string>
+    <string name="notifications_ended">Ολοκληρώθηκε ή απέτυχε</string>
+    <string name="notifications_ended_description">Όταν ένα τερματικό ολοκληρώνει ή αποτυγχάνει</string>
     <string name="terminal_notification_title">Το τερματικό σας</string>
     <string name="enable_notifications">Ενεργοποίηση ειδοποιήσεων</string>
     <string name="clipboard_request">Να επιτρέπεται σε αυτό το τερματικό να διαβάζει το πρόχειρό σας;</string>

@@ -25,12 +25,13 @@ QString requestId()
     return QUuid::createUuidV7().toString(QUuid::WithoutBraces);
 }
 
-/// The failure of a refresh that the app asks for by itself is no news to the person: the runtime
-/// refreshes again when the connection is back.
+/// The failure of a refresh or a report that the app sends by itself is no news to the person: the
+/// runtime refreshes again when the connection is back, and the app reports the next change.
 bool isRefresh(const QString& operation)
 {
     static const QStringList refreshes { QStringLiteral("session.list"), QStringLiteral("auth.refresh"),
-        QStringLiteral("friends.refresh"), QStringLiteral("devices.refresh"), QStringLiteral("project.list") };
+        QStringLiteral("friends.refresh"), QStringLiteral("devices.refresh"), QStringLiteral("project.list"),
+        QStringLiteral("app.presence") };
     return refreshes.contains(operation);
 }
 }
@@ -392,10 +393,6 @@ void Workspace::apply(const QJsonObject& event, std::uint64_t accountEpoch)
     }
     if (type.startsWith(QStringLiteral("dosi."))) {
         m_dosi.apply(type, event);
-        return;
-    }
-    if (type == QStringLiteral("term.attention")) {
-        m_sessions.alert(event.value(QStringLiteral("sessionId")).toString());
         return;
     }
     if (type == QStringLiteral("session.picture")) {

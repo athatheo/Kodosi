@@ -5,6 +5,10 @@ import os
 
 @MainActor
 final class TerminalNotifications {
+    enum Cue: String {
+        case sound, banner, list
+    }
+
     nonisolated static let terminalKey = "terminal"
 
     private let driver: any DesktopNotificationDriving
@@ -25,9 +29,7 @@ final class TerminalNotifications {
             clear()
             self.accountEpoch = accountEpoch
         }
-        current = Dictionary(uniqueKeysWithValues: sessions.filter {
-            $0.canCall && $0.status == .running
-        }.map { ($0.id, $0) })
+        current = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0) })
         let live = Set(current.values.map(identifier))
         let obsolete = issued.subtracting(live)
         issued.subtract(obsolete)
@@ -63,8 +65,8 @@ final class TerminalNotifications {
         alerts.removeAll()
     }
 
-    func alert(_ text: String, session: RuntimeSession) {
-        post(title: session.name, body: text, session: session, alert: true)
+    func alert(_ text: String?, session: RuntimeSession, cue: Cue) {
+        post(title: session.name, body: text, session: session, cue: cue, alert: true)
     }
 
     func withdrawAlert(_ sessionId: String) {
@@ -75,7 +77,7 @@ final class TerminalNotifications {
         driver.remove(identifiers: [identifier])
     }
 
-    func post(title: String?, body: String?, session: RuntimeSession, alert: Bool = false) {
+    func post(title: String?, body: String?, session: RuntimeSession, cue: Cue, alert: Bool = false) {
         let identifier = identifier(session)
         guard current[session.id]?.incarnationId == session.incarnationId,
               issued.contains(identifier) || issued.count < 256,
@@ -88,8 +90,11 @@ final class TerminalNotifications {
         }
         let content = UNMutableNotificationContent()
         content.title = nonEmpty(title) ?? String(localized: "Terminal")
+        content.subtitle = session.otherComputer ?? ""
         content.body = nonEmpty(body) ?? session.name
-        content.sound = .default
+        content.sound = cue == .sound ? .default : nil
+        content.interruptionLevel = cue == .list ? .passive : .active
+        content.threadIdentifier = session.hostDeviceId ?? ""
         content.userInfo = [Self.terminalKey: session.id]
         let epoch = accountEpoch
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)

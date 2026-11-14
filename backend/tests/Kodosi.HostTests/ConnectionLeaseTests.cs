@@ -15,7 +15,7 @@ public sealed class ConnectionLeaseTests(PostgresFixture postgres)
         .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Kodosi"] = connection }).Build());
 
     private static ConnectionLease Lease(string connection, TimeSpan wait) =>
-        new(Database(connection), new ConnectionDirectory(), new Lifetime(), TimeProvider.System, NullLogger<ConnectionLease>.Instance) { AcquireWait = wait };
+        new(Database(connection), new ConnectionDirectory(TimeProvider.System), new Lifetime(), TimeProvider.System, NullLogger<ConnectionLease>.Instance) { AcquireWait = wait };
 
     [Fact]
     public async Task OneProcessHoldsTheLeaseAndTheNextStartGetsItWhenTheHolderEnds()

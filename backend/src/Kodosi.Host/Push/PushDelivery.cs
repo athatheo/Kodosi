@@ -21,22 +21,32 @@ internal sealed partial class PushDelivery(IServiceScopeFactory scopes, PushSett
     ILogger<PushDelivery> logger)
 {
     internal const int Attempts = 3;
+    internal static readonly TimeSpan BackgroundSpacing = TimeSpan.FromMinutes(10);
     private readonly Dictionary<string, IPushService> services = Services(settings, http, clock);
+    private readonly Lock sync = new();
+    private readonly Dictionary<string, Background> backgrounds = new(StringComparer.Ordinal);
 
     public async Task DeliverAsync(PushNotice notice, CancellationToken ct)
     {
-        List<PushToken> tokens;
+        List<PushToken> owned;
         await using (var scope = scopes.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<KodosiDbContext>();
-            tokens = await (from token in db.PushTokens.AsNoTracking()
-                            join device in db.Devices on token.DeviceId equals device.Id
-                            where token.UserId == notice.OwnerId && !device.Revoked
-                            select token).ToListAsync(ct);
+            var tokens = from token in db.PushTokens.AsNoTracking()
+                         join device in db.Devices on token.DeviceId equals device.Id
+                         where token.UserId == notice.OwnerId && !device.Revoked
+                         select token;
+            if (notice.DeviceId is { } only) tokens = tokens.Where(token => token.DeviceId == only);
+            owned = await tokens.ToListAsync(ct);
         }
-        tokens.RemoveAll(token => !services.ContainsKey(token.Platform));
-        var outcomes = await Task.WhenAll(tokens.Select(token => SendAsync(token, notice, ct)));
-        var gone = tokens.Where((_, index) => outcomes[index] == Delivered.Gone).ToList();
+        List<PushToken> sending = [];
+        foreach (var token in owned)
+            if (services.ContainsKey(token.Platform) && (token.Platform != "apns" || notice.Alert is not null || TakeBackground(token.DeviceId, notice)))
+                sending.Add(token);
+        var outcomes = await Task.WhenAll(sending.Select(token => SendAsync(token, notice, ct)));
+        foreach (var (token, outcome) in sending.Zip(outcomes))
+            if (token.Platform == "apns" && outcome == Delivered.Sent) Got(token.DeviceId, notice);
+        var gone = sending.Where((_, index) => outcomes[index] == Delivered.Gone).ToList();
         if (gone.Count == 0) return;
         await using var cleanup = scopes.CreateAsyncScope();
         var kept = cleanup.ServiceProvider.GetRequiredService<KodosiDbContext>().PushTokens;
@@ -60,12 +70,69 @@ internal sealed partial class PushDelivery(IServiceScopeFactory scopes, PushSett
         }
     }
 
+    internal List<(Guid OwnerId, string DeviceId)> Released()
+    {
+        lock (sync)
+        {
+            var now = clock.GetUtcNow();
+            List<(Guid, string)> released = [];
+            foreach (var (deviceId, background) in backgrounds.ToArray())
+            {
+                if (background.Sent is { } sent && now - sent < BackgroundSpacing) continue;
+                if (background.HeldFor is { } ownerId) released.Add((ownerId, deviceId));
+                else if (now - background.Got >= BackgroundSpacing) backgrounds.Remove(deviceId);
+                background.HeldFor = null;
+            }
+            return released;
+        }
+    }
+
+    private bool TakeBackground(string deviceId, PushNotice notice)
+    {
+        lock (sync)
+        {
+            var now = clock.GetUtcNow();
+            if (!backgrounds.TryGetValue(deviceId, out var background)) backgrounds[deviceId] = background = new Background();
+            if (background.Pushed?.SequenceEqual(notice.Pushed.Select(x => x.TerminalId)) == true)
+            {
+                background.HeldFor = null;
+                return false;
+            }
+            if (background.Sent is { } sent && now - sent < BackgroundSpacing)
+            {
+                background.HeldFor = notice.OwnerId;
+                return false;
+            }
+            background.Sent = now;
+            return true;
+        }
+    }
+
+    private void Got(string deviceId, PushNotice notice)
+    {
+        lock (sync)
+        {
+            if (!backgrounds.TryGetValue(deviceId, out var background)) backgrounds[deviceId] = background = new Background();
+            background.Pushed = [.. notice.Pushed.Select(x => x.TerminalId)];
+            background.Got = clock.GetUtcNow();
+            if (notice.Alert is not null) background.HeldFor = null;
+        }
+    }
+
     private static Dictionary<string, IPushService> Services(PushSettings settings, IHttpClientFactory http, TimeProvider clock)
     {
         var services = new Dictionary<string, IPushService>(StringComparer.Ordinal);
         if (settings.Apns is { } apple) services["apns"] = new Apns(apple, http, clock);
         if (settings.Fcm is { } google) services["fcm"] = new Fcm(google, http, clock);
         return services;
+    }
+
+    private sealed class Background
+    {
+        public List<Guid>? Pushed { get; set; }
+        public DateTimeOffset Got { get; set; }
+        public DateTimeOffset? Sent { get; set; }
+        public Guid? HeldFor { get; set; }
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "{Platform} refused a push notification: {Detail}")]

@@ -47,6 +47,12 @@ fn main() {
                 ("/channelProtocolVersion", "CHANNEL_VERSION", "u32"),
                 ("/pipes/viewersMax", "TERMINAL_VIEWERS_MOST", "usize"),
                 ("/pipes/callsMax", "CALLS_MOST", "usize"),
+                ("/presence/awaySeconds", "PRESENCE_AWAY_SECONDS", "u64"),
+                (
+                    "/presence/refreshSeconds",
+                    "PRESENCE_REFRESH_SECONDS",
+                    "u64",
+                ),
             ][..],
         ),
     ] {

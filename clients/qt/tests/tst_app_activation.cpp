@@ -45,6 +45,14 @@ void AppActivationTest::launchesForwardTheirRouteAndToken()
     QCOMPARE(received.token, routed.token);
     QCOMPARE(received.route->destination, routed.route->destination);
 
+    const kodosi::AppActivation notified {
+        .route = kodosi::DeepLinkRouter::parse(QStringLiteral("kodosi://notification/0198aaaa-0000-7000-8000-000000000001")),
+        .token = {},
+        .appVersion = {},
+    };
+    QVERIFY(notified.route->destination && notified.route->destination->notification);
+    QCOMPARE(kodosi::AppActivation::fromJson(notified.toJson()).route->destination, notified.route->destination);
+
     const kodosi::AppActivation invalid {
         .route = kodosi::DeepLinkRouter::parse(QStringLiteral("kodosi://unknown/route")),
         .token = {},

@@ -227,6 +227,7 @@ async fn failed_unpublish_retains_the_cleanup_obligation() {
         },
         requests,
         output,
+        tokio::sync::watch::channel(None).1,
         SessionDto {
             id,
             incarnation_id: incarnation,
@@ -288,6 +289,7 @@ async fn missing_publication_discards_pending_grants_before_reconciliation() {
         },
         requests,
         output,
+        tokio::sync::watch::channel(None).1,
         SessionDto {
             id,
             incarnation_id: incarnation,
@@ -440,7 +442,11 @@ async fn retiring_a_terminal_leaves_operations_free_while_its_host_drains() {
     network.inner.publications.lock().await.insert(
         id,
         Arc::new(terminal_connections::Publication::new(
-            info, requests, output, dto,
+            info,
+            requests,
+            output,
+            tokio::sync::watch::channel(None).1,
+            dto,
         )),
     );
     let retirement = network.unpublish(id);

@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        model.notifications.foreground = true
+        model.present(true)
     }
 
     override fun onPause() {
@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        model.notifications.foreground = false
+        if (!isChangingConfigurations) model.present(false)
         model.lock.background()
         super.onStop()
     }

@@ -61,6 +61,9 @@ public sealed partial class ContractTests(PostgresFixture postgres)
         Assert.Equal(ConnectionDirectory.MaximumSessionPipes, pipes.GetProperty("viewersMax").GetInt32());
         Assert.Equal(ConnectionDirectory.MaximumDevicePipes, pipes.GetProperty("deviceMax").GetInt32());
         Assert.Equal(ConnectionDirectory.MaximumCalls, pipes.GetProperty("callsMax").GetInt32());
+        var presence = connections.GetProperty("presence");
+        Assert.Equal(ConnectionDirectory.PresenceLease, TimeSpan.FromSeconds(presence.GetProperty("leaseSeconds").GetInt32()));
+        Assert.Equal(ConnectionDirectory.PresenceGrace, TimeSpan.FromSeconds(presence.GetProperty("graceSeconds").GetInt32()));
 
         await using var app = new BackendApplication(await postgres.CreateDatabaseAsync(TestContext.Current.CancellationToken));
         var routes = Routes(app).Select(x => x.Route).ToList();

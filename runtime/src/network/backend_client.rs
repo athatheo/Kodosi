@@ -24,7 +24,7 @@ use super::{
     wire::{self, SessionDto},
 };
 #[cfg(feature = "host")]
-use super::{HostRequest, LocalPublication, PublicationOutput};
+use super::{HostRequest, LocalPublication, PublicationOutput, PublishedMark};
 use crate::identity::{
     self,
     device_cert::{build_cert_for, build_self_cert},
@@ -1040,6 +1040,7 @@ impl BackendClient {
         info: LocalPublication,
         requests: mpsc::Sender<HostRequest>,
         output: PublicationOutput,
+        attention: PublishedMark,
     ) -> Result<()> {
         let generation = self.generation();
         let _operation = self.inner.operations.lock().await;
@@ -1076,7 +1077,7 @@ impl BackendClient {
         }
         self.check_credentials(&credentials)?;
         let publication = Arc::new(terminal_connections::Publication::new(
-            info, requests, output, dto,
+            info, requests, output, attention, dto,
         ));
         self.inner.publications.lock().await.insert(
             publication.info.read().await.session_id,

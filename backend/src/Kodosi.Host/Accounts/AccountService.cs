@@ -65,7 +65,7 @@ public sealed class AccountService(KodosiDbContext db, ConnectionDirectory conne
         await transaction.CommitAsync(ct);
         deviceSessions.Remove(userId);
         foreach (var device in devices) connections.RemoveDevice(userId, device.Id);
-        foreach (var session in owned) connections.RemoveSession(session.Id);
+        foreach (var session in owned) connections.RemoveSession(session.Id, session.OwnerUserId);
         await TerminalAccess.RevokeAsync(db, connections, others, ct);
         var people = projectPeople.Where(x => x != userId).ToArray();
         connections.Notify(friendships.Select(x => x.FirstUserId == userId ? x.SecondUserId : x.FirstUserId), "friends");

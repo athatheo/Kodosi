@@ -9,21 +9,25 @@ using Microsoft.EntityFrameworkCore;
 namespace Kodosi.TerminalConnections;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record TerminalStatus(string? Program = null, string? State = null, string? Kind = null, int? Account = null)
+public sealed record TerminalStatus(string? Program = null, string? State = null, string? Kind = null, int? Account = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Attention = null)
 {
     private static readonly SearchValues<char> ProgramCharacters = SearchValues.Create("abcdefghijklmnopqrstuvwxyz0123456789-");
 
     internal static TerminalStatus? Checked(TerminalStatus? status) =>
         status is null || status.IsValid ? status : throw ApiException.Invalid("Invalid terminal status.");
 
+    internal static TerminalStatus? ToOthers(TerminalStatus? status) => status is { Attention: not null } ? status with { Attention = null } : status;
+
     private bool IsValid =>
         (Program is null || (Program.Length is > 0 and <= 32 && !Program.AsSpan().ContainsAnyExcept(ProgramCharacters)))
         && (Account is null || (Program is not null && Account is >= 0 and <= 255))
         && State is null or "idle" or "working" or "blocked" or "done" or "error"
-        && (Kind is null || (State == "blocked" && Kind is "permission" or "question" or "auth"));
+        && (Kind is null || (State == "blocked" && Kind is "permission" or "question" or "auth"))
+        && (Attention is null || (Attention == true && State is "blocked" or "done" or "error"));
 }
 
-internal sealed record TerminalReport(Guid SessionId, Guid OwnerId, TerminalStatus? Before, TerminalStatus? After, bool First);
+internal sealed record TerminalReport(Guid SessionId, Guid OwnerId, TerminalStatus? Status);
 
 internal sealed partial class TerminalPresence(IServiceScopeFactory scopes, ConnectionDirectory directory, TimeProvider clock,
     ILogger<TerminalPresence> logger) : BackgroundService

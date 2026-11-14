@@ -6,6 +6,7 @@
 #include "canvas/CanvasImages.hpp"
 #include "canvas/CanvasWeb.hpp"
 #include "logging/QtLogForwarder.hpp"
+#include "platform/Presence.hpp"
 #include "platform/TerminalNotifications.hpp"
 #include "runtime/RuntimeBridge.hpp"
 #include "presentation/AppearanceModel.hpp"
@@ -21,7 +22,7 @@
 #include "presentation/Workspace.hpp"
 #include "platform/DesktopFileIntegration.hpp"
 #include "platform/DesktopTray.hpp"
-#include "platform/SystemNotificationDriver.hpp"
+#include "platform/System.hpp"
 #include "terminal/TerminalAccessibility.hpp"
 #include "terminal/TerminalSessionRegistry.hpp"
 #include "terminal/TerminalSurfaceController.hpp"
@@ -198,11 +199,17 @@ int main(int argc, char* argv[])
     });
     kodosi::SystemNotificationDriver notifications;
     kodosi::TerminalNotifications terminalNotifications(sessions, notifications);
+    kodosi::SystemPresenceSource presenceSource;
+    kodosi::PresenceReporter presence(runtime, presenceSource);
+    presence.setActive(QGuiApplication::applicationState() == Qt::ApplicationActive);
+    QObject::connect(&app, &QGuiApplication::applicationStateChanged, &presence,
+        [&](Qt::ApplicationState state) { presence.setActive(state == Qt::ApplicationActive); });
     kodosi::TerminalSurfaceController surfaces(terminalSessions, runtime, sessions);
     kodosi::DesktopTray tray(desktopSettings);
     kodosi::installTerminalAccessibility();
 
     QObject::connect(&runtime, &kodosi::RuntimeBridge::eventReceived, &app, [&](const QJsonObject& event, quint64 accountEpoch, const QByteArray& payload) {
+        presence.apply(event);
         workspace.apply(event, accountEpoch);
         terminalNotifications.apply(event);
         const auto type = event.value(QStringLiteral("type")).toString();
@@ -269,21 +276,23 @@ int main(int argc, char* argv[])
     files.setTransientParent(window);
     desktop.attachWindow(window, windowSize);
     const auto open = [&](const kodosi::AppActivation& activation) {
+        const auto destination = activation.route ? activation.route->destination : std::nullopt;
+        if (destination && destination->notification) {
+            workspace.sessionActions().openNotified(destination->sessionId, activation.token);
+            return;
+        }
         desktop.bringToFront(activation.token);
         if (!activation.appVersion.isEmpty())
             lifecycle.offerRestart(activation.appVersion, QStringLiteral(KODOSI_VERSION));
         if (!activation.route)
             return;
-        if (activation.route->destination)
-            workspace.route(*activation.route->destination);
+        if (destination)
+            workspace.route(*destination);
         else
             workspace.setError(kodosi::DeepLinkRouter::userMessage(activation.route->error));
     };
     QObject::connect(&terminalNotifications, &kodosi::TerminalNotifications::sessionRequested, &app,
-        [&](const QString& id, const QString& token) {
-            if (workspace.sessionActions().activate(id))
-                desktop.bringToFront(token);
-        });
+        [&](const QString& id, const QString& token) { workspace.sessionActions().openNotified(id, token); });
     QObject::connect(&workspace, &kodosi::Workspace::showRequested, &app, [&](const QString& id) {
         if (workspace.sessionActions().activate(id))
             desktop.bringToFront();

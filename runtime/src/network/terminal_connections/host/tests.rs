@@ -652,7 +652,13 @@ async fn a_viewer_whose_device_the_host_cannot_check_is_asked_to_try_again() {
     };
     let (requests, _host) = mpsc::channel(1);
     let (_frames, output) = broadcast::channel(1);
-    let publication = Publication::new(info, requests, output, dto);
+    let publication = Publication::new(
+        info,
+        requests,
+        output,
+        tokio::sync::watch::channel(None).1,
+        dto,
+    );
     let credentials = network.credentials().unwrap();
     credentials.cancel.cancel();
     let refused = admit(
@@ -666,4 +672,33 @@ async fn a_viewer_whose_device_the_host_cannot_check_is_asked_to_try_again() {
     .await
     .unwrap_err();
     assert_eq!(refused.code, "busy");
+}
+
+#[test]
+fn the_status_carries_the_mark_only_with_the_state_that_it_was_made_for() {
+    use crate::terminal::{ProgramState, Waiting};
+    let reported = |state| {
+        Some(TerminalStatus {
+            program: Some("claude".to_owned()),
+            state: Some(state),
+            ..TerminalStatus::default()
+        })
+    };
+    let mut shared = Shared {
+        reported: reported(ProgramState::Done),
+        marked: None,
+        held: None,
+        due: tokio::time::Instant::now(),
+    };
+    let sent = |shared: &Shared| serde_json::to_value(shared.wanted()).unwrap();
+    assert_eq!(sent(&shared), json!({"program":"claude","state":"done"}));
+    shared.held = shared.wanted();
+    shared.marked = Some(Waiting::Done);
+    assert!(shared.waiting());
+    assert_eq!(
+        sent(&shared),
+        json!({"program":"claude","state":"done","attention":true})
+    );
+    shared.reported = reported(ProgramState::Error);
+    assert_eq!(sent(&shared), json!({"program":"claude","state":"error"}));
 }

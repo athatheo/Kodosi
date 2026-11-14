@@ -272,6 +272,11 @@ void DesktopStateModel::setModalVisible(QObject* modal, bool visible)
     }
     if (wasOpen != modalOpen()) emit modalOpenChanged();
 }
+void DesktopStateModel::dismissDialogs()
+{
+    if (modalOpen())
+        emit dialogsDismissed();
+}
 void DesktopStateModel::clearError()
 {
     if (!m_error.isEmpty()) {

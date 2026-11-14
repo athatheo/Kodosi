@@ -24,6 +24,10 @@ SessionActionsModel::SessionActionsModel(Workspace& workspace, SessionCatalogMod
 {
     connect(
         &sessions, &SessionCatalogModel::authoritativeSnapshotApplied, this, &SessionActionsModel::activatePendingLink);
+    connect(&sessions, &SessionCatalogModel::authoritativeSnapshotApplied, this, [this] {
+        if (const auto notified = std::exchange(m_notified, std::nullopt))
+            showNotified(*notified);
+    });
     connect(&sessions, &SessionCatalogModel::sessionsHidden, this, [this](const QStringList& ids) {
         for (const auto& id : ids) minimize(id);
     });
@@ -88,7 +92,7 @@ bool SessionActionsModel::activateSession(const QString& id, bool inProject)
             m_workspace.setError(tr("The terminal link is invalid."));
             return false;
         }
-        m_activeLink = DeepLinkDestination { id };
+        m_activeLink = DeepLinkDestination { .sessionId = id };
         if (openRemote(id))
             return true;
         m_activeLink.reset();
@@ -114,6 +118,29 @@ bool SessionActionsModel::activateSession(const QString& id, bool inProject)
         return false;
     emit activated(id);
     return true;
+}
+
+void SessionActionsModel::openNotified(const QString& id, const QString& activationToken)
+{
+    m_desktop.bringToFront(activationToken);
+    m_desktop.dismissDialogs();
+    if (m_sessions.hasAuthoritativeSnapshot())
+        showNotified(id);
+    else
+        m_notified = id;
+}
+
+void SessionActionsModel::showNotified(const QString& id)
+{
+    const auto open = [this](const std::optional<QString>& candidate) {
+        const auto session = candidate ? m_sessions.session(*candidate) : std::nullopt;
+        return session && session->connectionState != QStringLiteral("blocked")
+            && session->status != QStringLiteral("closing") && activate(session->id);
+    };
+    if (open(id) || open(m_sessions.ownRestart(id)))
+        return;
+    m_desktop.setActiveView(DesktopStateModel::Sessions);
+    m_desktop.setSidebarOpen(true);
 }
 
 bool SessionActionsModel::activateInProject(const QString& id)
@@ -145,7 +172,7 @@ void SessionActionsModel::completeCreation(const QString& id, const QString& pro
     m_typeAhead.expect(id);
     if (projectId.isEmpty()) {
         if (m_sessions.containsSession(id)) activate(id);
-        else m_activeLink = DeepLinkDestination {id};
+        else m_activeLink = DeepLinkDestination { .sessionId = id };
         return;
     }
     if (!m_sessions.containsSession(id)) { m_projectCreations.insert(id, projectId); return; }
@@ -468,6 +495,7 @@ void SessionActionsModel::reset(bool clearLinks)
         m_projectCreations.clear();
         m_activeLink.reset();
         m_links.clear();
+        m_notified.reset();
     }
 }
 }

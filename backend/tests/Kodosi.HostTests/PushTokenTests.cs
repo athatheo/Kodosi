@@ -6,6 +6,7 @@ using Kodosi.Security;
 using Kodosi.TerminalConnections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Kodosi.HostTests;
@@ -143,11 +144,51 @@ public sealed class PushTokenTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NoContent, await SendAsync(carol, HttpMethod.Put, new { platform = "apns", token = kept, environment = "development" }));
 
         var delivery = app.Services.GetRequiredService<PushDelivery>();
+        var status = new TerminalStatus("claude", "done", Attention: true);
         foreach (var actor in new[] { alice, bob, carol })
-            await delivery.DeliverAsync(new PushNotice(Guid.CreateVersion7(), actor.Fixture.UserId, new TerminalStatus("claude", "done"), 0), ct);
+            await delivery.DeliverAsync(new PushNotice(actor.Fixture.UserId, [], new PushAlert(Guid.CreateVersion7(), status, false, 0)), ct);
 
         Assert.Equal(carol.Fixture.DeviceId, Assert.Single(await TokensAsync(app)).DeviceId);
         Assert.Equal(2, apple.Sent.Count);
         Assert.Single(google.Sent, sent => sent.Uri.Host == "fcm.googleapis.com");
+    }
+
+    [Fact]
+    public async Task AnAppleDeviceHearsOfAWithdrawalAtMostOnceInTenMinutesAndThenGetsTheNewestList()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var apple = new PushHandler(_ => (HttpStatusCode.OK, ""));
+        await using var app = new BackendApplication(await postgres.CreateDatabaseAsync(ct), settings: PushKeys.Values(fcm: false));
+        using var alice = await app.EnrollAsync("alice");
+        Assert.Equal(HttpStatusCode.NoContent, await SendAsync(alice, HttpMethod.Put, new { platform = "apns", token = AppleToken, environment = "production" }));
+        var clock = new ManualClock();
+        var delivery = new PushDelivery(app.Services.GetRequiredService<IServiceScopeFactory>(), app.Services.GetRequiredService<PushSettings>(),
+            new PushClients(apple), clock, NullLogger<PushDelivery>.Instance);
+        var (owner, device) = (alice.Fixture.UserId, alice.Fixture.DeviceId);
+        var status = new TerminalStatus("claude", "blocked", Attention: true);
+        var (first, second) = (Guid.CreateVersion7(), Guid.CreateVersion7());
+        async Task<string?> SentAsync(PushNotice notice)
+        {
+            var before = apple.Sent.Count;
+            await delivery.DeliverAsync(notice, ct);
+            return apple.Sent.Count == before ? null : $"{apple.Sent[^1].Headers["apns-push-type"]} {apple.Sent[^1].Body}";
+        }
+        PushNotice Alert(Guid terminal) => new(owner, [new PushedTerminal(terminal, status)], new PushAlert(terminal, status, true, 1));
+        var withdrawn = new PushNotice(owner, []);
+        const string Empty = """background {"aps":{"content-available":1},"kodosi":{"pushed":[]}}""";
+
+        Assert.StartsWith("alert ", await SentAsync(Alert(first)), StringComparison.Ordinal);
+        Assert.Equal(Empty, await SentAsync(withdrawn));
+        Assert.StartsWith("alert ", await SentAsync(Alert(second)), StringComparison.Ordinal);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Null(await SentAsync(withdrawn));
+        clock.Advance(PushDelivery.BackgroundSpacing - TimeSpan.FromMinutes(2));
+        Assert.Empty(delivery.Released());
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.Equal(new[] { (owner, device) }, delivery.Released());
+        Assert.Equal(Empty, await SentAsync(withdrawn with { DeviceId = device }));
+        Assert.Empty(delivery.Released());
+        clock.Advance(PushDelivery.BackgroundSpacing);
+        Assert.Null(await SentAsync(withdrawn));
     }
 }

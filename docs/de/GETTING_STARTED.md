@@ -99,9 +99,13 @@ Die Markierung jedes Terminals zeigt, was sein Programm tut.
 | Einen grünen Haken | Fertig. |
 | Ein gelbes Warnzeichen | Fehlgeschlagen. |
 
-Haken und Warnzeichen verschwinden, wenn du das Terminal öffnest. Solange Kodosi im
-Hintergrund ist, sagt dir eine Mitteilung, wenn eines deiner Terminals zu warten beginnt,
-fertig wird oder fehlschlägt. Programme melden ihren Zustand über das
+Haken und Warnzeichen verschwinden, wenn du das Terminal auf irgendeinem deiner Geräte
+öffnest. Wenn eines deiner Terminals zu warten beginnt, fertig wird oder fehlschlägt,
+sagt Kodosi es dir dort, wo du bist. In Kodosi bekommst du das Zeichen. Bist du an
+deinem Computer in einer anderen App, bekommst du dort eine Mitteilung. Bist du nicht
+an deinen Computern, bekommst du sie auf deinem Telefon. Ein Terminal, das noch auf
+dich wartet, wenn du deinen Computer verlässt, sagt es dir dann auf deinem Telefon. Nur
+ein Terminal, das wartet, gibt einen Ton aus. Programme melden ihren Zustand über das
 [Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status) oder
 einen Fortschrittsbalken. Ein Programm, das nichts meldet, zeigt keinen Zustand.
 

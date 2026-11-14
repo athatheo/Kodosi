@@ -307,6 +307,9 @@
     <string name="notifications">通知</string>
     <string name="notifications_description">ターミナルが入力待ち、完了、失敗になったとき</string>
     <string name="notifications_waiting">あなたの対応を待っています</string>
+    <string name="notifications_waiting_description">ターミナルがあなたを必要としているとき</string>
+    <string name="notifications_ended">完了または失敗</string>
+    <string name="notifications_ended_description">ターミナルが完了または失敗したとき</string>
     <string name="terminal_notification_title">あなたのターミナル</string>
     <string name="enable_notifications">通知を有効にする</string>
     <string name="clipboard_request">このターミナルにクリップボードの読み取りを許可しますか？</string>

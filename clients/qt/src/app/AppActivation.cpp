@@ -14,6 +14,7 @@ namespace {
 
 const auto tokenKey = QStringLiteral("token");
 const auto sessionKey = QStringLiteral("session");
+const auto notificationKey = QStringLiteral("notification");
 const auto routeErrorKey = QStringLiteral("routeError");
 const auto appVersionKey = QStringLiteral("appVersion");
 constexpr qsizetype maximumWaiting = 16;
@@ -41,7 +42,7 @@ QByteArray AppActivation::toJson() const
     if (!token.isEmpty())
         object.insert(tokenKey, token);
     if (route && route->destination)
-        object.insert(sessionKey, route->destination->sessionId);
+        object.insert(route->destination->notification ? notificationKey : sessionKey, route->destination->sessionId);
     else if (route)
         object.insert(routeErrorKey, static_cast<int>(route->error));
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
@@ -60,7 +61,11 @@ AppActivation AppActivation::fromJson(const QByteArray& json)
         }))
         activation.appVersion = version;
     if (auto session = DeepLinkRouter::sessionId(object.value(sessionKey).toString()))
-        activation.route = DeepLinkParseResult { .destination = DeepLinkDestination { std::move(*session) }, .error = {} };
+        activation.route = DeepLinkParseResult {
+            .destination = DeepLinkDestination { .sessionId = std::move(*session) }, .error = {} };
+    else if (auto notified = DeepLinkRouter::sessionId(object.value(notificationKey).toString()))
+        activation.route = DeepLinkParseResult {
+            .destination = DeepLinkDestination { .sessionId = std::move(*notified), .notification = true }, .error = {} };
     else if (const auto error = routeError(object.value(routeErrorKey)))
         activation.route = DeepLinkParseResult { .destination = std::nullopt, .error = *error };
     return activation;

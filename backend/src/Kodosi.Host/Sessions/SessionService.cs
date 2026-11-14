@@ -62,7 +62,7 @@ public sealed class SessionService(KodosiDbContext db, ConnectionDirectory conne
             var (online, status) = connections.Live(session.Id);
             return new SessionDto(session.Id, session.IncarnationId, session.Name, session.OwnerUserId, row.OwnerName, session.HostDeviceId,
                 session.HostName, session.ProjectId, row.ProjectName, people[session.Id].Where(user => user != session.OwnerUserId).ToArray(),
-                session.AuthorizationRevision, online, status, session.ProjectSequence,
+                session.AuthorizationRevision, online, viewer == session.OwnerUserId ? status : TerminalStatus.ToOthers(status), session.ProjectSequence,
                 session.ProjectSignature is { } signature ? new ProjectChoice(session.ProjectDeviceId!, Convert.ToBase64String(signature), session.ProjectHistory ?? "") : null,
                 row.Hidden && !online,
                 session.CloseSignature is { } closing ? new CloseRequest(session.CloseUserId!.Value, session.CloseDeviceId!, Convert.ToBase64String(closing)) : null,
@@ -190,7 +190,7 @@ public sealed class SessionService(KodosiDbContext db, ConnectionDirectory conne
         if (session.Ended) return;
         End(session, clock.GetUtcNow());
         await db.SaveChangesAsync(ct);
-        connections.RemoveSession(id);
+        connections.RemoveSession(id, session.OwnerUserId);
         connections.Notify(await TerminalAccess.PeopleAsync(db, id, ct), "sessions");
     }
 

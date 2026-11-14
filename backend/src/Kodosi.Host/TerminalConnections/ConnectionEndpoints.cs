@@ -20,6 +20,8 @@ internal static partial class ConnectionEndpoints
     private const int DatabaseCost = 2;
     private const int StatusBurst = 600;
     private const int StatusesEachSecond = 10;
+    private const int PresenceBurst = 30;
+    private const int PresencesEachSecond = 1;
     private static readonly TimeSpan Handshake = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan Admission = TimeSpan.FromSeconds(5);
 
@@ -111,6 +113,7 @@ internal static partial class ConnectionEndpoints
     {
         var messages = new TokenBucket(MessageBurst, MessagesEachSecond, clock);
         var statuses = new TokenBucket(StatusBurst, StatusesEachSecond, clock);
+        var presences = new TokenBucket(PresenceBurst, PresencesEachSecond, clock);
         while (!ct.IsCancellationRequested)
         {
             var type = await reader.ReadAsync(MessageBytes, ct);
@@ -155,6 +158,12 @@ internal static partial class ConnectionEndpoints
                 {
                     var reported = TerminalStatus.Checked(status.Status);
                     if (statuses.TryTake(1)) directory.Share(connection, status.SessionId, status.IncarnationId, reported);
+                    break;
+                }
+                case PresenceMessage presence:
+                {
+                    var state = presence.Checked();
+                    if (presences.TryTake(1)) directory.Present(connection, state);
                     break;
                 }
                 case OpenMessage open:

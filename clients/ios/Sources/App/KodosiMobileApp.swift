@@ -36,7 +36,7 @@ struct KodosiMobileApp: App {
                     }
                 }
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase, initial: true) { _, phase in
             model.sceneChanged(to: phase)
         }
     }

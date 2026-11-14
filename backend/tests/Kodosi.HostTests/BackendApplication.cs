@@ -134,6 +134,7 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
         await SendAsync(socket, new { type = "hello", protocolVersion = ContractVersions.TerminalConnection, deviceId = actor.Fixture.DeviceId, deviceSession = actor.Session, hosts = false });
         Assert.Equal("ready", (await JsonAsync(socket)).GetProperty("type").GetString());
         Assert.Equal("hosts", (await JsonAsync(socket)).GetProperty("type").GetString());
+        Assert.Equal("presence", (await JsonAsync(socket)).GetProperty("type").GetString());
         return socket;
     }
 

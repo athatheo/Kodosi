@@ -1,4 +1,5 @@
 use super::*;
+use crate::protocol::Presence;
 use std::sync::Arc;
 use tokio::time::{Instant, timeout};
 
@@ -705,8 +706,7 @@ fn registry_fixture() -> (Runtime, tempfile::TempDir) {
             answers: std::sync::Mutex::new(HashMap::new()),
             host: Some(crate::HostKind::Background),
             visible: HashMap::new(),
-            attention: BTreeSet::new(),
-            activity: HashMap::new(),
+            attention: attention::Attention::default(),
             project_latest: HashMap::new(),
             project_seen,
         },
@@ -1855,7 +1855,7 @@ async fn a_view_whose_computer_goes_offline_says_so_and_connects_again_when_it_i
         (ConnectionState::Connected, SessionStatus::Offline, None)
     );
     assert_eq!(runtime.remotes[&id].program_status, None);
-    assert!(!runtime.attention.contains(&id.to_string()));
+    assert!(!runtime.attention.marked(&id.to_string()));
     let (reply, typed) = oneshot::channel();
     runtime.input(
         id,
@@ -2166,50 +2166,19 @@ async fn catalog_replacement_cancels_inflight_automatic_recovery() {
     assert!(!runtime.reconnect.contains_key(&id));
 }
 
-#[tokio::test]
-async fn a_terminal_that_needs_its_person_waits_for_a_look_unless_someone_watches() {
-    use crate::terminal::{ProgramState, ProgramStatus};
-    let (mut runtime, _root) = registry_fixture();
-    let mut events = runtime.events.subscribe();
-    let id = Uuid::now_v7();
-    runtime.replace_remotes(vec![remote_session(id, Uuid::now_v7())]);
-    let show = |runtime: &mut Runtime, state| {
-        let entry = runtime.remotes.get_mut(&id).unwrap();
-        entry.is_owner = true;
-        entry.program_status = Some(ProgramStatus {
-            state,
-            kind: None,
-            progress: None,
-            title: None,
-            message: None,
-        });
-        runtime.publish_catalog();
-        runtime.entries()[0].attention
-    };
-    assert!(!show(&mut runtime, ProgramState::Working));
-    assert!(show(&mut runtime, ProgramState::Done));
-    let elsewhere = Uuid::now_v7();
-    runtime.see(
-        elsewhere,
-        CancellationToken::new(),
-        BTreeSet::from([id.to_string()]),
-        false,
-    );
-    assert!(runtime.entries()[0].attention);
-    runtime.visible.remove(&elsewhere);
-    let watching = CancellationToken::new();
-    runtime.see(
-        Uuid::now_v7(),
-        watching.clone(),
-        BTreeSet::from([id.to_string()]),
-        true,
-    );
-    assert!(!runtime.entries()[0].attention);
-    assert!(!show(&mut runtime, ProgramState::Working));
-    assert!(!show(&mut runtime, ProgramState::Done));
-    watching.cancel();
-    assert!(!show(&mut runtime, ProgramState::Working));
-    assert!(show(&mut runtime, ProgramState::Blocked));
+fn reports(runtime: &mut Runtime, remote: &RemoteSession, online: bool, status: &Value) {
+    let (generation, user_id) = (runtime.network.generation(), runtime.scope.user.clone());
+    runtime.network_event(BackendEvent {
+        generation,
+        user_id,
+        event: json!({"type":"network.terminal","sessionId":remote.id,
+            "incarnationId":remote.incarnation_id,"online":online,"status":status}),
+    });
+}
+
+fn calls(
+    events: &mut broadcast::Receiver<Event>,
+) -> Vec<(Option<crate::terminal::Waiting>, crate::protocol::Cue)> {
     let mut listed = None;
     let mut calls = Vec::new();
     while let Ok(event) = events.try_recv() {
@@ -2217,20 +2186,438 @@ async fn a_terminal_that_needs_its_person_waits_for_a_look_unless_someone_watche
             crate::protocol::EventBody::SessionsSnapshot { mut sessions } => {
                 listed = sessions.pop();
             }
-            crate::protocol::EventBody::TerminalAttention { .. } => {
+            crate::protocol::EventBody::TerminalAttention { cue, .. } => {
                 let entry = listed.as_ref().expect("the list comes before the call");
                 assert!(entry.attention);
-                calls.push(entry.waiting);
+                calls.push((entry.waiting, cue));
             }
             _ => {}
         }
     }
+    calls
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_friends_open_terminal_calls_once_a_new_state_lasts_unseen_and_not_when_it_comes_back() {
+    use crate::terminal::Waiting;
+    let (mut runtime, _root) = registry_fixture();
+    let remote = remote_session(Uuid::now_v7(), Uuid::now_v7());
+    let id = remote.id;
+    runtime.replace_remotes(vec![remote.clone()]);
+    runtime.remotes.get_mut(&id).unwrap().connection_state = ConnectionState::Connected;
+    let mut events = runtime.events.subscribe();
+    let marked = |runtime: &mut Runtime| {
+        runtime.attend();
+        runtime.entries()[0].attention
+    };
+
+    reports(&mut runtime, &remote, true, &json!({"state":"done"}));
+    tokio::time::advance(Duration::from_millis(1900)).await;
+    assert!(!marked(&mut runtime));
+    tokio::time::advance(Duration::from_millis(100)).await;
+    assert!(marked(&mut runtime));
+    let (client, looking) = (Uuid::now_v7(), CancellationToken::new());
+    show(&mut runtime, client, &looking, &[id]);
+    assert!(!runtime.entries()[0].attention);
+    runtime.visible.remove(&client);
+
+    reports(&mut runtime, &remote, true, &json!({"state":"working"}));
+    reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
+    tokio::time::advance(Duration::from_secs(1)).await;
+    reports(&mut runtime, &remote, true, &json!({"state":"working"}));
+    tokio::time::advance(Duration::from_secs(3)).await;
+    assert!(!marked(&mut runtime));
+
+    reports(&mut runtime, &remote, true, &json!({"state":"error"}));
+    tokio::time::advance(Duration::from_secs(3)).await;
+    assert!(marked(&mut runtime));
+    reports(&mut runtime, &remote, false, &Value::Null);
+    reports(&mut runtime, &remote, true, &json!({"state":"error"}));
+    tokio::time::advance(Duration::from_secs(3)).await;
+    assert!(marked(&mut runtime));
+    show(&mut runtime, client, &looking, &[id]);
+    runtime.visible.remove(&client);
+    reports(&mut runtime, &remote, false, &Value::Null);
+    reports(&mut runtime, &remote, true, &json!({"state":"error"}));
+    tokio::time::advance(Duration::from_secs(3)).await;
+    assert!(!marked(&mut runtime));
     assert_eq!(
-        calls,
+        calls(&mut events),
         [
-            Some(crate::terminal::Waiting::Done),
-            Some(crate::terminal::Waiting::Blocked)
+            (Some(Waiting::Done), crate::protocol::Cue::List),
+            (Some(Waiting::Error), crate::protocol::Cue::List)
         ]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_terminal_of_the_person_on_another_computer_has_the_mark_that_its_host_reports() {
+    use crate::terminal::Waiting;
+    let (mut runtime, _root) = registry_fixture();
+    runtime.network.assume_identity(crate::network::Identity {
+        user_id: "me".to_owned(),
+        device_id: "phone".to_owned(),
+        display_name: "Me".to_owned(),
+        enrolled: true,
+    });
+    runtime.scope.user = Some("me".to_owned());
+    let mut remote = remote_session(Uuid::now_v7(), Uuid::now_v7());
+    remote.owner_user_id = "me".to_owned();
+    remote.status = Some(TerminalStatus {
+        state: Some(crate::terminal::ProgramState::Done),
+        attention: true,
+        ..TerminalStatus::default()
+    });
+    let mut events = runtime.events.subscribe();
+    runtime.replace_remotes(vec![remote.clone()]);
+    let marked = |runtime: &Runtime| runtime.entries()[0].attention;
+    assert!(marked(&runtime));
+    reports(
+        &mut runtime,
+        &remote,
+        true,
+        &json!({"state":"done","attention":true}),
+    );
+    reports(&mut runtime, &remote, true, &json!({"state":"working"}));
+    assert!(!marked(&runtime));
+    reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
+    tokio::time::advance(Duration::from_secs(3)).await;
+    runtime.attend();
+    assert!(!marked(&runtime));
+    reports(
+        &mut runtime,
+        &remote,
+        true,
+        &json!({"state":"blocked","attention":true}),
+    );
+    assert!(marked(&runtime));
+    reports(&mut runtime, &remote, false, &Value::Null);
+    assert!(marked(&runtime));
+    reports(
+        &mut runtime,
+        &remote,
+        true,
+        &json!({"state":"blocked","attention":true}),
+    );
+    reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
+    assert!(!marked(&runtime));
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
+    );
+}
+
+async fn seen_reached_host(
+    requests: &mut mpsc::Receiver<crate::network::TestRemoteRequest>,
+) -> bool {
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let mut seen = false;
+    while let Ok(request) = requests.try_recv() {
+        if let crate::network::TestRemoteRequest::Control {
+            control: TerminalControl::Seen,
+            reply,
+        } = request
+        {
+            drop(reply.send(Ok(json!({"accepted":true}))));
+            seen = true;
+        }
+    }
+    seen
+}
+
+#[tokio::test]
+async fn a_person_in_kodosi_who_looks_at_a_marked_terminal_tells_its_host() {
+    let (mut runtime, _root) = registry_fixture();
+    runtime.network.assume_identity(crate::network::Identity {
+        user_id: "me".to_owned(),
+        device_id: "phone".to_owned(),
+        display_name: "Me".to_owned(),
+        enrolled: true,
+    });
+    runtime.scope.user = Some("me".to_owned());
+    let mut remote = remote_session(Uuid::now_v7(), Uuid::now_v7());
+    remote.owner_user_id = "me".to_owned();
+    remote.status = Some(TerminalStatus {
+        state: Some(crate::terminal::ProgramState::Blocked),
+        attention: true,
+        ..TerminalStatus::default()
+    });
+    let id = remote.id;
+    runtime.replace_remotes(vec![remote.clone()]);
+    let (client, lifetime) = (Uuid::now_v7(), CancellationToken::new());
+    reports_presence(&mut runtime, (client, &lifetime), Presence::Idle);
+    show(&mut runtime, client, &lifetime, &[id]);
+    runtime
+        .apply_for_consumer(&open_remote(id), client, lifetime.clone())
+        .unwrap();
+    let (connection, mut requests, updates) =
+        crate::network::test_remote_connection(remote.clone());
+    connected(&mut runtime, id, Ok(connection));
+    let view = runtime.connections[&id].subscribe();
+    requests.recv().await.unwrap();
+    updates.send(first_snapshot()).await.unwrap();
+    let _view = view.await.unwrap();
+
+    runtime.attend();
+    assert!(!seen_reached_host(&mut requests).await);
+    reports_presence(&mut runtime, (client, &lifetime), Presence::Kodosi);
+    assert!(seen_reached_host(&mut requests).await);
+    runtime.attend();
+    assert!(!seen_reached_host(&mut requests).await);
+    assert!(runtime.entries()[0].attention);
+    reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
+    assert!(!runtime.entries()[0].attention);
+}
+
+#[cfg(all(unix, feature = "host"))]
+async fn hosted(runtime: &mut Runtime, folder: &Path) -> (Uuid, TerminalSession) {
+    let id = Uuid::now_v7();
+    let terminal = TerminalSession::spawn(
+        id,
+        Uuid::now_v7(),
+        PathBuf::from(SHELL),
+        vec!["-c".to_owned(), "exec cat".to_owned()],
+        folder.to_owned(),
+        None,
+        None,
+        Vec::new(),
+        Default::default(),
+        stand_in_canvas(),
+        std::env::temp_dir().join(Uuid::now_v7().to_string()),
+        runtime.changes.clone(),
+    )
+    .await
+    .unwrap();
+    let entry = serde_json::from_value(json!({
+        "id": id, "incarnationId": terminal.incarnation_id, "kind": "local", "name": "Build",
+        "isOwner": true, "status": "running", "connectionState": "local", "prompt": false,
+        "repository": false, "working": false, "sharedWith": [], "attention": false,
+        "connectedUsers": [], "hidden": false,
+    }))
+    .unwrap();
+    runtime.local.insert(
+        id,
+        Local {
+            terminal: terminal.clone(),
+            entry,
+            creation: Command::ListSessions {
+                request_id: Uuid::now_v7().to_string(),
+            },
+            published: true,
+            project_sequence: 0,
+            worktree: None,
+            wanted: None,
+            conversation: restore::Conversation::default(),
+            changed: crate::agents::AgentSettings::default(),
+            marked: watch::channel(None).0,
+        },
+    );
+    runtime.publish_catalog();
+    (id, terminal)
+}
+
+#[cfg(all(unix, feature = "host"))]
+fn reports_state(runtime: &mut Runtime, id: Uuid, state: crate::terminal::ProgramState) {
+    runtime.local.get_mut(&id).unwrap().entry.program_status =
+        Some(crate::terminal::ProgramStatus {
+            state,
+            kind: None,
+            progress: None,
+            title: None,
+            message: None,
+        });
+    runtime.publish_catalog();
+}
+
+fn reports_presence(
+    runtime: &mut Runtime,
+    (client, lifetime): (Uuid, &CancellationToken),
+    state: Presence,
+) {
+    runtime
+        .apply_for_consumer(
+            &Command::Presence {
+                request_id: Uuid::now_v7().to_string(),
+                state,
+            },
+            client,
+            lifetime.clone(),
+        )
+        .unwrap();
+}
+
+#[cfg(all(unix, feature = "host"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_program_notification_shows_where_nobody_looks_and_not_over_a_state_mark() {
+    use crate::{
+        protocol::Cue,
+        terminal::{ProgramState, Waiting},
+    };
+    let (mut runtime, storage) = registry_fixture();
+    let (id, terminal) = hosted(&mut runtime, storage.path()).await;
+    let mark = runtime.local[&id].publication(id).3;
+    let mut events = runtime.events.subscribe();
+    let mut noted = |runtime: &mut Runtime| {
+        runtime.change(SessionChange::Notification {
+            id,
+            title: "Claude Code".to_owned(),
+            body: "Claude is waiting for your input".to_owned(),
+        });
+        std::iter::from_fn(|| events.try_recv().ok())
+            .filter_map(|event| match event.event {
+                crate::protocol::EventBody::TerminalNotification { cue, .. } => Some(cue),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let (client, lifetime) = (Uuid::now_v7(), CancellationToken::new());
+    let app = (client, &lifetime);
+
+    assert_eq!(noted(&mut runtime), [Cue::List]);
+    reports_presence(&mut runtime, app, Presence::Kodosi);
+    assert_eq!(noted(&mut runtime), [Cue::Sound]);
+    show(&mut runtime, client, &lifetime, &[id]);
+    assert_eq!(noted(&mut runtime), []);
+    reports_presence(&mut runtime, app, Presence::Here);
+    assert_eq!(noted(&mut runtime), [Cue::Banner]);
+
+    reports_state(&mut runtime, id, ProgramState::Done);
+    let later = Instant::now() + Duration::from_secs(3);
+    assert!(runtime.attention.settle(later, &BTreeSet::new()));
+    runtime.publish_catalog();
+    assert_eq!(*mark.borrow(), Some(Waiting::Done));
+    assert_eq!(noted(&mut runtime), []);
+    runtime.change(SessionChange::Seen { id });
+    assert_eq!(*mark.borrow(), None);
+    assert!(!runtime.entries()[0].attention);
+    terminal.close().await.unwrap();
+    drop(terminal);
+}
+
+#[cfg(all(unix, feature = "host"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_wait_seen_on_its_computer_gets_its_mark_again_and_calls_once_when_its_person_leaves() {
+    use crate::terminal::{ProgramState, Waiting};
+    let (mut runtime, storage) = registry_fixture();
+    let (id, terminal) = hosted(&mut runtime, storage.path()).await;
+    let mark = runtime.local[&id].publication(id).3;
+    let mut events = runtime.events.subscribe();
+    let (client, lifetime) = (Uuid::now_v7(), CancellationToken::new());
+    let app = (client, &lifetime);
+    reports_presence(&mut runtime, app, Presence::Kodosi);
+    show(&mut runtime, client, &lifetime, &[id]);
+    reports_state(&mut runtime, id, ProgramState::Blocked);
+    let later = Instant::now() + Duration::from_secs(3);
+    let watched = runtime.watched();
+    assert!(!runtime.attention.settle(later, &watched));
+    assert_eq!(*mark.borrow(), None);
+
+    reports_presence(&mut runtime, app, Presence::Idle);
+    assert_eq!(*mark.borrow(), Some(Waiting::Blocked));
+    runtime.attend();
+    reports_presence(&mut runtime, app, Presence::Idle);
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::Sound)]
+    );
+    reports_presence(&mut runtime, app, Presence::Kodosi);
+    assert_eq!(*mark.borrow(), None);
+    terminal.close().await.unwrap();
+    drop(terminal);
+}
+
+#[cfg(all(unix, feature = "host"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_bell_marks_its_terminal_for_the_apps_of_this_computer_and_nowhere_else() {
+    let (mut runtime, storage) = registry_fixture();
+    let (id, terminal) = hosted(&mut runtime, storage.path()).await;
+    let mark = runtime.local[&id].publication(id).3;
+    let mut events = runtime.events.subscribe();
+    runtime.change(SessionChange::Bell { id });
+    let told = std::iter::from_fn(|| events.try_recv().ok())
+        .map(|event| event.event.kind())
+        .collect::<Vec<_>>();
+    assert_eq!(told, ["term.bell", "sessions.snapshot"]);
+    assert!(runtime.entries()[0].attention);
+    assert_eq!(*mark.borrow(), None);
+    let (client, lifetime) = (Uuid::now_v7(), CancellationToken::new());
+    show(&mut runtime, client, &lifetime, &[id]);
+    assert!(!runtime.entries()[0].attention);
+    terminal.close().await.unwrap();
+    drop(terminal);
+}
+
+#[tokio::test]
+async fn a_spinner_that_stops_marks_its_terminal_for_this_device_alone() {
+    let (mut runtime, _root) = registry_fixture();
+    let mut events = runtime.events.subscribe();
+    let id = Uuid::now_v7();
+    runtime.replace_remotes(vec![remote_session(id, Uuid::now_v7())]);
+    let mut show = |connection, title: &str| {
+        let entry = runtime.remotes.get_mut(&id).unwrap();
+        entry.is_owner = true;
+        entry.connection_state = connection;
+        entry.title = Some(title.to_owned());
+        runtime.publish_catalog();
+        runtime.entries()[0].attention
+    };
+    assert!(!show(ConnectionState::Connected, "\u{2810} Build"));
+    assert!(!show(ConnectionState::Offline, "\u{2810} Build"));
+    assert!(!show(ConnectionState::Connected, "\u{2810} Build"));
+    assert!(!show(ConnectionState::Offline, "\u{2733} Build"));
+    assert!(show(ConnectionState::Connected, "\u{2733} Build"));
+    assert!(show(ConnectionState::Connected, "\u{2733} Build"));
+    assert!(
+        std::iter::from_fn(|| events.try_recv().ok())
+            .all(|event| event.event.kind() != "term.attention")
+    );
+}
+
+#[tokio::test]
+async fn a_wait_that_its_person_leaves_at_another_computer_calls_once_on_this_device() {
+    use crate::terminal::Waiting;
+    let (mut runtime, _root) = registry_fixture();
+    runtime.network.assume_identity(crate::network::Identity {
+        user_id: "me".to_owned(),
+        device_id: "phone".to_owned(),
+        display_name: "Me".to_owned(),
+        enrolled: true,
+    });
+    runtime.scope.user = Some("me".to_owned());
+    let mut remote = remote_session(Uuid::now_v7(), Uuid::now_v7());
+    remote.owner_user_id = "me".to_owned();
+    runtime.replace_remotes(vec![remote.clone()]);
+    let mut events = runtime.events.subscribe();
+    let elsewhere = |runtime: &mut Runtime, here: bool| {
+        let (generation, user_id) = (runtime.network.generation(), runtime.scope.user.clone());
+        runtime.network_event(BackendEvent {
+            generation,
+            user_id,
+            event: json!({"type":"network.presence","kodosi":false,"here":here,"heard":true}),
+        });
+    };
+    let waits = json!({"state":"blocked","attention":true});
+
+    elsewhere(&mut runtime, true);
+    reports(&mut runtime, &remote, true, &waits);
+    assert_eq!(calls(&mut events), Vec::new());
+    elsewhere(&mut runtime, false);
+    reports(&mut runtime, &remote, true, &waits);
+    runtime.attend();
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
+    );
+
+    elsewhere(&mut runtime, true);
+    reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
+    elsewhere(&mut runtime, false);
+    assert_eq!(calls(&mut events), Vec::new());
+    reports(&mut runtime, &remote, true, &waits);
+    runtime.attend();
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
     );
 }
 
@@ -2334,34 +2721,6 @@ async fn a_terminal_shows_what_its_program_reports_or_else_its_title() {
 }
 
 #[tokio::test]
-async fn a_spinner_that_kodosi_cannot_read_does_not_count_as_stopped() {
-    let (mut runtime, _root) = registry_fixture();
-    let mut events = runtime.events.subscribe();
-    let id = Uuid::now_v7();
-    runtime.replace_remotes(vec![remote_session(id, Uuid::now_v7())]);
-    let mut show = |connection, title: &str| {
-        let entry = runtime.remotes.get_mut(&id).unwrap();
-        entry.is_owner = true;
-        entry.connection_state = connection;
-        entry.title = Some(title.to_owned());
-        runtime.publish_catalog();
-        runtime.entries()[0].attention
-    };
-    assert!(!show(ConnectionState::Connected, "\u{2810} Build"));
-    assert!(!show(ConnectionState::Offline, "\u{2810} Build"));
-    assert!(!show(ConnectionState::Connected, "\u{2810} Build"));
-    assert!(!show(ConnectionState::Offline, "\u{2810} Build"));
-    assert!(show(ConnectionState::Connected, "\u{2733} Build"));
-    let mut notices = 0;
-    while let Ok(event) = events.try_recv() {
-        if event.event.kind() == "term.attention" {
-            notices += 1;
-        }
-    }
-    assert_eq!(notices, 1);
-}
-
-#[tokio::test]
 async fn a_project_stays_unread_until_its_person_sees_what_others_wrote() {
     let (mut runtime, _root) = registry_fixture();
     runtime.scope.user = Some("me".to_owned());
@@ -2403,6 +2762,7 @@ async fn a_terminal_shows_the_status_of_its_host_while_nobody_here_has_it_open()
             account: Some(2),
             state: Some(ProgramState::Blocked),
             kind: Some(BlockedKind::Permission),
+            attention: false,
         }),
         ..remote_session(id, incarnation)
     };
@@ -3311,6 +3671,7 @@ async fn a_restored_terminal_rejoins_its_project_for_its_account_and_leaves_a_re
             wanted: restore::Sharing::of(Some(&"owner".to_owned()), Some(&chosen), &[]),
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            marked: watch::channel(None).0,
         },
     );
     assert_eq!(
@@ -3557,6 +3918,7 @@ async fn a_working_agent_gets_the_project_message_that_names_its_terminal_unless
             wanted: None,
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            marked: watch::channel(None).0,
         },
     );
     let snapshot = |messages: Value| json!({"projectId": project, "messages": messages});
@@ -4041,6 +4403,7 @@ async fn a_change_of_the_agent_waits_for_its_next_prompt_and_types_its_own_comma
             wanted: None,
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            marked: watch::channel(None).0,
         },
     );
     let conversation = &mut runtime.local.get_mut(&id).unwrap().conversation;

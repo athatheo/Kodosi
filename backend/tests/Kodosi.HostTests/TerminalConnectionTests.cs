@@ -45,7 +45,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task TheHostIsToldWhoConnectsAndOnlyTheTwoEndsOfAPipeCanUseIt()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal();
         var (host, hostSocket) = Device(directory, device: "host"); var (viewer, viewerSocket) = Device(directory); var (other, otherSocket) = Device(directory, device: "other");
         await using var disposeHost = host; await using var disposeViewer = viewer; await using var disposeOther = other;
         directory.Register(host); directory.Register(viewer); directory.Register(other);
@@ -79,7 +79,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task AnOfflineOrFullTerminalRefusesViewers()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal();
         var (viewer, _) = Device(directory); await using var disposeViewer = viewer; directory.Register(viewer);
         Assert.Equal(409, Assert.Throws<ApiException>(() => directory.Open(viewer, Guid.CreateVersion7(), state)).Status);
         var (host, _) = Device(directory, device: "host"); await using var disposeHost = host; directory.Register(host);
@@ -98,7 +98,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task RevocationClosesOnlyThePipesOfRemovedPeopleAndTellsTheHost()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal();
         var (host, hostSocket) = Device(directory, device: "host"); var (kept, keptSocket) = Device(directory); var (removed, removedSocket) = Device(directory);
         await using var disposeHost = host; await using var disposeKept = kept; await using var disposeRemoved = removed;
         directory.Register(host); directory.Register(kept); directory.Register(removed); directory.Host(host, state);
@@ -119,7 +119,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task ARemovedOrReplacedDeviceConnectionLosesItsPipesAndItsHostedTerminals()
     {
-        var directory = new ConnectionDirectory(); var hosted = Terminal(); var watched = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var hosted = Terminal(); var watched = Terminal();
         var user = Guid.CreateVersion7();
         var (lost, _) = Device(directory, user, "lost"); var (otherHost, otherSocket) = Device(directory, device: "other"); var (guest, guestSocket) = Device(directory); var (keptViewer, _) = Device(directory, user, "kept");
         await using var disposeLost = lost; await using var disposeOther = otherHost; await using var disposeGuest = guest; await using var disposeKept = keptViewer;
@@ -149,7 +149,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task APipeThatIsTooSlowIsClosedAndTheDeviceConnectionStaysOpen()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal();
         var (host, hostSocket) = Device(directory, device: "host"); await using var disposeHost = host;
         await using var slow = Connection(new FakeSocket(blockWrites: true), Guid.CreateVersion7(), "slow", directory.Relays);
         directory.Register(host); directory.Register(slow); directory.Host(host, state);
@@ -200,7 +200,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task APipeEndsWithABusyMessageWhenAllRelayQueuesAreFull()
     {
-        var directory = new ConnectionDirectory(1024 * 1024); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System, 1024 * 1024); var state = Terminal();
         var (host, hostSocket) = Device(directory, device: "host"); await using var disposeHost = host;
         await using var slow = Connection(new FakeSocket(blockWrites: true), Guid.CreateVersion7(), "slow", directory.Relays);
         directory.Register(host); directory.Register(slow); directory.Host(host, state);
@@ -217,7 +217,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task OnlyTheHostingConnectionSetsTheStatusAndTheStatusEndsWithIt()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal();
         var changed = new List<Guid>(); directory.HostChanged += changed.Add;
         var (host, _) = Device(directory, device: "host"); var (other, _) = Device(directory, device: "other");
         await using var disposeHost = host; await using var disposeOther = other;
@@ -242,15 +242,67 @@ public sealed class TerminalConnectionTests
             $$"""{"incarnationId":"{{Guid.Empty}}","sessionId":"{{Guid.Empty}}","status":{{status}},"type":"status"}"""))).Status);
         Assert.Equal(new TerminalStatus("claude", "blocked", "question"), Read("""{"kind":"question","program":"claude","state":"blocked"}"""));
         Assert.Equal(new TerminalStatus("claude", "working", Account: 2), Read("""{"account":2,"program":"claude","state":"working"}"""));
+        Assert.Equal(new TerminalStatus("claude", "done", Attention: true), Read("""{"attention":true,"program":"claude","state":"done"}"""));
         Assert.Null(Read("null"));
         foreach (var invalid in new[]
                  {
                      """{"state":"blocked","message":"Allow the command?"}""", """{"state":"thinking"}""",
                      """{"state":"working","kind":"permission"}""", """{"program":"Claude Code"}""",
                      """{"account":1,"state":"working"}""", """{"account":256,"program":"claude"}""", """{"account":-1,"program":"claude"}""",
+                     """{"state":"working","attention":true}""", """{"attention":true}""", """{"state":"blocked","attention":false}""",
                  })
             Assert.ThrowsAny<Exception>(() => Read(invalid));
     }
+
+    [Fact]
+    public async Task OnlyTheDevicesOfItsOwnerHearThatATerminalNeedsAttention()
+    {
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal(); var owner = Guid.CreateVersion7();
+        var (computer, _) = Device(directory, owner, "computer", hosts: true); var (phone, phoneSocket) = Device(directory, owner, "phone");
+        var (friend, friendSocket) = Device(directory, device: "friend");
+        await using var disposeComputer = computer; await using var disposePhone = phone; await using var disposeFriend = friend;
+        directory.Register(computer); directory.Register(phone); directory.Register(friend); directory.Host(computer, state);
+        directory.Share(computer, state.Id, state.IncarnationId, new TerminalStatus("claude", "done", Attention: true));
+
+        directory.NotifyTerminal(state.Id, state.IncarnationId, owner, "computer", [owner, friend.UserId]);
+        Assert.True((await MessageAsync(phoneSocket, "terminal")).GetProperty("status").GetProperty("attention").GetBoolean());
+        var shown = (await MessageAsync(friendSocket, "terminal")).GetProperty("status");
+        Assert.Equal("done", shown.GetProperty("state").GetString());
+        Assert.False(shown.TryGetProperty("attention", out _));
+    }
+
+    [Fact]
+    public async Task EachDeviceOfAPersonHearsWhetherAnotherOfTheirDevicesIsInKodosiOrHereAlsoOverAShortLossOfItsConnection()
+    {
+        var clock = new ManualClock(); var directory = new ConnectionDirectory(clock); var user = Guid.CreateVersion7();
+        var (computer, computerSocket) = Device(directory, user, "computer", hosts: true);
+        var (laptop, laptopSocket) = Device(directory, user, "laptop", hosts: true);
+        var (phone, phoneSocket) = Device(directory, user, "phone");
+        await using var disposeComputer = computer; await using var disposeLaptop = laptop; await using var disposePhone = phone;
+        foreach (var device in new[] { computer, laptop, phone }) { directory.Register(device); directory.Ready(device); }
+        foreach (var socket in new[] { computerSocket, laptopSocket, phoneSocket }) Assert.Equal((false, false), Others(await MessageAsync(socket, "presence")));
+
+        directory.Present(computer, Presence.Kodosi);
+        Assert.Equal((true, false), Others(await MessageAsync(laptopSocket, "presence")));
+        Assert.Equal((true, false), Others(await MessageAsync(phoneSocket, "presence")));
+        directory.Present(laptop, Presence.Here);
+        Assert.Equal((false, true), Others(await MessageAsync(computerSocket, "presence")));
+        Assert.Equal((true, true), Others(await MessageAsync(phoneSocket, "presence")));
+        directory.Remove(computer);
+        var (again, againSocket) = Device(directory, user, "computer", hosts: true);
+        await using var disposeAgain = again;
+        directory.Register(again); directory.Ready(again);
+        Assert.Equal((false, true), Others(await MessageAsync(againSocket, "presence")));
+        directory.Present(laptop, Presence.Away);
+        Assert.Equal((true, false), Others(await MessageAsync(phoneSocket, "presence")));
+        directory.Remove(again);
+        clock.Advance(ConnectionDirectory.PresenceGrace);
+        directory.ExpirePresence();
+        Assert.Equal((false, false), Others(await MessageAsync(phoneSocket, "presence")));
+        Assert.Equal((false, false), Others(await MessageAsync(laptopSocket, "presence")));
+    }
+
+    private static (bool Kodosi, bool Here) Others(JsonElement notice) => (notice.GetProperty("kodosi").GetBoolean(), notice.GetProperty("here").GetBoolean());
 
     [Fact]
     public void AConnectionMessageWithoutAKnownTypeIsRefused()
@@ -266,7 +318,7 @@ public sealed class TerminalConnectionTests
     public async Task TheWatchdogEndsASilentConnectionAndOneThatDoesNotTakeItsMessages()
     {
         var ct = TestContext.Current.CancellationToken;
-        var clock = new SteppedClock(); var directory = new ConnectionDirectory(); var stuck = new StuckSocket();
+        var clock = new SteppedClock(); var directory = new ConnectionDirectory(TimeProvider.System); var stuck = new StuckSocket();
         await using var quiet = new DeviceConnection(new FakeSocket(), Guid.CreateVersion7(), "quiet", directory.Relays, clock);
         await using var talking = new DeviceConnection(new FakeSocket(), Guid.CreateVersion7(), "talking", directory.Relays, clock);
         await using var slow = new DeviceConnection(stuck, Guid.CreateVersion7(), "slow", directory.Relays, clock);
@@ -288,7 +340,7 @@ public sealed class TerminalConnectionTests
     public async Task TheWatchdogEndsAConnectionWhoseRelayQueueStaysNearlyFull()
     {
         var ct = TestContext.Current.CancellationToken;
-        var clock = new SteppedClock(); var directory = new ConnectionDirectory(); var reader = new GatedSocket();
+        var clock = new SteppedClock(); var directory = new ConnectionDirectory(TimeProvider.System); var reader = new GatedSocket();
         await using var slow = new DeviceConnection(reader, Guid.CreateVersion7(), "slow", directory.Relays, clock);
         directory.Register(slow);
         var watchdog = new ConnectionWatchdog(directory, clock, Microsoft.Extensions.Logging.Abstractions.NullLogger<ConnectionWatchdog>.Instance);
@@ -316,7 +368,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task AStoppingServerClosesEachConnectionAsARestartAndKeepsNoRoute()
     {
-        var directory = new ConnectionDirectory(); var state = Terminal(); var socket = new ClosingSocket();
+        var directory = new ConnectionDirectory(TimeProvider.System); var state = Terminal(); var socket = new ClosingSocket();
         await using var host = Connection(socket, Guid.CreateVersion7(), "host", directory.Relays);
         directory.Register(host); directory.Host(host, state);
         directory.StopAll();
@@ -332,7 +384,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task ADeviceCallsOnlyAnotherConnectedComputerOfItsPerson()
     {
-        var directory = new ConnectionDirectory(); var user = Guid.CreateVersion7();
+        var directory = new ConnectionDirectory(TimeProvider.System); var user = Guid.CreateVersion7();
         var (computer, computerSocket) = Device(directory, user, "computer", hosts: true);
         var (phone, phoneSocket) = Device(directory, user, "phone");
         var (stranger, _) = Device(directory, device: "stranger", hosts: true);
@@ -362,7 +414,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task AComputerTakesFewCallsAtOnceAndItsLossEndsThemAndTellsTheOtherDevices()
     {
-        var directory = new ConnectionDirectory(); var user = Guid.CreateVersion7();
+        var directory = new ConnectionDirectory(TimeProvider.System); var user = Guid.CreateVersion7();
         var (computer, _) = Device(directory, user, "computer", hosts: true);
         var (laptop, laptopSocket) = Device(directory, user, "laptop", hosts: true);
         await using var disposeComputer = computer; await using var disposeLaptop = laptop;
@@ -385,7 +437,7 @@ public sealed class TerminalConnectionTests
     [Fact]
     public async Task AComputerThatConnectsAgainBeforeItsOldConnectionEndsStaysReachable()
     {
-        var directory = new ConnectionDirectory(); var user = Guid.CreateVersion7();
+        var directory = new ConnectionDirectory(TimeProvider.System); var user = Guid.CreateVersion7();
         var (old, _) = Device(directory, user, "computer", hosts: true);
         var (computer, computerSocket) = Device(directory, user, "computer", hosts: true);
         var (laptop, laptopSocket) = Device(directory, user, "laptop");

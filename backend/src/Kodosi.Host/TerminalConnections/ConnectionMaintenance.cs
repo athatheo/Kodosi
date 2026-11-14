@@ -20,6 +20,16 @@ internal sealed class ConnectionMaintenance(IServiceScopeFactory scopes, Connect
     }
 }
 
+internal sealed class PresenceExpiry(ConnectionDirectory directory, TimeProvider clock, ILogger<PresenceExpiry> logger)
+    : PeriodicWork(TimeSpan.FromSeconds(1), clock, logger)
+{
+    protected internal override Task RunAsync(CancellationToken ct)
+    {
+        directory.ExpirePresence();
+        return Task.CompletedTask;
+    }
+}
+
 internal sealed class ConnectionWatchdog(ConnectionDirectory directory, TimeProvider clock, ILogger<ConnectionWatchdog> logger)
     : PeriodicWork(TimeSpan.FromSeconds(5), clock, logger)
 {

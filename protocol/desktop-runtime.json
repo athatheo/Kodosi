@@ -2781,6 +2781,65 @@
           "requestId": {
             "type": "string"
           },
+          "state": {
+            "oneOf": [
+              {
+                "const": "away"
+              },
+              {
+                "const": "idle"
+              },
+              {
+                "const": "here"
+              },
+              {
+                "const": "kodosi"
+              }
+            ]
+          },
+          "type": {
+            "const": "app.presence"
+          }
+        },
+        "required": [
+          "accountUserId",
+          "accountEpoch",
+          "type",
+          "requestId",
+          "state"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "accountEpoch": {
+            "format": "u64",
+            "type": "integer"
+          },
+          "accountUserId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "computer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
           "sessionId": {
             "type": "string"
           },
@@ -6347,6 +6406,10 @@
               }
             ]
           },
+          "awaySeconds": {
+            "format": "u64",
+            "type": "integer"
+          },
           "host": {
             "anyOf": [
               {
@@ -6376,7 +6439,8 @@
           "accountUserId",
           "accountEpoch",
           "type",
-          "protocolVersion"
+          "protocolVersion",
+          "awaySeconds"
         ],
         "type": "object"
       },
@@ -6504,6 +6568,82 @@
           },
           "type": {
             "const": "connection.error"
+          }
+        },
+        "required": [
+          "accountUserId",
+          "accountEpoch",
+          "type",
+          "requestId",
+          "operation",
+          "message"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "accountEpoch": {
+            "format": "u64",
+            "type": "integer"
+          },
+          "accountUserId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "type": {
+            "const": "app.result"
+          }
+        },
+        "required": [
+          "accountUserId",
+          "accountEpoch",
+          "type",
+          "requestId",
+          "operation"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "accountEpoch": {
+            "format": "u64",
+            "type": "integer"
+          },
+          "accountUserId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "type": {
+            "const": "app.error"
           }
         },
         "required": [
@@ -13731,6 +13871,19 @@
               }
             ]
           },
+          "cue": {
+            "oneOf": [
+              {
+                "const": "sound"
+              },
+              {
+                "const": "banner"
+              },
+              {
+                "const": "list"
+              }
+            ]
+          },
           "sessionId": {
             "type": "string"
           },
@@ -13742,7 +13895,8 @@
           "accountUserId",
           "accountEpoch",
           "type",
-          "sessionId"
+          "sessionId",
+          "cue"
         ],
         "type": "object"
       },
@@ -13766,6 +13920,19 @@
           "body": {
             "type": "string"
           },
+          "cue": {
+            "oneOf": [
+              {
+                "const": "sound"
+              },
+              {
+                "const": "banner"
+              },
+              {
+                "const": "list"
+              }
+            ]
+          },
           "runtimeIncarnationId": {
             "type": "string"
           },
@@ -13786,14 +13953,15 @@
           "sessionId",
           "runtimeIncarnationId",
           "title",
-          "body"
+          "body",
+          "cue"
         ],
         "type": "object"
       }
     ]
   },
   "ffiAbiVersion": 11,
-  "protocolVersion": 88,
+  "protocolVersion": 89,
   "terminal": {
     "checkpointMaxBytes": 281018368,
     "checkpointSchema": 6,

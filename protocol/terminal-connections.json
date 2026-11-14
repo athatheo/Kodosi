@@ -1,7 +1,7 @@
 {
-  "terminalConnectionProtocolVersion": 25,
-  "oldestTerminalConnectionProtocolVersion": 25,
-  "channelProtocolVersion": 11,
+  "terminalConnectionProtocolVersion": 26,
+  "oldestTerminalConnectionProtocolVersion": 26,
+  "channelProtocolVersion": 12,
   "compatibilityPolicy": {
     "deviceConnection": "the server admits each device whose hello protocolVersion is from oldestTerminalConnectionProtocolVersion to terminalConnectionProtocolVersion; it refuses others with refused, reason version",
     "channel": "each side offers the ALPN protocols kodosi-channel/ with each version from its channelProtocolVersion down to 1, and the host selects the newest that both have; a side whose own version is not the selected one, or that has no selected protocol, closes the channel and shows that the other computer must update Kodosi. The accept frame carries the host's channelProtocolVersion; a host that selected an older version sends only the accept frame and closes, and a viewer whose version differs from it closes the channel and shows which side must update Kodosi"
@@ -30,6 +30,7 @@
       "host": "sessionId, incarnationId: this device is the host of the terminal; a refusal answers unhosted with status and message",
       "unhost": "sessionId",
       "status": "sessionId, incarnationId, status: the newest status of the terminal (terminalStatus), or null; only from the hosting device; the device sends it again after host on each new connection",
+      "presence": "state (kodosi, here or away): where the person of the device is (presence); the device sends it after ready, after each change, and again each refreshSeconds while the state is not away",
       "open": "pipe, sessionId, incarnationId: open a pipe to the host of a terminal; the device makes the pipe identity and sends channel data at once; a refusal is closed with status and message",
       "call": "pipe, deviceId: open a pipe to another connected device of the same person that hosts; the device makes the pipe identity and sends channel data at once; a refusal is closed with status and message",
       "close": "pipe",
@@ -41,6 +42,7 @@
       "viewer": "pipe, sessionId, userId, deviceId: to the host, when the server admitted a viewer",
       "caller": "pipe, userId, deviceId: to a hosting device, when another device of its person calls it",
       "hosts": "deviceIds: the connected devices of the person that host, after ready and after each change",
+      "presence": "kodosi, here: each true when another connected device of the person has that state; after ready and after each change",
       "accessChanged": "sessionId: to the host, after a change of the people or devices that can use the terminal",
       "closed": "pipe, status, message: the pipe ended; status 0 when the other device closed it",
       "pong": "the answer to ping"
@@ -51,9 +53,10 @@
     "restart": "when the server stops, it closes each device connection with WebSocket status 1012 (service restart) and drops the messages that wait; the device connects again"
   },
   "terminalStatus": {
-    "wire": "JSON object, not encrypted: program (the agent: lowercase letters, digits and -, at most 32), account (the place of the agent's account in the account list of its computer, 0 to 255, only with program), state (idle, working, blocked, done, error), kind (permission, question or auth, only with blocked); each optional; never the title, folder or text of the program",
+    "wire": "JSON object, not encrypted: program (the agent: lowercase letters, digits and -, at most 32), account (the place of the agent's account in the account list of its computer, 0 to 255, only with program), state (idle, working, blocked, done, error), kind (permission, question or auth, only with blocked), attention (true while the owner of the terminal did not see the state blocked, done or error of this status on any device; absent in all other cases); each optional; never the title, folder or text of the program",
+    "attention": "the host starts the attention of a terminal when the state blocked, done or error lasted 2 seconds and the owner does not look at the terminal; it ends it when the owner looks at the terminal on the host's own device (an app in the state kodosi that shows the terminal, or an attached command), when a channel of a device of the owner sends the control seen, and when the state changes; it starts it again for a terminal that still has the state blocked when the owner stops being present (presence), so that a wait that the owner saw and did not answer follows the owner",
     "spacing": "the host sends a status only when it changes, at most one each second for each terminal; the server takes 600 status messages and then 10 each second from one device connection and ignores others",
-    "server": "reads and checks the status, holds the newest one in memory while the host is connected, gives it in the terminal records, and forgets it when the host disconnects; it tells the people of a terminal at most once each second, always with the newest status"
+    "server": "reads and checks the status, holds the newest one in memory while the host is connected, gives it in the terminal records, and forgets it when the host disconnects; it tells the people of a terminal at most once each second, always with the newest status; it gives attention only to the devices of the terminal's owner"
   },
   "pipes": {
     "frame": "binary message: pipe identity (16 bytes, UUID in network byte order), then channel data",
@@ -144,9 +147,10 @@
       "control": {
         "type": 12,
         "direction": "viewer",
-        "body": "requestId:16 bytes, JSON control (resize, focus, message, interrupt, close, canvas, agent); at most 32768 bytes of JSON",
+        "body": "requestId:16 bytes, JSON control (resize, focus, message, interrupt, close, canvas, agent, seen); at most 32768 bytes of JSON",
         "agent": "a change of the agent in front: change, with the model, effort, permissions or output to change; the host accepts it at once and types the agent's own commands when the agent waits for its next prompt",
-        "canvas": "a request to the canvas of the terminal (read, remove, picture, input, act); the host answers it with controlValue, or with controlResult when it refuses"
+        "canvas": "a request to the canvas of the terminal (read, remove, picture, input, act); the host answers it with controlValue, or with controlResult when it refuses",
+        "seen": "the person of the viewer looks at the terminal: an app in the state kodosi shows it; the viewer sends it when the status of the terminal has attention, and the host ends the attention only for a device of the terminal's owner"
       },
       "refresh": {
         "type": 13,
@@ -275,7 +279,8 @@
       "message",
       "interrupt",
       "close",
-      "canvas"
+      "canvas",
+      "seen"
     ],
     "result": "controlResult for each requestId, or controlValue for a canvas request that the host answers; a refused control closes no channel",
     "timeoutSeconds": 12
@@ -290,9 +295,21 @@
     "participantReconnect": "a participant runtime keeps its open views when a pipe or the device connection is lost, opens a new pipe and installs the first keyframe in place",
     "missingPublicationRecovery": "same still-live local session; owner devices only until friends explicitly selected again"
   },
-  "presence": {
+  "connectedUsers": {
     "source": "the host reports the people whose channels it accepted in terminal metadata",
     "meaning": "display only; not an authorization grant"
+  },
+  "presence": {
+    "purpose": "where the person is decides where a terminal with attention shows: only as a sign in Kodosi, as a notification on a computer, or as a push on the phones",
+    "states": "kodosi: Kodosi is in front on the device and the person used the device in the last awaySeconds; here: the person used this computer in the last awaySeconds and another app is in front (computers only); away: all other cases; a computer whose person gave no input for awaySeconds is away for the server, and the computer itself knows if its screen is still on and not locked (desktop-runtime.json, the state idle), because the person can still be in front of it",
+    "awaySeconds": 180,
+    "device": "the state of a device is the most present state of the apps on it, in the order kodosi, here, away; a device without an app is away",
+    "refreshSeconds": 60,
+    "leaseSeconds": 150,
+    "graceSeconds": 30,
+    "server": "holds the newest state of each connected device for leaseSeconds after its last presence message, and the device is away after that time; a device whose connection ends keeps its state for graceSeconds and is away after that time, unless it connected again; the server takes 30 presence messages and then 1 each second from one device connection and ignores others",
+    "person": "a person is present when one of their devices has the state kodosi or here, and away when each of their devices is away",
+    "meaning": "never an authorization grant"
   },
   "termination": {
     "hostFrame": "end",

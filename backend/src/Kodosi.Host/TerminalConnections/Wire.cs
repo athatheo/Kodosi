@@ -10,6 +10,7 @@ namespace Kodosi.TerminalConnections;
 [JsonDerivedType(typeof(HostMessage), "host")]
 [JsonDerivedType(typeof(UnhostMessage), "unhost")]
 [JsonDerivedType(typeof(StatusMessage), "status")]
+[JsonDerivedType(typeof(PresenceMessage), "presence")]
 [JsonDerivedType(typeof(OpenMessage), "open")]
 [JsonDerivedType(typeof(CallMessage), "call")]
 [JsonDerivedType(typeof(CloseMessage), "close")]
@@ -22,6 +23,19 @@ internal sealed record HostMessage(Guid SessionId, Guid IncarnationId) : DeviceM
 internal sealed record UnhostMessage(Guid SessionId) : DeviceMessage;
 
 internal sealed record StatusMessage(Guid SessionId, Guid IncarnationId, TerminalStatus? Status) : DeviceMessage;
+
+internal sealed record PresenceMessage(string State) : DeviceMessage
+{
+    internal Presence Checked() => State switch
+    {
+        "kodosi" => Presence.Kodosi,
+        "here" => Presence.Here,
+        "away" => Presence.Away,
+        _ => throw ApiException.Invalid("Invalid presence."),
+    };
+}
+
+internal enum Presence { Away, Here, Kodosi }
 
 internal sealed record OpenMessage(Guid Pipe, Guid SessionId, Guid IncarnationId) : DeviceMessage;
 
@@ -39,6 +53,7 @@ internal sealed record CloseMessage(Guid Pipe) : DeviceMessage;
 [JsonDerivedType(typeof(ViewerNotice), "viewer")]
 [JsonDerivedType(typeof(CallerNotice), "caller")]
 [JsonDerivedType(typeof(HostsNotice), "hosts")]
+[JsonDerivedType(typeof(PresenceNotice), "presence")]
 [JsonDerivedType(typeof(AccessChangedNotice), "accessChanged")]
 [JsonDerivedType(typeof(ClosedNotice), "closed")]
 internal abstract record ServerMessage;
@@ -66,6 +81,8 @@ internal sealed record ViewerNotice(Guid Pipe, Guid SessionId, Guid UserId, stri
 internal sealed record CallerNotice(Guid Pipe, Guid UserId, string DeviceId) : ServerMessage;
 
 internal sealed record HostsNotice(IReadOnlyList<string> DeviceIds) : ServerMessage;
+
+internal sealed record PresenceNotice(bool Kodosi, bool Here) : ServerMessage;
 
 internal sealed record AccessChangedNotice(Guid SessionId) : ServerMessage;
 

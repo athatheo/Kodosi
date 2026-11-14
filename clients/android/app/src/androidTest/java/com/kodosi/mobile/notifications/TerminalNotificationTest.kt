@@ -39,11 +39,7 @@ class TerminalNotificationTest {
             preferences.update { it.copy(notifications = true, lock = true) }
             receiver.observe(listOf(session), "native-notification-fixture")
             val cold = TerminalNotifications(context, preferences)
-            cold.receive(
-                TerminalAlert.parse(
-                    mapOf("terminal" to session.id, "state" to "blocked", "agent" to "claude")
-                )!!
-            )
+            cold.receive(PushedTerminal.list("${session.id}:claude:blocked:permission:1"))
             val deadline = System.nanoTime() + 5_000_000_000L
             while (manager.activeNotifications.isEmpty() && System.nanoTime() < deadline) Thread.sleep(25)
             val notification = manager.activeNotifications.single { it.tag == session.id }.notification

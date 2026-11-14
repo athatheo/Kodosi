@@ -9,18 +9,27 @@ public sealed class ConnectionDirectory
     internal const int MaximumSessionPipes = 64;
     internal const int MaximumDevicePipes = 256;
     internal const int MaximumCalls = 16;
+    internal static readonly TimeSpan PresenceLease = TimeSpan.FromSeconds(150);
+    internal static readonly TimeSpan PresenceGrace = TimeSpan.FromSeconds(30);
+    private readonly TimeProvider clock;
     private readonly Lock sync = new();
     private readonly Dictionary<Guid, Dictionary<string, Entry>> accounts = [];
     private readonly Dictionary<DeviceConnection, Entry> entries = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Guid, Hosted> hosted = [];
     private readonly ConcurrentDictionary<Guid, Pipe> pipes = new();
+    private readonly Dictionary<Guid, Dictionary<string, DevicePresence>> present = [];
 
     internal event Action<Guid>? HostChanged;
     internal event Action<TerminalReport>? Reported;
+    internal event Action<Guid>? PersonAway;
 
-    public ConnectionDirectory() : this(RelayBudget.ServerBytes) { }
+    public ConnectionDirectory(TimeProvider clock) : this(clock, RelayBudget.ServerBytes) { }
 
-    internal ConnectionDirectory(long relayBytes) => Relays = new RelayBudget(relayBytes);
+    internal ConnectionDirectory(TimeProvider clock, long relayBytes)
+    {
+        this.clock = clock;
+        Relays = new RelayBudget(relayBytes);
+    }
 
     internal RelayBudget Relays { get; }
 
@@ -38,6 +47,22 @@ public sealed class ConnectionDirectory
                 : 0;
     }
 
+    internal IReadOnlyList<(Guid SessionId, TerminalStatus Status)> WithAttention(Guid userId)
+    {
+        lock (sync)
+            return accounts.TryGetValue(userId, out var devices)
+                ? devices.Values.Where(entry => entry.Connection.IsOpen)
+                    .SelectMany(entry => entry.Hosted.Select(sessionId => (SessionId: sessionId, hosted[sessionId].Status)))
+                    .Where(terminal => terminal.Status is { Attention: true })
+                    .Select(terminal => (terminal.SessionId, terminal.Status!)).ToList()
+                : [];
+    }
+
+    internal bool Away(Guid userId)
+    {
+        lock (sync) return AwayLocked(userId);
+    }
+
     internal (int Devices, int Pipes, int Hosted) Counts()
     {
         lock (sync) return (entries.Count, pipes.Count, hosted.Count);
@@ -51,11 +76,12 @@ public sealed class ConnectionDirectory
     public void Notify(IEnumerable<Guid> users, string surface, Guid? projectId = null, long? sequence = null) =>
         Send(users, Wire.Encode(new ChangedNotice(surface, projectId, sequence)));
 
-    public void NotifyTerminal(Guid sessionId, Guid incarnationId, Guid ownerId, string hostDeviceId, IEnumerable<Guid> people)
+    public void NotifyTerminal(Guid sessionId, Guid incarnationId, Guid ownerId, string hostDeviceId, IReadOnlyCollection<Guid> people)
     {
         var (online, status) = Live(sessionId);
-        Send(people, Wire.Encode(new TerminalNotice(sessionId, incarnationId, online, status)),
-            connection => connection.UserId == ownerId && connection.DeviceId == hostDeviceId);
+        Send(people.Where(user => user == ownerId), Wire.Encode(new TerminalNotice(sessionId, incarnationId, online, status)),
+            connection => connection.DeviceId == hostDeviceId);
+        Send(people.Where(user => user != ownerId), Wire.Encode(new TerminalNotice(sessionId, incarnationId, online, TerminalStatus.ToOthers(status))));
     }
 
     private void Send(IEnumerable<Guid> users, byte[] message, Func<DeviceConnection, bool>? except = null)
@@ -79,13 +105,14 @@ public sealed class ConnectionDirectory
                 throw new ApiException(503, "Too many device connections.");
             if (previous is not null)
             {
-                DetachLocked(previous, afterUnlock);
+                DetachLocked(previous, afterUnlock, removed: false);
                 devices = accounts.GetValueOrDefault(connection.UserId);
             }
             if (devices is null) accounts[connection.UserId] = devices = new Dictionary<string, Entry>(StringComparer.Ordinal);
             var entry = new Entry(connection);
             devices[connection.DeviceId] = entry;
             entries[connection] = entry;
+            if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = null;
         }
         afterUnlock.Apply(this);
     }
@@ -97,14 +124,51 @@ public sealed class ConnectionDirectory
             if (!entries.TryGetValue(connection, out var entry)) return;
             entry.Ready = true;
             TellHostsLocked(connection.UserId, connection.Hosts ? null : connection);
+            TellPresenceLocked(connection.UserId);
         }
+    }
+
+    internal void Present(DeviceConnection connection, Presence presence)
+    {
+        var afterUnlock = new AfterUnlock();
+        lock (sync)
+        {
+            if (!entries.ContainsKey(connection)) return;
+            var away = AwayLocked(connection.UserId);
+            if (presence == Presence.Away) ForgetPresenceLocked(connection.UserId, connection.DeviceId);
+            else
+            {
+                if (!present.TryGetValue(connection.UserId, out var devices))
+                    present[connection.UserId] = devices = new Dictionary<string, DevicePresence>(StringComparer.Ordinal);
+                devices[connection.DeviceId] = new DevicePresence(presence, clock.GetUtcNow());
+            }
+            PresenceChangedLocked(connection.UserId, away, afterUnlock);
+        }
+        afterUnlock.Apply(this);
+    }
+
+    internal void ExpirePresence()
+    {
+        var afterUnlock = new AfterUnlock();
+        lock (sync)
+        {
+            var now = clock.GetUtcNow();
+            foreach (var (userId, devices) in present.ToArray())
+            {
+                var ended = devices.Where(device => device.Value.EndedAt(now)).Select(device => device.Key).ToArray();
+                if (ended.Length == 0) continue;
+                foreach (var deviceId in ended) ForgetPresenceLocked(userId, deviceId);
+                PresenceChangedLocked(userId, wasAway: false, afterUnlock);
+            }
+        }
+        afterUnlock.Apply(this);
     }
 
     internal void Remove(DeviceConnection connection)
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (entries.TryGetValue(connection, out var entry)) DetachLocked(entry, afterUnlock);
+            if (entries.TryGetValue(connection, out var entry)) DetachLocked(entry, afterUnlock, removed: false);
         afterUnlock.Apply(this);
         connection.Abort();
     }
@@ -113,7 +177,10 @@ public sealed class ConnectionDirectory
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (accounts.GetValueOrDefault(userId)?.GetValueOrDefault(deviceId) is { } entry) DetachLocked(entry, afterUnlock);
+        {
+            if (accounts.GetValueOrDefault(userId)?.GetValueOrDefault(deviceId) is { } entry) DetachLocked(entry, afterUnlock, removed: true);
+            else if (ForgetPresenceLocked(userId, deviceId)) PresenceChangedLocked(userId, wasAway: false, afterUnlock);
+        }
         afterUnlock.Apply(this);
     }
 
@@ -127,8 +194,9 @@ public sealed class ConnectionDirectory
             {
                 if (live.Host == entry && live.IncarnationId == session.IncarnationId) return;
                 EndPipesLocked(live.Pipes, 409, "This terminal was replaced.", afterUnlock);
+                if (live.Status is not null) afterUnlock.Reports.Add(new TerminalReport(session.Id, live.Host.Connection.UserId, null));
                 live.Host.Hosted.Remove(session.Id);
-                live.Host = entry; live.IncarnationId = session.IncarnationId; live.Status = null; live.Reported = false;
+                live.Host = entry; live.IncarnationId = session.IncarnationId; live.Status = null;
             }
             else
             {
@@ -143,33 +211,33 @@ public sealed class ConnectionDirectory
 
     internal void Share(DeviceConnection connection, Guid sessionId, Guid incarnationId, TerminalStatus? status)
     {
-        TerminalReport report;
         lock (sync)
         {
-            if (!hosted.TryGetValue(sessionId, out var live) || live.Host.Connection != connection || live.IncarnationId != incarnationId) return;
-            var first = !live.Reported;
-            live.Reported = true;
-            if (live.Status == status) return;
-            report = new TerminalReport(sessionId, connection.UserId, live.Status, status, first);
+            if (!hosted.TryGetValue(sessionId, out var live) || live.Host.Connection != connection || live.IncarnationId != incarnationId
+                || live.Status == status)
+                return;
             live.Status = status;
         }
         HostChanged?.Invoke(sessionId);
-        Reported?.Invoke(report);
+        Reported?.Invoke(new TerminalReport(sessionId, connection.UserId, status));
     }
 
     internal void Unhost(DeviceConnection connection, Guid sessionId)
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (hosted.TryGetValue(sessionId, out var live) && live.Host.Connection == connection) RemoveHostedLocked(sessionId, live, afterUnlock);
+            if (hosted.TryGetValue(sessionId, out var live) && live.Host.Connection == connection) RemoveHostedLocked(sessionId, live, afterUnlock, ended: true);
         afterUnlock.Apply(this);
     }
 
-    public void RemoveSession(Guid sessionId)
+    public void RemoveSession(Guid sessionId, Guid ownerId)
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (hosted.TryGetValue(sessionId, out var live)) RemoveHostedLocked(sessionId, live, afterUnlock);
+        {
+            if (hosted.TryGetValue(sessionId, out var live)) RemoveHostedLocked(sessionId, live, afterUnlock, ended: true);
+            else afterUnlock.Reports.Add(new TerminalReport(sessionId, ownerId, null));
+        }
         afterUnlock.Apply(this);
     }
 
@@ -275,15 +343,16 @@ public sealed class ConnectionDirectory
         lock (sync)
         {
             all = entries.Keys.ToArray();
-            accounts.Clear(); entries.Clear(); hosted.Clear(); pipes.Clear();
+            accounts.Clear(); entries.Clear(); hosted.Clear(); pipes.Clear(); present.Clear();
         }
         foreach (var connection in all) connection.Close();
     }
 
-    private void DetachLocked(Entry entry, AfterUnlock afterUnlock)
+    private void DetachLocked(Entry entry, AfterUnlock afterUnlock, bool removed)
     {
         var connection = entry.Connection;
-        foreach (var sessionId in entry.Hosted.ToArray()) RemoveHostedLocked(sessionId, hosted[sessionId], afterUnlock, 409, "The terminal's computer is offline.");
+        var away = AwayLocked(connection.UserId);
+        foreach (var sessionId in entry.Hosted.ToArray()) RemoveHostedLocked(sessionId, hosted[sessionId], afterUnlock, ended: false);
         foreach (var pipe in entry.Pipes.Select(id => pipes[id]).ToArray())
             if (RemovePipeLocked(pipe))
             {
@@ -291,13 +360,45 @@ public sealed class ConnectionDirectory
                 afterUnlock.Pipes.Add((pipe, lost ? 409 : 0, !lost ? "" : pipe.IsCall ? "That computer is not online." : "The terminal's computer is offline.", connection));
             }
         entries.Remove(connection);
+        if (removed) ForgetPresenceLocked(connection.UserId, connection.DeviceId);
+        else if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = clock.GetUtcNow();
         if (accounts.TryGetValue(connection.UserId, out var devices) && devices.GetValueOrDefault(connection.DeviceId) == entry)
         {
             devices.Remove(connection.DeviceId);
             if (devices.Count == 0) accounts.Remove(connection.UserId);
         }
         if (entry.Ready && connection.Hosts) TellHostsLocked(connection.UserId);
+        PresenceChangedLocked(connection.UserId, away, afterUnlock);
         afterUnlock.Aborted.Add(connection);
+    }
+
+    private bool AwayLocked(Guid userId) => !present.ContainsKey(userId);
+
+    private bool ForgetPresenceLocked(Guid userId, string deviceId)
+    {
+        if (!present.TryGetValue(userId, out var devices) || !devices.Remove(deviceId)) return false;
+        if (devices.Count == 0) present.Remove(userId);
+        return true;
+    }
+
+    private void PresenceChangedLocked(Guid userId, bool wasAway, AfterUnlock afterUnlock)
+    {
+        TellPresenceLocked(userId);
+        if (!wasAway && AwayLocked(userId)) afterUnlock.Away.Add(userId);
+    }
+
+    private void TellPresenceLocked(Guid userId)
+    {
+        if (!accounts.TryGetValue(userId, out var devices)) return;
+        var held = present.GetValueOrDefault(userId);
+        foreach (var entry in devices.Values.Where(x => x.Ready))
+        {
+            var others = held?.Where(x => x.Key != entry.Connection.DeviceId).Select(x => x.Value.State).ToArray() ?? [];
+            var notice = new PresenceNotice(others.Contains(Presence.Kodosi), others.Contains(Presence.Here));
+            if (notice == entry.Told) continue;
+            entry.Told = notice;
+            entry.Connection.Send(Wire.Encode(notice));
+        }
     }
 
     private void TellHostsLocked(Guid userId, DeviceConnection? only = null)
@@ -309,12 +410,17 @@ public sealed class ConnectionDirectory
         foreach (var entry in ready.Where(x => only is null || x.Connection == only)) entry.Connection.Send(notice);
     }
 
-    private void RemoveHostedLocked(Guid sessionId, Hosted live, AfterUnlock afterUnlock, int status = 404, string message = "This terminal is no longer available.")
+    private void RemoveHostedLocked(Guid sessionId, Hosted live, AfterUnlock afterUnlock, bool ended)
     {
         hosted.Remove(sessionId);
         live.Host.Hosted.Remove(sessionId);
-        EndPipesLocked(live.Pipes, status, message, afterUnlock);
         afterUnlock.Changed.Add(sessionId);
+        if (ended)
+        {
+            EndPipesLocked(live.Pipes, 404, "This terminal is no longer available.", afterUnlock);
+            afterUnlock.Reports.Add(new TerminalReport(sessionId, live.Host.Connection.UserId, null));
+        }
+        else EndPipesLocked(live.Pipes, 409, "The terminal's computer is offline.", afterUnlock);
     }
 
     private void EndPipesLocked(IEnumerable<Guid> ids, int status, string message, AfterUnlock afterUnlock)
@@ -348,6 +454,15 @@ public sealed class ConnectionDirectory
         public int Views { get; set; }
         public int Calls { get; set; }
         public bool Ready { get; set; }
+        public PresenceNotice? Told { get; set; }
+    }
+
+    private sealed class DevicePresence(Presence state, DateTimeOffset renewed)
+    {
+        public Presence State { get; } = state;
+        public DateTimeOffset? Lost { get; set; }
+
+        public bool EndedAt(DateTimeOffset now) => now - renewed >= PresenceLease || (Lost is { } lost && now - lost >= PresenceGrace);
     }
 
     private sealed class Hosted(Guid incarnationId, Entry host)
@@ -355,7 +470,6 @@ public sealed class ConnectionDirectory
         public Guid IncarnationId { get; set; } = incarnationId;
         public Entry Host { get; set; } = host;
         public TerminalStatus? Status { get; set; }
-        public bool Reported { get; set; }
         public HashSet<Guid> Pipes { get; } = [];
     }
 
@@ -364,6 +478,8 @@ public sealed class ConnectionDirectory
         public List<(Pipe Pipe, int Status, string Message, DeviceConnection? Silent)> Pipes { get; } = [];
         public List<DeviceConnection> Aborted { get; } = [];
         public List<Guid> Changed { get; } = [];
+        public List<TerminalReport> Reports { get; } = [];
+        public List<Guid> Away { get; } = [];
 
         public void Apply(ConnectionDirectory directory)
         {
@@ -375,6 +491,8 @@ public sealed class ConnectionDirectory
                 if (pipe.Host != silent && pipe.Host != pipe.Viewer) pipe.Host.Send(closed);
             }
             foreach (var sessionId in Changed) directory.HostChanged?.Invoke(sessionId);
+            foreach (var report in Reports) directory.Reported?.Invoke(report);
+            foreach (var userId in Away) directory.PersonAway?.Invoke(userId);
         }
     }
 }

@@ -26,10 +26,19 @@ internal sealed class Apns(ApnsSettings settings, IHttpClientFactory http, TimeP
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("bearer", Token());
         request.Headers.Add("apns-topic", settings.Topic);
-        request.Headers.Add("apns-push-type", "alert");
-        request.Headers.Add("apns-priority", notice.Status.State == "blocked" ? "10" : "5");
-        request.Headers.Add("apns-collapse-id", notice.TerminalId.ToString());
-        request.Headers.Add("apns-expiration", (clock.GetUtcNow() + Expiry).ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
+        if (notice.Alert is { } alert)
+        {
+            request.Headers.Add("apns-push-type", "alert");
+            request.Headers.Add("apns-priority", alert.Status.State == "blocked" ? "10" : "5");
+            request.Headers.Add("apns-collapse-id", alert.TerminalId.ToString());
+            request.Headers.Add("apns-expiration", (clock.GetUtcNow() + Expiry).ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            request.Headers.Add("apns-push-type", "background");
+            request.Headers.Add("apns-priority", "5");
+            request.Headers.Add("apns-expiration", "0");
+        }
         try
         {
             using var response = await http.CreateClient(nameof(Apns)).SendAsync(request, ct);
@@ -55,41 +64,49 @@ internal sealed class Apns(ApnsSettings settings, IHttpClientFactory http, TimeP
         }
     }
 
-    internal static byte[] Payload(PushNotice notice)
+    internal static byte[] Payload(PushNotice notice) => PushJson.Written(json =>
     {
-        var status = notice.Status;
-        var blocked = status.State == "blocked";
-        var (key, agent) = Alert(status);
-        return PushJson.Written(json =>
+        var alert = notice.Alert;
+        json.WriteStartObject();
+        json.WriteStartObject("aps");
+        if (alert is null) json.WriteNumber("content-available", 1);
+        else Shown(json, alert);
+        json.WriteEndObject();
+        json.WriteStartObject("kodosi");
+        if (alert is not null)
         {
-            json.WriteStartObject();
-            json.WriteStartObject("aps");
-            json.WriteStartObject("alert");
-            json.WriteString("loc-key", key);
-            if (agent is not null)
-            {
-                json.WriteStartArray("loc-args");
-                json.WriteStringValue(agent);
-                json.WriteEndArray();
-            }
-            json.WriteEndObject();
-            json.WriteString("sound", "default");
-            json.WriteNumber("mutable-content", 1);
-            json.WriteString("thread-id", notice.TerminalId);
-            json.WriteString("interruption-level", blocked ? "time-sensitive" : "active");
-            json.WritePropertyName("relevance-score");
-            json.WriteRawValue(blocked ? "1.0" : "0.5");
-            json.WriteString("category", "kodosi.terminal");
-            json.WriteNumber("badge", notice.Blocked);
-            json.WriteEndObject();
-            json.WriteStartObject("kodosi");
-            json.WriteString("terminal", notice.TerminalId);
-            json.WriteString("agent", status.Program);
-            json.WriteString("state", status.State);
-            json.WriteString("kind", status.Kind);
-            json.WriteEndObject();
-            json.WriteEndObject();
-        });
+            json.WriteString("terminal", alert.TerminalId);
+            json.WriteString("agent", alert.Status.Program);
+            json.WriteString("state", alert.Status.State);
+            json.WriteString("kind", alert.Status.Kind);
+        }
+        json.WriteStartArray("pushed");
+        foreach (var pushed in notice.Pushed) json.WriteStringValue(pushed.TerminalId);
+        json.WriteEndArray();
+        json.WriteEndObject();
+        json.WriteEndObject();
+    });
+
+    private static void Shown(Utf8JsonWriter json, PushAlert alert)
+    {
+        var state = alert.Status.State;
+        var (key, agent) = Alert(alert.Status);
+        json.WriteStartObject("alert");
+        json.WriteString("loc-key", key);
+        if (agent is not null)
+        {
+            json.WriteStartArray("loc-args");
+            json.WriteStringValue(agent);
+            json.WriteEndArray();
+        }
+        json.WriteEndObject();
+        if (alert.Sound) json.WriteString("sound", "default");
+        json.WriteNumber("mutable-content", 1);
+        json.WriteString("interruption-level", state == "blocked" ? "active" : "passive");
+        json.WritePropertyName("relevance-score");
+        json.WriteRawValue(state switch { "blocked" => "1.0", "error" => "0.6", _ => "0.3" });
+        // A badge of 0 takes every notification of the app off the phone, the new one too.
+        if (alert.Blocked > 0) json.WriteNumber("badge", alert.Blocked);
     }
 
     private static (string Key, string? Agent) Alert(TerminalStatus status)

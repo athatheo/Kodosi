@@ -37,8 +37,10 @@ set(KODOSI_PLATFORM_SOURCES
     platform/windows/ToastNotificationDriver.hpp
     platform/windows/WindowFrame.cpp
     platform/windows/WindowFrame.hpp
+    platform/windows/WindowsPresenceSource.cpp
+    platform/windows/WindowsPresenceSource.hpp
 )
-set(KODOSI_PLATFORM_LIBRARIES windowsapp user32 dwmapi shell32)
+set(KODOSI_PLATFORM_LIBRARIES windowsapp user32 dwmapi shell32 wtsapi32)
 set(KODOSI_TEST_LAUNCHER "")
 set(KODOSI_TEST_ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 set(KODOSI_TEST_ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")

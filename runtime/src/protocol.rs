@@ -32,7 +32,7 @@ fn validate_participants(users: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub const VERSION: u32 = 88;
+pub const VERSION: u32 = 89;
 include!(concat!(env!("OUT_DIR"), "/protocol_contract.rs"));
 pub const MAX_COMMAND_BYTES: usize = 2 * 1024 * 1024;
 pub(crate) const MESSAGE_MAX_BYTES: usize = 1500;
@@ -415,6 +415,13 @@ pub enum Command {
         #[serde(rename = "sessionIds")]
         session_ids: Vec<String>,
         watching: bool,
+    },
+    /// Each app sends it on each change of where its person is.
+    #[serde(rename = "app.presence")]
+    Presence {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        state: Presence,
     },
     #[serde(rename = "session.openRemote")]
     OpenRemote {
@@ -972,6 +979,31 @@ pub struct SessionEntry {
     pub restored_from: Option<String>,
 }
 
+/// In the order from the least to the most present.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    specta_macros::Type,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum Presence {
+    #[default]
+    Away,
+    /// No input for the away time, but the screen of this computer is on and not locked, so
+    /// the person can still be in front of it. The server knows it as away.
+    Idle,
+    Here,
+    Kodosi,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum SessionKind {
@@ -1015,6 +1047,8 @@ pub enum EventBody {
         protocol_version: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         host: Option<crate::HostKind>,
+        /// The person is away when they did not use the device for this time.
+        away_seconds: u64,
     },
     #[serde(rename = "system.updateRequired")]
     SystemUpdateRequired {},
@@ -1029,6 +1063,17 @@ pub enum EventBody {
     },
     #[serde(rename = "connection.error")]
     ConnectionError {
+        request_id: String,
+        operation: String,
+        message: Text,
+    },
+    #[serde(rename = "app.result")]
+    AppResult {
+        request_id: String,
+        operation: String,
+    },
+    #[serde(rename = "app.error")]
+    AppError {
         request_id: String,
         operation: String,
         message: Text,
@@ -1360,15 +1405,28 @@ pub enum EventBody {
     },
     #[serde(rename = "term.bell")]
     TerminalBell { session_id: String },
+    /// Show a notification for this terminal on this device.
     #[serde(rename = "term.attention")]
-    TerminalAttention { session_id: String },
+    TerminalAttention { session_id: String, cue: Cue },
     #[serde(rename = "term.notification")]
     TerminalNotification {
         session_id: String,
         runtime_incarnation_id: String,
         title: String,
         body: String,
+        cue: Cue,
     },
+}
+
+/// How much of a notification its device shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[serde(rename_all = "lowercase")]
+pub enum Cue {
+    /// A banner with a sound, for a person who can be at this device.
+    Sound,
+    Banner,
+    /// Only the list of notifications, for a device where nobody is.
+    List,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
@@ -1665,6 +1723,8 @@ impl EventBody {
             | Self::AuthError { request_id, .. }
             | Self::ConnectionResult { request_id, .. }
             | Self::ConnectionError { request_id, .. }
+            | Self::AppResult { request_id, .. }
+            | Self::AppError { request_id, .. }
             | Self::FriendsResult { request_id, .. }
             | Self::FriendsError { request_id, .. }
             | Self::DevicesResult { request_id, .. }
@@ -1702,6 +1762,8 @@ impl EventBody {
             Self::Connection { .. } => "connection.state",
             Self::ConnectionResult { .. } => "connection.result",
             Self::ConnectionError { .. } => "connection.error",
+            Self::AppResult { .. } => "app.result",
+            Self::AppError { .. } => "app.error",
             Self::AuthReady { .. } => "auth.ready",
             Self::AuthRequired { .. } => "auth.required",
             Self::AuthRestoring { .. } => "auth.restoring",
@@ -1853,6 +1915,7 @@ impl Command {
             Self::Message { .. } => "session.message",
             Self::ChangeAgent { .. } => "session.agent",
             Self::Visible { .. } => "session.visible",
+            Self::Presence { .. } => "app.presence",
             Self::Read { .. } => "session.read",
             Self::Show { .. } => "session.show",
             Self::OpenRemote { .. } => "session.openRemote",
@@ -1994,6 +2057,7 @@ impl Command {
             | Self::Message { request_id, .. }
             | Self::ChangeAgent { request_id, .. }
             | Self::Visible { request_id, .. }
+            | Self::Presence { request_id, .. }
             | Self::Read { request_id, .. }
             | Self::Show { request_id, .. }
             | Self::OpenRemote { request_id, .. }
@@ -2963,6 +3027,7 @@ mod tests {
             json!({"type":"session.openRemote","requestId":ID,"sessionId":ID}),
             json!({"type":"session.disconnect","requestId":ID,"sessionId":ID}),
             json!({"type":"session.visible","requestId":ID,"sessionIds":[ID],"watching":true}),
+            json!({"type":"app.presence","requestId":ID,"state":"here"}),
             json!({"type":"session.share","requestId":ID,"sessionId":ID,"expectedRuntimeIncarnationId":ID,"userIds":[ID]}),
             json!({"type":"session.attachProject","requestId":ID,"sessionId":ID,"expectedRuntimeIncarnationId":ID,"projectId":null}),
             json!({"type":"session.hide","requestId":ID,"sessionId":ID,"expectedRuntimeIncarnationId":ID}),
@@ -3045,7 +3110,7 @@ mod tests {
             invalid["unknownField"] = json!(true);
             assert!(serde_json::from_value::<CommandEnvelope>(invalid).is_err());
         }
-        assert_eq!(kinds.len(), 76);
+        assert_eq!(kinds.len(), 77);
     }
 
     #[test]
