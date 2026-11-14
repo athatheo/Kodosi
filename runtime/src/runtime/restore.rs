@@ -231,6 +231,7 @@ pub(super) async fn agent_line(
 #[derive(Debug, Default)]
 pub(super) struct Conversation {
     line: Option<String>,
+    listing: Option<String>,
     quiet_settings: Option<PathBuf>,
     ended: Option<Instant>,
     asking: bool,
@@ -256,12 +257,20 @@ impl Conversation {
         true
     }
 
-    pub(super) fn found(&mut self, line: Option<String>) {
+    pub(super) fn found(&mut self, line: Option<AgentLine>) {
         self.asking = false;
-        if line.is_some() {
-            self.line = line;
-            self.ended = None;
+        match line {
+            Some(AgentLine { line, named: true }) => {
+                self.line = Some(line);
+                self.ended = None;
+            }
+            Some(AgentLine { line, named: false }) => self.listing = Some(line),
+            None => {}
         }
+    }
+
+    pub(super) fn choices_changed(&mut self) {
+        self.asked = None;
     }
 
     pub(super) fn program_changed(
@@ -271,6 +280,7 @@ impl Conversation {
         quiet_settings: Option<PathBuf>,
     ) {
         self.asked = None;
+        self.listing = None;
         if ended && self.line.is_some() {
             self.ended.get_or_insert(now);
             self.quiet_settings = quiet_settings;
@@ -303,7 +313,8 @@ pub(super) fn chosen_line(
         fresh => known
             .line(now)
             .map(str::to_owned)
-            .or_else(|| fresh.map(|fresh| fresh.line)),
+            .or_else(|| fresh.map(|fresh| fresh.line))
+            .or_else(|| known.listing.clone()),
     }
 }
 

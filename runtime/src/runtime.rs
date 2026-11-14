@@ -633,7 +633,7 @@ enum Completion {
     Conversation {
         id: Uuid,
         program: String,
-        line: Option<String>,
+        line: Option<restore::AgentLine>,
     },
     BackendClient {
         command: Command,
@@ -1948,11 +1948,7 @@ impl Runtime {
                 let line =
                     restore::agent_line(terminal, program.clone(), home, shell, folder, changed)
                         .await;
-                Completion::Conversation {
-                    id,
-                    program,
-                    line: line.filter(|line| line.named).map(|line| line.line),
-                }
+                Completion::Conversation { id, program, line }
             });
         }
     }
@@ -2397,6 +2393,7 @@ impl Runtime {
         self.show_pending(id);
         if done && let Some(local) = self.local.get_mut(&id) {
             local.changed = local.changed.changed(&part);
+            local.conversation.choices_changed();
             let settings = local
                 .entry
                 .program_settings
