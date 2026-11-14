@@ -50,15 +50,18 @@ the result.
 The host sends each terminal's agent and state to the backend, without its text, and the
 backend shows them to everyone who can open the terminal.
 
-A terminal that starts to wait, finishes or fails tells its owner once, where the owner
-is. Each app tells its runtime whether the person is in Kodosi, at the computer in
-another app, or away, and each runtime tells the backend. The host of a terminal holds
-the mark that the owner did not see the new state yet and sends it with the state. A
-person in Kodosi gets the status sign only. For a person at a computer in another app,
-the runtime of that computer shows a notification. For a person who is away from all
-devices, the backend sends a push notification to the phones, with a sound only for a
-terminal that waits. When the owner looks at the terminal on one device, its host removes
-the mark, and the notification leaves every device.
+A terminal that starts to wait, finishes or fails tells its owner where the owner is.
+Each app tells its runtime whether the person is in Kodosi, at the computer in another
+app, or away, and each runtime tells the backend. The host of a terminal holds the mark
+that the owner did not see the new state yet and sends it with the state. A person in
+Kodosi gets the status sign only. For a person at a computer in another app, the runtime
+of that computer shows a notification. For a person who is away from all devices, the
+backend sends a push notification to the phones, with a sound only for a terminal that
+waits. It waits a short time first, and a computer whose screen is still on shows its
+notification before, so that a person who only gave no input for a while can answer
+there. A terminal that still waits when its owner leaves gets its mark again and follows
+the owner. When the owner looks at the terminal on one device, its host removes the mark,
+and the notification leaves every device.
 
 A device can call another computer of the same person. The call is an end-to-end
 encrypted channel like a view, but to the host itself, which answers the launcher's
