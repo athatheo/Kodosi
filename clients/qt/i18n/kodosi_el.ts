@@ -872,7 +872,7 @@
         <translation>Οι συσκευές σας</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>Εγκρίνει μια νέα συσκευή όταν δεν έχετε άλλη</translation>
     </message>
     <message>

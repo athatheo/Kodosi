@@ -78,7 +78,7 @@ struct DeviceRow: View {
 
     private var subtitle: String {
         if device.recoveryKey {
-            String(localized: "Approves a new device when you have no other")
+            String(localized: "Approves a new device when you have no other device")
         } else if isThisDevice {
             ThisDevice.title
         } else {

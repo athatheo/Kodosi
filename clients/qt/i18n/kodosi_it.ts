@@ -872,7 +872,7 @@
         <translation>I tuoi dispositivi</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>Approva un nuovo dispositivo quando non ne hai altri</translation>
     </message>
     <message>
