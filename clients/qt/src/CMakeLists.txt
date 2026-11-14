@@ -145,7 +145,7 @@ target_link_libraries(kodosi-desktop-integration
 if(LINUX)
     qt_generate_wayland_protocol_client_sources(kodosi-desktop-integration
         PRIVATE_CODE
-        FILES "${KODOSI_WAYLAND_PROTOCOLS}/staging/ext-idle-notify/ext-idle-notify-v1.xml"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux/ext-idle-notify-v1.xml"
     )
 endif()
 

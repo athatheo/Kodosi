@@ -28,7 +28,7 @@ constexpr int answerTime = 1000;
 class IdleNotifier final : public QWaylandClientExtensionTemplate<IdleNotifier>, public QtWayland::ext_idle_notifier_v1 {
 public:
     IdleNotifier()
-        : QWaylandClientExtensionTemplate<IdleNotifier>(1)
+        : QWaylandClientExtensionTemplate<IdleNotifier>(2)
     {
         initialize();
     }
@@ -67,12 +67,18 @@ public:
     {
     }
 
+    // Version 2 counts only input. A compositor with only version 1 also counts an app that keeps the
+    // screen awake, such as a video, as a person who is there.
     void watch(const std::chrono::milliseconds quietTime) override
     {
         m_notification.reset();
         m_quiet(false);
+        const auto timeout = static_cast<uint32_t>(quietTime.count());
         m_notification = std::make_unique<IdleNotification>(
-            m_notifier->get_idle_notification(static_cast<uint32_t>(quietTime.count()), m_seat), m_quiet);
+            m_notifier->QtWayland::ext_idle_notifier_v1::version() >= 2
+                ? m_notifier->get_input_idle_notification(timeout, m_seat)
+                : m_notifier->get_idle_notification(timeout, m_seat),
+            m_quiet);
     }
 
 private:
@@ -162,6 +168,8 @@ std::unique_ptr<IdleWatch> waylandIdleWatch(IdleWatch::Quiet quiet)
     auto notifier = std::make_unique<IdleNotifier>();
     if (!notifier->isActive())
         return nullptr;
+    qCInfo(kodosiPresence).noquote() << "The Wayland compositor gives ext-idle-notify version"
+                                     << notifier->QtWayland::ext_idle_notifier_v1::version();
     return std::make_unique<WaylandIdleWatch>(std::move(notifier), wayland->seat(), std::move(quiet));
 }
 
