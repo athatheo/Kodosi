@@ -83,25 +83,38 @@ final class PushNotifications: NSObject, UNUserNotificationCenterDelegate {
         guard ready else { return }
         var known = TerminalNames()
         for session in sessions where session.isOwner {
-            known.terminals[session.id] = TerminalNames.Entry(name: session.name, computer: session.hostName)
+            known.terminals[session.id] = TerminalNames.Entry(
+                name: session.name, computer: session.hostName, computerId: session.hostDeviceId,
+            )
         }
         guard known != names else { return }
         names = known
         known.write()
     }
 
-    func showWaiting(_ count: Int) {
-        UNUserNotificationCenter.current().setBadgeCount(count)
-    }
-
-    func seen(_ terminal: String) {
+    /// A fresh terminal list says which terminals still have a mark, and a notification leaves
+    /// with its mark.
+    func settle(_ sessions: [RuntimeSession]) {
+        let marked = KeptTerminals(Set(sessions.filter(\.attention).map(\.id)))
+        let waiting = TerminalCatalog.needsYou(sessions).count
         Task {
             let center = UNUserNotificationCenter.current()
-            let shown = await center.deliveredNotifications()
-            center.removeDeliveredNotifications(withIdentifiers: shown.filter {
-                $0.request.content.threadIdentifier == terminal
-            }.map(\.request.identifier))
+            let delivered = await center.deliveredNotifications()
+            center.removeDeliveredNotifications(withIdentifiers: marked.withdrawn(from: delivered.map(\.request)))
+            try? await center.setBadgeCount(waiting)
         }
+    }
+
+    /// In the background the app knows only the notifications that stay.
+    static func takeBack(keeping pushed: KeptTerminals, countsBadge: Bool) async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications().map(\.request)
+        let withdrawn = pushed.withdrawn(from: delivered)
+        center.removeDeliveredNotifications(withIdentifiers: withdrawn)
+        if countsBadge {
+            try? await center.setBadgeCount(pushed.waiting(in: delivered))
+        }
+        return !withdrawn.isEmpty
     }
 
     /// UIKit ends the app when the answer to a tapped notification comes from a thread that is not
@@ -145,5 +158,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
         Self.push?.failed(error)
+    }
+
+    /// A push without an alert takes back the notifications of the terminals that it does not
+    /// name. While Kodosi is in front, its terminal list sets the badge.
+    func application(
+        _ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+    ) async -> UIBackgroundFetchResult {
+        guard TerminalAlert(userInfo) == nil, let pushed = KeptTerminals(pushed: userInfo) else { return .noData }
+        let changed = await PushNotifications.takeBack(keeping: pushed, countsBadge: application.applicationState != .active)
+        return changed ? .newData : .noData
     }
 }

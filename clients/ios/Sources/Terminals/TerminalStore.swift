@@ -10,6 +10,8 @@ final class TerminalStore {
     private(set) var userId: String?
     private(set) var loaded = false
     private(set) var listed = false
+    /// The list answered since the app last left the background, so its marks are the hosts' marks.
+    @ObservationIgnored private(set) var fresh = false
     @ObservationIgnored private var listing: String?
     private(set) var revision = 0
     var watchingSessionId: String? {
@@ -54,8 +56,13 @@ final class TerminalStore {
         canvas.observe([])
         loaded = false
         listed = false
+        fresh = false
         listing = nil
         watchingSessionId = nil
+    }
+
+    func stale() {
+        fresh = false
     }
 
     func releaseAll() {
@@ -91,7 +98,7 @@ final class TerminalStore {
         case "sessions.snapshot":
             try receiveSnapshot(event)
         case "session.result":
-            settleList(event)
+            settleList(event, fresh: true)
         case "document.frame", "document.closed":
             canvas.receive(event)
         case "session.picture":
@@ -132,13 +139,14 @@ final class TerminalStore {
     }
 
     func absorb(error event: RuntimeEvent) {
-        settleList(event)
+        settleList(event, fresh: false)
     }
 
-    private func settleList(_ event: RuntimeEvent) {
+    private func settleList(_ event: RuntimeEvent, fresh: Bool) {
         guard let listing, event.string("requestId") == listing else { return }
         self.listing = nil
         listed = true
+        self.fresh = self.fresh || fresh
     }
 
     func refresh() async {

@@ -33,7 +33,8 @@ final class AppModel {
     @ObservationIgnored private(set) var accountEpoch: UInt64 = 0
     @ObservationIgnored private var launchers: [String: LauncherState] = [:]
     @ObservationIgnored private var projectScreens: [String: ProjectScreenState] = [:]
-    @ObservationIgnored private var active = true
+    @ObservationIgnored private var scene = ScenePhase.active
+    @ObservationIgnored private var reportedPresence: String?
 
     init() {
         let commands = CommandSink()
@@ -101,15 +102,29 @@ final class AppModel {
     }
 
     private var inFront: Bool {
-        active && !lock.locked
+        scene == .active && !lock.locked
     }
 
     func sceneChanged(to scenePhase: ScenePhase) {
         lock.sceneChanged(to: scenePhase)
-        active = scenePhase == .active
+        scene = scenePhase
+        if scenePhase == .background {
+            terminals.stale()
+        }
+        reportPresence()
         projects.markShownRead()
         guard scenePhase == .active, phase == .ready else { return }
         refresh()
+    }
+
+    /// iOS makes a scene inactive for a moment, as for Notification Center over Kodosi or the
+    /// question of Face ID, and the person is still in Kodosi then.
+    private func reportPresence() {
+        let state = scene == .background ? "away" : "kodosi"
+        guard phase == .ready, state != reportedPresence,
+              CommandSink.didAcceptSynchronously(commands.send("app.presence", ["state": .string(state)]))
+        else { return }
+        reportedPresence = state
     }
 
     func projectScreen(_ projectId: String) -> ProjectScreenState {
@@ -158,6 +173,7 @@ final class AppModel {
     }
 
     private func shutdown(completion: @escaping @MainActor () -> Void = {}) {
+        reportedPresence = nil
         terminals.releaseAll()
         commands.cancelPending()
         commands.transport = nil
@@ -206,7 +222,11 @@ final class AppModel {
         case "auth": try receiveAuth(event)
         case "devices": try account.receiveDevices(event)
         case "connection" where event.type == "connection.state": try account.receiveConnection(event)
-        case "sessions", "session", "term", "document": try terminals.receive(event)
+        case "sessions", "session", "term", "document":
+            try terminals.receive(event)
+            if terminals.fresh, ["sessions.snapshot", "session.result"].contains(event.type) {
+                push.settle(terminals.sessions)
+            }
         case "friends": try people.receive(event)
         case "project", "projects": try projects.receive(event)
         case "dosi": try dosi.receive(event)
@@ -225,6 +245,8 @@ final class AppModel {
             throw RuntimeError.invalidResponse(String(localized: "This copy of Kodosi is damaged. Install it again."))
         }
         phase = .ready
+        reportedPresence = nil
+        reportPresence()
         refresh()
     }
 
@@ -245,7 +267,7 @@ final class AppModel {
 
     private func receiveError(_ event: RuntimeEvent, delivery: CommandSink.Delivery) {
         terminals.absorb(error: event)
-        guard delivery == .app, !["provider.", "canvas.", "document."].contains(where: event.type.hasPrefix),
+        guard delivery == .app, !["provider.", "canvas.", "document.", "app."].contains(where: event.type.hasPrefix),
               event.string("operation") != "project.act" else { return }
         let message = event.string("message") ?? String(localized: "That did not work.")
         people.absorb(error: event)

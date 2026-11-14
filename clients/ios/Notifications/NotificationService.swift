@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// A push from the Kodosi server carries only identifiers, so the names and the words come from
 /// this device.
@@ -13,13 +13,24 @@ final class NotificationService: UNNotificationServiceExtension {
             contentHandler(request.content)
             return
         }
-        if let names = TerminalNames.read()?.terminals[alert.terminal] {
+        let names = TerminalNames.read()?.terminals[alert.terminal]
+        if let names {
             content.title = names.name
             content.subtitle = names.computer ?? ""
         }
         content.body = alert.body(in: .app)
-        content.threadIdentifier = alert.terminal
-        contentHandler(content)
+        content.threadIdentifier = names?.computerId ?? ""
+        guard let pushed = KeptTerminals(pushed: request.content.userInfo) else {
+            contentHandler(content)
+            return
+        }
+        // The system takes the content on any thread, but its SDK does not mark the handler so.
+        nonisolated(unsafe) let deliver = contentHandler
+        let center = UNUserNotificationCenter.current()
+        center.getDeliveredNotifications { delivered in
+            center.removeDeliveredNotifications(withIdentifiers: pushed.withdrawn(from: delivered.map(\.request)))
+            deliver(content)
+        }
     }
 }
 

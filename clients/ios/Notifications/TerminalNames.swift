@@ -5,6 +5,7 @@ nonisolated struct TerminalNames: Codable, Equatable {
     struct Entry: Codable, Equatable {
         let name: String
         let computer: String?
+        let computerId: String?
     }
 
     var terminals: [String: Entry] = [:]

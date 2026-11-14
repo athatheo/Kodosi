@@ -4,6 +4,7 @@ import KodosiBridge
 import KodosiDesign
 import KodosiKit
 import KodosiTerminalSessions
+import SwiftUI
 import Testing
 
 @MainActor
@@ -30,7 +31,7 @@ struct AppModelTests {
     }
 
     @Test func `an empty terminal list counts once the server answered`() throws {
-        try deliver("system.ready", ["protocolVersion": RuntimeHandle.expectedProtocolVersion])
+        try deliver("system.ready", ["protocolVersion": RuntimeHandle.expectedProtocolVersion, "awaySeconds": 180])
         try deliver("sessions.snapshot", ["sessions": [Any]()])
         #expect(model.terminals.loaded)
         #expect(!model.terminals.listed)
@@ -40,7 +41,7 @@ struct AppModelTests {
     }
 
     @Test func `a saved sign-in that the server finds too old asks for an update`() throws {
-        try deliver("system.ready", userId: nil, ["protocolVersion": RuntimeHandle.expectedProtocolVersion])
+        try deliver("system.ready", userId: nil, ["protocolVersion": RuntimeHandle.expectedProtocolVersion, "awaySeconds": 180])
         try deliver("system.updateRequired", userId: nil)
         try deliver("auth.restoring", userId: nil, ["reason": "updateRequired"])
         #expect(model.updateRequired)
@@ -230,6 +231,38 @@ struct AppModelTests {
         #expect(model.dosi.snapshot == nil && model.dosi.items.isEmpty && model.dosiDevice == nil)
     }
 
+    @Test func `the phone is in Kodosi while it is on screen and away in the background, once for each runtime connection`() throws {
+        let ready: [String: Any] = ["protocolVersion": RuntimeHandle.expectedProtocolVersion, "awaySeconds": 180]
+        model.sceneChanged(to: .active)
+        #expect(sent.all("app.presence").isEmpty)
+        try deliver("system.ready", ready)
+        #expect(sent.types.first == "app.presence")
+        model.sceneChanged(to: .inactive)
+        model.sceneChanged(to: .active)
+        model.sceneChanged(to: .background)
+        try deliver("system.ready", ready)
+        model.sceneChanged(to: .background)
+        model.sceneChanged(to: .inactive)
+        #expect(sent.all("app.presence").compactMap { $0["state"] as? String } == ["kodosi", "away", "away", "kodosi"])
+    }
+
+    @Test func `the terminal list counts as fresh after it answers in front, until the app leaves the front`() throws {
+        model.sceneChanged(to: .active)
+        try deliver("system.ready", ["protocolVersion": RuntimeHandle.expectedProtocolVersion, "awaySeconds": 180])
+        try deliver("sessions.snapshot", ["sessions": [session(id: "s1", state: "blocked")]])
+        #expect(!model.terminals.fresh)
+        let first = try #require(sent.last("session.list")?["requestId"] as? String)
+        try deliver("session.result", ["requestId": first, "operation": "session.list"])
+        #expect(model.terminals.fresh)
+        model.sceneChanged(to: .background)
+        #expect(!model.terminals.fresh)
+        model.sceneChanged(to: .active)
+        let again = try #require(sent.last("session.list")?["requestId"] as? String)
+        #expect(again != first)
+        try deliver("session.error", ["requestId": again, "operation": "session.list", "message": "Offline"])
+        #expect(!model.terminals.fresh)
+    }
+
     private func device(_ id: String, _ label: String, recovery: Bool = false) -> [String: Any] {
         ["deviceId": id, "label": label, "certIssuedAtMs": 1, "recoveryKey": recovery]
     }
@@ -270,5 +303,9 @@ final class SentCommands: @unchecked Sendable {
 
     func last(_ type: String) -> [String: Any]? {
         lock.withLock { values.last { $0["type"] as? String == type } }
+    }
+
+    func all(_ type: String) -> [[String: Any]] {
+        lock.withLock { values.filter { $0["type"] as? String == type } }
     }
 }
