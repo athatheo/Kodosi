@@ -1,9 +1,13 @@
 use std::sync::atomic::{AtomicU64, AtomicUsize};
 
 use super::{channel::Transport, *};
-use crate::network::{Moment, TerminalStatus};
+use crate::{
+    network::{Moment, TerminalStatus},
+    protocol::Presence,
+};
 
 const SEND: Duration = Duration::from_secs(10);
+const PRESENCE_REFRESH: Duration = Duration::from_secs(crate::protocol::PRESENCE_REFRESH_SECONDS);
 const WAITING_FRAMES: usize = 256;
 const PIPE_WAITING_BYTES: usize = 16 * 1024 * 1024;
 const PIPE_ID: usize = 16;
@@ -67,6 +71,7 @@ struct Shared {
     down_since: Option<tokio::time::Instant>,
     routes: BTreeMap<Uuid, Route>,
     hosting: BTreeMap<Uuid, Hosting>,
+    presence: Presence,
     #[cfg(feature = "host")]
     callers: Option<mpsc::Sender<Caller>>,
 }
@@ -217,6 +222,10 @@ fn status_message(session: Uuid, incarnation: Uuid, status: Option<&TerminalStat
     text(&json!({"type":"status","sessionId":session,"incarnationId":incarnation,"status":status}))
 }
 
+fn presence_message(presence: Presence) -> Message {
+    text(&json!({"type":"presence","state":presence}))
+}
+
 impl Link {
     #[cfg(feature = "host")]
     pub(crate) fn host(self: &Arc<Self>, session: Uuid, incarnation: Uuid) -> Hosted {
@@ -304,6 +313,28 @@ impl Link {
         self.asked.notify_one();
     }
 
+    pub(crate) fn present(&self, presence: Presence) {
+        let Ok(mut shared) = self.shared.lock() else {
+            return;
+        };
+        if std::mem::replace(&mut shared.presence, presence) == presence {
+            return;
+        }
+        if let Some(outgoing) = &shared.outgoing {
+            drop(outgoing.control.send(presence_message(presence)));
+        }
+    }
+
+    /// The server holds the presence of a device only for a while after its last report.
+    fn refresh_presence(&self) {
+        if let Ok(shared) = self.shared.lock()
+            && shared.presence != Presence::Away
+            && let Some(outgoing) = &shared.outgoing
+        {
+            drop(outgoing.control.send(presence_message(shared.presence)));
+        }
+    }
+
     #[cfg(feature = "host")]
     pub(crate) fn take_calls(&self, callers: mpsc::Sender<Caller>) {
         if let Ok(mut shared) = self.shared.lock() {
@@ -349,6 +380,7 @@ impl Link {
 
     fn connected(&self, outgoing: Outgoing) {
         if let Ok(mut shared) = self.shared.lock() {
+            drop(outgoing.control.send(presence_message(shared.presence)));
             shared.outgoing = Some(outgoing);
             shared.down_since = None;
             for hosting in shared.hosting.values_mut() {
@@ -522,6 +554,11 @@ impl Link {
                 return Ok(None);
             }
             "hosts" => return Ok(Some(wire::Notice::Hosts(wire::hosts(value)?))),
+            "presence" => {
+                return Ok(Some(wire::Notice::Elsewhere(serde_json::from_value(
+                    value.clone(),
+                )?)));
+            }
             "closed" => {
                 if let Some(route) = shared.routes.remove(&wire::id(value, "pipe")?) {
                     let error =
@@ -681,10 +718,16 @@ pub(crate) async fn run(
         heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut check = tokio::time::interval(WAKE_CHECK);
         check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut presence = tokio::time::interval_at(
+            tokio::time::Instant::now() + PRESENCE_REFRESH,
+            PRESENCE_REFRESH,
+        );
+        presence.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut hearing = Hearing::new(Moment::now());
         loop {
             tokio::select! {
                 _ = heartbeat.tick() => drop(control.send(text(&json!({"type":"ping"})))),
+                _ = presence.tick() => link.refresh_presence(),
                 _ = check.tick() => {
                     let now = Moment::now();
                     if hearing.asks(now) {
@@ -752,27 +795,51 @@ mod tests {
             program: Some("claude".to_owned()),
             account: Some(1),
             state: Some(crate::terminal::ProgramState::Working),
-            kind: None,
+            ..TerminalStatus::default()
         };
         hosted.share(Some(status.clone()));
         let mut first = connect(&link);
         let sent = messages(&mut first);
-        assert_eq!(sent[1]["status"]["account"], 1);
+        assert_eq!(sent[2]["status"]["account"], 1);
         assert_eq!(
             sent.iter()
                 .map(|message| message["type"].as_str().unwrap())
                 .collect::<Vec<_>>(),
-            ["host", "status"]
+            ["presence", "host", "status"]
         );
         assert_eq!(
-            serde_json::from_value::<TerminalStatus>(sent[1]["status"].clone()).unwrap(),
+            serde_json::from_value::<TerminalStatus>(sent[2]["status"].clone()).unwrap(),
             status
         );
         hosted.share(None);
         assert_eq!(messages(&mut first)[0]["status"], Value::Null);
         link.disconnected();
         let mut second = connect(&link);
-        assert_eq!(messages(&mut second).len(), 1);
+        assert_eq!(messages(&mut second).len(), 2);
+    }
+
+    #[test]
+    fn a_device_says_where_its_person_is_after_ready_on_each_change_and_again_while_present() {
+        let link = Arc::new(Link::default());
+        let states = |controls: &mut mpsc::UnboundedReceiver<Message>| {
+            messages(controls)
+                .into_iter()
+                .map(|message| message["state"].as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        };
+        link.present(Presence::Kodosi);
+        let mut controls = connect(&link);
+        assert_eq!(states(&mut controls), ["kodosi"]);
+        link.present(Presence::Kodosi);
+        link.present(Presence::Here);
+        assert_eq!(states(&mut controls), ["here"]);
+        link.refresh_presence();
+        assert_eq!(states(&mut controls), ["here"]);
+        link.present(Presence::Away);
+        link.refresh_presence();
+        assert_eq!(states(&mut controls), ["away"]);
+        link.disconnected();
+        assert_eq!(states(&mut connect(&link)), ["away"]);
     }
 
     #[tokio::test(start_paused = true)]
@@ -790,8 +857,8 @@ mod tests {
         let mut controls = connect(&link);
         let pipe = opening.await.unwrap().unwrap();
         let sent = messages(&mut controls);
-        assert_eq!(sent[0]["type"], "open");
-        assert_eq!(sent[0]["pipe"], pipe.to_string());
+        assert_eq!(sent[1]["type"], "open");
+        assert_eq!(sent[1]["pipe"], pipe.to_string());
     }
 
     #[test]

@@ -856,6 +856,44 @@ async fn the_people_of_a_terminal_with_every_viewer_fit_its_metadata() {
     session.close().await.expect("close");
 }
 
+#[tokio::test]
+async fn only_a_device_of_the_owner_tells_the_host_that_the_terminal_was_seen() {
+    let (session, mut changes, _root) = shell("exec /bin/cat").await;
+    let owner = Uuid::now_v7().to_string();
+    session
+        .host_requests
+        .send(HostRequest::ResetPresence {
+            owner: Some(owner.clone()),
+        })
+        .await
+        .expect("owner");
+    let (friend_view, owner_view) = (Uuid::now_v7(), Uuid::now_v7());
+    for (connection_id, user_id) in [
+        (friend_view, Uuid::now_v7().to_string()),
+        (owner_view, owner),
+    ] {
+        session
+            .host_requests
+            .send(HostRequest::Connected {
+                connection_id,
+                user_id,
+            })
+            .await
+            .expect("viewer");
+    }
+    let seen = |changes: &mut mpsc::Receiver<SessionChange>| {
+        std::iter::from_fn(|| changes.try_recv().ok())
+            .filter(|change| matches!(change, SessionChange::Seen { .. }))
+            .count()
+    };
+    let authorization = CancellationToken::new();
+    remote_control(&session, friend_view, &authorization, TerminalControl::Seen).await;
+    assert_eq!(seen(&mut changes), 0);
+    remote_control(&session, owner_view, &authorization, TerminalControl::Seen).await;
+    assert_eq!(seen(&mut changes), 1);
+    session.close().await.expect("close");
+}
+
 async fn next_status(changes: &mut mpsc::Receiver<SessionChange>) -> Option<ProgramStatus> {
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {

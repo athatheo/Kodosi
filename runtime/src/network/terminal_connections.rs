@@ -30,7 +30,7 @@ use super::{
     wire::{self, SessionDto},
 };
 #[cfg(feature = "host")]
-use super::{HostRequest, LocalPublication, PublicationOutput, PublishedFrame};
+use super::{HostRequest, LocalPublication, PublicationOutput, PublishedFrame, PublishedMark};
 
 mod calls;
 mod channel;
@@ -74,6 +74,7 @@ pub(crate) struct Publication {
     closing: AtomicBool,
     requests: mpsc::Sender<HostRequest>,
     output: Mutex<Option<PublicationOutput>>,
+    attention: PublishedMark,
 }
 #[cfg(feature = "host")]
 impl Publication {
@@ -81,6 +82,7 @@ impl Publication {
         info: LocalPublication,
         requests: mpsc::Sender<HostRequest>,
         output: PublicationOutput,
+        attention: PublishedMark,
         dto: SessionDto,
     ) -> Self {
         Self {
@@ -94,6 +96,7 @@ impl Publication {
             closing: AtomicBool::new(false),
             requests,
             output: Mutex::new(Some(output)),
+            attention,
         }
     }
     pub(crate) async fn clear_sharing(&self) {

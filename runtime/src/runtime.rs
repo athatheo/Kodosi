@@ -32,6 +32,7 @@ use crate::{
 #[cfg(feature = "host")]
 use crate::{network::LocalPublication, terminal::TerminalSession};
 
+mod attention;
 #[cfg(feature = "host")]
 mod changes;
 mod commands;
@@ -473,6 +474,7 @@ struct Local {
     wanted: Option<restore::Sharing>,
     conversation: restore::Conversation,
     changed: crate::agents::AgentSettings,
+    marked: watch::Sender<Option<crate::terminal::Waiting>>,
 }
 
 #[cfg(feature = "host")]
@@ -502,6 +504,7 @@ impl Local {
         LocalPublication,
         mpsc::Sender<crate::network::HostRequest>,
         broadcast::Receiver<crate::network::PublishedFrame>,
+        crate::network::PublishedMark,
     ) {
         (
             LocalPublication {
@@ -527,6 +530,7 @@ impl Local {
             },
             self.terminal.host_requests.clone(),
             self.terminal.output(),
+            self.marked.subscribe(),
         )
     }
 }
@@ -998,27 +1002,32 @@ impl TerminalTarget {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Activity {
-    working: bool,
-    wait: Option<crate::terminal::Waiting>,
+fn connected(entry: &SessionEntry) -> bool {
+    matches!(
+        entry.connection_state,
+        ConnectionState::Local | ConnectionState::Connected
+    )
 }
 
-impl Activity {
-    fn connected(entry: &SessionEntry) -> bool {
-        matches!(
-            entry.connection_state,
-            ConnectionState::Local | ConnectionState::Connected
-        )
-    }
+fn reads_title(entry: &SessionEntry) -> bool {
+    connected(entry) && entry.status == SessionStatus::Running
+}
 
-    fn reads_title(entry: &SessionEntry) -> bool {
-        Self::connected(entry) && entry.status == SessionStatus::Running
-    }
+/// A friend's terminal calls its viewer only while this device has it open.
+fn calls(entry: &SessionEntry) -> bool {
+    entry.is_owner || connected(entry)
+}
 
-    fn calls(entry: &SessionEntry) -> bool {
-        entry.is_owner || Self::connected(entry)
-    }
+/// The host of one of the person's terminals on another computer keeps its mark.
+fn reported_by_host(entry: &SessionEntry) -> bool {
+    entry.kind == SessionKind::Remote && entry.is_owner
+}
+
+fn reachable(entry: &SessionEntry) -> bool {
+    !matches!(
+        entry.status,
+        SessionStatus::Offline | SessionStatus::Reconnecting
+    )
 }
 
 fn show_program(entry: &mut SessionEntry) {
@@ -1028,7 +1037,7 @@ fn show_program(entry: &mut SessionEntry) {
     entry.working = !closing
         && state.map_or_else(
             || {
-                Activity::reads_title(entry)
+                reads_title(entry)
                     && entry
                         .title
                         .as_deref()
@@ -1129,8 +1138,7 @@ struct Runtime {
     opening: HashMap<Uuid, Opening>,
     views: HashMap<Uuid, HashMap<Uuid, CancellationToken>>,
     visible: HashMap<Uuid, Shown>,
-    attention: BTreeSet<String>,
-    activity: HashMap<String, Activity>,
+    attention: attention::Attention,
     project_latest: HashMap<String, u64>,
     project_seen: project_seen::ProjectSeen,
     reconnect: HashMap<Uuid, Reconnect>,
@@ -1282,8 +1290,7 @@ pub async fn start(config: Config) -> Result<RuntimeHandle> {
         opening: HashMap::new(),
         views: HashMap::new(),
         visible: HashMap::new(),
-        attention: BTreeSet::new(),
-        activity: HashMap::new(),
+        attention: attention::Attention::default(),
         project_latest: HashMap::new(),
         project_seen,
         reconnect: HashMap::new(),
@@ -1364,13 +1371,14 @@ impl Runtime {
         }
         let stale = envelope.account_epoch != self.scope.epoch
             || envelope.account_user_id != self.scope.user;
-        let outcome = if stale && !matches!(command, Command::Visible { .. }) {
-            Err(Error::Stale)
-        } else if let Some(computer) = elsewhere {
-            self.ask_computer(command, computer)
-        } else {
-            self.apply_for_consumer(command, consumer, lifetime)
-        };
+        let outcome =
+            if stale && !matches!(command, Command::Visible { .. } | Command::Presence { .. }) {
+                Err(Error::Stale)
+            } else if let Some(computer) = elsewhere {
+                self.ask_computer(command, computer)
+            } else {
+                self.apply_for_consumer(command, consumer, lifetime)
+            };
         if let Err(error) = outcome {
             if answered {
                 self.error(command, &error);
@@ -1434,7 +1442,7 @@ impl Runtime {
         entries.extend(self.local.values().map(|local| local.entry.clone()));
         entries.sort_by(|left, right| left.id.cmp(&right.id));
         for entry in &mut entries {
-            entry.attention = self.attention.contains(&entry.id);
+            entry.attention = self.attention.marked(&entry.id);
             show_program(entry);
         }
         entries
@@ -1457,45 +1465,89 @@ impl Runtime {
 
     fn publish_catalog(&mut self) {
         let mut entries = self.entries();
-        let mut activity = HashMap::with_capacity(entries.len());
-        let mut called = Vec::new();
+        let watched = self.watched();
+        let now = tokio::time::Instant::now();
         for entry in &entries {
-            let before = self.activity.get(&entry.id).copied();
-            let away = matches!(
-                entry.status,
-                SessionStatus::Offline | SessionStatus::Reconnecting
-            );
-            let known = entry.program_status.is_some() || Activity::reads_title(entry);
-            let was_working = before.is_some_and(|before| before.working);
-            let stopped = !away && known && was_working && !entry.working;
-            let waits =
-                entry.waiting.is_some() && before.map(|before| before.wait) != Some(entry.waiting);
-            if (stopped || waits) && Activity::calls(entry) && self.mark(&entry.id) {
-                called.push(entry.id.clone());
+            if !reported_by_host(entry) && reachable(entry) {
+                let id = &entry.id;
+                let looked = watched.contains(id);
+                self.attention
+                    .observe(id, entry.waiting, calls(entry), looked, now);
             }
-            activity.insert(
-                entry.id.clone(),
-                Activity {
-                    working: if known { entry.working } else { was_working },
-                    wait: entry.waiting,
-                },
-            );
         }
-        self.activity = activity;
-        self.attention.retain(|id| self.activity.contains_key(id));
+        self.attention
+            .retain(&entries.iter().map(|entry| entry.id.clone()).collect());
         for entry in &mut entries {
-            entry.attention = self.attention.contains(&entry.id);
+            entry.attention = self.attention.marked(&entry.id);
         }
+        #[cfg(feature = "host")]
+        self.share_marks();
         self.emit(json!({"type":"sessions.snapshot", "sessions":entries}));
-        for id in called {
-            self.call(&id);
+        self.call_started();
+    }
+
+    /// The terminal list goes first, so that an app has the state that the call is about.
+    fn call_started(&mut self) {
+        let now = tokio::time::Instant::now();
+        for (id, wait) in self.attention.take_started() {
+            if self.attention.marked(&id)
+                && let Some(interrupt) = self.attention.cue(wait, now)
+            {
+                self.emit(json!({"type":"term.attention", "sessionId":id, "interrupt":interrupt}));
+            }
         }
     }
 
-    fn watched(&self, id: &str) -> bool {
+    #[cfg(feature = "host")]
+    fn share_marks(&self) {
+        for (id, local) in &self.local {
+            let marked = self.attention.marked_state(&id.to_string());
+            local
+                .marked
+                .send_if_modified(|shared| std::mem::replace(shared, marked) != marked);
+        }
+    }
+
+    fn watched(&self) -> BTreeSet<String> {
         self.visible
-            .values()
-            .any(|shown| shown.watching && !shown.lifetime.is_cancelled() && shown.ids.contains(id))
+            .iter()
+            .filter(|(client, shown)| {
+                shown.watching && !shown.lifetime.is_cancelled() && self.attention.looks(client)
+            })
+            .flat_map(|(_, shown)| shown.ids.iter().cloned())
+            .collect()
+    }
+
+    fn attend(&mut self) {
+        if let Some(presence) = self.attention.changed_presence() {
+            self.network.inner.link.present(presence);
+        }
+        let watched = self.watched();
+        let now = tokio::time::Instant::now();
+        let ended = self.attention.look(&watched);
+        if self.attention.settle(now, &watched) || ended {
+            self.publish_catalog();
+        }
+        self.tell_seen(&watched, now);
+    }
+
+    fn tell_seen(&mut self, watched: &BTreeSet<String>, now: tokio::time::Instant) {
+        for id in self.attention.to_tell(watched, now) {
+            let Some(connection) = Uuid::parse_str(&id)
+                .ok()
+                .filter(|terminal| self.streams(*terminal))
+                .and_then(|terminal| self.connections.get(&terminal))
+            else {
+                continue;
+            };
+            let seen = connection.control(None, TerminalControl::Seen);
+            tokio::spawn(async move {
+                if let Err(error) = seen.await {
+                    tracing::debug!(%error, "a terminal did not hear that its person saw it");
+                }
+            });
+            self.attention.told(&id, now);
+        }
     }
 
     fn shown(&self, id: Uuid) -> bool {
@@ -1574,19 +1626,6 @@ impl Runtime {
         }
     }
 
-    fn mark(&mut self, id: &str) -> bool {
-        if self.watched(id) {
-            return false;
-        }
-        self.attention.insert(id.to_owned());
-        true
-    }
-
-    /// The terminal list goes first, so that an app has the state that the call is about.
-    fn call(&self, id: &str) {
-        self.emit(json!({"type":"term.attention", "sessionId":id}));
-    }
-
     fn see(
         &mut self,
         consumer: Uuid,
@@ -1594,11 +1633,6 @@ impl Runtime {
         ids: BTreeSet<String>,
         watching: bool,
     ) {
-        let seen = if watching {
-            ids.iter().filter(|id| self.attention.remove(*id)).count()
-        } else {
-            0
-        };
         self.visible.insert(
             consumer,
             Shown {
@@ -1609,9 +1643,10 @@ impl Runtime {
         );
         self.follow_views();
         self.connect_shown();
-        if self.restate_kept() || seen > 0 {
+        if self.restate_kept() {
             self.publish_catalog();
         }
+        self.attend();
     }
 
     fn restate_kept(&mut self) -> bool {
@@ -1635,7 +1670,8 @@ impl Runtime {
     }
 
     fn ready_event(&self) -> Value {
-        json!({"type":"system.ready", "protocolVersion":crate::protocol::VERSION, "host":self.host})
+        json!({"type":"system.ready", "protocolVersion":crate::protocol::VERSION, "host":self.host,
+            "awaySeconds":crate::protocol::PRESENCE_AWAY_SECONDS})
     }
 
     fn snapshot_events(&self) -> Result<Vec<Event>> {
@@ -1818,7 +1854,7 @@ impl Runtime {
                         None => {},
                     }
                 }
-                _ = demand.tick() => { self.prune_views(); self.prune_answers(); self.prune_pipes(); self.reconnect_views(); self.publish_connection(); }
+                _ = demand.tick() => { self.prune_views(); self.prune_answers(); self.prune_pipes(); self.reconnect_views(); self.publish_connection(); self.attend(); }
                 _ = retry.tick() => { #[cfg(feature = "host")] { self.publish_locals(); self.retire_publications(); self.remember_conversations(); self.save_terminals(HashMap::new()); self.check_mentions(); self.tell_mentions(); self.type_agent_changes(); } self.reconnect_views(); self.started_remotes(); self.ask_folders(); }
             }
         }
@@ -2744,6 +2780,7 @@ impl Runtime {
         self.starting.clear();
         self.cached_events.clear();
         self.project_latest.clear();
+        self.attention.forget_account();
         #[cfg(feature = "host")]
         self.mentions.clear();
         self.latest_auth = None;
@@ -2806,6 +2843,11 @@ impl Runtime {
             self.dosi_nudge(&event.event);
         } else if kind == "network.terminal" {
             self.terminal_changed(&event.event);
+        } else if kind == "network.presence" {
+            match serde_json::from_value::<crate::network::Elsewhere>(event.event) {
+                Ok(elsewhere) => self.attention.hear_elsewhere(elsewhere),
+                Err(error) => tracing::warn!(%error, "a presence notice was unreadable"),
+            }
         } else if kind == "network.sessions" {
             let result = event
                 .event
@@ -3043,6 +3085,13 @@ impl Runtime {
             .into_iter()
             .filter(|entry| !self.hosts(&entry.id))
             .collect::<Vec<_>>();
+        let live = self.attention.listed(self.network.inner.link.connects());
+        for remote in remotes.iter().filter(|remote| remote.online) {
+            if self.scope.user.as_ref() == Some(&remote.owner_user_id) {
+                self.attention
+                    .report(&remote.id.to_string(), remote.status.as_ref(), live);
+            }
+        }
         self.listed = remotes
             .iter()
             .map(|entry| (entry.id, entry.clone()))
@@ -3090,6 +3139,7 @@ impl Runtime {
             return;
         };
         let returned = notice.online && !listed.online;
+        let own = self.scope.user.as_ref() == Some(&listed.owner_user_id);
         listed.online = notice.online;
         listed.status = notice.status;
         listed.hidden &= !notice.online;
@@ -3113,6 +3163,16 @@ impl Runtime {
         }
         if returned {
             self.reconnect_now(id);
+        }
+        if own && notice.online {
+            let live = self
+                .attention
+                .hears_live(self.network.inner.link.connects());
+            let status = self
+                .listed
+                .get(&id)
+                .and_then(|listed| listed.status.as_ref());
+            self.attention.report(&id.to_string(), status, live);
         }
         self.publish_catalog();
         if returned {
@@ -3463,14 +3523,11 @@ impl Runtime {
             #[cfg(feature = "host")]
             SessionChange::Bell { id } => {
                 self.emit(json!({"type":"term.bell", "sessionId":id}));
-                let calls = self
-                    .local
-                    .get(&id)
-                    .is_some_and(|local| Activity::calls(&local.entry));
-                let id = id.to_string();
-                if calls && !self.attention.contains(&id) && self.mark(&id) {
+            }
+            #[cfg(feature = "host")]
+            SessionChange::Seen { id } => {
+                if self.attention.seen_elsewhere(&id.to_string()) {
                     self.publish_catalog();
-                    self.call(&id);
                 }
             }
             #[cfg(feature = "host")]
@@ -3493,9 +3550,18 @@ impl Runtime {
             SessionChange::Canvas { id } => self.sync_canvas(&id.to_string()),
             #[cfg(feature = "host")]
             SessionChange::Notification { id, title, body } => {
-                if let Some(local) = self.local.get(&id) {
+                let key = id.to_string();
+                if let Some(incarnation) = self
+                    .local
+                    .get(&id)
+                    .map(|local| local.terminal.incarnation_id)
+                    && !self.attention.marked(&key)
+                    && !self.watched().contains(&key)
+                {
+                    let interrupt = self.attention.note(tokio::time::Instant::now());
                     self.emit(json!({"type":"term.notification", "sessionId":id,
-                        "runtimeIncarnationId":local.terminal.incarnation_id, "title":title, "body":body}));
+                        "runtimeIncarnationId":incarnation, "title":title, "body":body,
+                        "interrupt":interrupt}));
                 }
             }
             #[cfg(feature = "host")]
@@ -3708,14 +3774,16 @@ impl Runtime {
             .map(|(id, _)| *id)
             .collect::<Vec<_>>();
         for id in ids {
-            let (info, host_requests, output) = self.local[&id].publication(id);
+            let (info, host_requests, output, attention) = self.local[&id].publication(id);
             let network = self.network.clone();
             let generation = self.scope.network_generation;
             self.publishing.insert(id);
             self.spawn(async move {
                 let incarnation = info.incarnation_id;
                 let result = if network.generation() == generation {
-                    network.publish(info, host_requests, output).await
+                    network
+                        .publish(info, host_requests, output, attention)
+                        .await
                 } else {
                     Err(crate::network::Error::Stale)
                 };

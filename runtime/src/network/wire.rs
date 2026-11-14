@@ -152,6 +152,7 @@ pub(crate) fn encode_control(control: &TerminalControl) -> Result<Vec<u8>> {
             }
             json!({"type":"agent","change":change})
         }
+        TerminalControl::Seen => json!({"type":"seen"}),
     };
     serde_json::to_vec(&value).map_err(Into::into)
 }
@@ -219,6 +220,7 @@ pub(crate) fn decode_control(value: &[u8]) -> Result<TerminalControl> {
                 change: Box::new(change),
             })
         }
+        "seen" => Ok(TerminalControl::Seen),
         _ => Err(invalid("Unsupported terminal operation.")),
     }
 }
@@ -308,11 +310,18 @@ impl TerminalNotice {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub(crate) struct Elsewhere {
+    pub kodosi: bool,
+    pub here: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Notice {
     Changed(Change),
     Terminal(TerminalNotice),
     Hosts(Vec<String>),
+    Elsewhere(Elsewhere),
 }
 pub(crate) fn decode_b64(value: &Value, field: &str, limit: usize) -> Result<Vec<u8>> {
     crate::identity::pins::decode(text(value, field)?, limit)

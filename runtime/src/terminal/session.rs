@@ -1937,6 +1937,12 @@ impl LocalActor {
                 return None;
             }
             TerminalControl::Agent { change } => self.change_agent(*change),
+            TerminalControl::Seen => {
+                if self.owner.is_some() && self.viewers.get(&connection_id) == self.owner.as_ref() {
+                    drop(self.changes.try_send(SessionChange::Seen { id: self.id }));
+                }
+                Ok(())
+            }
         };
         let reason = result.as_ref().err().map(Error::text);
         drop(

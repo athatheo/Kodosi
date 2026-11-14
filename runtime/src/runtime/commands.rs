@@ -92,6 +92,12 @@ impl Runtime {
                 self.result(command);
                 Ok(())
             }
+            Command::Presence { state, .. } => {
+                self.attention.present(consumer, *state, lifetime);
+                self.attend();
+                self.result(command);
+                Ok(())
+            }
             _ => self.apply(command),
         }
     }
@@ -239,7 +245,8 @@ impl Runtime {
             }
             Command::OpenRemote { .. }
             | Command::DisconnectRemote { .. }
-            | Command::Visible { .. } => {
+            | Command::Visible { .. }
+            | Command::Presence { .. } => {
                 return Err(Error::Invalid(
                     "remote view commands require a current client".to_owned(),
                 ));
@@ -1810,6 +1817,7 @@ impl Runtime {
                         wanted,
                         conversation: super::restore::Conversation::default(),
                         changed: crate::agents::AgentSettings::default(),
+                        marked: tokio::sync::watch::channel(None).0,
                     },
                 );
                 self.apply_wanted();

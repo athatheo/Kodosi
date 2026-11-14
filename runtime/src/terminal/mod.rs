@@ -94,6 +94,11 @@ pub(crate) enum SessionChange {
     Bell {
         id: Uuid,
     },
+    /// A device of the terminal's owner shows the terminal.
+    #[cfg(feature = "host")]
+    Seen {
+        id: Uuid,
+    },
     #[cfg(feature = "host")]
     Status {
         id: Uuid,

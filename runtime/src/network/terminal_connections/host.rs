@@ -54,23 +54,25 @@ type Viewers = Arc<std::sync::Mutex<BTreeMap<Uuid, Admitted>>>;
 
 struct Shared {
     reported: Option<TerminalStatus>,
+    marked: Option<crate::terminal::Waiting>,
     held: Option<TerminalStatus>,
     due: tokio::time::Instant,
 }
 
 impl Shared {
-    fn wanted(&self) -> Option<&TerminalStatus> {
+    fn wanted(&self) -> Option<TerminalStatus> {
         self.reported
-            .as_ref()
-            .filter(|status| **status != TerminalStatus::default())
+            .clone()
+            .map(|status| status.marked(self.marked))
+            .filter(|status| *status != TerminalStatus::default())
     }
 
     fn waiting(&self) -> bool {
-        self.wanted() != self.held.as_ref()
+        self.wanted() != self.held
     }
 
     fn send(&mut self, hosted: &Hosted) {
-        self.held = self.wanted().cloned();
+        self.held = self.wanted();
         hosted.share(self.held.clone());
         self.due = tokio::time::Instant::now() + STATUS_SPACING;
     }
@@ -103,8 +105,11 @@ pub(super) async fn run(
     let mut trust = tokio::time::interval(TRUST_CHECK);
     trust.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     trust.tick().await;
+    let mut attention = publication.attention.clone();
+    let mut marking = true;
     let mut shared = Shared {
         reported: None,
+        marked: *attention.borrow_and_update(),
         held: None,
         due: tokio::time::Instant::now(),
     };
@@ -118,6 +123,10 @@ pub(super) async fn run(
                 () = publication.refresh.notified() => review(network, publication, &network.credentials()?, &viewers).await?,
                 _ = trust.tick() => review(network, publication, &network.credentials()?, &viewers).await?,
                 Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
+                changed = attention.changed(), if marking => match changed {
+                    Ok(()) => shared.marked = *attention.borrow_and_update(),
+                    Err(_) => marking = false,
+                },
                 () = tokio::time::sleep_until(shared.due), if shared.waiting() => shared.send(&hosted),
                 event = hosted.events.recv() => match event.ok_or(Error::Closed)? {
                     HostEvent::Refused(error) => return Err(error),

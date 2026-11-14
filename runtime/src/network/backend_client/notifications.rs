@@ -7,7 +7,7 @@ use super::{
     BackendClient, CancellationToken, Credentials, Duration, Error, Result, invalid,
     projects::Lookups,
     terminal_connections,
-    wire::{Change, Notice, TerminalNotice},
+    wire::{Change, Elsewhere, Notice, TerminalNotice},
 };
 
 const RETRY_LIMIT: Duration = Duration::from_mins(1);
@@ -60,6 +60,7 @@ pub(super) struct Waiting {
     content: BTreeMap<Uuid, Option<u64>>,
     terminals: BTreeMap<Uuid, TerminalNotice>,
     hosts: Option<Vec<String>>,
+    elsewhere: Option<Elsewhere>,
     reported: BTreeMap<&'static str, String>,
 }
 
@@ -75,6 +76,10 @@ impl Waiting {
             }
             Notice::Hosts(hosts) => {
                 self.hosts = Some(hosts);
+                Ok(())
+            }
+            Notice::Elsewhere(elsewhere) => {
+                self.elsewhere = Some(elsewhere);
                 Ok(())
             }
         }
@@ -122,6 +127,16 @@ impl Waiting {
             && self.content.is_empty()
             && self.terminals.is_empty()
             && self.hosts.is_none()
+            && self.elsewhere.is_none()
+    }
+
+    fn told_at_once(&mut self, network: &BackendClient, admitted: &Credentials) {
+        if let Some(hosts) = self.hosts.take() {
+            network.emit_hosts(admitted, hosts);
+        }
+        if let Some(elsewhere) = self.elsewhere.take() {
+            network.emit_elsewhere(admitted, elsewhere);
+        }
     }
 }
 
@@ -245,9 +260,7 @@ impl BackendClient {
                             },
                             () = tokio::time::sleep_until(at) => break,
                         }
-                        if let Some(hosts) = waiting.hosts.take() {
-                            self.emit_hosts(admitted, hosts);
-                        }
+                        waiting.told_at_once(self, admitted);
                     }
                 }
                 while let Ok(notice) = notices.try_recv() {
@@ -275,6 +288,7 @@ impl BackendClient {
             result = refresh => result,
         };
         self.emit_hosts(admitted, Vec::new());
+        self.emit_elsewhere(admitted, Elsewhere::default());
         if matches!(result, Err(Error::Backend { status: 403, .. })) {
             let mut waiting = Waiting::default();
             waiting.add(&Change::of("devices"))?;
@@ -291,9 +305,7 @@ impl BackendClient {
         admitted: &Credentials,
         waiting: &mut Waiting,
     ) -> Result<()> {
-        if let Some(hosts) = waiting.hosts.take() {
-            self.emit_hosts(admitted, hosts);
-        }
+        waiting.told_at_once(self, admitted);
         let _operation = self.inner.operations.lock().await;
         self.check_credentials(admitted)?;
         let credentials = self.credentials()?;
@@ -443,6 +455,14 @@ impl BackendClient {
             admitted.generation,
             Some(admitted.user_id.clone()),
             json!({"type":"devices.hosts","deviceIds":hosts}),
+        );
+    }
+
+    fn emit_elsewhere(&self, admitted: &Credentials, elsewhere: Elsewhere) {
+        self.emit_for(
+            admitted.generation,
+            Some(admitted.user_id.clone()),
+            json!({"type":"network.presence","kodosi":elsewhere.kodosi,"here":elsewhere.here}),
         );
     }
 
