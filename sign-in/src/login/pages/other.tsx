@@ -53,7 +53,13 @@ export default function Other({
 }: {
   kcContext: Exclude<
     KcContext,
-    { pageId: "turnstile-form.ftl" | "turnstile-registration-form.ftl" }
+    {
+      pageId:
+        | "turnstile-form.ftl"
+        | "turnstile-registration-form.ftl"
+        | "kodosi-email.ftl"
+        | "kodosi-code.ftl";
+    }
   >;
   i18n: I18n;
 }) {

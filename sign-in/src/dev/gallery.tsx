@@ -19,6 +19,14 @@ const { getKcContextMock } = createGetKcContextMock({
   kcContextExtensionPerPage: {
     "turnstile-form.ftl": { turnstileSiteKey: PASSES },
     "turnstile-registration-form.ftl": { turnstileSiteKey: PASSES },
+    "kodosi-email.ftl": { kodosiFlow: "sign-up" as const, kodosiBack: false },
+    "kodosi-code.ftl": {
+      kodosiFlow: "sign-up" as const,
+      kodosiEmail: "maya@kodosi.example",
+      kodosiDigits: 8,
+      kodosiWait: 60,
+      kodosiResent: false,
+    },
   },
 });
 
@@ -212,64 +220,115 @@ const SCENES: Record<string, Scene> = {
     },
   },
 
+  "check-join": {
+    page: "turnstile-registration-form.ftl",
+    with: turnstile(PASSES),
+    next: "email",
+  },
+  email: { page: "kodosi-email.ftl", next: "mail-code" },
+  "email-wrong": {
+    page: "kodosi-email.ftl",
+    with: { kodosiEmail: "maya@kodosi", ...refused("email", "That email is not right.") },
+    next: "mail-code",
+  },
+  "mail-code": { page: "kodosi-code.ftl", next: "register" },
+  "mail-code-gmail": {
+    page: "kodosi-code.ftl",
+    with: { kodosiEmail: "maya.chen@gmail.com", kodosiWait: 0 },
+    next: "register",
+  },
+  "mail-code-wrong": {
+    page: "kodosi-code.ftl",
+    with: { kodosiWait: 41, ...refused("code", "That code is not right.") },
+    next: "register",
+  },
+  "mail-code-ended": {
+    page: "kodosi-code.ftl",
+    with: { kodosiWait: 0, ...refused("code", "That code is not right. Send a new code.") },
+    next: "register",
+  },
+  "mail-code-resent": { page: "kodosi-code.ftl", with: { kodosiResent: true }, next: "register" },
+  "mail-code-later": {
+    page: "kodosi-code.ftl",
+    with: {
+      kodosiWait: 0,
+      message: { type: "error", summary: "You asked for many codes. Try again later." },
+    },
+    next: "register",
+  },
+  "mail-code-account": {
+    page: "kodosi-code.ftl",
+    with: { kodosiFlow: "account", kodosiEmail: "leo.park@elsewhere.example" },
+    next: "info",
+  },
+  "email-account": {
+    page: "kodosi-email.ftl",
+    with: { kodosiFlow: "account", kodosiEmail: "leo.park@elsewhere.example", kodosiBack: true },
+    next: "mail-code-account",
+  },
   register: {
     page: "register.ftl",
     with: {
       passwordRequired: false,
+      kodosiEmail: maya.email,
       termsAcceptanceRequired: true,
       "x-keycloakify": { messages: { termsText: terms } },
       ...turnstile(PASSES),
     },
     attributes: profile(),
-    next: "inbox",
+    next: "new-password",
   },
   "register-rule": {
     page: "register.ftl",
     with: {
       passwordRequired: false,
+      kodosiEmail: maya.email,
       termsAcceptanceRequired: true,
       "x-keycloakify": { messages: { termsText: terms } },
     },
     attributes: profile({ username: "maya.chen" }),
-    next: "inbox",
+    next: "new-password",
   },
   "register-taken": {
     page: "register.ftl",
     with: {
       passwordRequired: false,
+      kodosiEmail: maya.email,
       ...refused("username", "That username is taken. Pick a different one."),
     },
     attributes: profile(maya),
-    next: "inbox",
+    next: "new-password",
   },
   "register-blocked": {
     page: "register.ftl",
     with: {
       passwordRequired: false,
+      kodosiEmail: maya.email,
       termsAcceptanceRequired: true,
       "x-keycloakify": { messages: { termsText: terms } },
       ...turnstile(BLOCKS),
     },
     attributes: profile(maya),
-    next: "inbox",
+    next: "new-password",
   },
   "register-ask": {
     page: "register.ftl",
-    with: { passwordRequired: false, ...turnstile(ASKS) },
+    with: { passwordRequired: false, kodosiEmail: maya.email, ...turnstile(ASKS) },
     attributes: profile(maya),
-    next: "inbox",
+    next: "new-password",
   },
   "register-refused": {
     page: "register.ftl",
     with: {
       passwordRequired: false,
+      kodosiEmail: maya.email,
       termsAcceptanceRequired: true,
       "x-keycloakify": { messages: { termsText: terms } },
       ...turnstile(PASSES),
       ...checkRefused,
     },
     attributes: profile(maya),
-    next: "inbox",
+    next: "new-password",
   },
   "register-password": {
     page: "register.ftl",
@@ -280,7 +339,7 @@ const SCENES: Record<string, Scene> = {
       "x-keycloakify": { messages: { termsText: terms } },
       ...refused("password", "The password must have 12 or more characters."),
     },
-    next: "inbox",
+    next: "new-password",
   },
   welcome: {
     page: "idp-review-user-profile.ftl",
@@ -292,26 +351,24 @@ const SCENES: Record<string, Scene> = {
     page: "update-email.ftl",
     attributes: { email: attribute("email", { value: maya.email, validators: { email: {} } }) },
     with: { isAppInitiatedAction: true },
-    next: "inbox",
+    next: "info",
   },
 
-  forgot: { page: "login-reset-password.ftl", with: injected(PASSES), next: "forgot-sent" },
+  forgot: { page: "login-reset-password.ftl", with: injected(PASSES), next: "mail-code-reset" },
   "forgot-refused": {
     page: "login-reset-password.ftl",
     with: { ...injected(PASSES), ...checkRefused },
-    next: "forgot-sent",
+    next: "mail-code-reset",
   },
   "check-page": {
     page: "turnstile-form.ftl",
     with: { ...turnstile(PASSES), isResetFlow: true },
-    next: "forgot-sent",
+    next: "mail-code-reset",
   },
-  "forgot-sent": {
-    page: "login.ftl",
-    with: {
-      ...open,
-      message: { type: "success", summary: "If the account exists, we sent you a link." },
-    },
+  "mail-code-reset": {
+    page: "kodosi-code.ftl",
+    with: { kodosiFlow: "reset", auth: { attemptedUsername: "maya" } },
+    next: "new-password",
   },
   "new-password": {
     page: "login-update-password.ftl",
@@ -320,23 +377,6 @@ const SCENES: Record<string, Scene> = {
       auth: person,
     },
     next: "info",
-  },
-  inbox: { page: "login-verify-email.ftl", with: { user: { email: maya.email } } },
-  "inbox-wait": {
-    page: "login-verify-email.ftl",
-    with: {
-      user: { email: maya.email },
-      message: { type: "error", summary: "Wait 28 seconds, then send it again." },
-    },
-  },
-  verified: {
-    page: "info.ftl",
-    with: {
-      messageHeader: "Your email is confirmed",
-      message: { type: "success", summary: "Your email is confirmed" },
-      requiredActions: undefined,
-      client: kodosiApp,
-    },
   },
 
   code: { page: "login-otp.ftl", with: { auth: person, ...oneApp }, next: "check" },

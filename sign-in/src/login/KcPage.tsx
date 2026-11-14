@@ -7,9 +7,10 @@ import { LinkAccount, ReplaceLink, Ways } from "./pages/choices";
 import { ConfigTotp, Otp, RecoveryConfig, RecoveryInput } from "./pages/codes";
 import { DeviceCode, Grant } from "./pages/device";
 import { NewEmail, Register, ReviewProfile, Welcome } from "./pages/join";
+import { Email, MailCode } from "./pages/mail";
 import { DeleteAccount, Expired, Failure, Info, RemoveWay, SignOut } from "./pages/notices";
 import { NewPasskey, Passkey, PasskeyAtName, PasskeyFailed } from "./pages/passkey";
-import { ResetPassword, UpdatePassword, VerifyEmail } from "./pages/password";
+import { ResetPassword, UpdatePassword } from "./pages/password";
 import { Login, LoginPassword, LoginUsername } from "./pages/sign-in";
 import { Terms } from "./pages/terms";
 
@@ -40,8 +41,10 @@ export default function KcPage({ kcContext }: { kcContext: KcContext }) {
       return <ResetPassword kcContext={kcContext} i18n={i18n} />;
     case "login-update-password.ftl":
       return <UpdatePassword kcContext={kcContext} i18n={i18n} />;
-    case "login-verify-email.ftl":
-      return <VerifyEmail kcContext={kcContext} i18n={i18n} />;
+    case "kodosi-email.ftl":
+      return <Email kcContext={kcContext} i18n={i18n} />;
+    case "kodosi-code.ftl":
+      return <MailCode kcContext={kcContext} i18n={i18n} />;
     case "login-otp.ftl":
       return <Otp kcContext={kcContext} i18n={i18n} />;
     case "login-config-totp.ftl":
