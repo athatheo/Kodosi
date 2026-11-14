@@ -803,6 +803,20 @@ mod tests {
         }
     }
 
+    async fn read_until(reader: &mut PtyReader, marker: &str) {
+        let mut output = Vec::new();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while !String::from_utf8_lossy(&output).contains(marker) {
+            let mut bytes = [0; 4096];
+            let count = tokio::time::timeout_at(deadline, reader.read(&mut bytes))
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(count > 0, "{}", String::from_utf8_lossy(&output));
+            output.extend_from_slice(&bytes[..count]);
+        }
+    }
+
     async fn end_by_force(pty: &mut KodosiPty, reader: &mut PtyReader) {
         pty.request_shutdown(ShutdownStage::Force).unwrap();
         let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
@@ -1029,11 +1043,34 @@ mod tests {
         let path = kodosi_os::fs::canonicalize(folder.path())
             .unwrap()
             .join("held");
-        let held = std::fs::File::create(&path).unwrap();
-        let group = super::process_group(std::process::id()).unwrap();
-        assert!(super::open_files(group).unwrap().contains(&path));
-        drop(held);
-        assert!(!super::open_files(group).unwrap().contains(&path));
+        let arguments = [
+            "-c",
+            "exec 3>held; echo HOLDS; read line; exec 3>&-; echo RELEASED; read line",
+        ]
+        .map(str::to_owned);
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let (mut pty, mut reader) = KodosiPty::spawn_program(
+                    Path::new("/bin/sh"),
+                    &arguments,
+                    folder.path().to_str(),
+                    24,
+                    80,
+                    &[],
+                    None,
+                )
+                .unwrap();
+                read_until(&mut reader, "HOLDS").await;
+                let group = pty.foreground_process_group().unwrap();
+                assert!(super::open_files(group).unwrap().contains(&path));
+                type_line(&mut reader, b"\n").await;
+                read_until(&mut reader, "RELEASED").await;
+                assert!(!super::open_files(group).unwrap().contains(&path));
+                end_by_force(&mut pty, &mut reader).await;
+            });
     }
 
     #[test]
