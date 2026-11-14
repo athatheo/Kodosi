@@ -99,7 +99,7 @@ public sealed class TerminalAlertTests
     }
 
     [Fact]
-    public async Task ADeviceIsAwayWhenItDoesNotRenewItsPresenceOrItsConnectionEnds()
+    public async Task ADeviceIsAwayWhenItDoesNotRenewItsPresenceOrThirtySecondsAfterItsConnectionEnds()
     {
         await using var computer = Connect("computer", hosts: true);
         var phone = Connect("phone");
@@ -120,9 +120,59 @@ public sealed class TerminalAlertTests
         Assert.Empty(After(TerminalAlerts.Delay));
         directory.Remove(phone);
         await phone.DisposeAsync();
+        clock.Advance(ConnectionDirectory.PresenceGrace - TimeSpan.FromSeconds(1));
+        directory.ExpirePresence();
+        Assert.Empty(alerts.Take());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        directory.ExpirePresence();
         var notice = Assert.Single(alerts.Take());
         Assert.Equal(second.Id, notice.Alert!.TerminalId);
         Assert.Equal([second.Id, first.Id], notice.Pushed.Select(x => x.TerminalId));
+    }
+
+    [Fact]
+    public async Task ADeviceThatConnectsAgainWithinThirtySecondsKeepsItsStateUntilItsLeaseEnds()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        var phone = Connect("phone");
+        var terminal = Hosted(computer);
+        directory.Present(phone, Presence.Kodosi);
+        var lease = clock.GetUtcNow() + ConnectionDirectory.PresenceLease;
+        Report(computer, terminal, "blocked");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        directory.Remove(phone);
+        await phone.DisposeAsync();
+        clock.Advance(ConnectionDirectory.PresenceGrace - TimeSpan.FromSeconds(1));
+        await using var again = Connect("phone");
+        clock.Advance(ConnectionDirectory.PresenceGrace);
+        directory.ExpirePresence();
+        Assert.Empty(alerts.Take());
+
+        clock.Advance(lease - TimeSpan.FromSeconds(1) - clock.GetUtcNow());
+        directory.ExpirePresence();
+        Assert.Empty(alerts.Take());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        directory.ExpirePresence();
+        Assert.Equal(terminal.Id, Alert(alerts.Take()).TerminalId);
+    }
+
+    [Fact]
+    public async Task ARemovedDeviceIsAwayAtOnceAlsoWhileItsConnectionIsLost()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        await using var phone = Connect("phone");
+        var tablet = Connect("tablet");
+        var terminal = Hosted(computer);
+        directory.Present(phone, Presence.Kodosi);
+        directory.Present(tablet, Presence.Kodosi);
+        Report(computer, terminal, "blocked");
+        Assert.Empty(After(TerminalAlerts.Delay));
+        directory.Remove(tablet);
+        await tablet.DisposeAsync();
+        directory.RemoveDevice(owner, "phone");
+        Assert.Empty(alerts.Take());
+        directory.RemoveDevice(owner, "tablet");
+        Assert.Equal(terminal.Id, Alert(alerts.Take()).TerminalId);
     }
 
     [Fact]

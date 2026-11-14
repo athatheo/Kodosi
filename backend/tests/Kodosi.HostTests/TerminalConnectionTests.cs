@@ -272,9 +272,9 @@ public sealed class TerminalConnectionTests
     }
 
     [Fact]
-    public async Task EachDeviceOfAPersonHearsWhetherAnotherOfTheirDevicesIsInKodosiOrHere()
+    public async Task EachDeviceOfAPersonHearsWhetherAnotherOfTheirDevicesIsInKodosiOrHereAlsoOverAShortLossOfItsConnection()
     {
-        var directory = new ConnectionDirectory(TimeProvider.System); var user = Guid.CreateVersion7();
+        var clock = new ManualClock(); var directory = new ConnectionDirectory(clock); var user = Guid.CreateVersion7();
         var (computer, computerSocket) = Device(directory, user, "computer", hosts: true);
         var (laptop, laptopSocket) = Device(directory, user, "laptop", hosts: true);
         var (phone, phoneSocket) = Device(directory, user, "phone");
@@ -289,7 +289,16 @@ public sealed class TerminalConnectionTests
         Assert.Equal((false, true), Others(await MessageAsync(computerSocket, "presence")));
         Assert.Equal((true, true), Others(await MessageAsync(phoneSocket, "presence")));
         directory.Remove(computer);
-        Assert.Equal((false, true), Others(await MessageAsync(phoneSocket, "presence")));
+        var (again, againSocket) = Device(directory, user, "computer", hosts: true);
+        await using var disposeAgain = again;
+        directory.Register(again); directory.Ready(again);
+        Assert.Equal((false, true), Others(await MessageAsync(againSocket, "presence")));
+        directory.Present(laptop, Presence.Away);
+        Assert.Equal((true, false), Others(await MessageAsync(phoneSocket, "presence")));
+        directory.Remove(again);
+        clock.Advance(ConnectionDirectory.PresenceGrace);
+        directory.ExpirePresence();
+        Assert.Equal((false, false), Others(await MessageAsync(phoneSocket, "presence")));
         Assert.Equal((false, false), Others(await MessageAsync(laptopSocket, "presence")));
     }
 

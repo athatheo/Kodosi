@@ -10,13 +10,14 @@ public sealed class ConnectionDirectory
     internal const int MaximumDevicePipes = 256;
     internal const int MaximumCalls = 16;
     internal static readonly TimeSpan PresenceLease = TimeSpan.FromSeconds(150);
+    internal static readonly TimeSpan PresenceGrace = TimeSpan.FromSeconds(30);
     private readonly TimeProvider clock;
     private readonly Lock sync = new();
     private readonly Dictionary<Guid, Dictionary<string, Entry>> accounts = [];
     private readonly Dictionary<DeviceConnection, Entry> entries = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Guid, Hosted> hosted = [];
     private readonly ConcurrentDictionary<Guid, Pipe> pipes = new();
-    private readonly HashSet<Entry> present = [];
+    private readonly Dictionary<Guid, Dictionary<string, DevicePresence>> present = [];
 
     internal event Action<Guid>? HostChanged;
     internal event Action<TerminalReport>? Reported;
@@ -104,13 +105,14 @@ public sealed class ConnectionDirectory
                 throw new ApiException(503, "Too many device connections.");
             if (previous is not null)
             {
-                DetachLocked(previous, afterUnlock);
+                DetachLocked(previous, afterUnlock, removed: false);
                 devices = accounts.GetValueOrDefault(connection.UserId);
             }
             if (devices is null) accounts[connection.UserId] = devices = new Dictionary<string, Entry>(StringComparer.Ordinal);
             var entry = new Entry(connection);
             devices[connection.DeviceId] = entry;
             entries[connection] = entry;
+            if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = null;
         }
         afterUnlock.Apply(this);
     }
@@ -131,12 +133,15 @@ public sealed class ConnectionDirectory
         var afterUnlock = new AfterUnlock();
         lock (sync)
         {
-            if (!entries.TryGetValue(connection, out var entry)) return;
+            if (!entries.ContainsKey(connection)) return;
             var away = AwayLocked(connection.UserId);
-            entry.Presence = presence;
-            entry.Renewed = clock.GetUtcNow();
-            if (presence == Presence.Away) present.Remove(entry);
-            else present.Add(entry);
+            if (presence == Presence.Away) ForgetPresenceLocked(connection.UserId, connection.DeviceId);
+            else
+            {
+                if (!present.TryGetValue(connection.UserId, out var devices))
+                    present[connection.UserId] = devices = new Dictionary<string, DevicePresence>(StringComparer.Ordinal);
+                devices[connection.DeviceId] = new DevicePresence(presence, clock.GetUtcNow());
+            }
             PresenceChangedLocked(connection.UserId, away, afterUnlock);
         }
         afterUnlock.Apply(this);
@@ -148,15 +153,12 @@ public sealed class ConnectionDirectory
         lock (sync)
         {
             var now = clock.GetUtcNow();
-            foreach (var person in present.Where(entry => now - entry.Renewed >= PresenceLease).GroupBy(entry => entry.Connection.UserId).ToArray())
+            foreach (var (userId, devices) in present.ToArray())
             {
-                var away = AwayLocked(person.Key);
-                foreach (var entry in person)
-                {
-                    entry.Presence = Presence.Away;
-                    present.Remove(entry);
-                }
-                PresenceChangedLocked(person.Key, away, afterUnlock);
+                var ended = devices.Where(device => device.Value.EndedAt(now)).Select(device => device.Key).ToArray();
+                if (ended.Length == 0) continue;
+                foreach (var deviceId in ended) ForgetPresenceLocked(userId, deviceId);
+                PresenceChangedLocked(userId, wasAway: false, afterUnlock);
             }
         }
         afterUnlock.Apply(this);
@@ -166,7 +168,7 @@ public sealed class ConnectionDirectory
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (entries.TryGetValue(connection, out var entry)) DetachLocked(entry, afterUnlock);
+            if (entries.TryGetValue(connection, out var entry)) DetachLocked(entry, afterUnlock, removed: false);
         afterUnlock.Apply(this);
         connection.Abort();
     }
@@ -175,7 +177,10 @@ public sealed class ConnectionDirectory
     {
         var afterUnlock = new AfterUnlock();
         lock (sync)
-            if (accounts.GetValueOrDefault(userId)?.GetValueOrDefault(deviceId) is { } entry) DetachLocked(entry, afterUnlock);
+        {
+            if (accounts.GetValueOrDefault(userId)?.GetValueOrDefault(deviceId) is { } entry) DetachLocked(entry, afterUnlock, removed: true);
+            else if (ForgetPresenceLocked(userId, deviceId)) PresenceChangedLocked(userId, wasAway: false, afterUnlock);
+        }
         afterUnlock.Apply(this);
     }
 
@@ -343,7 +348,7 @@ public sealed class ConnectionDirectory
         foreach (var connection in all) connection.Close();
     }
 
-    private void DetachLocked(Entry entry, AfterUnlock afterUnlock)
+    private void DetachLocked(Entry entry, AfterUnlock afterUnlock, bool removed)
     {
         var connection = entry.Connection;
         var away = AwayLocked(connection.UserId);
@@ -355,7 +360,8 @@ public sealed class ConnectionDirectory
                 afterUnlock.Pipes.Add((pipe, lost ? 409 : 0, !lost ? "" : pipe.IsCall ? "That computer is not online." : "The terminal's computer is offline.", connection));
             }
         entries.Remove(connection);
-        present.Remove(entry);
+        if (removed) ForgetPresenceLocked(connection.UserId, connection.DeviceId);
+        else if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = clock.GetUtcNow();
         if (accounts.TryGetValue(connection.UserId, out var devices) && devices.GetValueOrDefault(connection.DeviceId) == entry)
         {
             devices.Remove(connection.DeviceId);
@@ -366,8 +372,14 @@ public sealed class ConnectionDirectory
         afterUnlock.Aborted.Add(connection);
     }
 
-    private bool AwayLocked(Guid userId) =>
-        !accounts.TryGetValue(userId, out var devices) || devices.Values.All(entry => entry.Presence == Presence.Away);
+    private bool AwayLocked(Guid userId) => !present.ContainsKey(userId);
+
+    private bool ForgetPresenceLocked(Guid userId, string deviceId)
+    {
+        if (!present.TryGetValue(userId, out var devices) || !devices.Remove(deviceId)) return false;
+        if (devices.Count == 0) present.Remove(userId);
+        return true;
+    }
 
     private void PresenceChangedLocked(Guid userId, bool wasAway, AfterUnlock afterUnlock)
     {
@@ -378,10 +390,11 @@ public sealed class ConnectionDirectory
     private void TellPresenceLocked(Guid userId)
     {
         if (!accounts.TryGetValue(userId, out var devices)) return;
+        var held = present.GetValueOrDefault(userId);
         foreach (var entry in devices.Values.Where(x => x.Ready))
         {
-            var others = devices.Values.Where(x => x != entry).ToArray();
-            var notice = new PresenceNotice(others.Any(x => x.Presence == Presence.Kodosi), others.Any(x => x.Presence == Presence.Here));
+            var others = held?.Where(x => x.Key != entry.Connection.DeviceId).Select(x => x.Value.State).ToArray() ?? [];
+            var notice = new PresenceNotice(others.Contains(Presence.Kodosi), others.Contains(Presence.Here));
             if (notice == entry.Told) continue;
             entry.Told = notice;
             entry.Connection.Send(Wire.Encode(notice));
@@ -441,9 +454,15 @@ public sealed class ConnectionDirectory
         public int Views { get; set; }
         public int Calls { get; set; }
         public bool Ready { get; set; }
-        public Presence Presence { get; set; }
-        public DateTimeOffset Renewed { get; set; }
         public PresenceNotice? Told { get; set; }
+    }
+
+    private sealed class DevicePresence(Presence state, DateTimeOffset renewed)
+    {
+        public Presence State { get; } = state;
+        public DateTimeOffset? Lost { get; set; }
+
+        public bool EndedAt(DateTimeOffset now) => now - renewed >= PresenceLease || (Lost is { } lost && now - lost >= PresenceGrace);
     }
 
     private sealed class Hosted(Guid incarnationId, Entry host)

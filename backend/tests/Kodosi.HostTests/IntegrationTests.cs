@@ -198,7 +198,6 @@ public sealed class IntegrationTests(PostgresFixture postgres)
 
         await SendAsync(socket, new { type = "presence", state = "busy" });
         await Assert.ThrowsAnyAsync<Exception>(() => JsonAsync(socket));
-        Assert.True(directory.Away(owner.Fixture.UserId));
     }
 
     [Fact]
