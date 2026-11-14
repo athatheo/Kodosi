@@ -19,6 +19,8 @@ namespace {
 const auto login = QStringLiteral("org.freedesktop.login1");
 const auto loginSession = QStringLiteral("org.freedesktop.login1.Session");
 const auto lockedHint = QStringLiteral("LockedHint");
+const auto active = QStringLiteral("Active");
+const auto properties = QStringLiteral("org.freedesktop.DBus.Properties");
 const auto mutter = QStringLiteral("org.gnome.Mutter.IdleMonitor");
 const auto mutterPath = QStringLiteral("/org/gnome/Mutter/IdleMonitor/Core");
 constexpr int answerTime = 1000;
@@ -215,21 +217,29 @@ void LinuxPresenceSource::watchSession()
     if (!session.isValid())
         return;
     m_session = session.value().path();
-    (void)m_system.connect(login, m_session, loginSession, QStringLiteral("Lock"), this, SLOT(lock()));
-    (void)m_system.connect(login, m_session, loginSession, QStringLiteral("Unlock"), this, SLOT(unlock()));
-    (void)m_system.connect(login, m_session, QStringLiteral("org.freedesktop.DBus.Properties"),
-        QStringLiteral("PropertiesChanged"), this, SLOT(sessionChanged(QString, QVariantMap, QStringList)));
-    readLockedHint();
+    (void)m_system.connect(login, m_session, properties, QStringLiteral("PropertiesChanged"), this,
+        SLOT(sessionChanged(QString, QVariantMap, QStringList)));
+    readSession();
 }
 
-void LinuxPresenceSource::readLockedHint()
+// The session's own facts, not the Lock and Unlock requests to its screen locker: a desktop whose
+// locker does not obey them never locks, and an unlock with the password sends no Unlock. A locker
+// sets LockedHint, or, like light-locker, shows the greeter and so makes the session inactive.
+void LinuxPresenceSource::readSession()
 {
-    auto request = QDBusMessage::createMethodCall(
-        login, m_session, QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("Get"));
-    request.setArguments({ loginSession, lockedHint });
-    const QDBusReply<QDBusVariant> hint = m_system.call(request, QDBus::Block, answerTime);
-    if (hint.isValid())
-        set(m_locked, hint.value().variant().toBool());
+    auto request = QDBusMessage::createMethodCall(login, m_session, properties, QStringLiteral("GetAll"));
+    request.setArguments({ loginSession });
+    const QDBusReply<QVariantMap> facts = m_system.call(request, QDBus::Block, answerTime);
+    if (facts.isValid())
+        follow(facts.value());
+}
+
+void LinuxPresenceSource::follow(const QVariantMap& facts)
+{
+    if (const auto hint = facts.constFind(lockedHint); hint != facts.cend())
+        set(m_locked, hint.value().toBool());
+    if (const auto shown = facts.constFind(active); shown != facts.cend())
+        set(m_inactive, !shown.value().toBool());
 }
 
 void LinuxPresenceSource::prepareForSleep(const bool start)
@@ -237,25 +247,14 @@ void LinuxPresenceSource::prepareForSleep(const bool start)
     set(m_sleeping, start);
 }
 
-void LinuxPresenceSource::lock()
-{
-    set(m_locked, true);
-}
-
-void LinuxPresenceSource::unlock()
-{
-    set(m_locked, false);
-}
-
 void LinuxPresenceSource::sessionChanged(
     const QString& interface, const QVariantMap& changed, const QStringList& invalidated)
 {
     if (interface != loginSession)
         return;
-    if (const auto hint = changed.constFind(lockedHint); hint != changed.cend())
-        set(m_locked, hint.value().toBool());
-    else if (invalidated.contains(lockedHint))
-        readLockedHint();
+    follow(changed);
+    if (invalidated.contains(lockedHint) || invalidated.contains(active))
+        readSession();
 }
 
 void LinuxPresenceSource::set(bool& fact, const bool value)
