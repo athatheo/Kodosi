@@ -9,13 +9,13 @@ use uuid::Uuid;
 
 use crate::{
     network::{Elsewhere, TerminalStatus},
-    protocol::Presence,
+    protocol::{Cue, Presence},
     terminal::Waiting,
 };
 
 /// An agent that asks and goes on by itself within this time does not need its person.
 const SETTLE: Duration = Duration::from_secs(2);
-const QUIET_AFTER_INTERRUPT: Duration = Duration::from_secs(30);
+const QUIET_AFTER_SOUND: Duration = Duration::from_secs(30);
 /// A lost frame must not keep a mark that its person saw.
 const SEEN_AGAIN: Duration = Duration::from_secs(10);
 
@@ -32,7 +32,7 @@ pub(super) struct Attention {
     presence: Presence,
     elsewhere: Elsewhere,
     present: bool,
-    interrupted: Option<Instant>,
+    sounded: Option<Instant>,
     listed: Option<u64>,
 }
 
@@ -355,8 +355,8 @@ impl Attention {
     }
 
     /// The waits that the person leaves behind call again, each once in an absence.
-    pub(super) fn call_waits(&mut self, now: Instant) -> Vec<(String, bool)> {
-        let Some(may_interrupt) = self.shows() else {
+    pub(super) fn call_waits(&mut self, now: Instant) -> Vec<(String, Cue)> {
+        let Some(can_be_here) = self.shows() else {
             return Vec::new();
         };
         let blocked = Some(Waiting::Blocked);
@@ -382,12 +382,12 @@ impl Attention {
         }
         waits
             .into_iter()
-            .map(|id| (id, may_interrupt && self.interrupt(now)))
+            .map(|id| (id, self.cue(can_be_here, true, now)))
             .collect()
     }
 
-    /// Whether this device shows a notification, and whether it may interrupt. A person in
-    /// Kodosi on any device sees the sign there, and a person at another computer gets the
+    /// Whether this device shows a notification, and whether its person can be at it. A person
+    /// in Kodosi on any device sees the sign there, and a person at another computer gets the
     /// notification there.
     fn shows(&self) -> Option<bool> {
         let nobody_elsewhere = !self.elsewhere.kodosi && !self.elsewhere.here;
@@ -399,11 +399,11 @@ impl Attention {
         }
     }
 
-    pub(super) fn call(&mut self, id: &str, wait: Waiting, now: Instant) -> Option<bool> {
+    pub(super) fn call(&mut self, id: &str, wait: Waiting, now: Instant) -> Option<Cue> {
         if !self.marked(id) {
             return None;
         }
-        let may_interrupt = self.shows()?;
+        let can_be_here = self.shows()?;
         if !self.person_present() {
             if let Some(kept) = self.kept.get_mut(id).filter(|kept| kept.marked()) {
                 kept.look = Look::Marked {
@@ -414,27 +414,33 @@ impl Attention {
                 reported.called_absent = true;
             }
         }
-        Some(may_interrupt && wait == Waiting::Blocked && self.interrupt(now))
+        Some(self.cue(can_be_here, wait == Waiting::Blocked, now))
     }
 
+    /// A program's own notification shows also to a person in Kodosi who looks at another
+    /// terminal.
     #[cfg(feature = "host")]
-    pub(super) fn notification_interrupts(&mut self, now: Instant) -> bool {
-        let interrupt = matches!(self.device(), Presence::Kodosi | Presence::Here);
-        if interrupt {
-            self.interrupted = Some(now);
-        }
-        interrupt
+    pub(super) fn notification_cue(&mut self, now: Instant) -> Cue {
+        let can_be_here = match self.device() {
+            Presence::Kodosi | Presence::Here => true,
+            Presence::Idle => !self.elsewhere.kodosi && !self.elsewhere.here,
+            Presence::Away => false,
+        };
+        self.cue(can_be_here, true, now)
     }
 
-    fn interrupt(&mut self, now: Instant) -> bool {
-        if self
-            .interrupted
-            .is_some_and(|at| now.saturating_duration_since(at) < QUIET_AFTER_INTERRUPT)
-        {
-            return false;
+    fn cue(&mut self, can_be_here: bool, sounds: bool, now: Instant) -> Cue {
+        if !can_be_here {
+            return Cue::List;
         }
-        self.interrupted = Some(now);
-        true
+        let quiet = self
+            .sounded
+            .is_some_and(|at| now.saturating_duration_since(at) < QUIET_AFTER_SOUND);
+        if !sounds || quiet {
+            return Cue::Banner;
+        }
+        self.sounded = Some(now);
+        Cue::Sound
     }
 }
 

@@ -2176,7 +2176,9 @@ fn reports(runtime: &mut Runtime, remote: &RemoteSession, online: bool, status: 
     });
 }
 
-fn calls(events: &mut broadcast::Receiver<Event>) -> Vec<(Option<crate::terminal::Waiting>, bool)> {
+fn calls(
+    events: &mut broadcast::Receiver<Event>,
+) -> Vec<(Option<crate::terminal::Waiting>, crate::protocol::Cue)> {
     let mut listed = None;
     let mut calls = Vec::new();
     while let Ok(event) = events.try_recv() {
@@ -2184,10 +2186,10 @@ fn calls(events: &mut broadcast::Receiver<Event>) -> Vec<(Option<crate::terminal
             crate::protocol::EventBody::SessionsSnapshot { mut sessions } => {
                 listed = sessions.pop();
             }
-            crate::protocol::EventBody::TerminalAttention { interrupt, .. } => {
+            crate::protocol::EventBody::TerminalAttention { cue, .. } => {
                 let entry = listed.as_ref().expect("the list comes before the call");
                 assert!(entry.attention);
-                calls.push((entry.waiting, interrupt));
+                calls.push((entry.waiting, cue));
             }
             _ => {}
         }
@@ -2241,7 +2243,10 @@ async fn a_friends_open_terminal_calls_once_a_new_state_lasts_unseen_and_not_whe
     assert!(!marked(&mut runtime));
     assert_eq!(
         calls(&mut events),
-        [(Some(Waiting::Done), false), (Some(Waiting::Error), false)]
+        [
+            (Some(Waiting::Done), crate::protocol::Cue::List),
+            (Some(Waiting::Error), crate::protocol::Cue::List)
+        ]
     );
 }
 
@@ -2296,7 +2301,10 @@ async fn a_terminal_of_the_person_on_another_computer_has_the_mark_that_its_host
     );
     reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
     assert!(!marked(&runtime));
-    assert_eq!(calls(&mut events), [(Some(Waiting::Blocked), false)]);
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
+    );
 }
 
 async fn seen_reached_host(
@@ -2440,8 +2448,11 @@ fn reports_presence(
 
 #[cfg(all(unix, feature = "host"))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_program_notification_shows_where_nobody_looks_and_interrupts_only_a_present_person() {
-    use crate::terminal::{ProgramState, Waiting};
+async fn a_program_notification_shows_where_nobody_looks_and_not_over_a_state_mark() {
+    use crate::{
+        protocol::Cue,
+        terminal::{ProgramState, Waiting},
+    };
     let (mut runtime, storage) = registry_fixture();
     let (id, terminal) = hosted(&mut runtime, storage.path()).await;
     let mark = runtime.local[&id].publication(id).3;
@@ -2454,9 +2465,7 @@ async fn a_program_notification_shows_where_nobody_looks_and_interrupts_only_a_p
         });
         std::iter::from_fn(|| events.try_recv().ok())
             .filter_map(|event| match event.event {
-                crate::protocol::EventBody::TerminalNotification { interrupt, .. } => {
-                    Some(interrupt)
-                }
+                crate::protocol::EventBody::TerminalNotification { cue, .. } => Some(cue),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -2464,22 +2473,20 @@ async fn a_program_notification_shows_where_nobody_looks_and_interrupts_only_a_p
     let (client, lifetime) = (Uuid::now_v7(), CancellationToken::new());
     let app = (client, &lifetime);
 
-    assert_eq!(noted(&mut runtime), [false]);
+    assert_eq!(noted(&mut runtime), [Cue::List]);
     reports_presence(&mut runtime, app, Presence::Kodosi);
-    assert_eq!(noted(&mut runtime), [true]);
+    assert_eq!(noted(&mut runtime), [Cue::Sound]);
     show(&mut runtime, client, &lifetime, &[id]);
-    assert_eq!(noted(&mut runtime), [] as [bool; 0]);
-    reports_presence(&mut runtime, app, Presence::Idle);
-    assert_eq!(noted(&mut runtime), [false]);
+    assert_eq!(noted(&mut runtime), []);
     reports_presence(&mut runtime, app, Presence::Here);
-    assert_eq!(noted(&mut runtime), [true]);
+    assert_eq!(noted(&mut runtime), [Cue::Banner]);
 
     reports_state(&mut runtime, id, ProgramState::Done);
     let later = Instant::now() + Duration::from_secs(3);
     assert!(runtime.attention.settle(later, &BTreeSet::new()));
     runtime.publish_catalog();
     assert_eq!(*mark.borrow(), Some(Waiting::Done));
-    assert_eq!(noted(&mut runtime), [] as [bool; 0]);
+    assert_eq!(noted(&mut runtime), []);
     runtime.change(SessionChange::Seen { id });
     assert_eq!(*mark.borrow(), None);
     assert!(!runtime.entries()[0].attention);
@@ -2509,7 +2516,10 @@ async fn a_wait_seen_on_its_computer_gets_its_mark_again_and_calls_once_when_its
     assert_eq!(*mark.borrow(), Some(Waiting::Blocked));
     runtime.attend();
     reports_presence(&mut runtime, app, Presence::Idle);
-    assert_eq!(calls(&mut events), [(Some(Waiting::Blocked), true)]);
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::Sound)]
+    );
     reports_presence(&mut runtime, app, Presence::Kodosi);
     assert_eq!(*mark.borrow(), None);
     terminal.close().await.unwrap();
@@ -2594,7 +2604,10 @@ async fn a_wait_that_its_person_leaves_at_another_computer_calls_once_on_this_de
     elsewhere(&mut runtime, false);
     reports(&mut runtime, &remote, true, &waits);
     runtime.attend();
-    assert_eq!(calls(&mut events), [(Some(Waiting::Blocked), false)]);
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
+    );
 
     elsewhere(&mut runtime, true);
     reports(&mut runtime, &remote, true, &json!({"state":"blocked"}));
@@ -2602,7 +2615,10 @@ async fn a_wait_that_its_person_leaves_at_another_computer_calls_once_on_this_de
     assert_eq!(calls(&mut events), Vec::new());
     reports(&mut runtime, &remote, true, &waits);
     runtime.attend();
-    assert_eq!(calls(&mut events), [(Some(Waiting::Blocked), false)]);
+    assert_eq!(
+        calls(&mut events),
+        [(Some(Waiting::Blocked), crate::protocol::Cue::List)]
+    );
 }
 
 #[tokio::test]

@@ -13871,8 +13871,18 @@
               }
             ]
           },
-          "interrupt": {
-            "type": "boolean"
+          "cue": {
+            "oneOf": [
+              {
+                "const": "sound"
+              },
+              {
+                "const": "banner"
+              },
+              {
+                "const": "list"
+              }
+            ]
           },
           "sessionId": {
             "type": "string"
@@ -13886,7 +13896,7 @@
           "accountEpoch",
           "type",
           "sessionId",
-          "interrupt"
+          "cue"
         ],
         "type": "object"
       },
@@ -13910,8 +13920,18 @@
           "body": {
             "type": "string"
           },
-          "interrupt": {
-            "type": "boolean"
+          "cue": {
+            "oneOf": [
+              {
+                "const": "sound"
+              },
+              {
+                "const": "banner"
+              },
+              {
+                "const": "list"
+              }
+            ]
           },
           "runtimeIncarnationId": {
             "type": "string"
@@ -13934,7 +13954,7 @@
           "runtimeIncarnationId",
           "title",
           "body",
-          "interrupt"
+          "cue"
         ],
         "type": "object"
       }

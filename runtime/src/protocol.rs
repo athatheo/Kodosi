@@ -1407,15 +1407,26 @@ pub enum EventBody {
     TerminalBell { session_id: String },
     /// Show a notification for this terminal on this device.
     #[serde(rename = "term.attention")]
-    TerminalAttention { session_id: String, interrupt: bool },
+    TerminalAttention { session_id: String, cue: Cue },
     #[serde(rename = "term.notification")]
     TerminalNotification {
         session_id: String,
         runtime_incarnation_id: String,
         title: String,
         body: String,
-        interrupt: bool,
+        cue: Cue,
     },
+}
+
+/// How much of a notification its device shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[serde(rename_all = "lowercase")]
+pub enum Cue {
+    /// A banner with a sound, for a person who can be at this device.
+    Sound,
+    Banner,
+    /// Only the list of notifications, for a device where nobody is.
+    List,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]

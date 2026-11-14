@@ -1498,8 +1498,8 @@ impl Runtime {
     fn call_started(&mut self) {
         let now = tokio::time::Instant::now();
         for (id, wait) in self.attention.take_started() {
-            if let Some(interrupt) = self.attention.call(&id, wait, now) {
-                self.emit(json!({"type":"term.attention", "sessionId":id, "interrupt":interrupt}));
+            if let Some(cue) = self.attention.call(&id, wait, now) {
+                self.emit(json!({"type":"term.attention", "sessionId":id, "cue":cue}));
             }
         }
     }
@@ -1513,8 +1513,8 @@ impl Runtime {
         self.attention.mark_seen_waits(watched);
         self.publish_catalog();
         let now = tokio::time::Instant::now();
-        for (id, interrupt) in self.attention.call_waits(now) {
-            self.emit(json!({"type":"term.attention", "sessionId":id, "interrupt":interrupt}));
+        for (id, cue) in self.attention.call_waits(now) {
+            self.emit(json!({"type":"term.attention", "sessionId":id, "cue":cue}));
         }
     }
 
@@ -3593,12 +3593,10 @@ impl Runtime {
                     && !self.attention.marked(&key)
                     && !self.watched().contains(&key)
                 {
-                    let interrupt = self
-                        .attention
-                        .notification_interrupts(tokio::time::Instant::now());
+                    let cue = self.attention.notification_cue(tokio::time::Instant::now());
                     self.emit(json!({"type":"term.notification", "sessionId":id,
                         "runtimeIncarnationId":incarnation, "title":title, "body":body,
-                        "interrupt":interrupt}));
+                        "cue":cue}));
                 }
             }
             #[cfg(feature = "host")]
