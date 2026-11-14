@@ -31,6 +31,7 @@ kodosi_test(kodosi-terminal-tiling-layout-model-tests tst_terminal_tiling_layout
 kodosi_test(kodosi-shortcuts-model-tests tst_shortcuts_model.cpp)
 kodosi_test(kodosi-terminal-kernel-tests tst_terminal_kernel.cpp)
 kodosi_test(kodosi-terminal-notifications-tests tst_terminal_notifications.cpp)
+kodosi_test(kodosi-presence-tests tst_presence.cpp)
 kodosi_test(kodosi-terminal-type-ahead-tests tst_terminal_type_ahead.cpp)
 if(LINUX)
     kodosi_test(kodosi-freedesktop-notification-driver-tests tst_freedesktop_notification_driver.cpp)

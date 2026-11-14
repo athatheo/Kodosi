@@ -6,6 +6,7 @@
 #include "canvas/CanvasImages.hpp"
 #include "canvas/CanvasWeb.hpp"
 #include "logging/QtLogForwarder.hpp"
+#include "platform/Presence.hpp"
 #include "platform/TerminalNotifications.hpp"
 #include "runtime/RuntimeBridge.hpp"
 #include "presentation/AppearanceModel.hpp"
@@ -21,7 +22,7 @@
 #include "presentation/Workspace.hpp"
 #include "platform/DesktopFileIntegration.hpp"
 #include "platform/DesktopTray.hpp"
-#include "platform/SystemNotificationDriver.hpp"
+#include "platform/System.hpp"
 #include "terminal/TerminalAccessibility.hpp"
 #include "terminal/TerminalSessionRegistry.hpp"
 #include "terminal/TerminalSurfaceController.hpp"
@@ -198,11 +199,17 @@ int main(int argc, char* argv[])
     });
     kodosi::SystemNotificationDriver notifications;
     kodosi::TerminalNotifications terminalNotifications(sessions, notifications);
+    kodosi::SystemPresenceSource presenceSource;
+    kodosi::PresenceReporter presence(runtime, presenceSource);
+    presence.setActive(QGuiApplication::applicationState() == Qt::ApplicationActive);
+    QObject::connect(&app, &QGuiApplication::applicationStateChanged, &presence,
+        [&](Qt::ApplicationState state) { presence.setActive(state == Qt::ApplicationActive); });
     kodosi::TerminalSurfaceController surfaces(terminalSessions, runtime, sessions);
     kodosi::DesktopTray tray(desktopSettings);
     kodosi::installTerminalAccessibility();
 
     QObject::connect(&runtime, &kodosi::RuntimeBridge::eventReceived, &app, [&](const QJsonObject& event, quint64 accountEpoch, const QByteArray& payload) {
+        presence.apply(event);
         workspace.apply(event, accountEpoch);
         terminalNotifications.apply(event);
         const auto type = event.value(QStringLiteral("type")).toString();

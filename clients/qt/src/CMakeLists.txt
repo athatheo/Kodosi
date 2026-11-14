@@ -121,7 +121,9 @@ qt_add_library(kodosi-desktop-integration STATIC
     platform/DesktopTray.hpp
     platform/NotificationText.cpp
     platform/NotificationText.hpp
-    platform/SystemNotificationDriver.hpp
+    platform/Presence.cpp
+    platform/Presence.hpp
+    platform/System.hpp
     ${KODOSI_PLATFORM_SOURCES}
 )
 
@@ -139,6 +141,13 @@ target_link_libraries(kodosi-desktop-integration
         Qt6::Gui
         Qt6::Widgets
 )
+
+if(LINUX)
+    qt_generate_wayland_protocol_client_sources(kodosi-desktop-integration
+        PRIVATE_CODE
+        FILES "${KODOSI_WAYLAND_PROTOCOLS}/staging/ext-idle-notify/ext-idle-notify-v1.xml"
+    )
+endif()
 
 qt_add_resources(kodosi-desktop-integration "tray"
     PREFIX "/kodosi"

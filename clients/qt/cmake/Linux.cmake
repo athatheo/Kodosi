@@ -8,7 +8,15 @@ set(QT_DEPLOY_LIBEXEC_DIR "lib/kodosi/libexec" CACHE STRING "" FORCE)
 set(QT_DEPLOY_DATA_DIR "lib/kodosi" CACHE STRING "" FORCE)
 set(QT_DEPLOY_TRANSLATIONS_DIR "lib/kodosi/translations" CACHE STRING "" FORCE)
 
-set(KODOSI_PLATFORM_QT_COMPONENTS DBus)
+set(KODOSI_PLATFORM_QT_COMPONENTS DBus WaylandClient)
+# The Wayland scanner writes the code of a protocol in C.
+enable_language(C)
+find_package(PkgConfig REQUIRED)
+pkg_get_variable(KODOSI_WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+find_package(X11 REQUIRED)
+if(NOT KODOSI_WAYLAND_PROTOCOLS OR NOT X11_Xext_FOUND)
+    message(FATAL_ERROR "Install libwayland-dev, wayland-protocols and libxext-dev.")
+endif()
 set(KODOSI_RUST_TARGET "x86_64-unknown-linux-gnu")
 set(KODOSI_RUNTIME_ARCHIVE_NAME "libkodosi_ffi_c.a")
 set(KODOSI_RUNTIME_CLI_NAME "kodosi")
@@ -21,8 +29,12 @@ set(KODOSI_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Werror)
 set(KODOSI_PLATFORM_SOURCES
     platform/linux/FreedesktopNotificationDriver.cpp
     platform/linux/FreedesktopNotificationDriver.hpp
+    platform/linux/IdleWatch.hpp
+    platform/linux/LinuxPresenceSource.cpp
+    platform/linux/LinuxPresenceSource.hpp
+    platform/linux/X11IdleWatch.cpp
 )
-set(KODOSI_PLATFORM_LIBRARIES Qt6::DBus)
+set(KODOSI_PLATFORM_LIBRARIES Qt6::DBus Qt6::WaylandClient X11::X11 X11::Xext)
 set(KODOSI_QT_SBOM_MODULES qtbase qtdeclarative qtsvg qtwayland qtpositioning qtwebchannel)
 set(KODOSI_PROVIDER_ICON_LICENSE_DIR share/licenses/kodosi-qt/provider-icons)
 set(KODOSI_NATIVE_LICENSE_MANIFEST "${PROJECT_SOURCE_DIR}/packaging/licenses/native-license-evidence.json")
