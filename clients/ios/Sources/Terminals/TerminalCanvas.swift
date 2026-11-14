@@ -33,6 +33,9 @@ struct CanvasKey: View {
 }
 
 struct CanvasBanner: View {
+    /// The banner lies on the first lines of the terminal. The canvas key keeps the news after it.
+    static let stay = Duration.seconds(6)
+
     @Environment(\.theme) private var theme
     @ScaledMetric(relativeTo: .footnote) private var glyph: CGFloat = 12
     let news: CanvasNews
