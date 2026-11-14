@@ -191,13 +191,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
     }
 
-    /// macOS shows nothing while Kodosi is in front unless this says so, and the runtime posts
-    /// only where the person is.
+    /// macOS shows nothing while Kodosi is in front unless this says so, and the runtime decides
+    /// what a notification shows. Kodosi is also in front behind a locked screen.
     func userNotificationCenter(
         _: UNUserNotificationCenter,
         willPresent notification: UNNotification,
     ) async -> UNNotificationPresentationOptions {
-        notification.request.content.sound == nil ? [.banner, .list] : [.banner, .list, .sound]
+        let content = notification.request.content
+        if content.interruptionLevel == .passive {
+            return [.list]
+        }
+        return content.sound == nil ? [.banner, .list] : [.banner, .list, .sound]
     }
 
     func userNotificationCenter(

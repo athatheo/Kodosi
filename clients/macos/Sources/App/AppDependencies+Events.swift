@@ -107,9 +107,9 @@ extension AppDependencies {
             terminalManager.receivePicture(event)
             return
         }
-        let interrupt = event.payload["interrupt"] == .bool(true)
+        guard let cue = event.string("cue").flatMap(TerminalNotifications.Cue.init) else { return }
         if event.type == "term.attention", let id = event.string("sessionId"), let current = session(id) {
-            terminalNotifications.alert(current.alert, session: current, interrupt: interrupt)
+            terminalNotifications.alert(current.alert, session: current, cue: cue)
             return
         }
         guard event.type == "term.notification",
@@ -117,7 +117,7 @@ extension AppDependencies {
               let incarnation = event.string("runtimeIncarnationId"),
               let current = session(id), current.kind == .local, current.incarnationId == incarnation
         else { return }
-        terminalNotifications.post(title: event.string("title"), body: event.string("body"), session: current, interrupt: interrupt)
+        terminalNotifications.post(title: event.string("title"), body: event.string("body"), session: current, cue: cue)
     }
 
     func showWindow() {
