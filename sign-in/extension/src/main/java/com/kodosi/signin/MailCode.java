@@ -12,8 +12,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The mail codes of one sign-in. The codes live in the notes of the sign-in that asked for them, and the
- * limits of a mail address live in a store that all sign-ins share.
+ * The mail codes of one sign-in. The codes live in the notes of the sign-in that asked for them, each
+ * under the address that it went to, and the limits of a mail address live in a store that all sign-ins
+ * share.
  */
 final class MailCode {
     static final int DIGITS = 8;
@@ -85,9 +86,9 @@ final class MailCode {
         }
         if (!codeWorks) return new Send(Shown.SENT, Mail.ACCOUNT, null);
         String code = String.format("%0" + DIGITS + "d", RANDOM.nextInt((int) Math.pow(10, DIGITS)));
-        List<String> codes = new ArrayList<>(codes());
+        List<String> codes = new ArrayList<>(codes(address));
         codes.add(code + "@" + now);
-        notes.set(CODES, String.join(",", codes.subList(Math.max(0, codes.size() - KEPT), codes.size())));
+        notes.set(codesOf(address), String.join(",", codes.subList(Math.max(0, codes.size() - KEPT), codes.size())));
         return new Send(Shown.SENT, Mail.CODE, code);
     }
 
@@ -100,25 +101,24 @@ final class MailCode {
         if (!digits.matches("[0-9]{" + DIGITS + "}")) return Check.WRONG;
         String held = address == null ? null : hold("wrong", address, WRONG_PER_DAY, DAY);
         if (held != null) {
-            for (String entry : codes()) {
+            for (String entry : codes(address)) {
                 int at = entry.indexOf('@');
                 if (!MessageDigest.isEqual(entry.substring(0, at).getBytes(UTF_8), digits.getBytes(UTF_8))) continue;
                 store.drop(held);
                 if (number(entry.substring(at + 1)) + life <= now) return Check.OLD;
-                notes.remove(CODES);
+                notes.remove(codesOf(address));
                 return Check.PASSED;
             }
         }
         long wrong = number(notes.get(WRONG)) + 1;
         notes.set(WRONG, Long.toString(wrong));
         if (wrong < WRONG_PER_SIGN_IN) return Check.WRONG;
-        notes.remove(CODES);
+        if (address != null) notes.remove(codesOf(address));
         return Check.ENDED;
     }
 
-    /** Drops the codes and the wait of the address before, when the person gives a different one. */
+    /** Drops the wait of the address before, when the person gives a different one. */
     void forget() {
-        notes.remove(CODES);
         notes.remove(LAST);
     }
 
@@ -131,9 +131,13 @@ final class MailCode {
         return sent().size() >= MAILS_PER_HOUR;
     }
 
-    private List<String> codes() {
-        String codes = notes.get(CODES);
+    private List<String> codes(String address) {
+        String codes = notes.get(codesOf(address));
         return codes == null || codes.isEmpty() ? List.of() : List.of(codes.split(","));
+    }
+
+    private static String codesOf(String address) {
+        return CODES + "." + key(address);
     }
 
     private List<Long> sent() {
@@ -145,16 +149,17 @@ final class MailCode {
     }
 
     private String hold(String kind, String address, int limit, int seconds) {
-        String prefix = "kodosi-mail-code." + kind + "." + digest(address.toLowerCase(Locale.ROOT)) + ".";
+        String prefix = "kodosi-mail-code." + kind + "." + key(address) + ".";
         for (int slot = 0; slot < limit; slot++) {
             if (store.hold(prefix + slot, seconds)) return prefix + slot;
         }
         return null;
     }
 
-    private static String digest(String text) {
+    private static String key(String address) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(UTF_8)));
+            byte[] text = address.toLowerCase(Locale.ROOT).getBytes(UTF_8);
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

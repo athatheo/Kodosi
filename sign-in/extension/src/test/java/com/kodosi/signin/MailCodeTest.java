@@ -74,6 +74,14 @@ class MailCodeTest {
     }
 
     @Test
+    void aCodePassesOnlyForTheAddressThatItWentTo() {
+        MailCode.Notes signIn = signIn();
+        String code = code(signIn);
+        assertEquals(Check.WRONG, in(signIn).check(code, "leo@kodosi.example"));
+        assertEquals(Check.PASSED, in(signIn).check(code, MAYA));
+    }
+
+    @Test
     void aCodeIsTooOldAfterItsLifeAndThatDoesNotCount() {
         MailCode.Notes signIn = signIn();
         String code = code(signIn);

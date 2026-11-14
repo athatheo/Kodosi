@@ -112,8 +112,9 @@ final class CodeStep {
             if (form.containsKey("email")) return choose(form.getFirst("email"));
         }
         if (!form.containsKey("code")) return show();
-        return switch (codes.check(form.getFirst("code"), recipient())) {
-            case PASSED -> confirm() ? null : refuse("kdsCodeWrong", Errors.EMAIL_IN_USE);
+        String address = recipient();
+        return switch (codes.check(form.getFirst("code"), address)) {
+            case PASSED -> confirm(address) ? null : refuse("kdsCodeWrong", Errors.EMAIL_IN_USE);
             case WRONG -> refuse("kdsCodeWrong", Errors.INVALID_CODE);
             case ENDED -> refuse("kdsCodeEnded", Errors.INVALID_CODE);
             case OLD -> refuse("kdsCodeOld", Errors.EXPIRED_CODE);
@@ -155,9 +156,8 @@ final class CodeStep {
         return codePage(again && sent.shown() == MailCode.Shown.SENT && shownAsSent, null, problem);
     }
 
-    /** Takes the confirmed address; false when another account took it after its code went out. */
-    private boolean confirm() {
-        String address = recipient();
+    /** Takes the address whose code passed; false when another account took it after its code went out. */
+    private boolean confirm(String address) {
         if (kind == Kind.ACCOUNT && !address.equals(normal(account.getEmail()))) {
             UserModel other = session.users().getUserByEmail(realm, address);
             if (other != null && !other.getId().equals(account.getId())) return false;
