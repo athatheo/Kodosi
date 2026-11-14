@@ -103,6 +103,12 @@ public struct TerminalCard<Detail: View, Accessory: View>: View {
             #endif
         }
         .buttonStyle(CardButtonStyle(radius: Radius.lg))
+        .accessibilityLabel { label in
+            label
+            if session.working {
+                Text("Working", bundle: .module)
+            }
+        }
     }
 }
 
