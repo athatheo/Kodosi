@@ -3,35 +3,58 @@ package com.kodosi.mobile.notifications
 import com.kodosi.mobile.terminals.AgentKind
 import com.kodosi.mobile.terminals.ProgramStatus
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
-class TerminalAlertTest {
-    private val payload = mapOf(
-        "terminal" to "019363fc-6fca-7000-8000-000000000001",
-        "state" to "blocked",
-        "kind" to "question",
-        "agent" to "claude"
-    )
+class PushedTerminalTest {
+    private val first = "0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0d"
+    private val second = "0196d0a1-8f3e-7c2a-9b4d-5e6f7a8b9c0e"
 
     @Test
-    fun stateAndAgentMetadataAreNotUserIdentityOrTerminalText() {
-        val alert = TerminalAlert.parse(payload)!!
-        assertEquals(AgentKind.CLAUDE, alert.agent)
-        assertEquals(ProgramStatus(ProgramStatus.State.BLOCKED, ProgramStatus.Kind.QUESTION), alert.status)
-        assertNull(alert.status.caption)
-        assertEquals(ProgramStatus.Kind.AUTH, TerminalAlert.parse(payload + ("kind" to "auth"))!!.status.kind)
-        assertEquals(AgentKind.SHELL, TerminalAlert.parse(payload - "agent")!!.agent)
+    fun theServersListNamesEachTerminalWithItsAgentStateAndSound() {
         assertEquals(
-            ProgramStatus(ProgramStatus.State.DONE),
-            TerminalAlert.parse(mapOf("terminal" to payload.getValue("terminal"), "state" to "done"))!!.status
+            listOf(
+                PushedTerminal(
+                    first,
+                    AgentKind.CLAUDE,
+                    ProgramStatus(ProgramStatus.State.BLOCKED, ProgramStatus.Kind.PERMISSION),
+                    sound = true
+                ),
+                PushedTerminal(second, AgentKind.SHELL, ProgramStatus(ProgramStatus.State.DONE), sound = false)
+            ),
+            PushedTerminal.list("$first:claude:blocked:permission:1 $second::done::0")
+        )
+        assertEquals(
+            ProgramStatus(ProgramStatus.State.ERROR),
+            PushedTerminal.list("$first:codex:error::0").single().status
         )
     }
 
     @Test
-    fun aMalformedOrNonAlertMessageDoesNotMakeANotification() {
-        assertNull(TerminalAlert.parse(payload - "terminal"))
-        assertNull(TerminalAlert.parse(payload + ("terminal" to "not-a-terminal")))
-        assertNull(TerminalAlert.parse(payload + ("state" to "working")))
+    fun anEmptyListTakesEveryPushBack() {
+        assertEquals(emptyList<PushedTerminal>(), PushedTerminal.list(""))
+    }
+
+    @Test
+    fun aBrokenEntryIsSkippedAndTheOthersStay() {
+        val good = "$second:claude:blocked:question:0"
+        assertEquals(
+            listOf(second),
+            PushedTerminal.list(
+                listOf(
+                    "$first:claude:blocked:permission",
+                    "$first:claude:blocked:permission:1:extra",
+                    "$first:claude:working::1",
+                    "$first:claude:::1",
+                    "not-a-terminal:claude:blocked:permission:1",
+                    ":claude:done::0",
+                    good,
+                    "$second:claude:done::0"
+                ).joinToString(" ")
+            ).map { it.terminal }
+        )
+        assertEquals(
+            ProgramStatus(ProgramStatus.State.BLOCKED),
+            PushedTerminal.list("$first:claude:blocked:unknown:0").single().status
+        )
     }
 }

@@ -307,6 +307,9 @@
     <string name="notifications">通知</string>
     <string name="notifications_description">终端等待、完成或失败时</string>
     <string name="notifications_waiting">等待你处理</string>
+    <string name="notifications_waiting_description">终端需要你时</string>
+    <string name="notifications_ended">已完成或失败</string>
+    <string name="notifications_ended_description">终端完成或失败时</string>
     <string name="terminal_notification_title">你的终端</string>
     <string name="enable_notifications">启用通知</string>
     <string name="clipboard_request">允许此终端读取剪贴板？</string>

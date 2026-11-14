@@ -315,6 +315,9 @@
     <string name="notifications">Notifications</string>
     <string name="notifications_description">When a terminal waits, finishes or fails</string>
     <string name="notifications_waiting">Waiting for you</string>
+    <string name="notifications_waiting_description">When a terminal needs you</string>
+    <string name="notifications_ended">Finished or failed</string>
+    <string name="notifications_ended_description">When a terminal finishes or fails</string>
     <string name="terminal_notification_title">Your terminal</string>
     <string name="enable_notifications">Enable notifications</string>
     <string name="clipboard_request">Allow this terminal to read your clipboard?</string>

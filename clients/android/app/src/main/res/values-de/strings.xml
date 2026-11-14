@@ -307,6 +307,9 @@
     <string name="notifications">Mitteilungen</string>
     <string name="notifications_description">Wenn ein Terminal wartet, fertig wird oder fehlschlägt</string>
     <string name="notifications_waiting">Wartet auf dich</string>
+    <string name="notifications_waiting_description">Wenn ein Terminal dich braucht</string>
+    <string name="notifications_ended">Fertig oder fehlgeschlagen</string>
+    <string name="notifications_ended_description">Wenn ein Terminal fertig wird oder fehlschlägt</string>
     <string name="terminal_notification_title">Dein Terminal</string>
     <string name="enable_notifications">Mitteilungen aktivieren</string>
     <string name="clipboard_request">Darf dieses Terminal deine Zwischenablage lesen?</string>

@@ -9,8 +9,8 @@ import com.kodosi.mobile.KodosiApplication
 
 class MessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
-        val alert = TerminalAlert.parse(message.data) ?: return
-        (application as KodosiApplication).notifications.receive(alert)
+        val pushed = message.data["pushed"] ?: return
+        (application as KodosiApplication).notifications.receive(PushedTerminal.list(pushed))
     }
 
     override fun onNewToken(token: String) {
