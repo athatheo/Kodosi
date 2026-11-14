@@ -147,6 +147,14 @@ final class TerminalStore {
         await RefreshWait.until { revision != before }
     }
 
+    func notificationTarget(_ id: String) async -> RuntimeSession? {
+        if let known = sessions.notificationTarget(id) {
+            return known
+        }
+        _ = try? await commands.request("session.list")
+        return sessions.notificationTarget(id)
+    }
+
     func start(_ terminal: TerminalStart) async throws -> String? {
         try await commands.request("session.create", terminal.fields).string("sessionId")
     }

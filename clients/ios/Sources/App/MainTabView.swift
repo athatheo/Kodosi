@@ -1,6 +1,7 @@
 import KodosiBridge
 import KodosiDesign
 import SwiftUI
+import UIKit
 
 enum MainTab: Hashable {
     case terminals, projects, dosi, settings
@@ -59,11 +60,14 @@ struct MainTabView: View {
                 model.push.seen(terminal)
             }
         }
-        .onChange(of: model.push.opened, initial: true) { _, terminal in
-            guard let terminal else { return }
+        .task(id: model.push.opened) {
+            guard let terminal = model.push.opened else { return }
+            let target = await model.terminals.notificationTarget(terminal)
+            guard !Task.isCancelled else { return }
             model.push.opened = nil
+            PresentedScreens.close()
             tab = .terminals
-            terminals = NavigationPath([TerminalRoute(sessionId: terminal)])
+            terminals = NavigationPath(target.map { [TerminalRoute(sessionId: $0.id)] } ?? [])
         }
         .onChange(of: model.openedInvite != nil, initial: true) { _, opened in
             guard opened else { return }
@@ -75,5 +79,15 @@ struct MainTabView: View {
     private var dosiCalls: Int {
         let questions = model.dosi.openQuestions.count
         return questions > 0 ? questions : model.dosi.unseen ? 1 : 0
+    }
+}
+
+private enum PresentedScreens {
+    /// The lock's cover has a window of its own above the normal level, and it must stay.
+    static func close() {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        for window in windows where window.windowLevel == .normal && window.rootViewController?.presentedViewController != nil {
+            window.rootViewController?.dismiss(animated: false)
+        }
     }
 }

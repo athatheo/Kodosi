@@ -10,6 +10,11 @@ public extension [RuntimeSession] {
     func restart(of id: String, owner: String?, host: String?) -> RuntimeSession? {
         first { $0.restoredFrom == id && $0.ownerUserId == owner && $0.hostDeviceId == host }
     }
+
+    func notificationTarget(_ id: String) -> RuntimeSession? {
+        let listed = filter { !$0.hidden }
+        return listed.first { $0.id == id } ?? listed.first { $0.restoredFrom == id && $0.isOwner }
+    }
 }
 
 public func referred<Item>(_ reference: String, in items: [Item], id: KeyPath<Item, String>, name: KeyPath<Item, String>) -> Item? {
