@@ -43,6 +43,7 @@ private slots:
     void programNotificationsShareTheKeyOfTheirTerminal();
     void ignoresRemoteOrStaleProgramNotifications();
     void aClickAlwaysRequestsItsTerminal();
+    void turnedOffItPostsNothingAndWithdrawsWhatItShows();
 };
 
 namespace {
@@ -198,6 +199,36 @@ void TerminalNotificationsTest::aClickAlwaysRequestsItsTerminal()
     fixture.driver.invoke(key, QStringLiteral("default"));
     QCOMPARE(requests.size(), 2);
     QCOMPARE(requests.constLast().at(0).toString(), test::id(1));
+}
+
+void TerminalNotificationsTest::turnedOffItPostsNothingAndWithdrawsWhatItShows()
+{
+    Fixture fixture;
+    QSignalSpy requests(&fixture.notifications, &kodosi::TerminalNotifications::sessionRequested);
+    fixture.sessions.apply(test::snapshot({ waiting(1, QStringLiteral("blocked"), true), waiting(2, QStringLiteral("done"), true) }));
+    fixture.notifications.apply(attention(1));
+    fixture.notifications.apply(attention(2));
+    QCOMPARE(fixture.driver.posted.size(), 2);
+    const auto first = fixture.driver.posted.at(0).key;
+    const auto second = fixture.driver.posted.at(1).key;
+
+    fixture.notifications.setNotifies(false);
+    QCOMPARE(fixture.driver.withdrawn.size(), 2);
+    QVERIFY(fixture.driver.withdrawn.contains(first) && fixture.driver.withdrawn.contains(second));
+    fixture.notifications.apply(attention(1));
+    fixture.notifications.apply(programNotification(test::id(101), QStringLiteral("Tests passed"), QStringLiteral("sound")));
+    QCOMPARE(fixture.driver.posted.size(), 2);
+    fixture.driver.invoke(first, QStringLiteral("default"));
+    QCOMPARE(requests.size(), 1);
+    QCOMPARE(requests.constFirst().at(0).toString(), test::id(1));
+
+    fixture.notifications.setNotifies(true);
+    fixture.notifications.apply(attention(2));
+    fixture.notifications.apply(programNotification(test::id(101), QStringLiteral("Tests passed")));
+    QCOMPARE(fixture.driver.posted.size(), 4);
+    QCOMPARE(fixture.driver.posted.at(2).key, second);
+    QCOMPARE(fixture.driver.posted.at(3).key, first);
+    QCOMPARE(fixture.driver.posted.at(3).body, QStringLiteral("Tests passed"));
 }
 
 QTEST_GUILESS_MAIN(TerminalNotificationsTest)

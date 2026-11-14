@@ -83,10 +83,19 @@ void TerminalNotifications::apply(const QJsonObject& event)
         std::move(title), std::move(body), *cue);
 }
 
+void TerminalNotifications::setNotifies(const bool notifies)
+{
+    m_notifies = notifies;
+    if (notifies)
+        return;
+    for (const auto& key : m_contexts.keys())
+        remove(key);
+}
+
 void TerminalNotifications::post(const Context& context, QString title, QString body, const NotificationCue cue)
 {
     const auto session = m_sessions.session(context.sessionId);
-    if (!session || !current(context))
+    if (!m_notifies || !session || !current(context))
         return;
     const auto key = keyOf(context.sessionId);
     m_contexts.insert(key, context);

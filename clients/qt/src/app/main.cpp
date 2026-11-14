@@ -199,6 +199,9 @@ int main(int argc, char* argv[])
     });
     kodosi::SystemNotificationDriver notifications;
     kodosi::TerminalNotifications terminalNotifications(sessions, notifications);
+    terminalNotifications.setNotifies(desktopSettings.notifies());
+    QObject::connect(&desktopSettings, &kodosi::DesktopSettings::settingsChanged, &terminalNotifications,
+        [&] { terminalNotifications.setNotifies(desktopSettings.notifies()); });
     kodosi::SystemPresenceSource presenceSource;
     kodosi::PresenceReporter presence(runtime, presenceSource);
     presence.setActive(QGuiApplication::applicationState() == Qt::ApplicationActive);

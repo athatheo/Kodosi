@@ -22,6 +22,7 @@ class DesktopSettings final : public QObject {
     Q_PROPERTY(QString lastComputer READ lastComputer WRITE setLastComputer NOTIFY settingsChanged)
     Q_PROPERTY(bool keepRunning READ keepRunning WRITE setKeepRunning NOTIFY settingsChanged)
     Q_PROPERTY(bool opensCanvas READ opensCanvas WRITE setOpensCanvas NOTIFY settingsChanged)
+    Q_PROPERTY(bool notifies READ notifies WRITE setNotifies NOTIFY settingsChanged)
     Q_PROPERTY(QVariantMap viewers READ viewers NOTIFY settingsChanged)
     Q_PROPERTY(QVariantMap shownViews READ shownViews NOTIFY settingsChanged)
     Q_PROPERTY(QVariantMap viewPreferences READ viewPreferences NOTIFY settingsChanged)
@@ -47,6 +48,7 @@ public:
     QString lastComputer() const { return m_computer; }
     bool keepRunning() const { return m_keepRunning.value_or(m_keepRunningByDefault); }
     bool opensCanvas() const { return m_opensCanvas; }
+    bool notifies() const { return m_notifies; }
     bool closeHintShown() const { return m_closeHintShown; }
     QVariantMap viewers() const;
     QVariantMap shownViews() const;
@@ -64,6 +66,7 @@ public:
     void setLastComputer(const QString& computer);
     void setKeepRunning(bool keep);
     void setOpensCanvas(bool opens);
+    void setNotifies(bool notifies);
     void setCloseHintShown();
     Q_INVOKABLE void setBranchFolder(const QString& path);
     Q_INVOKABLE void setViewer(const QString& name, bool on);
@@ -85,6 +88,7 @@ private:
     double m_lineHeight = 1.0;
     bool m_blink = false;
     bool m_opensCanvas = true;
+    bool m_notifies = true;
     std::optional<bool> m_keepRunning;
     QMap<QString, bool> m_viewers;
     bool m_closeHintShown = false;

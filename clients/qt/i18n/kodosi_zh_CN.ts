@@ -2035,6 +2035,14 @@
         <translation>你的终端会继续运行。再次打开 Kodosi 即可查看。</translation>
     </message>
     <message>
+        <source>Notifications</source>
+        <translation>通知</translation>
+    </message>
+    <message>
+        <source>When a terminal waits for you, finishes or fails</source>
+        <translation>终端在等你、完成或失败时</translation>
+    </message>
+    <message>
         <source>Open the canvas by itself</source>
         <translation>自动打开画布</translation>
     </message>

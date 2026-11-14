@@ -2035,6 +2035,14 @@
         <translation>ターミナルは実行を続けます。もう一度 Kodosi を開くと表示されます。</translation>
     </message>
     <message>
+        <source>Notifications</source>
+        <translation>通知</translation>
+    </message>
+    <message>
+        <source>When a terminal waits for you, finishes or fails</source>
+        <translation>ターミナルが待っているとき、完了したとき、失敗したとき</translation>
+    </message>
+    <message>
         <source>Open the canvas by itself</source>
         <translation>キャンバスを自動で開く</translation>
     </message>

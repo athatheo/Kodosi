@@ -19,6 +19,7 @@ public:
         QObject* parent = nullptr);
 
     void apply(const QJsonObject& event);
+    void setNotifies(bool notifies);
 
 signals:
     void sessionRequested(QString sessionId, QString activationToken);
@@ -34,6 +35,7 @@ private:
     SessionCatalogModel& m_sessions;
     DesktopNotificationDriver& m_driver;
     QHash<QString, Context> m_contexts;
+    bool m_notifies = true;
 
     void post(const Context& context, QString title, QString body, NotificationCue cue);
     void handleAction(

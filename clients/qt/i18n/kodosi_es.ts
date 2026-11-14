@@ -2038,6 +2038,14 @@
         <translation>Tus terminales siguen en marcha. Vuelve a abrir Kodosi para verlos.</translation>
     </message>
     <message>
+        <source>Notifications</source>
+        <translation>Notificaciones</translation>
+    </message>
+    <message>
+        <source>When a terminal waits for you, finishes or fails</source>
+        <translation>Cuando un terminal te espera, termina o falla</translation>
+    </message>
+    <message>
         <source>Open the canvas by itself</source>
         <translation>Abrir el lienzo automáticamente</translation>
     </message>
