@@ -7,8 +7,8 @@ use uuid::Uuid;
 use super::{Context, output, print_json, print_text, request};
 use crate::{Error, Result, local_host};
 
-const IN_A_TERMINAL: &str =
-    "The canvas belongs to a terminal. Run this in a Kodosi terminal on this computer.";
+const NO_TERMINAL: &str =
+    "This shell is not in a running Kodosi terminal on this computer, so it has no canvas.";
 
 #[derive(Subcommand)]
 pub(super) enum CanvasAction {
@@ -24,10 +24,12 @@ pub(super) enum CanvasAction {
     },
 }
 
-fn terminal() -> Result<Uuid> {
+/// A program that a terminal started can live on after it, with the terminal's variables.
+fn terminal(context: &Context) -> Result<Uuid> {
     super::this_terminal()
         .and_then(|id| Uuid::parse_str(&id).ok())
-        .ok_or_else(|| Error::Invalid(IN_A_TERMINAL.to_owned()))
+        .filter(|id| context.session(*id).is_ok())
+        .ok_or_else(|| Error::Invalid(NO_TERMINAL.to_owned()))
 }
 
 pub(super) async fn show(
@@ -36,7 +38,7 @@ pub(super) async fn show(
     context: &mut Context,
     json_output: bool,
 ) -> Result<u8> {
-    let session = terminal()?;
+    let session = terminal(context)?;
     let mut paths = Vec::new();
     let mut address = None;
     for thing in things {
@@ -77,7 +79,7 @@ pub(super) async fn browse(
     context: &mut Context,
     json_output: bool,
 ) -> Result<u8> {
-    let session = terminal()?;
+    let session = terminal(context)?;
     let folder = super::path(Some(PathBuf::from(".")))?
         .ok_or_else(|| Error::Invalid("This folder is not available.".to_owned()))?;
     let event = request(
@@ -100,7 +102,7 @@ pub(super) async fn document(
     context: &mut Context,
     json_output: bool,
 ) -> Result<u8> {
-    let session = terminal()?;
+    let session = terminal(context)?;
     let folder = super::path(Some(PathBuf::from(".")))?
         .ok_or_else(|| Error::Invalid("This folder is not available.".to_owned()))?;
     let event = request(
@@ -123,10 +125,8 @@ pub(super) async fn run(
     context: &mut Context,
     json_output: bool,
 ) -> Result<()> {
-    let session = terminal()?;
-    let canvas = context
-        .session(session)
-        .map_or(Value::Null, |entry| entry["canvas"].clone());
+    let session = terminal(context)?;
+    let canvas = context.session(session)?["canvas"].clone();
     match action.unwrap_or(CanvasAction::List) {
         CanvasAction::List => output(&canvas, json_output, &listed(&canvas)),
         CanvasAction::Remove { names, all } => {

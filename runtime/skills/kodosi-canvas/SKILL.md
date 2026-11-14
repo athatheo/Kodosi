@@ -1,6 +1,6 @@
 ---
 name: kodosi-canvas
-description: "Show people what you make, on the canvas beside a Kodosi terminal: HTML pages and artifacts, reports, diagrams, pictures, documents, sheets, presentations, PDFs and running web apps; and use a browser that they see and use too. Use it whenever you would ask a person to open a file or a local address."
+description: "The canvas beside a Kodosi terminal and its shared browser. Use it to show people what is easier to see than to read, in place of asking them to open a file or an address: a web app that you run, an HTML page or artifact, a report, a plan with choices, a diagram, a picture, a document, sheet, presentation or PDF. Use it also whenever you need a browser yourself, to open, test, click through or take a picture of a web page or a local app: people see that browser, can use it, and can sign in for you."
 ---
 
 # Kodosi canvas
