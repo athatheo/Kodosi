@@ -122,11 +122,11 @@ void FreedesktopNotificationDriver::post(
     hints.insert(
         QStringLiteral("desktop-entry"),
         QStringLiteral("com.kodosi.Kodosi"));
-    hints.insert(
-        QStringLiteral("urgency"),
-        QVariant::fromValue(static_cast<uchar>(notification.interrupt ? 1 : 0)));
-    // GNOME plays a sound only for a notification that names one.
-    if (notification.interrupt)
+    // A desktop shows no banner for a notification of low urgency, and GNOME plays a sound only for
+    // a notification that names one.
+    hints.insert(QStringLiteral("urgency"),
+        QVariant::fromValue(static_cast<uchar>(notification.cue == NotificationCue::List ? 0 : 1)));
+    if (notification.cue == NotificationCue::Sound)
         hints.insert(QStringLiteral("sound-name"), QStringLiteral("message-new-instant"));
     else
         hints.insert(QStringLiteral("suppress-sound"), true);

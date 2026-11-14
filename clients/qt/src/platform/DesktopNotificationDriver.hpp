@@ -8,13 +8,17 @@
 
 namespace kodosi {
 
+// How much of a notification the desktop shows: a banner with a sound, a banner, or only its entry in
+// the list of notifications.
+enum class NotificationCue { Sound, Banner, List };
+
 struct DesktopNotification {
     QString key;
     QString title;
     QString body;
     QString sessionId;
     QString computer;
-    bool interrupt = false;
+    NotificationCue cue = NotificationCue::List;
 
     [[nodiscard]] bool valid() const noexcept
     {

@@ -24,18 +24,18 @@ signals:
     void sessionRequested(QString sessionId, QString activationToken);
 
 private:
-    enum class Cue { State, Program };
+    enum class Origin { Mark, Program };
     struct Context {
         QString sessionId;
         QString runtimeIncarnationId;
-        Cue cue = Cue::State;
+        Origin origin = Origin::Mark;
     };
 
     SessionCatalogModel& m_sessions;
     DesktopNotificationDriver& m_driver;
     QHash<QString, Context> m_contexts;
 
-    void post(const Context& context, QString title, QString body, bool interrupt);
+    void post(const Context& context, QString title, QString body, NotificationCue cue);
     void handleAction(
         const QString& key,
         const QString& action,

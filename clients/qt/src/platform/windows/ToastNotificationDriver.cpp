@@ -42,7 +42,7 @@ XmlDocument content(const DesktopNotification& notification)
     const auto texts = xml.GetElementsByTagName(L"text");
     texts.Item(0).InnerText(wide(notification.title));
     texts.Item(1).InnerText(wide(notification.body));
-    if (!notification.interrupt) {
+    if (notification.cue != NotificationCue::Sound) {
         const auto audio = xml.CreateElement(L"audio");
         audio.SetAttribute(L"silent", L"true");
         xml.DocumentElement().AppendChild(audio);
@@ -100,7 +100,7 @@ void ToastNotificationDriver::post(const DesktopNotification& notification)
         notifications::ToastNotification toast(content(notification));
         toast.Tag(shortened(key));
         toast.Group(group(notification.computer));
-        toast.SuppressPopup(!notification.interrupt);
+        toast.SuppressPopup(notification.cue == NotificationCue::List);
         toast.Dismissed([relay = m_relay, key](const auto&, const notifications::ToastDismissedEventArgs& args) {
             if (args.Reason() == notifications::ToastDismissalReason::UserCanceled)
                 relay->post([key](ToastNotificationDriver& driver) {
