@@ -1,7 +1,16 @@
+import CoreText
 import KodosiBridge
 import SwiftUI
+#if os(macOS)
+    import AppKit
+#else
+    import UIKit
+#endif
 
 public struct PersonAvatar: View {
+    static let ringWidth: CGFloat = 2
+    private static let letterScale: CGFloat = 0.38
+
     @Environment(\.theme) private var theme
     public let name: String
     public var key: String?
@@ -24,9 +33,33 @@ public struct PersonAvatar: View {
         self.color = color
     }
 
-    private var initials: String {
+    static func initials(of name: String) -> String {
         let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         return letters.isEmpty ? "·" : letters
+    }
+
+    static func letters(size: CGFloat) -> Font {
+        .system(size: size * letterScale, weight: .semibold, design: .rounded)
+    }
+
+    /// Measured on the ink: two initials such as "LP" and "WW" differ by a third of a circle.
+    static func initialsReachRightOfMiddle(of name: String, size: CGFloat) -> CGFloat {
+        let points = size * letterScale
+        let line = CTLineCreateWithAttributedString(NSAttributedString(
+            string: initials(of: name), attributes: [.font: roundedSemibold(points)],
+        ))
+        let advance = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        return CTLineGetImageBounds(line, nil).maxX - advance / 2
+    }
+
+    private static func roundedSemibold(_ points: CGFloat) -> CTFont {
+        #if os(macOS)
+            let plain = NSFont.systemFont(ofSize: points, weight: .semibold)
+            return (plain.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: points) } ?? plain) as CTFont
+        #else
+            let plain = UIFont.systemFont(ofSize: points, weight: .semibold)
+            return (plain.fontDescriptor.withDesign(.rounded).map { UIFont(descriptor: $0, size: points) } ?? plain) as CTFont
+        #endif
     }
 
     private var tint: Color {
@@ -34,8 +67,8 @@ public struct PersonAvatar: View {
     }
 
     public var body: some View {
-        Text(initials)
-            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+        Text(Self.initials(of: name))
+            .font(Self.letters(size: size))
             .foregroundStyle(isSelf ? theme.colors.onAccent : .white)
             .frame(width: size, height: size)
             .background {
@@ -47,7 +80,7 @@ public struct PersonAvatar: View {
             .overlay { Circle().strokeBorder(.white.opacity(0.22), lineWidth: 0.5) }
             .overlay {
                 if let ring {
-                    Circle().stroke(ring, lineWidth: 2).padding(-1)
+                    Circle().stroke(ring, lineWidth: Self.ringWidth).padding(-Self.ringWidth / 2)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -88,20 +121,30 @@ public struct AvatarStack: View {
         self.ring = ring
     }
 
+    private var shown: ArraySlice<Person> {
+        people.prefix(limit)
+    }
+
+    private var overlap: CGFloat {
+        let covered = people.count > limit ? shown : shown.dropLast()
+        let reach = covered.map { PersonAvatar.initialsReachRightOfMiddle(of: $0.name, size: size) }.max() ?? 0
+        return max(0, min(size * 0.28, size / 2 - reach - PersonAvatar.ringWidth))
+    }
+
     public var body: some View {
         let ring = ring ?? cardFill ?? theme.colors.surface
-        HStack(spacing: -size * 0.28) {
-            ForEach(people.prefix(limit)) { person in
+        HStack(spacing: -overlap) {
+            ForEach(shown) { person in
                 PersonAvatar(name: person.name, key: person.id, size: size, isSelf: person.isSelf, ring: ring)
                     .transition(AnyTransition.pop)
             }
             if people.count > limit {
                 Text(verbatim: "+\(people.count - limit)")
-                    .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+                    .font(PersonAvatar.letters(size: size))
                     .foregroundStyle(theme.colors.inkMuted)
                     .frame(width: size, height: size)
                     .background(theme.colors.well, in: Circle())
-                    .overlay { Circle().stroke(ring, lineWidth: 2).padding(-1) }
+                    .overlay { Circle().stroke(ring, lineWidth: PersonAvatar.ringWidth).padding(-PersonAvatar.ringWidth / 2) }
             }
         }
         .animation(theme.motion.snappy, value: people.map(\.id))
