@@ -104,19 +104,17 @@ final class PushNotifications: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    private func open(_ terminal: String) {
-        opened = terminal
-    }
-
-    nonisolated func userNotificationCenter(
+    /// UIKit ends the app when the answer to a tapped notification comes from a thread that is not
+    /// the main thread, so this method and the next stay on the main actor.
+    func userNotificationCenter(
         _: UNUserNotificationCenter, willPresent _: UNNotification,
     ) async -> UNNotificationPresentationOptions {
         []
     }
 
-    nonisolated func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let terminal = TerminalAlert(response.notification.request.content.userInfo)?.terminal else { return }
-        await open(terminal)
+        opened = terminal
     }
 
     /// The APNs environment of this build's token: the one that its provisioning profile names,
