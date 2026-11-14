@@ -18,6 +18,7 @@ public sealed class TerminalAlertTests
         directory = new ConnectionDirectory(clock);
         alerts = new TerminalAlerts(directory, clock, NullLogger<TerminalAlerts>.Instance);
         alerts.Follow();
+        clock.Advance(ConnectionDirectory.PresenceGrace);
     }
 
     private DeviceConnection Connect(string device, bool hosts = false)
@@ -173,6 +174,46 @@ public sealed class TerminalAlertTests
         Assert.Empty(alerts.Take());
         directory.RemoveDevice(owner, "tablet");
         Assert.Equal(terminal.Id, Alert(alerts.Take()).TerminalId);
+    }
+
+    [Fact]
+    public async Task AServerThatJustStartedPushesNothingAndSendsWhatIsStillDueThirtySecondsAfterItsStart()
+    {
+        alerts.Unfollow();
+        var started = new TerminalAlerts(directory, clock, NullLogger<TerminalAlerts>.Instance);
+        started.Follow();
+        await using var computer = Connect("computer", hosts: true);
+        await using var phone = Connect("phone");
+        var waiting = Hosted(computer); var answered = Hosted(computer); var finished = Hosted(computer);
+        directory.Present(phone, Presence.Kodosi);
+        Report(computer, waiting, "blocked");
+        Report(computer, answered, "blocked");
+        clock.Advance(TerminalAlerts.Delay);
+        Assert.Empty(started.Take());
+        directory.Present(phone, Presence.Away);
+        Assert.Empty(started.Take());
+        Report(computer, answered, "working", attention: false);
+        Report(computer, finished, "done");
+        clock.Advance(ConnectionDirectory.PresenceGrace - TerminalAlerts.Delay - TimeSpan.FromSeconds(1));
+        Assert.Empty(started.Take());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(new[] { waiting.Id, finished.Id }.Order(), started.Take().Select(x => x.Alert!.TerminalId).Order());
+    }
+
+    [Fact]
+    public async Task APushOlderThanADayIsForgottenOnlyWhenItsTerminalNoLongerWaitsOnAConnectedHost()
+    {
+        await using var computer = Connect("computer", hosts: true);
+        var laptop = Connect("laptop", hosts: true);
+        var waiting = Hosted(computer); var sleeping = Hosted(laptop); var later = Hosted(computer);
+        Report(computer, waiting, "blocked");
+        Report(laptop, sleeping, "done");
+        Assert.Equal(2, After(TerminalAlerts.Delay).Count);
+        directory.Remove(laptop);
+        await laptop.DisposeAsync();
+        Assert.Empty(After(TerminalAlerts.Remembered));
+        Report(computer, later, "blocked");
+        Assert.Equal([later.Id, waiting.Id], Assert.Single(After(TerminalAlerts.Delay)).Pushed.Select(x => x.TerminalId));
     }
 
     [Fact]

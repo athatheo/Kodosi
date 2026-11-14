@@ -22,6 +22,7 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     private readonly Dictionary<Guid, Dictionary<Guid, Pushed>> pushed = [];
     private readonly Dictionary<Guid, Queue<DateTimeOffset>> sent = [];
     private readonly Dictionary<Guid, DateTimeOffset> sounded = [];
+    private readonly DateTimeOffset started = clock.GetUtcNow();
     private List<PushNotice> outbox = [];
     private int remembered;
 
@@ -47,7 +48,9 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
             if (push is not null && (status is not { Attention: true } || status.State != push.Status.State))
             {
                 Forget(report.OwnerId, report.SessionId);
-                outbox.Add(new PushNotice(report.OwnerId, Listed(report.OwnerId)));
+                var listed = Listed(report.OwnerId);
+                Withdrawn(logger, report.OwnerId, listed.Count);
+                outbox.Add(new PushNotice(report.OwnerId, listed));
                 push = null;
             }
             if (status is { Attention: true } && push is null && waiting.Count < ConnectionDirectory.MaximumHostedTerminals)
@@ -59,13 +62,13 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
     {
         lock (sync)
         {
-            if (!directory.Away(ownerId)) return;
             var now = clock.GetUtcNow();
+            if (Starting(now) || !directory.Away(ownerId)) return;
             foreach (var (terminalId, status) in directory.WithAttention(ownerId))
                 if (status.State == "blocked" && pushed.GetValueOrDefault(ownerId)?.GetValueOrDefault(terminalId) is not { Status.State: "blocked" })
                 {
                     waiting.Remove(terminalId);
-                    Send(terminalId, ownerId, status, now);
+                    Send(terminalId, ownerId, status, now, "the person became away");
                 }
         }
     }
@@ -75,10 +78,11 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
         lock (sync)
         {
             var now = clock.GetUtcNow();
-            foreach (var (terminalId, wait) in waiting.Where(x => x.Value.Due <= now).ToArray())
+            foreach (var (terminalId, wait) in Starting(now) ? [] : waiting.Where(x => x.Value.Due <= now).ToArray())
             {
                 waiting.Remove(terminalId);
-                if (directory.Live(terminalId) == (true, wait.Status) && directory.Away(wait.OwnerId)) Send(terminalId, wait.OwnerId, wait.Status, now);
+                if (directory.Live(terminalId) == (true, wait.Status) && directory.Away(wait.OwnerId))
+                    Send(terminalId, wait.OwnerId, wait.Status, now, "its status waited while the person was away");
             }
             ForgetOld(now);
             var taken = outbox;
@@ -92,7 +96,9 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
         lock (sync) return Listed(ownerId);
     }
 
-    private void Send(Guid terminalId, Guid ownerId, TerminalStatus status, DateTimeOffset now)
+    private bool Starting(DateTimeOffset now) => now - started < ConnectionDirectory.PresenceGrace;
+
+    private void Send(Guid terminalId, Guid ownerId, TerminalStatus status, DateTimeOffset now, string reason)
     {
         if (!Allow(ownerId, now))
         {
@@ -101,6 +107,7 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
         }
         var sound = status.State == "blocked" && (!sounded.TryGetValue(ownerId, out var last) || now - last >= SoundSpacing);
         if (sound) sounded[ownerId] = now;
+        Decided(logger, ownerId, terminalId, status.State, sound, reason);
         Remember(ownerId, terminalId, new Pushed(status, now));
         outbox.Add(new PushNotice(ownerId, Listed(ownerId), new PushAlert(terminalId, status, sound, directory.Blocked(ownerId))));
     }
@@ -140,7 +147,9 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
 
     private void ForgetOld(DateTimeOffset now)
     {
-        var old = pushed.SelectMany(owner => owner.Value.Where(terminal => now - terminal.Value.At >= Remembered).Select(terminal => (owner.Key, terminal.Key)))
+        var old = pushed.SelectMany(owner => owner.Value
+                .Where(terminal => now - terminal.Value.At >= Remembered && !StillWaits(terminal.Key, terminal.Value))
+                .Select(terminal => (owner.Key, terminal.Key)))
             .ToList();
         foreach (var (ownerId, terminalId) in old) Forget(ownerId, terminalId);
         foreach (var (ownerId, times) in sent.ToArray())
@@ -152,9 +161,18 @@ internal sealed partial class TerminalAlerts(ConnectionDirectory directory, Time
             if (now - at >= SoundSpacing) sounded.Remove(ownerId);
     }
 
+    private bool StillWaits(Guid terminalId, Pushed push) =>
+        directory.Live(terminalId) is (true, { Attention: true } status) && status.State == push.Status.State;
+
     private sealed record Waiting(Guid OwnerId, TerminalStatus Status, DateTimeOffset Due);
 
     private sealed record Pushed(TerminalStatus Status, DateTimeOffset At);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Account {Account} gets a push for terminal {Terminal}, state {State}, sound {Sound}, because {Reason}")]
+    private static partial void Decided(ILogger logger, Guid account, Guid terminal, string? state, bool sound, string reason);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Account {Account} has a push taken back, and {Listed} terminals stay in its list")]
+    private static partial void Withdrawn(ILogger logger, Guid account, int listed);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A push notification of account {Account} was dropped, because it had {Most} in the last hour")]
     private static partial void Capped(ILogger logger, Guid account, int most);
