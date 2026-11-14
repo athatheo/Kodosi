@@ -357,6 +357,21 @@
     </message>
 </context>
 <context>
+    <name>BlockPersonDialog</name>
+    <message>
+        <source>Block %1?</source>
+        <translation>Αποκλεισμός %1;</translation>
+    </message>
+    <message>
+        <source>Block</source>
+        <translation>Αποκλεισμός</translation>
+    </message>
+    <message>
+        <source>They cannot send you friend requests. If you are friends, you stop sharing terminals with each other, and each of you leaves the projects that the other owns.</source>
+        <translation>Το άτομο δεν μπορεί να σας στέλνει αιτήματα φιλίας. Αν είστε φίλοι, σταματάτε να μοιράζεστε τερματικά μεταξύ σας, και ο καθένας φεύγει από τα έργα του άλλου.</translation>
+    </message>
+</context>
+<context>
     <name>BrowserSettings</name>
     <message>
         <source>Kodosi Browser</source>
@@ -2392,10 +2407,6 @@
         <translation>Αντιγραφή της πρόσκλησής μου</translation>
     </message>
     <message>
-        <source>Kodosi got your report.</source>
-        <translation>Το Kodosi έλαβε την αναφορά σας.</translation>
-    </message>
-    <message>
         <source>Wants to be your friend</source>
         <translation>Θέλει να γίνετε φίλοι</translation>
     </message>
@@ -2488,38 +2499,6 @@
         <translation>Στείλτε την πρόσκλησή σας ή προσθέστε ένα όνομα χρήστη παραπάνω.</translation>
     </message>
     <message>
-        <source>Block %1?</source>
-        <translation>Αποκλεισμός %1;</translation>
-    </message>
-    <message>
-        <source>Block</source>
-        <translation>Αποκλεισμός</translation>
-    </message>
-    <message>
-        <source>They cannot send you friend requests. If you are friends, you stop sharing terminals with each other, and each of you leaves the projects that the other owns.</source>
-        <translation>Το άτομο δεν μπορεί να σας στέλνει αιτήματα φιλίας. Αν είστε φίλοι, σταματάτε να μοιράζεστε τερματικά μεταξύ σας, και ο καθένας φεύγει από τα έργα του άλλου.</translation>
-    </message>
-    <message>
-        <source>Report %1</source>
-        <translation>Αναφορά: %1</translation>
-    </message>
-    <message>
-        <source>Report</source>
-        <translation>Αναφορά</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>Ακύρωση</translation>
-    </message>
-    <message>
-        <source>Kodosi gets their user name and what you write here.</source>
-        <translation>Το Kodosi λαμβάνει το όνομα χρήστη και ό,τι γράψετε εδώ.</translation>
-    </message>
-    <message>
-        <source>What happened (optional)</source>
-        <translation>Τι συνέβη (προαιρετικά)</translation>
-    </message>
-    <message>
         <source>Remove %1?</source>
         <translation>Αφαίρεση %1;</translation>
     </message>
@@ -2594,10 +2573,6 @@
     <message>
         <source>Owner</source>
         <translation>Κάτοχος</translation>
-    </message>
-    <message>
-        <source>Remove %1 from the project</source>
-        <translation>Αφαίρεση του %1 από το έργο</translation>
     </message>
     <message>
         <source>Invite</source>
@@ -2697,6 +2672,18 @@
     <message>
         <source>Remove from project</source>
         <translation>Αφαίρεση από το έργο</translation>
+    </message>
+    <message>
+        <source>Options for %1</source>
+        <translation>Επιλογές για %1</translation>
+    </message>
+    <message>
+        <source>Block…</source>
+        <translation>Αποκλεισμός…</translation>
+    </message>
+    <message>
+        <source>Report…</source>
+        <translation>Αναφορά…</translation>
     </message>
     <message>
         <source>Delete %1?</source>
@@ -2808,6 +2795,18 @@
     <message>
         <source>Make this a task</source>
         <translation>Μετατροπή σε εργασία</translation>
+    </message>
+    <message>
+        <source>Options for %1</source>
+        <translation>Επιλογές για %1</translation>
+    </message>
+    <message>
+        <source>Block…</source>
+        <translation>Αποκλεισμός…</translation>
+    </message>
+    <message>
+        <source>Report…</source>
+        <translation>Αναφορά…</translation>
     </message>
     <message numerus="yes">
         <source>%n new</source>
@@ -3148,6 +3147,36 @@
     <message>
         <source>Remove from canvas</source>
         <translation>Αφαίρεση από το canvas</translation>
+    </message>
+</context>
+<context>
+    <name>ReportPersonDialog</name>
+    <message>
+        <source>Report %1</source>
+        <translation>Αναφορά: %1</translation>
+    </message>
+    <message>
+        <source>Report</source>
+        <translation>Αναφορά</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Ακύρωση</translation>
+    </message>
+    <message>
+        <source>Kodosi gets their user name and what you write here.</source>
+        <translation>Το Kodosi λαμβάνει το όνομα χρήστη και ό,τι γράψετε εδώ.</translation>
+    </message>
+    <message>
+        <source>What happened (optional)</source>
+        <translation>Τι συνέβη (προαιρετικά)</translation>
+    </message>
+</context>
+<context>
+    <name>ReportReceived</name>
+    <message>
+        <source>Kodosi got your report.</source>
+        <translation>Το Kodosi έλαβε την αναφορά σας.</translation>
     </message>
 </context>
 <context>
