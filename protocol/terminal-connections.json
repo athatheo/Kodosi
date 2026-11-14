@@ -306,7 +306,8 @@
     "device": "the state of a device is the most present state of the apps on it, in the order kodosi, here, away; a device without an app is away",
     "refreshSeconds": 60,
     "leaseSeconds": 150,
-    "server": "holds the newest state of each connected device for leaseSeconds after its last presence message; after that time, and when the connection ends, the device is away; the server takes 30 presence messages and then 1 each second from one device connection and ignores others",
+    "graceSeconds": 30,
+    "server": "holds the newest state of each connected device for leaseSeconds after its last presence message, and the device is away after that time; a device whose connection ends keeps its state for graceSeconds and is away after that time, unless it connected again; the server takes 30 presence messages and then 1 each second from one device connection and ignores others",
     "person": "a person is away when each of their devices is away",
     "meaning": "never an authorization grant"
   },
