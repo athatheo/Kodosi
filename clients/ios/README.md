@@ -13,8 +13,10 @@ just ios-build
 ```
 
 Then run the `KodosiMobile` scheme in Xcode. Debug builds use a
-[local backend](../../docs/DEVELOPMENT.md#run-the-backend) at `127.0.0.1:5180`, which a
-simulator can reach and a device cannot.
+[local backend](../../docs/DEVELOPMENT.md#run-the-backend) at `127.0.0.1:5180` that signs
+in with the disposable Keycloak of `sign-in/keycloak.sh` at `localhost:8284`, or the
+`KODOSI__AUTH__ISSUER` that the app starts with. A simulator can reach them and a device
+cannot.
 
 `just ios-check` lints, runs the unit tests on the `Kodosi iPhone 17 Pro` simulator
 (`KODOSI_IOS_SIMULATOR` names another) and builds Release for devices. A device build

@@ -12,7 +12,9 @@ just mac-build
 ```
 
 Then run the `KodosiDesktop` scheme in Xcode. Debug builds use a
-[local backend](../../docs/DEVELOPMENT.md#run-the-backend) at `127.0.0.1:5180`;
+[local backend](../../docs/DEVELOPMENT.md#run-the-backend) at `127.0.0.1:5180` that signs
+in with the disposable Keycloak of `sign-in/keycloak.sh` at `localhost:8284`, or the
+`KODOSI__AUTH__ISSUER` that the app starts with;
 `just release-build` here builds against the public service. `just mac-check` from the
 repository root lints, tests and builds the Release app; here, `just lint`, `just test`
 and `just format` do parts of it.
