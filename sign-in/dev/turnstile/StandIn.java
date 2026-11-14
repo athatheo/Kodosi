@@ -1,6 +1,7 @@
 package kodosi.signin;
 
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.net.URI;
@@ -16,10 +17,7 @@ import java.util.function.Consumer;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.authentication.FormAction;
-import org.keycloak.authentication.FormActionFactory;
-import org.keycloak.authentication.FormContext;
-import org.keycloak.authentication.ValidationContext;
+import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.resetcred.ResetCredentialChooseUser;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
@@ -29,7 +27,6 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.utils.FormMessage;
 import org.keycloak.provider.ProviderConfigProperty;
 
 // Gives the pages what github.com/zymlabs/keycloak-cloudflare-turnstile-provider gives them, for the
@@ -75,35 +72,41 @@ public final class StandIn {
         }
     }
 
-    public static final class Registration implements FormAction, FormActionFactory {
-        @Override
-        public void buildPage(FormContext context, LoginFormsProvider form) {
-            form.setAttribute("turnstileRequired", true)
+    public static final class Check implements Authenticator, AuthenticatorFactory {
+        private static Response page(AuthenticationFlowContext context, String error) {
+            LoginFormsProvider form = context.form()
+                    .setAttribute("turnstileRequired", true)
                     .setAttribute("turnstileSkipped", false)
                     .setAttribute("turnstileSiteKey", key(context.getAuthenticatorConfig(), "site.key"))
                     .setAttribute("turnstileMode", "managed")
-                    .setAttribute("turnstileTheme", "auto");
+                    .setAttribute("turnstileTheme", "auto")
+                    .setAttribute("isRegistrationFlow", true);
+            if (error != null) form.setError(error);
+            return form.createForm("turnstile-registration-form.ftl");
         }
 
         @Override
-        public void validate(ValidationContext context) {
+        public void authenticate(AuthenticationFlowContext context) {
+            context.challenge(page(context, null));
+        }
+
+        @Override
+        public void action(AuthenticationFlowContext context) {
             MultivaluedMap<String, String> form = context.getHttpRequest().getDecodedFormParameters();
             if (passes(context.getAuthenticatorConfig(), form, context.getConnection().getRemoteAddr())) {
                 context.success();
                 return;
             }
-            context.error(Errors.INVALID_REGISTRATION);
+            context.getEvent().error(Errors.INVALID_REGISTRATION);
             String key = form.getFirst(FIELD) == null || form.getFirst(FIELD).isBlank()
                     ? "turnstileMissingToken" : "turnstileVerificationFailed";
-            context.validationError(form, List.of(new FormMessage(null, key)));
-            context.excludeOtherErrors();
+            context.challenge(page(context, key));
         }
 
-        @Override public void success(FormContext context) {}
         @Override public boolean requiresUser() { return false; }
         @Override public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) { return true; }
         @Override public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {}
-        @Override public String getId() { return "kodosi-turnstile-registration"; }
+        @Override public String getId() { return "kodosi-turnstile-check"; }
         @Override public String getDisplayType() { return "Turnstile stand-in"; }
         @Override public String getReferenceCategory() { return null; }
         @Override public boolean isConfigurable() { return true; }
@@ -111,7 +114,7 @@ public final class StandIn {
         @Override public boolean isUserSetupAllowed() { return false; }
         @Override public String getHelpText() { return "A Turnstile check with Cloudflare's test keys, for a local look at the pages."; }
         @Override public List<ProviderConfigProperty> getConfigProperties() { return KEYS; }
-        @Override public FormAction create(KeycloakSession session) { return this; }
+        @Override public Authenticator create(KeycloakSession session) { return this; }
         @Override public void init(Config.Scope config) {}
         @Override public void postInit(KeycloakSessionFactory factory) {}
         @Override public void close() {}

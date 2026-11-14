@@ -1,4 +1,5 @@
 import type { Attribute, PasswordPolicies } from "keycloakify/login/KcContext";
+import { BadgeCheck } from "lucide-react";
 import {
   type KeyboardEvent,
   lazy,
@@ -158,6 +159,8 @@ function Steps({
   const language = attributes.find((one) => one.name === "locale");
   const details = attributes.filter((one) => one !== handleAttribute && one !== language);
   const terms = "termsAcceptanceRequired" in kcContext && !!kcContext.termsAcceptanceRequired;
+  const confirmed = "kodosiEmail" in kcContext ? kcContext.kodosiEmail : undefined;
+  const firstOpen = details.findIndex((one) => !(one.name === "email" && confirmed));
   const steps: StepId[] = [
     ...(handleAttribute ? (["handle"] as const) : []),
     ...(details.length ? (["details"] as const) : []),
@@ -166,7 +169,12 @@ function Steps({
   const last = steps[steps.length - 1];
 
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(attributes.map((one) => [one.name, one.value ?? ""])),
+    Object.fromEntries(
+      attributes.map((one) => [
+        one.name,
+        one.name === "email" && confirmed ? confirmed : (one.value ?? ""),
+      ]),
+    ),
   );
   const [secret, setSecret] = useState("");
   const [accepted, setAccepted] = useState(false);
@@ -190,7 +198,7 @@ function Steps({
   useEffect(() => {
     if (!moved.current) return;
     const first = body.current?.querySelector<HTMLInputElement>(
-      `[data-step="${step}"] input:not([type=hidden],[type=checkbox])`,
+      `[data-step="${step}"] input:not([type=hidden],[type=checkbox],[readonly])`,
     );
     first?.focus();
   }, [step]);
@@ -429,6 +437,19 @@ function Steps({
         {details.length > 0 && (
           <div data-step="details" className={step === "details" ? "resolve" : "hidden"}>
             {details.map((attribute, i) => {
+              if (attribute.name === "email" && confirmed)
+                return (
+                  <TextRow
+                    key="email"
+                    id="email"
+                    name="email"
+                    label={labelOf(i18n, attribute)}
+                    value={confirmed}
+                    readOnly
+                    tabIndex={-1}
+                    end={<BadgeCheck className="size-[18px] text-ready" aria-hidden />}
+                  />
+                );
               const value = values[attribute.name] ?? "";
               const arrow = last !== "details" && i === details.length - 1;
               const optional = !attribute.required && !attribute.readOnly && !value;
@@ -445,7 +466,7 @@ function Steps({
                   readOnly={attribute.readOnly}
                   required={attribute.required}
                   autoComplete={attribute.autocomplete}
-                  autoFocus={step === "details" && i === 0}
+                  autoFocus={step === "details" && i === firstOpen}
                   aria-invalid={wrongField === attribute.name || undefined}
                   end={
                     optional || arrow ? (

@@ -357,10 +357,11 @@ windows-rust-lint:
             cargo xwin clippy --manifest-path runtime/Cargo.toml --locked --target $target --workspace --tests -- {{ test_lints }}"; \
     done
 
-# Build the Keycloak theme after the type, lint and format checks.
+# Build the Keycloak theme after the type, lint and format checks, then build and test the Keycloak extension.
 [group('sign-in')]
 sign-in-check: translations-check
     cd sign-in && bun install --frozen-lockfile && bun run tsc && bun run lint && bun run format:check && bun run build
+    sign-in/extension/maven.sh -q verify
 
 # Test the scripts that write the update site of a release and the feed of Kodosi Browser.
 [group('release')]

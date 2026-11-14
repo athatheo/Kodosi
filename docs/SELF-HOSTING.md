@@ -1,7 +1,8 @@
 # Self-hosting
 
 Run the backend with PostgreSQL and an OIDC sign-in service, behind HTTPS. The
-[sign-in theme](../sign-in/README.md) gives Keycloak the look of the apps.
+[sign-in theme and its extension](../sign-in/README.md) give Keycloak the look of the apps
+and the mail check by a typed code.
 
 ## Sign-in
 

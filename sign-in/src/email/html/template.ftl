@@ -38,9 +38,16 @@
 </html>
 </#macro>
 
-<#macro message title text="" when="" action="" link="" note="">
+<#macro message title text="" when="" action="" link="" note="" code="">
 <@emailLayout>
     <h1 style="margin:0 0 10px;font-family:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;font-size:21px;line-height:28px;font-weight:500;letter-spacing:-0.03em;color:#25160e;">${title}</h1>
+    <#if code?has_content>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto 18px;">
+    <tr>
+    <td align="center" bgcolor="#f0e9dc" style="padding:12px 14px 12px 22px;border:1px solid #d9ccba;border-radius:14px;background-color:#f0e9dc;font-family:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;font-size:32px;line-height:40px;font-weight:600;letter-spacing:0.22em;color:#25160e;">${code}</td>
+    </tr>
+    </table>
+    </#if>
     <#if text?has_content>
     <p style="margin:0 auto;max-width:340px;font-size:15px;line-height:23px;color:#5f4838;"><#if when?has_content><#list text?split(when) as part>${part}<#sep><span style="white-space:nowrap;">${when}</span></#list><#else>${text}</#if></p>
     </#if>

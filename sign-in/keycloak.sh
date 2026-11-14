@@ -2,15 +2,18 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-name=kodosi-signin-keycloak
-mailbox=kodosi-signin-mailbox
-network=kodosi-signin
+rig=${KODOSI_SIGN_IN_RIG:-kodosi-signin}
+name=$rig-keycloak
+mailbox=$rig-mailbox
+network=$rig
 port=${KODOSI_SIGN_IN_KEYCLOAK_PORT:-8284}
 mailbox_port=${KODOSI_SIGN_IN_MAILBOX_PORT:-8285}
 image=quay.io/keycloak/keycloak:26.8.1
 jar=dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar
 check_jar=dev/turnstile/build/kodosi-turnstile-stand-in.jar
+code_jar=extension/target/kodosi-mail-code.jar
 realm=kodosi
+join='registration%20with%20check'
 form='registration%20with%20check%20registration%20form'
 reset='reset%20with%20check'
 broker=kodosi-first-broker-login
@@ -29,6 +32,18 @@ step_of() {
   kc get "authentication/flows/$1/executions" -r $realm --format csv --noquotes \
     --fields id,providerId | sed -n "s/,$2\$//p"
 }
+require() {
+  local step
+  step=$(kc get "authentication/flows/$1/executions" -r $realm --format csv --noquotes \
+    --fields id,priority,providerId | sed -n "s/,$2\$//p")
+  calm kc update "authentication/flows/$1/executions" -r $realm \
+    -b "{\"id\":\"${step%,*}\",\"priority\":${step#*,},\"requirement\":\"$3\"}"
+}
+add_step() {
+  calm kc create "authentication/flows/$1/executions/execution" -r $realm -s "provider=$2"
+  calm kc update "authentication/flows/$1/executions" -r $realm \
+    -b "{\"id\":\"$(step_of "$1" "$2")\",\"requirement\":\"$3\",\"priority\":$4}"
+}
 
 # Cloudflare's published test keys (developers.cloudflare.com/turnstile/troubleshooting/testing).
 check() {
@@ -41,14 +56,14 @@ check() {
     off) ;;
     *) echo "check: pass, block, ask, refuse or off" >&2 && exit 2 ;;
   esac
-  local requirement=REQUIRED flow="reset with check"
-  [ "$1" = off ] && requirement=DISABLED flow="reset credentials"
-  calm kc update "authentication/flows/$form/executions" -r $realm \
-    -b "{\"id\":\"$(step_of "$form" kodosi-turnstile-registration)\",\"requirement\":\"$requirement\",\"priority\":65}"
-  calm kc update "realms/$realm" -s "resetCredentialsFlow=$flow"
+  local on=REQUIRED off=DISABLED
+  [ "$1" = off ] && on=DISABLED off=REQUIRED
+  require "$join" kodosi-turnstile-check $on
+  require "$reset" kodosi-turnstile-reset $on
+  require "$reset" reset-credentials-choose-user $off
   [ "$1" = off ] && return
   local flow_of one config body
-  for flow_of in "$form kodosi-turnstile-registration" "$reset kodosi-turnstile-reset"; do
+  for flow_of in "$join kodosi-turnstile-check" "$reset kodosi-turnstile-reset"; do
     set -- $flow_of
     one=$(step_of "$1" "$2")
     config=$(kc get "authentication/flows/$1/executions" -r $realm --format csv --noquotes \
@@ -88,11 +103,14 @@ docker network rm "$network" >/dev/null 2>&1 || true
 
 [ -f "$jar" ] && [ -z "$(find src index.html -newer "$jar" -print -quit)" ] || bun run theme
 
-if [ ! -f "$check_jar" ] || [ dev/turnstile/StandIn.java -nt "$check_jar" ]; then
+[ -f "$code_jar" ] && [ -z "$(find extension/src extension/pom.xml -newer "$code_jar" -print -quit)" ] ||
+  extension/maven.sh -q package
+
+if [ ! -f "$check_jar" ] || [ -n "$(find dev/turnstile/StandIn.java dev/turnstile/META-INF -newer "$check_jar" -print -quit)" ]; then
   libraries=$(mktemp -d)
-  docker create --name kodosi-signin-libraries "$image" >/dev/null
-  docker cp kodosi-signin-libraries:/opt/keycloak/lib/lib/main "$libraries" >/dev/null
-  docker rm kodosi-signin-libraries >/dev/null
+  docker create --name "$rig-libraries" "$image" >/dev/null
+  docker cp "$rig-libraries:/opt/keycloak/lib/lib/main" "$libraries" >/dev/null
+  docker rm "$rig-libraries" >/dev/null
   mkdir -p "$(dirname "$check_jar")"
   docker run --rm -v "$PWD/dev/turnstile:/src" -v "$libraries:/libraries:ro" \
     maven:3.9-eclipse-temurin-21 sh -c 'set -e; mkdir -p /tmp/classes
@@ -110,6 +128,7 @@ docker run -d --name "$name" --network "$network" -p "127.0.0.1:$port:8080" \
   -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD="$admin" \
   -e KODOSI_TERMS_URL=https://kodosi.com/terms -e KODOSI_PRIVACY_URL=https://kodosi.com/privacy \
   -v "$PWD/$jar:/opt/keycloak/providers/kodosi-sign-in.jar:ro" \
+  -v "$PWD/$code_jar:/opt/keycloak/providers/kodosi-mail-code.jar:ro" \
   -v "$PWD/$check_jar:/opt/keycloak/providers/kodosi-turnstile-stand-in.jar:ro" \
   "$image" start-dev "--spi-events-listener--email--include-events=$notes" >/dev/null
 
@@ -133,6 +152,7 @@ calm kc create realms -s realm=$realm -s enabled=true -s displayName=Kodosi \
   -s quickLoginCheckMilliSeconds=1000 -s minimumQuickLoginWaitSeconds=60 \
   -s 'passwordPolicy=length(12) and maxLength(128) and notUsername and notEmail' \
   -s oauth2DeviceCodeLifespan=900 -s actionTokenGeneratedByUserLifespan=900 \
+  -s accessCodeLifespanLogin=3600 -s accessCodeLifespanUserAction=1800 \
   -s oauth2DevicePollingInterval=5 -s eventsEnabled=true \
   -s webAuthnPolicyRpEntityName=Kodosi -s webAuthnPolicyPasswordlessRpEntityName=Kodosi \
   -s webAuthnPolicyUserVerificationRequirement=required \
@@ -178,7 +198,15 @@ calm kc create authentication/flows/registration/copy -r $realm -b '{"newName":"
 calm kc update "realms/$realm" -s 'registrationFlow=registration with check'
 calm kc update "authentication/flows/$form/executions" -r $realm \
   -b "{\"id\":\"$(step_of "$form" registration-terms-and-conditions)\",\"requirement\":\"REQUIRED\",\"priority\":70}"
+add_step "$form" kodosi-confirmed-email REQUIRED 25
+add_step "$join" kodosi-turnstile-check REQUIRED 1
+add_step "$join" kodosi-mail-code REQUIRED 2
 calm kc update authentication/required-actions/TERMS_AND_CONDITIONS -r $realm -s enabled=true
+calm kc create authentication/register-required-action -r $realm \
+  -s providerId=kodosi-mail-code -s 'name=Confirm the email with a code'
+calm kc update authentication/required-actions/kodosi-mail-code -r $realm -s "priority=$(kc get \
+  authentication/required-actions/VERIFY_EMAIL -r $realm --fields priority --format csv --noquotes)"
+calm kc update authentication/required-actions/VERIFY_EMAIL -r $realm -s enabled=false
 while IFS='|' read -r locale terms privacy; do
   calm kc create "localization/$locale" -r $realm \
     -s "termsText=<a href=\"https://kodosi.com/terms\">$terms</a> · <a href=\"https://kodosi.com/privacy\">$privacy</a>"
@@ -209,17 +237,13 @@ calm kc update "authentication/flows/$broker/executions" -r $realm \
 calm kc update "authentication/flows/$broker/executions" -r $realm \
   -b "{\"id\":\"$(step_of $broker idp-email-verification)\",\"requirement\":\"DISABLED\"}"
 
-calm kc create "authentication/flows/$form/executions/execution" -r $realm \
-  -s provider=kodosi-turnstile-registration
 calm kc create authentication/flows -r $realm -s 'alias=reset with check' -s providerId=basic-flow \
   -s topLevel=true -s builtIn=false
-priority=0
-for provider in kodosi-turnstile-reset reset-credential-email reset-password; do
-  priority=$((priority + 10))
-  calm kc create "authentication/flows/$reset/executions/execution" -r $realm -s "provider=$provider"
-  calm kc update "authentication/flows/$reset/executions" -r $realm \
-    -b "{\"id\":\"$(step_of "$reset" $provider)\",\"requirement\":\"REQUIRED\",\"priority\":$priority}"
-done
+add_step "$reset" kodosi-turnstile-reset REQUIRED 10
+add_step "$reset" reset-credentials-choose-user DISABLED 20
+add_step "$reset" kodosi-mail-code REQUIRED 30
+add_step "$reset" reset-password REQUIRED 40
+calm kc update "realms/$realm" -s 'resetCredentialsFlow=reset with check'
 check pass
 
 keys='"clientId":"sample","clientSecret":"sample"'
