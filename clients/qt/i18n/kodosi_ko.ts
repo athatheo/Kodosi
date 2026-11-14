@@ -882,7 +882,7 @@
         <translation>내 기기</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>다른 기기가 없을 때 새 기기를 승인해요</translation>
     </message>
     <message>

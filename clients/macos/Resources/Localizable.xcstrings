@@ -4387,7 +4387,7 @@
         }
       }
     },
-    "Approves a new device when you have no other" : {
+    "Approves a new device when you have no other device" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {

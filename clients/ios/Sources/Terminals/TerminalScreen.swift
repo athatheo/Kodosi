@@ -29,6 +29,7 @@ private struct TerminalScreenContent: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @State private var controller: TerminalController
     @State private var prompt: TerminalPrompt?
     @State private var showsSharing = false
@@ -167,6 +168,13 @@ private struct TerminalScreenContent: View {
         .onChange(of: session?.canvas?.change) { _, _ in followCanvas() }
         .onChange(of: canvasOpen) { _, open in
             if open {
+                arrival = nil
+            }
+        }
+        .task(id: arrival) {
+            guard arrival != nil, !voiceOver else { return }
+            try? await Task.sleep(for: CanvasBanner.stay)
+            if !Task.isCancelled {
                 arrival = nil
             }
         }

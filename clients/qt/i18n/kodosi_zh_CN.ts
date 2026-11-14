@@ -882,7 +882,7 @@
         <translation>你的设备</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>没有其他设备时批准新设备</translation>
     </message>
     <message>

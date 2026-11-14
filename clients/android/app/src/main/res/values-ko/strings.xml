@@ -115,6 +115,8 @@
     <string name="members">멤버</string>
     <string name="owner">소유자</string>
     <string name="invite_friends">친구 초대</string>
+    <string name="all_friends_here">친구가 모두 여기 있어요.</string>
+    <string name="add_friends_to_invite">초대하려면 설정에서 친구를 추가하세요.</string>
     <string name="invite">초대</string>
     <string name="leave_project">프로젝트 나가기</string>
     <string name="delete_project">프로젝트 삭제</string>
@@ -166,6 +168,7 @@
     <string name="share">공유</string>
     <string name="verify_identity">신원 확인</string>
     <string name="verified">확인됨</string>
+    <string name="invite_matches_identity">%1$s 님이 보낸 초대가 이 신원과 일치해요.</string>
     <string name="identity_changed">상대방의 신원이 변경되었습니다</string>
     <string name="trust_identity">이 신원 신뢰</string>
     <string name="verify_invite">상대방의 초대 붙여넣기</string>

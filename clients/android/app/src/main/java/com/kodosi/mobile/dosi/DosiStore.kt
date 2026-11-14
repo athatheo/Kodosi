@@ -19,6 +19,32 @@ data class DosiComputer(val device: String, val name: String)
 @Serializable
 data class DosiItem(val id: String, val turn: String, val at: Long, val body: JsonObject)
 
+/** One item of the conversation, or the tool steps that follow one another. */
+data class DosiRow(val items: List<DosiItem>) {
+    val key: String get() = items.first().id
+    val steps: Boolean get() = items.first().step
+
+    /** The first two steps by name, and how many more there are. */
+    val line: String
+        get() = items.take(2).joinToString(", ") { it.stepName } + if (items.size > 2) " +${items.size - 2}" else ""
+}
+
+private val DosiItem.step: Boolean get() = body.string("kind") == "tool"
+
+val DosiItem.stepName: String
+    get() = body.string("text") ?: (body["target"] as? JsonObject)?.string("value") ?: body.string("action").orEmpty()
+
+fun dosiRows(items: List<DosiItem>): List<DosiRow> = buildList {
+    for (item in items) {
+        val last = lastOrNull()
+        if (item.step && last?.steps == true) {
+            this[lastIndex] = DosiRow(last.items + item)
+        } else {
+            add(DosiRow(listOf(item)))
+        }
+    }
+}
+
 @Serializable
 data class DosiSnapshot(
     val state: String,

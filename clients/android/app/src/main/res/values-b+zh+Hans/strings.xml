@@ -115,6 +115,8 @@
     <string name="members">成员</string>
     <string name="owner">所有者</string>
     <string name="invite_friends">邀请好友</string>
+    <string name="all_friends_here">你的好友都在这里。</string>
+    <string name="add_friends_to_invite">在“设置”中添加好友后即可邀请。</string>
     <string name="invite">邀请</string>
     <string name="leave_project">退出项目</string>
     <string name="delete_project">删除项目</string>
@@ -166,6 +168,7 @@
     <string name="share">分享</string>
     <string name="verify_identity">验证身份</string>
     <string name="verified">已验证</string>
+    <string name="invite_matches_identity">%1$s 发给你的邀请与此身份一致。</string>
     <string name="identity_changed">对方的身份已更改</string>
     <string name="trust_identity">信任此身份</string>
     <string name="verify_invite">粘贴对方的邀请</string>

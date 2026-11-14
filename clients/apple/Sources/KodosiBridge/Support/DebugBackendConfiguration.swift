@@ -3,11 +3,15 @@ import Foundation
 public struct DebugBackendConfiguration: Equatable, Sendable {
     public static let hostInfoKey = "KodosiDebugBackendHost"
     public static let portInfoKey = "KodosiDebugBackendPort"
+    public static let issuerInfoKey = "KodosiDebugAuthIssuer"
+    private static let loopbackHosts: Set<String> = ["127.0.0.1", "localhost"]
 
     public let api: String
+    public let issuer: String?
 
-    public init(api: String) {
+    public init(api: String, issuer: String? = nil) {
         self.api = api
+        self.issuer = issuer
     }
 
     public static func resolve(info: [String: Any]) -> DebugBackendConfiguration? {
@@ -15,18 +19,34 @@ public struct DebugBackendConfiguration: Equatable, Sendable {
               let rawPort = info[portInfoKey] as? String
         else { return nil }
         let host = rawHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard host == "127.0.0.1" || host == "localhost",
+        guard loopbackHosts.contains(host),
               let port = UInt16(rawPort),
               port > 0
         else { return nil }
         return DebugBackendConfiguration(
             api: "http://\(host):\(port)",
+            issuer: loopbackIssuer(info[issuerInfoKey] as? String),
         )
     }
 
+    private static func loopbackIssuer(_ raw: String?) -> String? {
+        guard let raw, let issuer = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+              issuer.scheme == "http", let host = issuer.host(), loopbackHosts.contains(host)
+        else { return nil }
+        return issuer.absoluteString
+    }
+
+    /// A sign-in service given at launch wins over the build's, so that one build signs in
+    /// with another local service.
     public func install() throws {
-        let key = "KODOSI__BACKEND__API"
-        guard setenv(key, api, 1) == 0 else {
+        try set("KODOSI__BACKEND__API", api, replacing: true)
+        if let issuer {
+            try set("KODOSI__AUTH__ISSUER", issuer, replacing: false)
+        }
+    }
+
+    private func set(_ key: String, _ value: String, replacing: Bool) throws {
+        guard setenv(key, value, replacing ? 1 : 0) == 0 else {
             throw InstallationError.environmentUpdateFailed(key)
         }
     }

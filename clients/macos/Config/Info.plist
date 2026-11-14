@@ -26,6 +26,8 @@
     <string>$(KODOSI_DEBUG_BACKEND_HOST)</string>
     <key>KodosiDebugBackendPort</key>
     <string>$(KODOSI_DEBUG_BACKEND_PORT)</string>
+    <key>KodosiDebugAuthIssuer</key>
+    <string>$(KODOSI_DEBUG_AUTH_ISSUER)</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>A program in a Kodosi terminal wants to control another app.</string>
     <key>NSAudioCaptureUsageDescription</key>

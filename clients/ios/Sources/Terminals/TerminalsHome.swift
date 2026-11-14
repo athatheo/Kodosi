@@ -40,7 +40,7 @@ struct TerminalsHome: View {
         .readableWidth()
         .overlay { emptyContent(isEmpty: sessions.isEmpty) }
         .animation(theme.motion.soft, value: computers.flatMap { $0.folders.map(\.id) })
-        .navigationTitle("Terminals")
+        .tabPage("Terminals")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 IconButton(title: "New terminal", symbol: "plus", identifier: "terminals.new", size: 32) {

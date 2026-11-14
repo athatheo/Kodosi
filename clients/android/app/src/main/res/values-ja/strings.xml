@@ -115,6 +115,8 @@
     <string name="members">メンバー</string>
     <string name="owner">オーナー</string>
     <string name="invite_friends">フレンドを招待</string>
+    <string name="all_friends_here">フレンドは全員ここにいます。</string>
+    <string name="add_friends_to_invite">招待するには、「設定」でフレンドを追加してください。</string>
     <string name="invite">招待</string>
     <string name="leave_project">プロジェクトから退出</string>
     <string name="delete_project">プロジェクトを削除</string>
@@ -166,6 +168,7 @@
     <string name="share">共有</string>
     <string name="verify_identity">本人確認</string>
     <string name="verified">確認済み</string>
+    <string name="invite_matches_identity">%1$s さんから届いた招待は、この ID と一致しています。</string>
     <string name="identity_changed">相手の本人情報が変わりました</string>
     <string name="trust_identity">この本人情報を信頼する</string>
     <string name="verify_invite">相手の招待を貼り付け</string>

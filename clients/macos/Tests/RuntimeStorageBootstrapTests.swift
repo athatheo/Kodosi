@@ -23,12 +23,32 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
         DebugBackendConfiguration.hostInfoKey: "localhost",
         DebugBackendConfiguration.portInfoKey: "5180",
     ]) != nil)
+    #expect(DebugBackendConfiguration.resolve(info: [
+        DebugBackendConfiguration.hostInfoKey: "127.0.0.1",
+        DebugBackendConfiguration.portInfoKey: "5180",
+        DebugBackendConfiguration.issuerInfoKey: "http://localhost:8284/realms/kodosi",
+    ]) == DebugBackendConfiguration(
+        api: "http://127.0.0.1:5180",
+        issuer: "http://localhost:8284/realms/kodosi",
+    ))
+    for issuer in ["https://auth.kodosi.com/realms/kodosi", "http://auth.example.com/realms/kodosi"] {
+        #expect(DebugBackendConfiguration.resolve(info: [
+            DebugBackendConfiguration.hostInfoKey: "127.0.0.1",
+            DebugBackendConfiguration.portInfoKey: "5180",
+            DebugBackendConfiguration.issuerInfoKey: issuer,
+        ])?.issuer == nil)
+    }
     for info in [
         [:],
         [DebugBackendConfiguration.hostInfoKey: "api.kodosi.com"],
         [
             DebugBackendConfiguration.hostInfoKey: "api.kodosi.com",
             DebugBackendConfiguration.portInfoKey: "5180",
+        ],
+        [
+            DebugBackendConfiguration.hostInfoKey: "",
+            DebugBackendConfiguration.portInfoKey: "",
+            DebugBackendConfiguration.issuerInfoKey: "http://localhost:8284/realms/kodosi",
         ],
         [
             DebugBackendConfiguration.hostInfoKey: "127.0.0.1",

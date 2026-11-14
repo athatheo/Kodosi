@@ -68,7 +68,7 @@ fun ProjectTasks(model: AppModel, projectId: String, snapshot: ProjectSnapshot?)
         for (closed in listOf(false, true)) {
             if (closed && tasks.any { it.closed }) item { SectionTitle(stringResource(R.string.closed_tasks)) }
             items(tasks.filter { it.closed == closed }, key = { it.id }) { task ->
-                KodosiCard(onClick = { selected = task.id }) {
+                KodosiCard(Modifier.fillMaxWidth(), onClick = { selected = task.id }) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(task.title, style = KodosiType.headline)
                         task.assignedName?.let {
@@ -370,13 +370,27 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
                 }
             }
         }
-        item { SectionTitle(stringResource(R.string.invite_friends)) }
-        items(
-            people.friends.filter { friend ->
-                detail?.members?.none { it.userId == friend.userId } == true
-            },
-            key = { "friend-${it.userId}" }
-        ) { friend ->
+        val invitable = if (owner) {
+            people.friends.filter { friend -> detail?.members?.none { it.userId == friend.userId } == true }
+        } else {
+            emptyList()
+        }
+        if (owner) {
+            item { SectionTitle(stringResource(R.string.invite_friends)) }
+            if (invitable.isEmpty()) {
+                item {
+                    Text(
+                        stringResource(
+                            if (people.friends.isEmpty()) R.string.add_friends_to_invite else R.string.all_friends_here
+                        ),
+                        style = KodosiType.footnote,
+                        color = KodosiTheme.colors.inkMuted,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+            }
+        }
+        items(invitable, key = { "friend-${it.userId}" }) { friend ->
             ListLine(friend.name, leading = { PersonAvatar(friend.name, friend.userId) }) {
                 KodosiTextButton(onClick = {
                     scope.launch {

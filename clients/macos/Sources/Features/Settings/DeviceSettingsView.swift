@@ -207,7 +207,7 @@ struct DeviceSettingsView: View {
 
     private func subtitle(_ device: MyDeviceEntry) -> String? {
         if device.recoveryKey {
-            String(localized: "Approves a new device when you have no other")
+            String(localized: "Approves a new device when you have no other device")
         } else if device.deviceId == deps.account.selfDeviceId {
             String(localized: "This Mac")
         } else {

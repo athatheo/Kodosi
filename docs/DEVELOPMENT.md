@@ -87,8 +87,9 @@ just backend-docker-run
 identity provider, such as the disposable Keycloak of `sign-in/keycloak.sh`, set
 `Auth__Authority` and `Auth__Audience` in a local Compose override.
 
-Debug builds of the Mac, iPhone and Android apps use this local backend. For the Linux and
-Windows app and the CLI, set `KODOSI__BACKEND__API=http://127.0.0.1:5180`, and
+Debug builds of the Mac, iPhone and Android apps use this local backend and sign in with the
+Keycloak of `sign-in/keycloak.sh`, or with the service that `KODOSI__AUTH__ISSUER` names. For
+the Linux and Windows app and the CLI, set `KODOSI__BACKEND__API=http://127.0.0.1:5180`, and
 `KODOSI__AUTH__ISSUER` for another sign-in service.
 
 ## Contracts and Ghostty

@@ -115,6 +115,8 @@
     <string name="members">Μέλη</string>
     <string name="owner">Κάτοχος</string>
     <string name="invite_friends">Πρόσκληση φίλων</string>
+    <string name="all_friends_here">Όλοι οι φίλοι σας είναι εδώ.</string>
+    <string name="add_friends_to_invite">Προσθέστε φίλους στις Ρυθμίσεις για να τους προσκαλέσετε.</string>
     <string name="invite">Πρόσκληση</string>
     <string name="leave_project">Αποχώρηση από το έργο</string>
     <string name="delete_project">Διαγραφή έργου</string>
@@ -166,6 +168,7 @@
     <string name="share">Κοινή χρήση</string>
     <string name="verify_identity">Επαλήθευση ταυτότητας</string>
     <string name="verified">Επαληθεύτηκε</string>
+    <string name="invite_matches_identity">Η πρόσκληση που σας έστειλε ο χρήστης %1$s ταιριάζει με αυτή την ταυτότητα.</string>
     <string name="identity_changed">Η ταυτότητά τους άλλαξε</string>
     <string name="trust_identity">Εμπιστοσύνη σε αυτή την ταυτότητα</string>
     <string name="verify_invite">Επικόλληση της πρόσκλησής τους</string>

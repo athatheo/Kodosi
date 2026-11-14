@@ -33,7 +33,7 @@ struct SettingsHome: View {
             .settingsPage()
         }
         .background(theme.colors.surface)
-        .navigationTitle("Settings")
+        .tabPage("Settings")
         .navigationDestination(for: PeopleRoute.self) { _ in PeopleHome() }
         .navigationDestination(for: FriendRoute.self) { FriendDetailView(userId: $0.userId) }
         .navigationDestination(for: TerminalRoute.self) { TerminalScreen(sessionId: $0.sessionId) }

@@ -883,7 +883,7 @@
         <translation>Vos appareils</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>Approuve un nouvel appareil quand vous n&apos;en avez pas d&apos;autre</translation>
     </message>
     <message>

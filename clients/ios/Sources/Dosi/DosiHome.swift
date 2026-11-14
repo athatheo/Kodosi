@@ -68,8 +68,7 @@ private struct DosiScreen: View {
             .scrollDismissesKeyboard(.interactively)
             .safeAreaBar(edge: .bottom) { DosiComposer(focused: $composing) }
             .background(theme.colors.ground)
-            .navigationTitle("Dosi")
-            .navigationBarTitleDisplayMode(.inline)
+            .tabPage("Dosi", inline: true)
             .toolbar {
                 if !model.dosi.items.isEmpty {
                     ToolbarItem(placement: .primaryAction) { DosiNewChat() }

@@ -59,6 +59,9 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -802,23 +805,42 @@ fun TextEntryDialog(
 }
 
 @Composable
-fun SelectableWords(text: String, modifier: Modifier = Modifier) {
+fun SelectableWords(text: String, modifier: Modifier = Modifier, markdown: Boolean = false) {
     val links = LocalLinkOpener.current
     val colors = KodosiTheme.colors
-    val content = remember(text, colors.accent, links) {
+    val content = remember(text, markdown, colors.accent, colors.ink, links) {
+        val linked = TextLinkStyles(style = SpanStyle(color = colors.accent, textDecoration = TextDecoration.Underline))
         buildAnnotatedString {
-            append(text)
-            LinkPolicy.inText(text).forEach { link ->
-                addLink(
-                    LinkAnnotation.Clickable(
-                        link.address,
-                        TextLinkStyles(
-                            style = SpanStyle(color = colors.accent, textDecoration = TextDecoration.Underline)
-                        )
-                    ) { links.open(link.address) },
-                    link.range.first,
-                    link.range.last + 1
-                )
+            val named = mutableListOf<IntRange>()
+            for (run in if (markdown) InlineMarkdown.runs(text) else listOf(InlineMarkdown.Run(text))) {
+                val start = length
+                append(run.text)
+                if (run.strong || run.emphasis || run.code || run.struck) {
+                    addStyle(
+                        SpanStyle(
+                            fontWeight = if (run.strong) FontWeight.SemiBold else null,
+                            fontStyle = if (run.emphasis) FontStyle.Italic else null,
+                            fontFamily = if (run.code) FontFamily.Monospace else null,
+                            background = if (run.code) colors.ink.copy(alpha = 0.07f) else Color.Unspecified,
+                            textDecoration = if (run.struck) TextDecoration.LineThrough else null
+                        ),
+                        start,
+                        length
+                    )
+                }
+                if (run.code || run.link != null) named += start until length
+                run.link?.let { address ->
+                    addLink(LinkAnnotation.Clickable(address, linked) { links.open(address) }, start, length)
+                }
+            }
+            LinkPolicy.inText(toString()).forEach { link ->
+                if (named.none { it.first <= link.range.last && link.range.first <= it.last }) {
+                    addLink(
+                        LinkAnnotation.Clickable(link.address, linked) { links.open(link.address) },
+                        link.range.first,
+                        link.range.last + 1
+                    )
+                }
             }
         }
     }
@@ -847,20 +869,26 @@ fun ListLine(
             if (hasSubtitle) Text(subtitle, style = KodosiType.footnote, color = colors.inkMuted)
             androidx.compose.foundation.layout.FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
             ) {
                 trailing()
             }
         }
     ) { items, constraints ->
+        // A menu asks each row for its width with no limit, and a size near that limit is not a size.
+        val bounded = constraints.hasBoundedWidth
         val loose = constraints.copy(minWidth = 0, minHeight = 0, maxHeight = Constraints.Infinity)
         val mark = items[0].measure(loose)
         val markSpace = if (leading == null) 0 else maxOf(28.dp.roundToPx(), mark.width) + 12.dp.roundToPx()
-        val bodyWidth = (constraints.maxWidth - markSpace).coerceAtLeast(0)
+        val bodyWidth = if (bounded) (constraints.maxWidth - markSpace).coerceAtLeast(0) else Constraints.Infinity
         val accessory = items.last().measure(loose.copy(maxWidth = bodyWidth))
         val space = if (accessory.width > 0) 12.dp.roundToPx() else 0
-        val inline = !stacked && items[1].maxIntrinsicWidth(Constraints.Infinity) + accessory.width + space <= bodyWidth
-        val wordsWidth = if (inline) (bodyWidth - accessory.width - space).coerceAtLeast(0) else bodyWidth
+        val inline = !stacked && (
+            !bounded || accessory.width + space <= bodyWidth * 2 / 5 ||
+                items[1].maxIntrinsicWidth(Constraints.Infinity) + accessory.width + space <= bodyWidth
+            )
+        val wordsWidth = if (bounded && inline) (bodyWidth - accessory.width - space).coerceAtLeast(0) else bodyWidth
         val words = items[1].measure(loose.copy(maxWidth = wordsWidth))
         val detail = if (hasSubtitle) items[2].measure(loose.copy(maxWidth = wordsWidth)) else null
         val wordsHeight = words.height + (detail?.let { it.height + 2.dp.roundToPx() } ?: 0)
@@ -870,13 +898,19 @@ fun ListLine(
             mark.height,
             if (inline) maxOf(wordsHeight, accessory.height) else wordsHeight + accessorySpace + accessory.height
         )
-        layout(constraints.maxWidth, constraints.constrainHeight(height)) {
+        val body = maxOf(words.width, detail?.width ?: 0)
+        val width = when {
+            bounded -> constraints.maxWidth
+            inline -> markSpace + body + space + accessory.width
+            else -> markSpace + maxOf(body, accessory.width)
+        }
+        layout(width, constraints.constrainHeight(height)) {
             val top = if (inline) (height - wordsHeight) / 2 else 0
             mark.placeRelative(0, if (inline) (height - mark.height) / 2 else 0)
             words.placeRelative(markSpace, top)
             detail?.placeRelative(markSpace, top + words.height + 2.dp.roundToPx())
             accessory.placeRelative(
-                if (inline) constraints.maxWidth - accessory.width else markSpace,
+                if (inline) width - accessory.width else markSpace,
                 if (inline) (height - accessory.height) / 2 else wordsHeight + accessorySpace
             )
         }

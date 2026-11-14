@@ -223,7 +223,7 @@ ColumnLayout {
                 iconName: recoveryKey ? "lock" : "laptop"
                 tint: self ? KodosiTheme.accent : "#4f9bb0"
                 title: recoveryKey ? qsTr("Recovery key") : deviceRow.modelData.label
-                subtitle: recoveryKey ? qsTr("Approves a new device when you have no other") : ""
+                subtitle: recoveryKey ? qsTr("Approves a new device when you have no other device") : ""
 
                 Tag { visible: deviceRow.self; text: qsTr("This computer"); tone: Tag.Accent }
                 KButton {

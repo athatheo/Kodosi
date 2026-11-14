@@ -389,7 +389,8 @@ private fun MessageRow(
             SelectableWords(
                 message.text,
                 Modifier.widthIn(max = 640.dp).background(if (own) colors.accentSoft else colors.raised, shape)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                markdown = true
             )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(projectTime(message.createdAt), style = KodosiType.caption, color = colors.inkFaint)

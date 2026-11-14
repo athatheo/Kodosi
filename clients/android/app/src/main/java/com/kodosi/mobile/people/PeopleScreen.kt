@@ -477,7 +477,19 @@ fun FriendScreen(model: AppModel, id: String, back: () -> Unit, terminal: (Strin
             item {
                 FriendCard(person, terminals.sessions.filter { it.ownerUserId == id && !it.hidden })
             }
-            item { KodosiTextButton(onClick = { verifying = true }) { Text(stringResource(R.string.verify_identity)) } }
+            if (person.trusted) {
+                item {
+                    ListLine(
+                        stringResource(R.string.verified),
+                        subtitle = stringResource(R.string.invite_matches_identity, person.name),
+                        leading = { AppIcon(AppSymbol.CHECK, tint = KodosiTheme.colors.ready) }
+                    )
+                }
+            } else {
+                item {
+                    KodosiTextButton(onClick = { verifying = true }) { Text(stringResource(R.string.verify_identity)) }
+                }
+            }
             if (person.identityState == "changed") {
                 item {
                     KodosiTextButton(onClick = {

@@ -882,7 +882,7 @@
         <translation>お使いのデバイス</translation>
     </message>
     <message>
-        <source>Approves a new device when you have no other</source>
+        <source>Approves a new device when you have no other device</source>
         <translation>ほかのデバイスがないときに新しいデバイスを承認します</translation>
     </message>
     <message>

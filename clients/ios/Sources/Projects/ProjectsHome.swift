@@ -38,8 +38,7 @@ struct ProjectsHome: View {
                 NothingMatches()
             }
         }
-        .navigationTitle("Projects")
-        .pageFacts(facts)
+        .tabPage("Projects", facts: facts)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 IconButton(title: "New project", symbol: "plus", identifier: "projects.new", size: 32) { showsNewProject = true }
