@@ -5,6 +5,8 @@ import os
 
 @MainActor
 final class TerminalNotifications {
+    nonisolated static let terminalKey = "terminal"
+
     private let driver: any DesktopNotificationDriving
     private var lifetime = UUID().uuidString
     private var current: [String: RuntimeSession] = [:]
@@ -88,6 +90,7 @@ final class TerminalNotifications {
         content.title = nonEmpty(title) ?? String(localized: "Terminal")
         content.body = nonEmpty(body) ?? session.name
         content.sound = .default
+        content.userInfo = [Self.terminalKey: session.id]
         let epoch = accountEpoch
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         deliver(
@@ -142,15 +145,6 @@ final class TerminalNotifications {
                 }
             }
         }
-    }
-
-    func sessionToOpen(identifier: String) -> String? {
-        guard issued.contains(identifier), let session = current.values.first(where: {
-            self.identifier($0) == identifier
-        }) else { return nil }
-        alerts.remove(identifier)
-        driver.remove(identifiers: [identifier])
-        return session.id
     }
 
     private func identifier(_ session: RuntimeSession) -> String {
