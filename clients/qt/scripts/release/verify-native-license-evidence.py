@@ -32,9 +32,9 @@ QT_ARCHIVE_SHA256 = {
 # Qt WebEngine is released apart from Qt, as an extension of the Qt repository.
 QT_WEBENGINE_ARCHIVE = (
     "https://download.qt.io/online/qtsdkrepository/all_os/extensions/qtwebengine/6120/61400/src_doc_examples/"
-    "extensions.qtwebengine.6120.61400.src/6.12.0-0-202609281005qtwebengine-everywhere-src-6.140.0.tar.xz",
-    "9a169a5eeded781fd7690fd4edd330be0302efaa",
-    "141e9b230e5ec9ee65a7357ca4b87d702e4badc515289eeade1047a788bb96e7",
+    "extensions.qtwebengine.6120.61400.src/6.12.0-0-202611110526qtwebengine-everywhere-src-6.140.0.tar.xz",
+    "e081473af432e2b09d17caa3ca3bffd45992a0bd",
+    "bb00fb3f2475122ecde4b52b294cee34c3404fb9a6c3fb1b6150a7e85e938898",
 )
 REQUIRED_QT_LICENSES = {
     "GPL-2.0-only.txt",
