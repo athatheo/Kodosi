@@ -1442,7 +1442,7 @@ impl Runtime {
         entries.extend(self.local.values().map(|local| local.entry.clone()));
         entries.sort_by(|left, right| left.id.cmp(&right.id));
         for entry in &mut entries {
-            entry.attention = self.attention.marked(&entry.id);
+            entry.attention = self.attention.signed(&entry.id);
             show_program(entry);
         }
         entries
@@ -1468,9 +1468,17 @@ impl Runtime {
         let watched = self.watched();
         let now = tokio::time::Instant::now();
         for entry in &entries {
+            let id = &entry.id;
+            let looked = watched.contains(id);
+            let spinning = if entry.program_status.is_some() {
+                Some(false)
+            } else {
+                reads_title(entry).then_some(entry.working)
+            };
+            if self.attention.spinner_stopped(id, spinning) && calls(entry) && !looked {
+                self.attention.mark_here(id);
+            }
             if !reported_by_host(entry) && reachable(entry) {
-                let id = &entry.id;
-                let looked = watched.contains(id);
                 self.attention
                     .observe(id, entry.waiting, calls(entry), looked, now);
             }
@@ -1478,7 +1486,7 @@ impl Runtime {
         self.attention
             .retain(&entries.iter().map(|entry| entry.id.clone()).collect());
         for entry in &mut entries {
-            entry.attention = self.attention.marked(&entry.id);
+            entry.attention = self.attention.signed(&entry.id);
         }
         #[cfg(feature = "host")]
         self.share_marks();
@@ -1490,11 +1498,23 @@ impl Runtime {
     fn call_started(&mut self) {
         let now = tokio::time::Instant::now();
         for (id, wait) in self.attention.take_started() {
-            if self.attention.marked(&id)
-                && let Some(interrupt) = self.attention.cue(wait, now)
-            {
+            if let Some(interrupt) = self.attention.call(&id, wait, now) {
                 self.emit(json!({"type":"term.attention", "sessionId":id, "interrupt":interrupt}));
             }
+        }
+    }
+
+    /// The marks go to the terminal list and the status first, so that an app has the state that
+    /// a call is about.
+    fn leave(&mut self, watched: &BTreeSet<String>) {
+        if !self.attention.left() {
+            return;
+        }
+        self.attention.mark_seen_waits(watched);
+        self.publish_catalog();
+        let now = tokio::time::Instant::now();
+        for (id, interrupt) in self.attention.call_waits(now) {
+            self.emit(json!({"type":"term.attention", "sessionId":id, "interrupt":interrupt}));
         }
     }
 
@@ -1523,6 +1543,7 @@ impl Runtime {
             self.network.inner.link.present(presence);
         }
         let watched = self.watched();
+        self.leave(&watched);
         let now = tokio::time::Instant::now();
         let ended = self.attention.look(&watched);
         if self.attention.settle(now, &watched) || ended {
@@ -2844,8 +2865,14 @@ impl Runtime {
         } else if kind == "network.terminal" {
             self.terminal_changed(&event.event);
         } else if kind == "network.presence" {
+            let heard = event.event["heard"] == true;
             match serde_json::from_value::<crate::network::Elsewhere>(event.event) {
-                Ok(elsewhere) => self.attention.hear_elsewhere(elsewhere),
+                Ok(elsewhere) if heard => {
+                    self.attention.hear_elsewhere(elsewhere);
+                    let watched = self.watched();
+                    self.leave(&watched);
+                }
+                Ok(_) => self.attention.lose_elsewhere(),
                 Err(error) => tracing::warn!(%error, "a presence notice was unreadable"),
             }
         } else if kind == "network.sessions" {
@@ -3523,6 +3550,14 @@ impl Runtime {
             #[cfg(feature = "host")]
             SessionChange::Bell { id } => {
                 self.emit(json!({"type":"term.bell", "sessionId":id}));
+                let key = id.to_string();
+                if self.local.get(&id).is_some_and(|local| calls(&local.entry))
+                    && !self.attention.signed(&key)
+                    && !self.watched().contains(&key)
+                {
+                    self.attention.mark_here(&key);
+                    self.publish_catalog();
+                }
             }
             #[cfg(feature = "host")]
             SessionChange::Seen { id } => {
@@ -3558,7 +3593,9 @@ impl Runtime {
                     && !self.attention.marked(&key)
                     && !self.watched().contains(&key)
                 {
-                    let interrupt = self.attention.note(tokio::time::Instant::now());
+                    let interrupt = self
+                        .attention
+                        .notification_interrupts(tokio::time::Instant::now());
                     self.emit(json!({"type":"term.notification", "sessionId":id,
                         "runtimeIncarnationId":incarnation, "title":title, "body":body,
                         "interrupt":interrupt}));

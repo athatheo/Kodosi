@@ -2787,6 +2787,9 @@
                 "const": "away"
               },
               {
+                "const": "idle"
+              },
+              {
                 "const": "here"
               },
               {

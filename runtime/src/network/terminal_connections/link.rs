@@ -314,6 +314,10 @@ impl Link {
     }
 
     pub(crate) fn present(&self, presence: Presence) {
+        let presence = match presence {
+            Presence::Idle => Presence::Away,
+            presence => presence,
+        };
         let Ok(mut shared) = self.shared.lock() else {
             return;
         };
@@ -835,8 +839,9 @@ mod tests {
         assert_eq!(states(&mut controls), ["here"]);
         link.refresh_presence();
         assert_eq!(states(&mut controls), ["here"]);
-        link.present(Presence::Away);
+        link.present(Presence::Idle);
         link.refresh_presence();
+        link.present(Presence::Away);
         assert_eq!(states(&mut controls), ["away"]);
         link.disconnected();
         assert_eq!(states(&mut connect(&link)), ["away"]);

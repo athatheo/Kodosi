@@ -135,7 +135,7 @@ impl Waiting {
             network.emit_hosts(admitted, hosts);
         }
         if let Some(elsewhere) = self.elsewhere.take() {
-            network.emit_elsewhere(admitted, elsewhere);
+            network.emit_elsewhere(admitted, Some(elsewhere));
         }
     }
 }
@@ -288,7 +288,7 @@ impl BackendClient {
             result = refresh => result,
         };
         self.emit_hosts(admitted, Vec::new());
-        self.emit_elsewhere(admitted, Elsewhere::default());
+        self.emit_elsewhere(admitted, None);
         if matches!(result, Err(Error::Backend { status: 403, .. })) {
             let mut waiting = Waiting::default();
             waiting.add(&Change::of("devices"))?;
@@ -458,11 +458,14 @@ impl BackendClient {
         );
     }
 
-    fn emit_elsewhere(&self, admitted: &Credentials, elsewhere: Elsewhere) {
+    fn emit_elsewhere(&self, admitted: &Credentials, elsewhere: Option<Elsewhere>) {
+        let heard = elsewhere.is_some();
+        let elsewhere = elsewhere.unwrap_or_default();
         self.emit_for(
             admitted.generation,
             Some(admitted.user_id.clone()),
-            json!({"type":"network.presence","kodosi":elsewhere.kodosi,"here":elsewhere.here}),
+            json!({"type":"network.presence","kodosi":elsewhere.kodosi,"here":elsewhere.here,
+                "heard":heard}),
         );
     }
 

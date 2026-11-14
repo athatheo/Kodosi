@@ -91,6 +91,7 @@ fn the_device_is_where_its_most_present_app_is_and_away_without_one() {
     assert_eq!(attention.changed_presence(), None);
     let attached = Uuid::now_v7();
     assert!(attention.looks(&attached));
+    let idle = present(&mut attention, Presence::Idle);
     let here = present(&mut attention, Presence::Here);
     let kodosi = present(&mut attention, Presence::Kodosi);
     let _away = present(&mut attention, Presence::Away);
@@ -99,25 +100,39 @@ fn the_device_is_where_its_most_present_app_is_and_away_without_one() {
     kodosi.cancel();
     assert_eq!(attention.changed_presence(), Some(Presence::Here));
     here.cancel();
+    assert_eq!(attention.changed_presence(), Some(Presence::Idle));
+    idle.cancel();
     assert_eq!(attention.changed_presence(), Some(Presence::Away));
 
     let app = Uuid::now_v7();
-    attention.present(app, Presence::Here, CancellationToken::new());
-    assert!(!attention.looks(&app));
+    for presence in [Presence::Idle, Presence::Here] {
+        attention.present(app, presence, CancellationToken::new());
+        assert!(!attention.looks(&app));
+    }
     attention.present(app, Presence::Kodosi, CancellationToken::new());
     assert!(attention.looks(&app));
     assert_eq!(attention.changed_presence(), Some(Presence::Kodosi));
 }
 
-fn cues(presence: Presence, elsewhere: Elsewhere) -> Option<bool> {
+fn waiting(attention: &mut Attention) {
+    let blocked = TerminalStatus {
+        state: Some(crate::terminal::ProgramState::Blocked),
+        attention: true,
+        ..TerminalStatus::default()
+    };
+    attention.report(ID, Some(&blocked), false);
+}
+
+fn calls(presence: Presence, elsewhere: Elsewhere) -> Option<bool> {
     let mut attention = Attention::default();
+    waiting(&mut attention);
     let _app = present(&mut attention, presence);
     attention.hear_elsewhere(elsewhere);
-    attention.cue(Waiting::Blocked, Instant::now())
+    attention.call(ID, Waiting::Blocked, Instant::now())
 }
 
 #[test]
-fn a_call_shows_on_a_computer_where_its_person_is_and_quietly_where_nobody_is() {
+fn a_call_shows_on_a_computer_where_its_person_can_be_and_quietly_where_nobody_is() {
     let nowhere = Elsewhere::default();
     let in_kodosi = Elsewhere {
         kodosi: true,
@@ -127,31 +142,144 @@ fn a_call_shows_on_a_computer_where_its_person_is_and_quietly_where_nobody_is() 
         kodosi: false,
         here: true,
     };
-    assert_eq!(cues(Presence::Here, nowhere), Some(true));
-    assert_eq!(cues(Presence::Here, at_a_computer), Some(true));
-    assert_eq!(cues(Presence::Here, in_kodosi), None);
-    assert_eq!(cues(Presence::Away, nowhere), Some(false));
-    assert_eq!(cues(Presence::Away, at_a_computer), None);
-    assert_eq!(cues(Presence::Away, in_kodosi), None);
-    assert_eq!(cues(Presence::Kodosi, nowhere), None);
+    assert_eq!(calls(Presence::Here, nowhere), Some(true));
+    assert_eq!(calls(Presence::Here, at_a_computer), Some(true));
+    assert_eq!(calls(Presence::Here, in_kodosi), None);
+    assert_eq!(calls(Presence::Idle, nowhere), Some(true));
+    assert_eq!(calls(Presence::Idle, at_a_computer), None);
+    assert_eq!(calls(Presence::Idle, in_kodosi), None);
+    assert_eq!(calls(Presence::Away, nowhere), Some(false));
+    assert_eq!(calls(Presence::Away, at_a_computer), None);
+    assert_eq!(calls(Presence::Away, in_kodosi), None);
+    assert_eq!(calls(Presence::Kodosi, nowhere), None);
 }
 
 #[test]
 fn only_a_wait_interrupts_and_at_most_once_in_thirty_seconds() {
     let mut attention = Attention::default();
-    let _app = present(&mut attention, Presence::Here);
+    waiting(&mut attention);
+    let app = Uuid::now_v7();
+    attention.present(app, Presence::Here, CancellationToken::new());
     let start = Instant::now();
-    assert_eq!(attention.cue(Waiting::Done, start), Some(false));
-    assert_eq!(attention.cue(Waiting::Error, start), Some(false));
-    assert_eq!(attention.cue(Waiting::Blocked, start), Some(true));
+    assert_eq!(attention.call(ID, Waiting::Done, start), Some(false));
+    assert_eq!(attention.call(ID, Waiting::Error, start), Some(false));
+    assert_eq!(attention.call(ID, Waiting::Blocked, start), Some(true));
+    attention.present(app, Presence::Idle, CancellationToken::new());
     assert_eq!(
-        attention.cue(Waiting::Blocked, after(start, 29_999)),
+        attention.call(ID, Waiting::Blocked, after(start, 29_999)),
         Some(false)
     );
     assert_eq!(
-        attention.cue(Waiting::Blocked, after(start, 30_000)),
+        attention.call(ID, Waiting::Blocked, after(start, 30_000)),
         Some(true)
     );
+    attention.report(ID, None, false);
+    assert_eq!(
+        attention.call(ID, Waiting::Blocked, after(start, 90_000)),
+        None
+    );
+}
+
+fn seen_in(attention: &mut Attention, id: &str, wait: Waiting, start: Instant) {
+    attention.observe(id, None, true, false, start);
+    attention.observe(id, Some(wait), true, true, start);
+    assert!(!attention.settle(after(start, 2000), &BTreeSet::new()));
+}
+
+#[test]
+fn a_wait_that_its_person_saw_follows_the_person_who_leaves() {
+    let mut attention = Attention::default();
+    let start = Instant::now();
+    let (waits, done, answered) = (ID, "done", "answered");
+    seen_in(&mut attention, waits, Waiting::Blocked, start);
+    seen_in(&mut attention, done, Waiting::Done, start);
+    seen_in(&mut attention, answered, Waiting::Blocked, start);
+    attention.observe(answered, None, true, false, after(start, 3000));
+    let app = Uuid::now_v7();
+    attention.present(app, Presence::Kodosi, CancellationToken::new());
+    assert!(!attention.left());
+
+    attention.present(app, Presence::Idle, CancellationToken::new());
+    assert!(attention.left());
+    assert!(attention.mark_seen_waits(&BTreeSet::new()));
+    assert!(attention.marked(waits));
+    assert!(!attention.marked(done) && !attention.marked(answered));
+    assert_eq!(
+        attention.call_waits(after(start, 4000)),
+        [(waits.to_owned(), true)]
+    );
+    assert_eq!(attention.call_waits(after(start, 5000)), Vec::new());
+    assert!(!attention.left());
+
+    attention.hear_elsewhere(Elsewhere {
+        kodosi: false,
+        here: true,
+    });
+    assert!(!attention.left());
+    attention.present(app, Presence::Away, CancellationToken::new());
+    attention.hear_elsewhere(Elsewhere::default());
+    assert!(attention.left());
+    assert_eq!(
+        attention.call_waits(after(start, 6000)),
+        [(waits.to_owned(), false)]
+    );
+}
+
+#[test]
+fn a_wait_that_called_while_its_person_was_gone_does_not_call_again_when_the_person_leaves() {
+    let mut attention = Attention::default();
+    let start = Instant::now();
+    let blocked = TerminalStatus {
+        state: Some(crate::terminal::ProgramState::Blocked),
+        attention: true,
+        ..TerminalStatus::default()
+    };
+    attention.report("earlier", Some(&blocked), false);
+    let app = Uuid::now_v7();
+    attention.present(app, Presence::Here, CancellationToken::new());
+    assert!(!attention.left());
+    attention.present(app, Presence::Away, CancellationToken::new());
+    attention.report(ID, Some(&blocked), true);
+    assert_eq!(
+        attention.take_started(),
+        [(ID.to_owned(), Waiting::Blocked)]
+    );
+    assert_eq!(attention.call(ID, Waiting::Blocked, start), Some(false));
+    assert!(attention.left());
+    assert_eq!(attention.call_waits(start), [("earlier".to_owned(), false)]);
+}
+
+#[test]
+fn a_device_that_loses_its_connection_does_not_count_its_person_as_gone() {
+    let mut attention = Attention::default();
+    attention.hear_elsewhere(Elsewhere {
+        kodosi: true,
+        here: false,
+    });
+    assert!(!attention.left());
+    attention.lose_elsewhere();
+    assert!(!attention.left());
+}
+
+#[test]
+fn a_bell_or_a_stopped_spinner_marks_a_terminal_for_this_device_alone() {
+    let mut attention = Attention::default();
+    for (spinning, stopped) in [
+        (Some(true), false),
+        (None, false),
+        (Some(true), false),
+        (Some(false), true),
+        (Some(false), false),
+    ] {
+        assert_eq!(attention.spinner_stopped(ID, spinning), stopped);
+    }
+    attention.mark_here(ID);
+    assert!(attention.signed(ID));
+    assert!(!attention.marked(ID));
+    #[cfg(feature = "host")]
+    assert_eq!(attention.marked_state(ID), None);
+    assert!(attention.look(&looking()));
+    assert!(!attention.signed(ID));
 }
 
 #[test]

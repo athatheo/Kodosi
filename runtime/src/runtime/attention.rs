@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     time::Duration,
 };
 
@@ -23,10 +23,15 @@ const SEEN_AGAIN: Duration = Duration::from_secs(10);
 pub(super) struct Attention {
     kept: HashMap<String, Kept>,
     reported: HashMap<String, Reported>,
+    /// A bell, or a title spinner that stops, marks a terminal for the apps of this device only:
+    /// the status carries only the mark of a state.
+    local: HashSet<String>,
+    spinning: HashMap<String, bool>,
     started: Vec<(String, Waiting)>,
     clients: HashMap<Uuid, Client>,
     presence: Presence,
     elsewhere: Elsewhere,
+    present: bool,
     interrupted: Option<Instant>,
     listed: Option<u64>,
 }
@@ -35,8 +40,33 @@ pub(super) struct Attention {
 struct Kept {
     wait: Option<Waiting>,
     since: Instant,
-    seen: bool,
-    marked: bool,
+    calls: bool,
+    look: Look,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Look {
+    /// The state was there when this runtime first saw the terminal, or came while the terminal
+    /// did not call this device.
+    Quiet,
+    Settling,
+    Seen,
+    Marked {
+        called_absent: bool,
+    },
+}
+
+impl Kept {
+    const fn marked(&self) -> bool {
+        matches!(self.look, Look::Marked { .. })
+    }
+
+    fn end_by_look(&mut self) -> bool {
+        matches!(
+            std::mem::replace(&mut self.look, Look::Seen),
+            Look::Marked { .. }
+        )
+    }
 }
 
 /// A mark that the host of one of the person's terminals reports.
@@ -44,6 +74,7 @@ struct Reported {
     wait: Option<Waiting>,
     marked: bool,
     told: Option<Instant>,
+    called_absent: bool,
 }
 
 struct Client {
@@ -53,22 +84,25 @@ struct Client {
 
 impl Attention {
     pub(super) fn marked(&self, id: &str) -> bool {
-        self.kept.get(id).is_some_and(|kept| kept.marked)
+        self.kept.get(id).is_some_and(Kept::marked)
             || self
                 .reported
                 .get(id)
                 .is_some_and(|reported| reported.marked)
     }
 
+    pub(super) fn signed(&self, id: &str) -> bool {
+        self.marked(id) || self.local.contains(id)
+    }
+
     #[cfg(feature = "host")]
     pub(super) fn marked_state(&self, id: &str) -> Option<Waiting> {
         self.kept
             .get(id)
-            .filter(|kept| kept.marked)
+            .filter(|kept| kept.marked())
             .and_then(|kept| kept.wait)
     }
 
-    /// The state that a terminal has when this runtime first sees it is not news.
     pub(super) fn observe(
         &mut self,
         id: &str,
@@ -78,13 +112,20 @@ impl Attention {
         now: Instant,
     ) {
         match self.kept.get_mut(id) {
-            Some(kept) if kept.wait == wait => {}
+            Some(kept) if kept.wait == wait => kept.calls = calls,
             Some(kept) => {
+                let look = if wait.is_none() || !calls {
+                    Look::Quiet
+                } else if watched {
+                    Look::Seen
+                } else {
+                    Look::Settling
+                };
                 *kept = Kept {
                     wait,
                     since: now,
-                    seen: wait.is_none() || !calls || watched,
-                    marked: false,
+                    calls,
+                    look,
                 };
             }
             None => {
@@ -93,8 +134,8 @@ impl Attention {
                     Kept {
                         wait,
                         since: now,
-                        seen: true,
-                        marked: false,
+                        calls,
+                        look: Look::Quiet,
                     },
                 );
             }
@@ -104,16 +145,18 @@ impl Attention {
     pub(super) fn settle(&mut self, now: Instant, watched: &BTreeSet<String>) -> bool {
         let mut started = false;
         for (id, kept) in &mut self.kept {
-            let Some(wait) = kept.wait.filter(|_| !kept.marked && !kept.seen) else {
+            let Some(wait) = kept.wait.filter(|_| kept.look == Look::Settling) else {
                 continue;
             };
             if now.saturating_duration_since(kept.since) < SETTLE {
                 continue;
             }
             if watched.contains(id) {
-                kept.seen = true;
+                kept.look = Look::Seen;
             } else {
-                kept.marked = true;
+                kept.look = Look::Marked {
+                    called_absent: false,
+                };
                 self.started.push((id.clone(), wait));
                 started = true;
             }
@@ -125,19 +168,30 @@ impl Attention {
         let mut ended = false;
         for id in watched {
             if let Some(kept) = self.kept.get_mut(id) {
-                kept.seen = true;
-                ended |= std::mem::take(&mut kept.marked);
+                ended |= kept.end_by_look();
             }
+            ended |= self.local.remove(id);
         }
         ended
     }
 
     #[cfg(feature = "host")]
     pub(super) fn seen_elsewhere(&mut self, id: &str) -> bool {
-        self.kept.get_mut(id).is_some_and(|kept| {
-            kept.seen = true;
-            std::mem::take(&mut kept.marked)
-        })
+        self.kept.get_mut(id).is_some_and(Kept::end_by_look)
+    }
+
+    pub(super) fn mark_here(&mut self, id: &str) {
+        self.local.insert(id.to_owned());
+    }
+
+    /// `spinning` is absent while the title of a program without a state cannot be read, so a
+    /// terminal that comes back with a still title did not stop.
+    pub(super) fn spinner_stopped(&mut self, id: &str, spinning: Option<bool>) -> bool {
+        let Some(spinning) = spinning else {
+            return false;
+        };
+        let before = self.spinning.insert(id.to_owned(), spinning);
+        before == Some(true) && !spinning
     }
 
     /// A list of the terminals is news only when an earlier list came on the same device
@@ -159,13 +213,21 @@ impl Attention {
         let before = self
             .reported
             .get(id)
-            .filter(|before| before.marked && before.wait == wait);
-        let told = before.filter(|_| marked).and_then(|before| before.told);
+            .filter(|before| marked && before.marked && before.wait == wait);
+        let (told, called_absent) =
+            before.map_or((None, false), |before| (before.told, before.called_absent));
         if let Some(wait) = wait.filter(|_| marked && before.is_none() && live) {
             self.started.push((id.to_owned(), wait));
         }
-        self.reported
-            .insert(id.to_owned(), Reported { wait, marked, told });
+        self.reported.insert(
+            id.to_owned(),
+            Reported {
+                wait,
+                marked,
+                told,
+                called_absent,
+            },
+        );
     }
 
     pub(super) fn to_tell(&self, watched: &BTreeSet<String>, now: Instant) -> Vec<String> {
@@ -192,6 +254,8 @@ impl Attention {
     pub(super) fn retain(&mut self, ids: &BTreeSet<String>) {
         self.kept.retain(|id, _| ids.contains(id));
         self.reported.retain(|id, _| ids.contains(id));
+        self.local.retain(|id| ids.contains(id));
+        self.spinning.retain(|id, _| ids.contains(id));
     }
 
     pub(super) fn take_started(&mut self) -> Vec<(String, Waiting)> {
@@ -231,30 +295,131 @@ impl Attention {
         (std::mem::replace(&mut self.presence, presence) != presence).then_some(presence)
     }
 
+    fn person_present(&self) -> bool {
+        matches!(self.device(), Presence::Kodosi | Presence::Here)
+            || self.elsewhere.kodosi
+            || self.elsewhere.here
+    }
+
+    /// Whether the person stopped being present since the last call.
+    pub(super) fn left(&mut self) -> bool {
+        let present = self.person_present();
+        let was = std::mem::replace(&mut self.present, present);
+        if present && !was {
+            for kept in self.kept.values_mut() {
+                if kept.marked() {
+                    kept.look = Look::Marked {
+                        called_absent: false,
+                    };
+                }
+            }
+            for reported in self.reported.values_mut() {
+                reported.called_absent = false;
+            }
+        }
+        was && !present
+    }
+
     pub(super) fn hear_elsewhere(&mut self, elsewhere: Elsewhere) {
         self.elsewhere = elsewhere;
     }
 
-    pub(super) fn forget_account(&mut self) {
+    /// A device that lost its connection hears nothing about the others, and that is no change
+    /// of where the person is.
+    pub(super) fn lose_elsewhere(&mut self) {
         self.elsewhere = Elsewhere::default();
+        self.present = self.person_present();
+    }
+
+    pub(super) fn forget_account(&mut self) {
+        self.lose_elsewhere();
         self.listed = None;
     }
 
-    /// Whether this device shows a notification for a mark that started, and whether it
-    /// interrupts. A person in Kodosi on any device sees the sign there, and a person at another
-    /// computer gets the notification there.
-    pub(super) fn cue(&mut self, wait: Waiting, now: Instant) -> Option<bool> {
-        let may_interrupt = match self.device() {
-            Presence::Here if !self.elsewhere.kodosi => true,
-            Presence::Away if !self.elsewhere.kodosi && !self.elsewhere.here => false,
-            _ => return None,
+    /// A wait that its person saw and did not answer follows the person who leaves.
+    pub(super) fn mark_seen_waits(&mut self, watched: &BTreeSet<String>) -> bool {
+        let mut marked = false;
+        for (id, kept) in &mut self.kept {
+            if kept.wait == Some(Waiting::Blocked)
+                && kept.calls
+                && kept.look == Look::Seen
+                && !watched.contains(id)
+            {
+                kept.look = Look::Marked {
+                    called_absent: false,
+                };
+                marked = true;
+            }
+        }
+        marked
+    }
+
+    /// The waits that the person leaves behind call again, each once in an absence.
+    pub(super) fn call_waits(&mut self, now: Instant) -> Vec<(String, bool)> {
+        let Some(may_interrupt) = self.shows() else {
+            return Vec::new();
         };
+        let blocked = Some(Waiting::Blocked);
+        let mut waits = Vec::new();
+        for (id, kept) in &mut self.kept {
+            if kept.wait == blocked
+                && kept.look
+                    == (Look::Marked {
+                        called_absent: false,
+                    })
+            {
+                kept.look = Look::Marked {
+                    called_absent: true,
+                };
+                waits.push(id.clone());
+            }
+        }
+        for (id, reported) in &mut self.reported {
+            if reported.wait == blocked && reported.marked && !reported.called_absent {
+                reported.called_absent = true;
+                waits.push(id.clone());
+            }
+        }
+        waits
+            .into_iter()
+            .map(|id| (id, may_interrupt && self.interrupt(now)))
+            .collect()
+    }
+
+    /// Whether this device shows a notification, and whether it may interrupt. A person in
+    /// Kodosi on any device sees the sign there, and a person at another computer gets the
+    /// notification there.
+    fn shows(&self) -> Option<bool> {
+        let nobody_elsewhere = !self.elsewhere.kodosi && !self.elsewhere.here;
+        match self.device() {
+            Presence::Here if !self.elsewhere.kodosi => Some(true),
+            Presence::Idle if nobody_elsewhere => Some(true),
+            Presence::Away if nobody_elsewhere => Some(false),
+            _ => None,
+        }
+    }
+
+    pub(super) fn call(&mut self, id: &str, wait: Waiting, now: Instant) -> Option<bool> {
+        if !self.marked(id) {
+            return None;
+        }
+        let may_interrupt = self.shows()?;
+        if !self.person_present() {
+            if let Some(kept) = self.kept.get_mut(id).filter(|kept| kept.marked()) {
+                kept.look = Look::Marked {
+                    called_absent: true,
+                };
+            }
+            if let Some(reported) = self.reported.get_mut(id) {
+                reported.called_absent = true;
+            }
+        }
         Some(may_interrupt && wait == Waiting::Blocked && self.interrupt(now))
     }
 
     #[cfg(feature = "host")]
-    pub(super) fn note(&mut self, now: Instant) -> bool {
-        let interrupt = self.device() != Presence::Away;
+    pub(super) fn notification_interrupts(&mut self, now: Instant) -> bool {
+        let interrupt = matches!(self.device(), Presence::Kodosi | Presence::Here);
         if interrupt {
             self.interrupted = Some(now);
         }

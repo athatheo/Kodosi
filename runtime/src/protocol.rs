@@ -997,6 +997,9 @@ pub struct SessionEntry {
 pub enum Presence {
     #[default]
     Away,
+    /// No input for the away time, but the screen of this computer is on and not locked, so
+    /// the person can still be in front of it. The server knows it as away.
+    Idle,
     Here,
     Kodosi,
 }
