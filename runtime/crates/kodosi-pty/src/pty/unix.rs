@@ -277,14 +277,9 @@ impl KodosiPty {
         Ok(())
     }
 
-    async fn wait(&mut self) -> Result<()> {
-        self.child.wait().await?;
-        Ok(())
-    }
-
     pub async fn wait_within(&mut self, grace: Duration) -> Result<WaitOutcome> {
         match tokio::time::timeout(grace, async {
-            self.wait().await?;
+            self.child.wait().await?;
             while !session_processes(self.child_pid)?.is_empty() {
                 tokio::time::sleep(Duration::from_millis(20)).await;
             }
@@ -787,8 +782,8 @@ fn foreground_process_group(fd: RawFd) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::{
-        KodosiPty, PtyReader, ShutdownStage, Transfer, find_executable, login_shell_name,
-        resolve_program, set_terminal_size_using_fd, validate_working_dir,
+        KodosiPty, PtyReader, ShutdownStage, Transfer, WaitOutcome, find_executable,
+        login_shell_name, resolve_program, set_terminal_size_using_fd, validate_working_dir,
     };
     use nix::fcntl::{FcntlArg, FdFlag, fcntl};
     use std::{
@@ -808,6 +803,30 @@ mod tests {
         }
     }
 
+    async fn end_by_force(pty: &mut KodosiPty, reader: &mut PtyReader) {
+        pty.request_shutdown(ShutdownStage::Force).unwrap();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        let mut buffer = [0; 4096];
+        let mut readable = true;
+        // On macOS the session leader of a terminal, and the last process that closes it, wait
+        // in exit until the output of the terminal is read.
+        loop {
+            tokio::select! {
+                outcome = pty.wait_within(deadline.saturating_duration_since(tokio::time::Instant::now())) => {
+                    assert_eq!(
+                        outcome.unwrap(),
+                        WaitOutcome::Reaped,
+                        "a process of the terminal outlived its forced shutdown"
+                    );
+                    return;
+                }
+                read = reader.read(&mut buffer), if readable => {
+                    readable = matches!(read, Ok(count) if count > 0);
+                }
+            }
+        }
+    }
+
     #[test]
     fn other_programs_of_the_host_do_not_inherit_a_terminal() {
         tokio::runtime::Builder::new_current_thread()
@@ -815,7 +834,7 @@ mod tests {
             .build()
             .unwrap()
             .block_on(async {
-                let (mut pty, reader) =
+                let (mut pty, mut reader) =
                     KodosiPty::spawn_program(Path::new("/bin/cat"), &[], None, 24, 80, &[], None)
                         .unwrap();
                 let reader_fd = reader.pending.as_ref().unwrap().as_raw_fd();
@@ -824,8 +843,7 @@ mod tests {
                     let flags = fcntl(descriptor, FcntlArg::F_GETFD).unwrap();
                     assert!(FdFlag::from_bits_truncate(flags).contains(FdFlag::FD_CLOEXEC));
                 }
-                pty.request_shutdown(ShutdownStage::Force).unwrap();
-                pty.wait().await.unwrap();
+                end_by_force(&mut pty, &mut reader).await;
             });
     }
 
@@ -918,8 +936,7 @@ mod tests {
                     );
                     output.extend_from_slice(&bytes[..count]);
                 }
-                pty.request_shutdown(ShutdownStage::Force).unwrap();
-                pty.wait().await.unwrap();
+                end_by_force(&mut pty, &mut reader).await;
             });
     }
 
@@ -944,10 +961,9 @@ mod tests {
             }).await.unwrap();
             assert_ne!(nix::unistd::getpgid(Some(nix::unistd::Pid::from_raw(child))).unwrap().as_raw(), pty.child_pid as i32);
             pty.request_shutdown(ShutdownStage::Hangup).unwrap();
-            assert_eq!(pty.wait_within(Duration::from_millis(100)).await.unwrap(), super::WaitOutcome::TimedOut);
+            assert_eq!(pty.wait_within(Duration::from_millis(100)).await.unwrap(), WaitOutcome::TimedOut);
             assert!(super::session_processes(pty.child_pid).unwrap().contains(&child));
-            pty.request_shutdown(ShutdownStage::Force).unwrap();
-            assert!(matches!(pty.wait_within(Duration::from_secs(2)).await.unwrap(), super::WaitOutcome::Reaped));
+            end_by_force(&mut pty, &mut reader).await;
             assert_eq!(super::session_processes(pty.child_pid).unwrap(), Vec::<i32>::new());
         });
     }
@@ -1003,8 +1019,7 @@ mod tests {
                 let group = pty.foreground_process_group().unwrap();
                 assert_ne!(group, pty.child_pid);
                 assert_eq!(super::process_group(group), Some(group));
-                pty.request_shutdown(ShutdownStage::Force).unwrap();
-                pty.wait().await.unwrap();
+                end_by_force(&mut pty, &mut reader).await;
             });
     }
 
@@ -1080,7 +1095,7 @@ mod tests {
                     pty.request_shutdown(stage).unwrap();
                     assert_eq!(
                         pty.wait_within(Duration::from_secs(5)).await.unwrap(),
-                        super::WaitOutcome::Reaped,
+                        WaitOutcome::Reaped,
                         "{stage:?}"
                     );
                 }
@@ -1135,8 +1150,7 @@ mod tests {
                     assert!(count > 0, "{}", String::from_utf8_lossy(&output));
                     output.extend_from_slice(&bytes[..count]);
                 }
-                pty.request_shutdown(ShutdownStage::Force).unwrap();
-                pty.wait().await.unwrap();
+                end_by_force(&mut pty, &mut reader).await;
                 String::from_utf8_lossy(&output).into_owned()
             });
         let variables: Vec<&str> = output.lines().map(str::trim_end).collect();
