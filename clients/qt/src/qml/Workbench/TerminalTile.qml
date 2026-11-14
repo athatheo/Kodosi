@@ -449,38 +449,37 @@ Item {
                                 title: qsTr("Model")
                                 objectName: root.objectName + ".agent.model"
                                 available: agentChanges.shown && agentChanges.live.model === true && agentChanges.models !== null
-                                hint: agentChanges.shownValue(agentChanges.modelLabel(agentChanges.model), agentChanges.pending.model !== undefined)
+                                hint: agentChanges.modelHint
                                 options: agentChanges.modelOptions
                                 current: agentChanges.model
-                                note: agentChanges.note(agentChanges.live.keeps === true)
+                                note: agentChanges.keepingNote
                                 onPicked: id => Models.SessionActions.changeAgent(root.sessionId, { model: id })
                             }
                             AgentChoiceMenu {
                                 title: qsTr("Effort")
                                 objectName: root.objectName + ".agent.effort"
                                 available: agentChanges.shown && agentChanges.live.effort === true && agentChanges.effortOptions.length > 0
-                                hint: agentChanges.shownValue(agentChanges.effort.length > 0 ? Models.DesktopSettings.effortLabel(agentChanges.effort) : "",
-                                    agentChanges.pending.effort !== undefined)
+                                hint: agentChanges.effortHint
                                 options: agentChanges.effortOptions
                                 current: agentChanges.effort
-                                note: agentChanges.note(agentChanges.live.keeps === true)
+                                note: agentChanges.keepingNote
                                 onPicked: id => Models.SessionActions.changeAgent(root.sessionId, { effort: id })
                             }
                             AgentChoiceMenu {
                                 title: qsTr("Permissions")
                                 objectName: root.objectName + ".agent.permissions"
                                 available: agentChanges.shown && (agentChanges.live.permissions || []).length > 0
-                                hint: agentChanges.shownValue(agentChanges.permissionLabel(agentChanges.permissions), agentChanges.pending.permissions !== undefined)
+                                hint: agentChanges.permissionsHint
                                 options: agentChanges.permissionOptions
                                 current: agentChanges.permissions
-                                note: agentChanges.note(false)
+                                note: agentChanges.turnNote
                                 onPicked: id => Models.SessionActions.changeAgent(root.sessionId, { permissions: id })
                             }
                             AgentChoiceMenu {
                                 title: qsTr("Verbosity")
                                 objectName: root.objectName + ".agent.output"
                                 available: agentChanges.shown && agentChanges.output.length > 0
-                                hint: agentChanges.outputLabel(agentChanges.output)
+                                hint: agentChanges.outputHint
                                 options: agentChanges.outputOptions
                                 current: agentChanges.output
                             }
@@ -1007,6 +1006,13 @@ Item {
         readonly property var outputOptions: ["quiet", "standard", "detailed"]
             .filter(id => knownOutputs.includes(id) || id === output)
             .map(id => ({ id: id, label: outputLabel(id), enabled: false, detail: id === output ? "" : qsTr("Only at start") }))
+        readonly property string modelHint: shownValue(modelLabel(model), pending.model !== undefined)
+        readonly property string effortHint: shownValue(effort.length > 0 ? Models.DesktopSettings.effortLabel(effort) : "",
+            pending.effort !== undefined)
+        readonly property string permissionsHint: shownValue(permissionLabel(permissions), pending.permissions !== undefined)
+        readonly property string outputHint: outputLabel(output)
+        readonly property string keepingNote: note(live.keeps === true)
+        readonly property string turnNote: note(false)
 
         function outputLabel(id) {
             return id === "quiet" ? qsTr("Quiet") : id === "detailed" ? qsTr("Detailed") : id === "standard" ? qsTr("Standard") : ""
