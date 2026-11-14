@@ -155,7 +155,8 @@ function Steps({
   const { msgStr } = i18n;
   const attributes = Object.values(profile.attributesByName);
   const handleAttribute = attributes.find((one) => one.name === "username" && !one.readOnly);
-  const details = attributes.filter((one) => one !== handleAttribute);
+  const language = attributes.find((one) => one.name === "locale");
+  const details = attributes.filter((one) => one !== handleAttribute && one !== language);
   const terms = "termsAcceptanceRequired" in kcContext && !!kcContext.termsAcceptanceRequired;
   const steps: StepId[] = [
     ...(handleAttribute ? (["handle"] as const) : []),
@@ -460,6 +461,13 @@ function Steps({
             {extra}
             {last === "details" && finishing}
           </div>
+        )}
+        {language && (
+          <input
+            type="hidden"
+            name="locale"
+            value={kcContext.locale?.currentLanguageTag ?? language.value ?? ""}
+          />
         )}
         {password && (
           <div data-step="password" className={step === "password" ? "resolve" : "hidden"}>
