@@ -12,10 +12,37 @@ extension View {
 
     /// The line stays in the bar while it is empty: the bar must have its height from the start,
     /// or the page opens scrolled under it.
-    func pageFacts(_ facts: String) -> some View {
+    func pageFacts(_ facts: String?) -> some View {
         toolbar {
-            ToolbarItem(placement: .largeSubtitle) { PageFacts(text: facts) }
+            if let facts {
+                ToolbarItem(placement: .largeSubtitle) { PageFacts(text: facts) }
+            }
         }
+    }
+
+    /// On an iPad, the tab bar at the top names the first page of a tab, and the page's own title
+    /// would stand at the edge of the screen, out of line with the page's column.
+    func tabPage(_ title: LocalizedStringKey, inline: Bool = false, facts: String? = nil) -> some View {
+        modifier(TabPage(title: title, inline: inline, facts: facts))
+    }
+}
+
+private struct TabPage: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    let title: LocalizedStringKey
+    let inline: Bool
+    let facts: String?
+
+    private var namedByTabBar: Bool {
+        ThisDevice.isPad && sizeClass == .regular
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(inline || namedByTabBar ? .inline : .automatic)
+            .toolbar(removing: namedByTabBar ? .title : nil)
+            .pageFacts(namedByTabBar ? nil : facts)
     }
 }
 
