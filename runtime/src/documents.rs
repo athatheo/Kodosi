@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 use documents::{Documents, Viewer};
 use documents_cli::{Agents, Command, formats};
 use tokio::sync::mpsc;
@@ -11,10 +11,33 @@ use crate::text::Text;
 const STATE_FOLDER: &str = "documents";
 
 #[derive(Parser)]
-#[command(name = "kodosi doc")]
+#[command(name = "kodosi doc", bin_name = "kodosi doc")]
 struct DocumentCommand {
     #[command(subcommand)]
-    command: Command,
+    action: DocumentAction,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum DocumentAction {
+    #[command(flatten)]
+    Edit(Command),
+    /// Draws each page, slide, sheet or screen of text as people see it, and prints the paths of
+    /// the pictures.
+    Render(RenderArguments),
+}
+
+#[derive(Args)]
+pub(crate) struct RenderArguments {
+    /// A document, sheet, presentation, PDF or text file.
+    pub file: PathBuf,
+    /// The folder of the pictures. Without it, they go to a private folder of the terminal.
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+}
+
+pub(crate) fn parse(arguments: Vec<String>) -> Result<DocumentAction, clap::Error> {
+    DocumentCommand::try_parse_from(std::iter::once("doc".to_owned()).chain(arguments))
+        .map(|command| command.action)
 }
 
 #[derive(Clone)]
@@ -41,22 +64,7 @@ impl DocumentHost {
         Ok(ends_of(pipe))
     }
 
-    pub(crate) async fn run(
-        &self,
-        viewer: &Viewer,
-        folder: &Path,
-        arguments: Vec<String>,
-    ) -> CanvasAnswer {
-        let words = std::iter::once("doc".to_owned()).chain(arguments);
-        let command = match DocumentCommand::try_parse_from(words) {
-            Ok(parsed) => parsed.command.rooted(folder),
-            Err(error) => {
-                return CanvasAnswer::Text {
-                    text: error.render().to_string(),
-                    code: i32::from(error.use_stderr()) * 2,
-                };
-            }
-        };
+    pub(crate) async fn run(&self, viewer: &Viewer, command: Command) -> CanvasAnswer {
         match self.agents.run(viewer, command).await {
             Ok(text) => CanvasAnswer::Text { text, code: 0 },
             Err(error) => CanvasAnswer::Text {
@@ -68,18 +76,6 @@ impl DocumentHost {
 
     pub(crate) async fn close(&self) {
         self.documents.close().await;
-    }
-}
-
-pub(crate) fn changed_file(folder: &Path, arguments: &[String]) -> Option<PathBuf> {
-    let words = std::iter::once("doc".to_owned()).chain(arguments.iter().cloned());
-    match DocumentCommand::try_parse_from(words)
-        .ok()?
-        .command
-        .rooted(folder)
-    {
-        Command::Apply(apply) => Some(apply.file),
-        _ => None,
     }
 }
 
@@ -127,7 +123,10 @@ mod tests {
 
     async fn run(host: &DocumentHost, folder: &Path, words: &[&str]) -> (String, i32) {
         let arguments = words.iter().map(|word| (*word).to_owned()).collect();
-        match host.run(&agent(), folder, arguments).await {
+        let Ok(DocumentAction::Edit(command)) = parse(arguments) else {
+            panic!("an edit expected: {words:?}");
+        };
+        match host.run(&agent(), command.rooted(folder)).await {
             CanvasAnswer::Text { text, code } => (text, code),
             other => panic!("text expected: {other:?}"),
         }
@@ -162,15 +161,6 @@ mod tests {
         let (text, _) = run(&host, work.path(), &["read", "sums.xlsx", "--where", "B2"]).await;
         assert!(text.contains('7'), "{text}");
         host.close().await;
-    }
-
-    #[tokio::test]
-    async fn a_wrong_command_says_how_it_is_used() {
-        let state = tempfile::tempdir().unwrap();
-        let host = DocumentHost::new(state.path());
-        let (text, code) = run(&host, state.path(), &["nonsense"]).await;
-        assert_eq!(code, 2);
-        assert!(text.contains("Usage"), "{text}");
     }
 
     #[tokio::test]

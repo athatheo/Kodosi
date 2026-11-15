@@ -3105,7 +3105,11 @@ fn a_restored_agent_continues_its_conversation_or_lists_them() {
         "claude --resume"
     );
     assert_eq!(line(Agent::Gemini, "gemini", Some(id)), None);
-    let zsh = Path::new("/bin/zsh");
+    let zsh = crate::agents::Notes {
+        shell: "/bin/zsh".into(),
+        ..crate::agents::Notes::default()
+    };
+    let zsh = &zsh;
     assert_eq!(
         restore::usual_line("copilot", zsh).unwrap(),
         "copilot --resume"
@@ -3318,7 +3322,10 @@ async fn a_stopping_agent_gives_the_line_that_continues_its_conversation_with_it
             terminal.clone(),
             program.to_owned(),
             home.clone(),
-            PathBuf::from("/bin/zsh"),
+            crate::agents::Notes {
+                shell: "/bin/zsh".into(),
+                ..crate::agents::Notes::default()
+            },
             Some(home.clone()),
             crate::agents::AgentSettings::default(),
         )

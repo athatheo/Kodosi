@@ -319,31 +319,71 @@ impl Agent {
 
     /// Codex reads Kodosi's note only from its command line, and without `--no-daemon` it works
     /// in its shared background server, which has the variables of whatever started that server.
+    /// Cursor loads a plugin only from its command line. `OpenCode` reads instructions only from
+    /// its configuration, and `OpenCode` 2 reads that in its shared background server unless it
+    /// runs with `--standalone`, so the configuration goes only to the program that Kodosi starts.
     #[cfg(feature = "host")]
-    pub(crate) fn context_words(self, shell: &Path) -> Option<String> {
-        match self {
+    pub(crate) fn with_context(self, command: &str, notes: &Notes) -> String {
+        let shell = &notes.shell;
+        let words = match self {
             Self::Codex => Some(format!(
-                "--no-daemon -c {}",
+                "{command} --no-daemon -c {}",
                 variable_word(shell, "developer_instructions=", CONTEXT_VARIABLE)
             )),
+            Self::Cursor if notes.installed.cursor_plugins => cursor_plugin(&notes.folder)
+                .map(|plugin| format!("{command} --plugin-dir {}", as_shell_word(shell, &plugin))),
+            Self::Opencode if !cfg!(windows) => {
+                let standalone = match notes.installed.opencode_version {
+                    Some(1) => "",
+                    Some(_) => " --standalone",
+                    None => return command.to_owned(),
+                };
+                opencode_config(&notes.folder).map(|config| {
+                    let config = as_shell_word(shell, &format!("{OPENCODE_CONFIG}={config}"));
+                    format!("env {config} {command}{standalone}")
+                })
+            }
             Self::Claude | Self::Copilot | Self::Cursor | Self::Gemini | Self::Opencode => None,
+        };
+        words.unwrap_or_else(|| command.to_owned())
+    }
+
+    /// The variable of a running agent that Kodosi reads: its account folder, or the
+    /// configuration that carries Kodosi's note.
+    #[cfg(feature = "host")]
+    pub(crate) const fn shown_variable(self) -> &'static str {
+        match self.home() {
+            Some((_, variable)) => variable,
+            None if matches!(self, Self::Opencode) => OPENCODE_CONFIG,
+            None => CONTEXT_VARIABLE,
         }
     }
 
     /// Windows shows no arguments, so there no agent counts as started without the note.
     #[cfg(feature = "host")]
-    pub(crate) fn started_without_note(self, arguments: &[String]) -> bool {
-        self.context_words(Path::new("")).is_some()
-            && !arguments.is_empty()
-            && !arguments.iter().any(|argument| {
+    pub(crate) fn started_without_note(
+        self,
+        arguments: &[String],
+        variable: Option<&str>,
+        notes: &Notes,
+    ) -> bool {
+        let has_note = match self {
+            Self::Codex => arguments.iter().any(|argument| {
                 argument.starts_with("developer_instructions=") && argument.contains("Kodosi")
-            })
-    }
-
-    #[cfg(feature = "host")]
-    pub(crate) fn with_context(self, command: &str, shell: &Path) -> String {
-        self.context_words(shell)
-            .map_or_else(|| command.to_owned(), |words| format!("{command} {words}"))
+            }),
+            Self::Cursor if notes.installed.cursor_plugins => cursor_plugin(&notes.folder)
+                .is_none_or(|plugin| {
+                    arguments
+                        .windows(2)
+                        .any(|pair| pair[0] == "--plugin-dir" && pair[1] == plugin)
+                }),
+            Self::Opencode if notes.installed.opencode_version.is_some() => {
+                opencode_config(&notes.folder)
+                    .is_none_or(|config| variable == Some(config.as_str()))
+            }
+            Self::Claude | Self::Copilot | Self::Cursor | Self::Gemini | Self::Opencode => true,
+        };
+        !has_note && !arguments.is_empty()
     }
 
     #[cfg(feature = "host")]
@@ -387,6 +427,8 @@ pub(crate) const COPILOT_INSTRUCTIONS: &str = "COPILOT_CUSTOM_INSTRUCTIONS_DIRS"
 pub(crate) const COPILOT_SKILLS: &str = "COPILOT_SKILLS_DIRS";
 #[cfg(feature = "host")]
 pub(crate) const CLAUDE_PLUGINS: &str = "CLAUDE_CODE_PLUGIN_DIRS";
+#[cfg(feature = "host")]
+const OPENCODE_CONFIG: &str = "OPENCODE_CONFIG_CONTENT";
 /// Claude Code shows its focus view only in its fullscreen renderer. `viewMode` comes first,
 /// because a running Claude's output is read from the start of these settings.
 #[cfg(feature = "host")]
@@ -403,6 +445,33 @@ pub(crate) const DOCUMENTS_SKILL: &str = include_str!("../../skills/kodosi-docum
 pub(crate) const PAGE: &str = include_str!("../../skills/kodosi-canvas/assets/page.html");
 #[cfg(feature = "host")]
 const PLUGIN: &str = "plugin";
+#[cfg(feature = "host")]
+const CURSOR_PLUGIN: &str = "cursor";
+#[cfg(feature = "host")]
+const NOTE: &str = "kodosi.md";
+
+/// What the start line of an agent needs to give it Kodosi's note.
+#[cfg(feature = "host")]
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Notes {
+    pub(crate) shell: std::path::PathBuf,
+    pub(crate) folder: std::path::PathBuf,
+    pub(crate) installed: Installed,
+}
+
+/// Read when the host looks for agents. A Cursor CLI from before May 2026 ends at
+/// `--plugin-dir`, and `OpenCode` 1 ends at `--standalone`.
+#[cfg(feature = "host")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct Installed {
+    pub(crate) cursor_plugins: bool,
+    pub(crate) opencode_version: Option<u32>,
+}
+
+#[cfg(feature = "host")]
+pub(crate) fn notes_folder(data_root: &Path) -> std::path::PathBuf {
+    data_root.join("agents")
+}
 
 #[cfg(feature = "host")]
 const CLAUDE_HOOKS: &str = r#"{
@@ -428,6 +497,28 @@ pub(crate) fn write_notes(folder: &Path) -> std::io::Result<()> {
         "{{\n  \"name\": \"kodosi\",\n  \"version\": \"{}\",\n  \"description\": \"Work with the people and agents in Kodosi, and show them what you make on the canvas of a terminal.\"\n}}\n",
         crate::PRODUCT_VERSION
     );
+    let cursor = folder.join(CURSOR_PLUGIN);
+    let skills = |plugin: &Path| {
+        let skills = plugin.join("skills");
+        [
+            (skills.join("kodosi").join("SKILL.md"), SKILL.to_owned()),
+            (
+                skills.join("kodosi-canvas").join("SKILL.md"),
+                CANVAS_SKILL.to_owned(),
+            ),
+            (
+                skills
+                    .join("kodosi-canvas")
+                    .join("assets")
+                    .join("page.html"),
+                PAGE.to_owned(),
+            ),
+            (
+                skills.join("kodosi-documents").join("SKILL.md"),
+                DOCUMENTS_SKILL.to_owned(),
+            ),
+        ]
+    };
     let files = [
         (
             folder
@@ -436,35 +527,24 @@ pub(crate) fn write_notes(folder: &Path) -> std::io::Result<()> {
                 .join("kodosi.instructions.md"),
             format!("---\napplyTo: \"**\"\n---\n\n{}\n", CONTEXT.trim()),
         ),
-        (plugin.join(".claude-plugin").join("plugin.json"), manifest),
+        (folder.join(NOTE), format!("{}\n", CONTEXT.trim())),
+        (
+            plugin.join(".claude-plugin").join("plugin.json"),
+            manifest.clone(),
+        ),
         (
             plugin.join("hooks").join("hooks.json"),
             CLAUDE_HOOKS.to_owned(),
         ),
+        (cursor.join(".cursor-plugin").join("plugin.json"), manifest),
         (
-            plugin.join("skills").join("kodosi").join("SKILL.md"),
-            SKILL.to_owned(),
+            cursor.join("rules").join("kodosi.mdc"),
+            format!("---\nalwaysApply: true\n---\n\n{}\n", CONTEXT.trim()),
         ),
-        (
-            plugin.join("skills").join("kodosi-canvas").join("SKILL.md"),
-            CANVAS_SKILL.to_owned(),
-        ),
-        (
-            plugin
-                .join("skills")
-                .join("kodosi-canvas")
-                .join("assets")
-                .join("page.html"),
-            PAGE.to_owned(),
-        ),
-        (
-            plugin
-                .join("skills")
-                .join("kodosi-documents")
-                .join("SKILL.md"),
-            DOCUMENTS_SKILL.to_owned(),
-        ),
-    ];
+    ]
+    .into_iter()
+    .chain(skills(&plugin))
+    .chain(skills(&cursor));
     for (file, text) in files {
         if std::fs::read_to_string(&file).is_ok_and(|current| current == text) {
             continue;
@@ -513,6 +593,47 @@ pub(crate) fn plugin_dir(notes: &Path) -> Option<String> {
         .is_file()
         .then(|| plugin.to_str().map(str::to_owned))
         .flatten()
+}
+
+#[cfg(feature = "host")]
+fn cursor_plugin(notes: &Path) -> Option<String> {
+    let plugin = notes.join(CURSOR_PLUGIN);
+    if !plugin.join(".cursor-plugin").join("plugin.json").is_file() {
+        return None;
+    }
+    plugin.to_str().map(str::to_owned)
+}
+
+#[cfg(feature = "host")]
+fn opencode_config(notes: &Path) -> Option<String> {
+    let note = notes.join(NOTE);
+    if !note.is_file() {
+        return None;
+    }
+    Some(serde_json::json!({ "instructions": [note.to_str()?] }).to_string())
+}
+
+#[cfg(feature = "host")]
+async fn installed(facts: &shell::Facts) -> Installed {
+    let run = |program: &str, arguments: &'static [&'static str]| {
+        let program = facts.executable(program);
+        async move { models::run(facts, program.as_deref(), arguments).await }
+    };
+    let (cursor, opencode) = tokio::join!(
+        run(Agent::Cursor.program(), &["--help"]),
+        run(Agent::Opencode.program(), &["--version"])
+    );
+    Installed {
+        cursor_plugins: cursor.is_some_and(|help| help.contains("--plugin-dir")),
+        opencode_version: opencode.as_deref().and_then(major_version),
+    }
+}
+
+#[cfg(feature = "host")]
+fn major_version(version: &str) -> Option<u32> {
+    version
+        .split_whitespace()
+        .find_map(|word| word.trim_start_matches('v').split('.').next()?.parse().ok())
 }
 
 #[cfg(feature = "host")]
@@ -748,11 +869,19 @@ pub enum UsageLevel {
 }
 
 #[cfg(feature = "host")]
-pub async fn catalog(home: &Path, shell: &Path) -> Result<AgentCatalog, String> {
+pub(crate) async fn catalog(
+    home: &Path,
+    shell: &Path,
+) -> Result<(AgentCatalog, Installed), String> {
     let facts = shell::facts(shell, true).await;
     let home = home.to_owned();
-    tokio::task::spawn_blocking(move || accounts::catalog(&home, &facts))
-        .await
+    let found = facts.clone();
+    let (catalog, installed) = tokio::join!(
+        tokio::task::spawn_blocking(move || accounts::catalog(&home, &found)),
+        installed(&facts)
+    );
+    catalog
+        .map(|catalog| (catalog, installed))
         .map_err(|error| format!("Agent discovery failed: {error}"))
 }
 
