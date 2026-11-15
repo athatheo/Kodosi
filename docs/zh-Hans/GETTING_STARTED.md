@@ -120,7 +120,7 @@ Dosi 头像旁的那一行会告诉你 Dosi 何时在工作、何时已回答、
 | `kodosi terminal wait <terminal> --until done,failed` | 等待某个状态。 |
 | `kodosi terminal show <terminal>` | 在应用中显示该终端。 |
 | `kodosi dosi say "What needs me?"` | 向 Dosi 提问。`kodosi dosi show` 输出对话，`kodosi dosi stop` 让 Dosi 停止。 |
-| `kodosi show <file>` | 在当前终端的画布上显示一个文件，并为正在查看该终端的人打开画布；`kodosi show <address>` 在其浏览器中显示一个网址。`kodosi canvas` 列出正在显示的内容，`kodosi canvas remove <file>` 移除一个文件。 |
+| `kodosi show <file>` | 在当前终端的画布上显示一个文件，并为正在查看该终端的人打开画布；`kodosi show <address>` 在其浏览器中显示一个网址，`kodosi show browser` 按当前状态显示该浏览器。`kodosi canvas` 列出正在显示的内容，`kodosi canvas remove <file>` 移除一个文件。 |
 | `kodosi browser open <address>` | 在当前终端的共享浏览器中打开一个页面。其他 agent-browser 命令也都可以使用。 |
 | `kodosi skill` | 输出让 Agent 与 Kodosi 中的人和 Agent 协作的 skill。`kodosi skill canvas` 输出画布的 skill。 |
 | `kodosi dosi skill` | 输出让其他 Agent 充当 Dosi 的 skill。 |

@@ -3440,6 +3440,9 @@
               }
             ]
           },
+          "browser": {
+            "type": "boolean"
+          },
           "computer": {
             "anyOf": [
               {
@@ -13971,7 +13974,7 @@
     ]
   },
   "ffiAbiVersion": 11,
-  "protocolVersion": 90,
+  "protocolVersion": 91,
   "terminal": {
     "checkpointMaxBytes": 281018368,
     "checkpointSchema": 6,

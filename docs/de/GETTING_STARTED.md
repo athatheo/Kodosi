@@ -268,7 +268,7 @@ tut.
 | `kodosi terminal wait <terminal> --until done,failed` | Wartet auf einen Zustand. |
 | `kodosi terminal show <terminal>` | Zeigt das Terminal in der App. |
 | `kodosi dosi say "What needs me?"` | Fragt Dosi. `kodosi dosi show` gibt die Unterhaltung aus, und `kodosi dosi stop` stoppt Dosi. |
-| `kodosi show <file>` | Zeigt eine Datei auf dem Canvas dieses Terminals, das sich für die Menschen öffnet, die es ansehen; `kodosi show <address>` zeigt eine Webadresse in seinem Browser. `kodosi canvas` listet, was es zeigt, und `kodosi canvas remove <file>` nimmt eine Datei weg. |
+| `kodosi show <file>` | Zeigt eine Datei auf dem Canvas dieses Terminals, das sich für die Menschen öffnet, die es ansehen; `kodosi show <address>` zeigt eine Webadresse in seinem Browser, und `kodosi show browser` zeigt diesen Browser, wie er ist. `kodosi canvas` listet, was es zeigt, und `kodosi canvas remove <file>` nimmt eine Datei weg. |
 | `kodosi browser open <address>` | Öffnet eine Seite im geteilten Browser dieses Terminals. Die anderen agent-browser-Befehle funktionieren auch. |
 | `kodosi skill` | Gibt den Skill aus, mit dem ein Agent mit den Menschen und Agents in Kodosi arbeitet. `kodosi skill canvas` gibt den Skill für das Canvas aus. |
 | `kodosi dosi skill` | Gibt den Skill aus, mit dem ein anderer Agent als Dosi handelt. |

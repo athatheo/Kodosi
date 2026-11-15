@@ -301,6 +301,7 @@ async fn showing_opens_the_canvas_at_the_first_file_until_that_file_goes() {
     let showing = |paths: Vec<PathBuf>| crate::canvas::Show {
         paths,
         address: None,
+        browser_as_it_is: false,
         folder: folder.path().to_owned(),
         terminal: "Ivory Moose".to_owned(),
         agent: None,
@@ -372,6 +373,57 @@ async fn a_browser_that_came_back_asleep_keeps_its_page_for_the_next_start() {
     assert_eq!(canvas.address(), None);
 }
 
+#[tokio::test]
+async fn showing_the_browser_opens_the_canvas_at_it_and_keeps_its_page() {
+    let folder = tempfile::tempdir().unwrap();
+    let services = crate::canvas::CanvasServices {
+        agent_browser: folder.path().join("agent-browser"),
+        ..crate::canvas::CanvasServices::new(folder.path(), true)
+    };
+    std::fs::write(&services.agent_browser, "").unwrap();
+    let spawn = || CanvasHandle::spawn(uuid::Uuid::now_v7(), folder.path(), services.clone());
+    let show = async |canvas: &CanvasHandle| {
+        let answer = canvas
+            .show(crate::canvas::Show {
+                paths: Vec::new(),
+                address: None,
+                browser_as_it_is: true,
+                folder: folder.path().to_owned(),
+                terminal: "Ivory Moose".to_owned(),
+                agent: None,
+            })
+            .await;
+        match answer {
+            Ok(CanvasAnswer::Text { text, code: 0 }) => text,
+            other => panic!("shown: {other:?}"),
+        }
+    };
+
+    let new = spawn();
+    assert!(show(&new).await.contains("shows its browser, and"));
+    let shown = new.current().unwrap();
+    assert_eq!(shown.open.unwrap().key, BROWSER_PIPE);
+    assert!(shown.browser.is_some());
+
+    let used = spawn();
+    let page = "https://example.com/report";
+    used.restore(Vec::new(), Some(page.to_owned()), uuid::Uuid::now_v7());
+    used.state()
+        .wait_for(|canvas| canvas.browser.is_some())
+        .await
+        .unwrap();
+    assert!(show(&used).await.contains(page));
+    let shown = used.current().unwrap();
+    let first = shown.open.unwrap();
+    assert_eq!(first.key, BROWSER_PIPE);
+    assert_eq!(shown.change, None);
+    assert_eq!(shown.browser.unwrap().state, BrowserState::Asleep);
+    assert_eq!(used.address().as_deref(), Some(page));
+
+    show(&used).await;
+    assert!(used.current().unwrap().open.unwrap().at > first.at);
+}
+
 #[tokio::test(start_paused = true)]
 async fn each_command_of_the_agent_browser_changes_the_canvas_and_opens_nothing() {
     let folder = tempfile::tempdir().unwrap();
@@ -432,6 +484,7 @@ async fn each_change_of_a_file_changes_the_canvas_also_while_it_is_live() {
         .show(crate::canvas::Show {
             paths: vec![notes.clone(), report.clone()],
             address: None,
+            browser_as_it_is: false,
             folder: folder.path().to_owned(),
             terminal: "Ivory Moose".to_owned(),
             agent: None,
@@ -533,6 +586,7 @@ async fn the_agent_edit_of_a_document_changes_the_canvas_at_it() {
         .show(crate::canvas::Show {
             paths: vec![folder.path().join("sums.xlsx")],
             address: None,
+            browser_as_it_is: false,
             folder: folder.path().to_owned(),
             terminal: "Ivory Moose".to_owned(),
             agent: None,

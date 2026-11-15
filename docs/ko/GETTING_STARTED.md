@@ -228,7 +228,7 @@ iPhone이나 iPad에서는 터미널의 +나 내 컴퓨터 옆의 +를 선택하
 | `kodosi terminal wait <terminal> --until done,failed` | 상태가 될 때까지 기다려요. |
 | `kodosi terminal show <terminal>` | 앱에서 터미널을 보여 줘요. |
 | `kodosi dosi say "What needs me?"` | Dosi에게 물어요. `kodosi dosi show`는 대화를 출력하고, `kodosi dosi stop`은 Dosi를 멈춰요. |
-| `kodosi show <file>` | 이 터미널의 캔버스에 파일을 보여 주고, 터미널을 보는 사람의 캔버스를 열어요. `kodosi show <address>`는 웹 주소를 브라우저에 보여 줘요. `kodosi canvas`는 보여 주는 것의 목록을 출력하고, `kodosi canvas remove <file>`은 파일을 내려요. |
+| `kodosi show <file>` | 이 터미널의 캔버스에 파일을 보여 주고, 터미널을 보는 사람의 캔버스를 열어요. `kodosi show <address>`는 웹 주소를 브라우저에 보여 주고, `kodosi show browser`는 그 브라우저를 지금 그대로 보여 줘요. `kodosi canvas`는 보여 주는 것의 목록을 출력하고, `kodosi canvas remove <file>`은 파일을 내려요. |
 | `kodosi browser open <address>` | 이 터미널의 공유 브라우저에서 페이지를 열어요. agent-browser의 다른 명령도 써요. |
 | `kodosi skill` | 에이전트가 Kodosi의 사람과 에이전트와 함께 일하는 skill을 출력해요. `kodosi skill canvas`는 캔버스용 skill을 출력해요. |
 | `kodosi dosi skill` | 다른 에이전트가 Dosi처럼 동작하는 skill을 출력해요. |

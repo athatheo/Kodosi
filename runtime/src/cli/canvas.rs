@@ -41,7 +41,12 @@ pub(super) async fn show(
     let session = terminal(context)?;
     let mut paths = Vec::new();
     let mut address = None;
+    let mut browser = false;
     for thing in things {
+        if thing.as_os_str() == crate::canvas::BROWSER_PIPE {
+            browser = true;
+            continue;
+        }
         match thing
             .to_str()
             .filter(|word| crate::canvas::is_address(word))
@@ -62,7 +67,7 @@ pub(super) async fn show(
     let event = request(
         client,
         context,
-        json!({"type":"canvas.show","sessionId":session,"paths":paths,"address":address,"folder":folder}),
+        json!({"type":"canvas.show","sessionId":session,"paths":paths,"address":address,"browser":browser,"folder":folder}),
         json_output,
     )
     .await?;

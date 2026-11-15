@@ -696,6 +696,7 @@ impl Runtime {
                 Command::CanvasShow {
                     paths,
                     address,
+                    browser,
                     folder,
                     ..
                 } => {
@@ -703,6 +704,7 @@ impl Runtime {
                         .show(crate::canvas::Show {
                             paths: paths.iter().map(PathBuf::from).collect(),
                             address: address.clone(),
+                            browser_as_it_is: *browser,
                             folder: PathBuf::from(folder),
                             terminal,
                             agent,

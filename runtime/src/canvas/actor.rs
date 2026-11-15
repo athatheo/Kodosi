@@ -94,6 +94,7 @@ enum Job {
 pub(crate) struct Show {
     pub(crate) paths: Vec<PathBuf>,
     pub(crate) address: Option<String>,
+    pub(crate) browser_as_it_is: bool,
     pub(crate) folder: PathBuf,
     pub(crate) terminal: String,
     pub(crate) agent: Option<String>,
@@ -518,11 +519,12 @@ impl Actor {
         let Show {
             paths,
             address,
+            browser_as_it_is,
             folder,
             terminal,
             agent,
         } = show;
-        if address.is_some()
+        if (address.is_some() || browser_as_it_is)
             && self.browser.is_none()
             && let Some(missing) = browser::missing(&self.agent_browser)
         {
@@ -551,8 +553,21 @@ impl Actor {
             ));
             addresses.extend(page.address());
         }
+        if browser_as_it_is && addresses.is_empty() {
+            let at = self
+                .browser()
+                .page()
+                .map(|address| format!(" at {address}"))
+                .unwrap_or_default();
+            lines.insert(
+                0,
+                format!(
+                    "The canvas of {terminal} shows its browser{at}, and it opens for the people who look at this terminal."
+                ),
+            );
+        }
         let browser = (!addresses.is_empty()).then(|| self.browser());
-        let key = if browser.is_some() {
+        let key = if browser.is_some() || browser_as_it_is {
             Some(BROWSER_PIPE.to_owned())
         } else {
             showing.shown.first().map(|shown| shown.key.clone())

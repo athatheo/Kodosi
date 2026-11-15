@@ -271,7 +271,7 @@ Dosi γράφει στο Dosi του υπολογιστή που επιλέγε�
 | `kodosi terminal wait <terminal> --until done,failed` | Περιμένει μια κατάσταση. |
 | `kodosi terminal show <terminal>` | Δείχνει το τερματικό στην εφαρμογή. |
 | `kodosi dosi say "What needs me?"` | Ρωτά το Dosi. Το `kodosi dosi show` τυπώνει τη συζήτηση, και το `kodosi dosi stop` σταματά το Dosi. |
-| `kodosi show <file>` | Δείχνει ένα αρχείο στο canvas αυτού του τερματικού, που ανοίγει για όσους το κοιτούν· το `kodosi show <address>` δείχνει μια διεύθυνση web στον browser του. Το `kodosi canvas` δείχνει τι εμφανίζει, και το `kodosi canvas remove <file>` αφαιρεί ένα αρχείο. |
+| `kodosi show <file>` | Δείχνει ένα αρχείο στο canvas αυτού του τερματικού, που ανοίγει για όσους το κοιτούν· το `kodosi show <address>` δείχνει μια διεύθυνση web στον browser του, και το `kodosi show browser` δείχνει αυτόν τον browser όπως είναι. Το `kodosi canvas` δείχνει τι εμφανίζει, και το `kodosi canvas remove <file>` αφαιρεί ένα αρχείο. |
 | `kodosi browser open <address>` | Ανοίγει μια σελίδα στον κοινόχρηστο browser αυτού του τερματικού. Δουλεύουν και οι άλλες εντολές του agent-browser. |
 | `kodosi skill` | Τυπώνει το skill που επιτρέπει σε έναν agent να δουλεύει με τους ανθρώπους και τους agents στο Kodosi. Το `kodosi skill canvas` τυπώνει το skill για το canvas. |
 | `kodosi dosi skill` | Τυπώνει το skill που επιτρέπει σε άλλον agent να ενεργεί ως Dosi. |

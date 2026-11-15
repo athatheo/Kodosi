@@ -32,7 +32,7 @@ fn validate_participants(users: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub const VERSION: u32 = 90;
+pub const VERSION: u32 = 91;
 include!(concat!(env!("OUT_DIR"), "/protocol_contract.rs"));
 pub const MAX_COMMAND_BYTES: usize = 2 * 1024 * 1024;
 pub(crate) const MESSAGE_MAX_BYTES: usize = 1500;
@@ -505,6 +505,8 @@ pub enum Command {
         paths: Vec<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         address: Option<String>,
+        #[serde(default)]
+        browser: bool,
         folder: String,
     },
     #[serde(rename = "canvas.browser")]
@@ -2298,14 +2300,15 @@ impl Command {
             Self::CanvasShow {
                 paths,
                 address,
+                browser,
                 folder,
                 ..
             } => {
-                if (paths.is_empty() && address.is_none())
+                if (paths.is_empty() && address.is_none() && !browser)
                     || paths.len() > crate::canvas::MOST_PATHS
                 {
                     return Err(Error::Invalid(format!(
-                        "Show 1 to {} files, or an address.",
+                        "Show 1 to {} files, an address or the browser.",
                         crate::canvas::MOST_PATHS
                     )));
                 }
