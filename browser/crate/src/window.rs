@@ -488,9 +488,10 @@ impl Live {
                 self.capture_failed_at = Some(Instant::now());
             }
             Event::Tabs { tabs, active } => self.tabs(tabs, active),
+            // The person's own pointer takes this shape, so it cannot wait for the tick.
             Event::Shape(shape) => {
                 self.state.shape = shape;
-                self.dirty = true;
+                self.publish();
             }
             Event::Menu {
                 tab,
@@ -1141,7 +1142,6 @@ mod tests {
         assert_eq!(copies(&mut bob), [None, None]);
 
         live.handle(Event::Shape("text".to_owned())).await;
-        live.publish();
         assert_eq!(copies(&mut ana), [None]);
 
         live.handle(Event::Copied("word".to_owned())).await;
