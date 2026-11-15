@@ -1484,10 +1484,11 @@ mod tests {
         let Some(ToView::State(state)) = ana.receive().await else {
             panic!("the state must come before the pictures");
         };
-        let Ok(ToViewer::State(state)) = ToViewer::decode(&state) else {
-            panic!("a state is expected");
-        };
-        assert_eq!((state.width, state.height), (1100, 700));
+        let state: serde_json::Value = serde_json::from_slice(&state[1..]).unwrap();
+        assert_eq!(
+            (&state["width"], &state["height"]),
+            (&json!(1100), &json!(700))
+        );
     }
 
     #[test]
