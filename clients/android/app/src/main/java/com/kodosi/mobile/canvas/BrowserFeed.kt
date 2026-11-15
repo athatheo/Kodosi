@@ -8,6 +8,7 @@ import android.view.Surface
 import com.kodosi.mobile.runtime.RuntimeJson
 import com.kodosi.mobile.runtime.fields
 import com.kodosi.mobile.runtime.number
+import com.kodosi.mobile.runtime.string
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,7 +16,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -28,6 +31,8 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
     val picture: StateFlow<Boolean> = mutablePicture
     private val mutableTouches = MutableStateFlow(0L)
     val touches: StateFlow<Long> = mutableTouches
+    private val mutableCopies = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val copies: SharedFlow<String> = mutableCopies
     private val link = store.link(session, "browser")
     private var joining: Job? = null
     private var active = false
@@ -122,8 +127,8 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
             runCatching {
                 RuntimeJson.parseToJsonElement(bytes.copyOfRange(1, bytes.size).decodeToString()) as? JsonObject
             }.getOrNull()?.let {
-                mutableWindow.value =
-                    it
+                mutableWindow.value = it
+                it.string("copied")?.let(mutableCopies::tryEmit)
             }
             return
         }
