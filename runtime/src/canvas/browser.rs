@@ -366,7 +366,7 @@ impl Browser {
         }
         let _one = self.commands.lock().await;
         let window = self.window().await?;
-        window.touch().await;
+        window.driven().await;
         let driver = window.driver().to_owned();
         let acting =
             !(LOOKS.contains(&command.as_str()) || (command == "tab" && arguments.len() == 1));
