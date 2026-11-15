@@ -1070,6 +1070,64 @@ async fn the_launch_choice_survives_a_restart() {
 }
 
 #[cfg(unix)]
+fn shell_finding(folder: &Path, programs: &[&str]) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let bin = folder.join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let executable = |path: std::path::PathBuf, text: String| {
+        fs::write(&path, text).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        path
+    };
+    for program in programs {
+        executable(bin.join(program), "#!/bin/sh\n".to_owned());
+    }
+    executable(
+        folder.join("sh"),
+        format!(
+            "#!/bin/sh\n[ \"$1\" = -l ] && shift\nPATH='{}' exec /bin/sh \"$@\"\n",
+            bin.display()
+        ),
+    )
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_person_who_never_chose_starts_on_the_first_installed_agent() {
+    let root = tempfile::tempdir().unwrap();
+    let nothing = shell_finding(&root.path().join("nothing"), &[]);
+    let agents = shell_finding(&root.path().join("agents"), &["codex", "copilot"]);
+    let load = |data: &str, shell: &Path| {
+        let data = root.path().join(data);
+        fs::create_dir_all(&data).unwrap();
+        Arc::new(Launcher::load(&data, root.path(), shell))
+    };
+    let first = async |launcher: &Launcher| launcher.catalog().await.unwrap().choice.agent;
+
+    let new = load("new", &agents);
+    assert_eq!(new.choice().agent, None, "before Kodosi knows the agents");
+    assert_eq!(first(&new).await, Some(Agent::Codex));
+    assert_eq!(first(&load("bare", &nothing)).await, None);
+
+    let chosen = load("chosen", &agents);
+    chosen.choose(&AgentChoiceChange::Tab {
+        agent: Some(Agent::Copilot),
+    });
+    assert_eq!(first(&chosen).await, Some(Agent::Copilot));
+
+    let plain = load("plain", &agents);
+    plain.choose(&AgentChoiceChange::Tab { agent: None });
+    assert_eq!(first(&plain).await, None);
+    Arc::clone(&plain).save().await;
+    assert_eq!(
+        first(&load("plain", &agents)).await,
+        None,
+        "the plain terminal stays the choice after a restart"
+    );
+}
+
+#[cfg(unix)]
 #[test]
 fn a_running_agent_takes_the_place_of_its_account_folder() {
     let home = Path::new("/home/ana");

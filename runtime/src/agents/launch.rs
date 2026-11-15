@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
@@ -72,9 +73,27 @@ impl RunningAgent {
 
 #[derive(Default)]
 struct State {
-    saved: AgentChoice,
+    saved: Saved,
     catalog: Option<(Instant, AgentCatalog)>,
     models: HashMap<Agent, AgentModels>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Saved {
+    #[serde(flatten)]
+    choice: AgentChoice,
+    #[serde(default)]
+    plain_terminal: bool,
+}
+
+impl Saved {
+    fn apply(&mut self, change: &AgentChoiceChange) {
+        if let AgentChoiceChange::Tab { agent } = change {
+            self.plain_terminal = agent.is_none();
+        }
+        self.choice.apply(change);
+    }
 }
 
 impl Launcher {
@@ -205,7 +224,7 @@ impl Launcher {
                 info.install
             ));
         }
-        let saved = self.state().saved.pick(start.agent);
+        let saved = self.state().saved.choice.pick(start.agent);
         let wanted = |explicit: &Option<String>, saved: &Option<String>| {
             explicit
                 .as_ref()
@@ -226,8 +245,10 @@ impl Launcher {
             .and_then(|(folder, output)| quiet::settings_file(start.agent, output, &folder));
         {
             let mut state = self.state();
-            state.saved.agent = Some(start.agent);
-            state.saved.set(pick);
+            state.saved.apply(&AgentChoiceChange::Tab {
+                agent: Some(start.agent),
+            });
+            state.saved.apply(&AgentChoiceChange::Pick(pick));
         }
         Arc::clone(self).save().await;
         Ok(Launch {
@@ -342,7 +363,7 @@ impl AgentChoice {
 impl State {
     fn resolved(&self) -> AgentChoice {
         AgentChoice {
-            agent: self.saved.agent,
+            agent: self.saved.choice.agent.or_else(|| self.first_agent()),
             picks: Agent::ALL
                 .into_iter()
                 .map(|agent| self.resolved_pick(agent))
@@ -350,8 +371,18 @@ impl State {
         }
     }
 
+    fn first_agent(&self) -> Option<Agent> {
+        let (_, catalog) = self
+            .catalog
+            .as_ref()
+            .filter(|_| !self.saved.plain_terminal)?;
+        Agent::ALL
+            .into_iter()
+            .find(|agent| agent_info(catalog, *agent).is_some_and(|info| info.installed))
+    }
+
     fn resolved_pick(&self, agent: Agent) -> AgentPick {
-        let mut saved = self.saved.pick(agent);
+        let mut saved = self.saved.choice.pick(agent);
         saved.permissions = Some(permissions_of(agent, saved.permissions));
         saved.output = Some(output_of(agent, saved.output));
         let account = match self
