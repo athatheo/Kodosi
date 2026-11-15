@@ -53,7 +53,7 @@ Run the check of each part that you changed:
 | You changed | Run |
 | --- | --- |
 | The runtime, a contract or a Rust dependency | `just rust-check` |
-| The documents or the shared browser | `just documents-check`, `just browser-check` |
+| The documents or the shared browser | `just documents-check`, `just documents-app-check`, `just browser-check` |
 | The backend | `just backend-check` |
 | The sign-in pages | `just sign-in-check` |
 | A text that people read | `just translations-check` |
