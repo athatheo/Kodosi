@@ -174,7 +174,8 @@ class AppModelTest {
 
     @Test
     fun aNotificationCannotOpenAnotherAccountsTerminal() = runTest {
-        val model = AppModel(RuntimeEnvironment.getApplication())
+        val model = signedIn(SentCommands())
+        model.receive(snapshot(terminal("terminal")))
         assertNull(model.resolve(AppModel.TerminalTarget("terminal", "another-account")))
     }
 
