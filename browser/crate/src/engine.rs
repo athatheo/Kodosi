@@ -197,6 +197,23 @@ impl Engine {
         Ok(engine)
     }
 
+    #[cfg(test)]
+    pub(crate) fn idle() -> Arc<Self> {
+        Arc::new(Self {
+            devtools: Devtools::idle(),
+            address: String::new(),
+            commands: mpsc::channel(COMMANDS).0,
+            routes: Arc::default(),
+            placed: watch::Sender::new(()),
+            stopped: watch::Sender::new(false),
+            _kept: oneshot::channel().0,
+            downloads: PathBuf::new(),
+            next_window: AtomicI64::new(1),
+            next_page: AtomicI64::new(1),
+            next_ask: AtomicI64::new(1),
+        })
+    }
+
     pub(crate) fn devtools(&self) -> &Devtools {
         &self.devtools
     }

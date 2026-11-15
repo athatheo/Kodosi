@@ -19,6 +19,7 @@ public final class BrowserFeed {
     /// Counts each press, key and scroll of a person on this device.
     public private(set) var touches = 0
     @ObservationIgnored public var show: (CMSampleBuffer) -> Void = { _ in }
+    @ObservationIgnored public var copied: (String) -> Void = { _ in }
     @ObservationIgnored public var viewSize = CGSize.zero
     @ObservationIgnored public var viewScale: CGFloat = 1
     @ObservationIgnored private let store: CanvasStore
@@ -156,13 +157,16 @@ public final class BrowserFeed {
         link?.send(Data([Self.messageTag]) + body)
     }
 
-    private func receive(_ message: Data) {
+    func receive(_ message: Data) {
         switch message.first {
         case Self.frameTag:
             frame(message)
         case Self.messageTag:
             if let state = try? JSONDecoder().decode(BrowserWindow.self, from: message.dropFirst()) {
                 window = state
+                if let words = state.copied {
+                    copied(words)
+                }
             }
         default:
             break

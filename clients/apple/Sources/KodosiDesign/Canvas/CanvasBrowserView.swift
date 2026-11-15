@@ -66,12 +66,8 @@ public struct CanvasBrowserView: View {
             .onChange(of: displayScale, initial: true) { _, scale in feed.viewScale = scale }
             .task(id: browser.problem == nil) {
                 if browser.problem == nil {
+                    feed.copied = Pasteboard.copy
                     await feed.watch()
-                }
-            }
-            .onChange(of: feed.window.copied) { _, words in
-                if let words {
-                    Pasteboard.copy(words)
                 }
             }
             .onChange(of: feed.window.chooser) { _, chooser in picking = chooser != nil }

@@ -19,8 +19,8 @@ use crate::{
     input,
     link::{EncodedFrame, EngineTab, ToEngine},
     message::{
-        Chooser, Dialog, Download, Frame, Input, Menu, MenuItem, MouseAction, MouseButton, Pointer,
-        Size, State, Tab, ToViewer, ToWindow, Viewer,
+        Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuItem, MouseAction,
+        MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
     },
 };
 
@@ -272,6 +272,11 @@ struct Context {
     copies: Vec<String>,
 }
 
+struct Copied {
+    viewer: String,
+    text: String,
+}
+
 struct Live {
     engine: Arc<Engine>,
     id: i64,
@@ -290,6 +295,9 @@ struct Live {
     next_frame: u32,
     used_at: Instant,
     last_press: Option<String>,
+    /// A copy goes once, with the next state, so that each copy reaches the pasteboard, also
+    /// the same words again, and an old copy never comes back.
+    copied: Option<Copied>,
     open_menu: Option<OpenMenu>,
     context: Option<Context>,
     /// The dialogs of the window's tabs, one for each tab, oldest first. The window shows the
@@ -334,6 +342,7 @@ impl Live {
             next_frame: 0,
             used_at: Instant::now(),
             last_press: None,
+            copied: None,
             open_menu: None,
             context: None,
             dialogs: Vec::new(),
@@ -420,6 +429,7 @@ impl Live {
                     .try_send(ToViewer::State(Box::new(state)).encode()),
             );
         }
+        self.copied = None;
     }
 
     /// A list, a copy and a file picker belong to the viewer whose press opened them, and a
@@ -429,8 +439,12 @@ impl Live {
         let mut state = self.state.clone();
         state.pointers.retain(|pointer| pointer.viewer != viewer);
         state.menu.take_if(|menu| menu.viewer != viewer);
+        state.copied = self
+            .copied
+            .as_ref()
+            .filter(|copied| copied.viewer == viewer)
+            .map(|copied| copied.text.clone());
         if !pressed {
-            state.copied = None;
             state.chooser = None;
         }
         state
@@ -485,10 +499,7 @@ impl Live {
                 items,
             } => self.open_list(tab, frame, menu, items),
             Event::Context { selection, link } => self.context_menu(&selection, link),
-            Event::Copied(text) => {
-                self.state.copied = Some(cut(&text, MOST_TEXT));
-                self.dirty = true;
-            }
+            Event::Copied(text) => self.copy(&text),
             Event::Dialog { tab, mut dialog } => {
                 dialog.message = cut(&dialog.message, MOST_MESSAGE);
                 dialog.text = cut(&dialog.text, MOST_MESSAGE);
@@ -720,6 +731,15 @@ impl Live {
             self.used.send_replace(Some(self.used_at));
             self.may_download = true;
         }
+        if matches!(
+            event,
+            Input::Key {
+                action: KeyAction::Down,
+                ..
+            }
+        ) {
+            self.last_press = Some(viewer.to_owned());
+        }
         match event {
             Input::Mouse {
                 action,
@@ -786,7 +806,7 @@ impl Live {
                     self.engine.command(ToEngine::CloseTab { tab });
                 }
             }
-            Input::Choose { menu, choice } => self.choose(menu, choice),
+            Input::Choose { menu, choice } => self.choose(viewer, menu, choice),
             Input::Dialog { accept, text } => self.answer_dialog(accept, text),
             Input::Files { paths } => self.give_files(&paths),
         }
@@ -865,7 +885,17 @@ impl Live {
         self.dirty = true;
     }
 
-    fn choose(&mut self, menu: u32, choice: Option<u32>) {
+    fn copy(&mut self, text: &str) {
+        if let Some(viewer) = self.last_press.clone() {
+            self.copied = Some(Copied {
+                viewer,
+                text: cut(text, MOST_TEXT),
+            });
+            self.dirty = true;
+        }
+    }
+
+    fn choose(&mut self, viewer: &str, menu: u32, choice: Option<u32>) {
         self.state.menu = None;
         self.dirty = true;
         if menu == CONTEXT_MENU {
@@ -874,7 +904,10 @@ impl Live {
                 && let Ok(choice) = usize::try_from(choice)
                 && choice < context.copies.len()
             {
-                self.state.copied = Some(context.copies.swap_remove(choice));
+                self.copied = Some(Copied {
+                    viewer: viewer.to_owned(),
+                    text: context.copies.swap_remove(choice),
+                });
             }
             return;
         }
@@ -1044,6 +1077,94 @@ mod tests {
             outgoing: mpsc::channel(1).0,
             pointer: None,
         }
+    }
+
+    fn live() -> Live {
+        Live::new(
+            Engine::idle(),
+            1,
+            PathBuf::new(),
+            watch::channel(State::default()).0,
+            watch::channel(None).0,
+        )
+    }
+
+    async fn join(live: &mut Live, id: &str) -> mpsc::Receiver<Bytes> {
+        let (outgoing, incoming) = mpsc::channel(VIEWER_QUEUE);
+        let viewer = Viewer {
+            id: id.to_owned(),
+            person: id.to_owned(),
+            name: id.to_owned(),
+        };
+        let seat = SEATS.fetch_add(1, Ordering::Relaxed);
+        live.handle(Event::Join {
+            viewer,
+            seat,
+            outgoing,
+        })
+        .await;
+        incoming
+    }
+
+    async fn say(live: &mut Live, viewer: &str, input: serde_json::Value) {
+        let message = serde_json::from_value(json!({ "type": "input", "input": input })).unwrap();
+        live.handle(Event::Message {
+            viewer: viewer.to_owned(),
+            message,
+        })
+        .await;
+    }
+
+    async fn press(live: &mut Live, viewer: &str) {
+        let press = json!({ "kind": "mouse", "action": "press", "x": 1, "y": 1, "button": "left", "clicks": 1 });
+        say(live, viewer, press).await;
+    }
+
+    fn copies(incoming: &mut mpsc::Receiver<Bytes>) -> Vec<Option<String>> {
+        std::iter::from_fn(|| incoming.try_recv().ok())
+            .filter_map(|message| match ToViewer::decode(&message) {
+                Ok(ToViewer::State(state)) => Some(state.copied),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn each_copy_reaches_the_viewer_who_pressed_once_also_the_same_words_again() {
+        let mut live = live();
+        let mut ana = join(&mut live, "ana").await;
+        let mut bob = join(&mut live, "bob").await;
+        press(&mut live, "ana").await;
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        assert_eq!(copies(&mut ana), [None, Some("word".to_owned())]);
+        assert_eq!(copies(&mut bob), [None, None]);
+
+        live.handle(Event::Shape("text".to_owned())).await;
+        live.publish();
+        assert_eq!(copies(&mut ana), [None]);
+
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        assert_eq!(copies(&mut ana), [Some("word".to_owned())]);
+
+        let mut again = join(&mut live, "ana").await;
+        assert_eq!(copies(&mut again), [None]);
+    }
+
+    #[tokio::test]
+    async fn a_copy_goes_to_the_viewer_whose_key_asked_for_it() {
+        let mut live = live();
+        let mut ana = join(&mut live, "ana").await;
+        let mut bob = join(&mut live, "bob").await;
+        press(&mut live, "ana").await;
+        press(&mut live, "bob").await;
+        let copy = json!({ "kind": "key", "action": "down", "key": "c", "code": "KeyC", "keyCode": 67, "modifiers": 4 });
+        say(&mut live, "ana", copy).await;
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        assert_eq!(copies(&mut ana).last(), Some(&Some("word".to_owned())));
+        assert_eq!(copies(&mut bob).last(), Some(&None));
     }
 
     #[test]
