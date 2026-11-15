@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex, PoisonError,
         atomic::{AtomicU64, Ordering},
     },
     time::{Duration, Instant},
@@ -10,7 +10,7 @@ use std::{
 
 use bytes::Bytes;
 use serde_json::json;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{Notify, mpsc, oneshot, watch};
 
 use crate::{
     Error, driver,
@@ -58,6 +58,7 @@ pub(crate) enum Event {
         viewer: Viewer,
         seat: u64,
         outgoing: mpsc::Sender<Bytes>,
+        mailbox: Arc<Mailbox>,
     },
     Message {
         viewer: String,
@@ -124,6 +125,7 @@ impl Window {
     /// The viewer's first message is `watch`.
     pub async fn watch(&self, viewer: Viewer) -> Result<Pipe, Error> {
         let (outgoing, incoming) = mpsc::channel(VIEWER_QUEUE);
+        let mailbox = Arc::new(Mailbox::default());
         let id = viewer.id.clone();
         let seat = SEATS.fetch_add(1, Ordering::Relaxed);
         self.events
@@ -131,6 +133,7 @@ impl Window {
                 viewer,
                 seat,
                 outgoing,
+                mailbox: Arc::clone(&mailbox),
             })
             .await
             .map_err(|_| Error::Stopped)?;
@@ -138,6 +141,7 @@ impl Window {
             viewer: id,
             seat,
             incoming,
+            mailbox,
             events: self.events.clone(),
         })
     }
@@ -177,7 +181,43 @@ pub struct Pipe {
     viewer: String,
     seat: u64,
     incoming: mpsc::Receiver<Bytes>,
+    mailbox: Arc<Mailbox>,
     events: mpsc::Sender<Event>,
+}
+
+/// What a window sends to one viewer. A picture that finds no room can go, as a key frame heals
+/// it, but a state must arrive, because the viewer places each point by its size.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToView {
+    State(Bytes),
+    Picture(Bytes),
+}
+
+/// The newest state for one viewer, which its pipe takes as soon as it has room. A newer state
+/// takes the place of one that waits but keeps its copy, so that a copy reaches its viewer once.
+#[derive(Default)]
+pub(crate) struct Mailbox {
+    state: Mutex<Option<State>>,
+    ready: Notify,
+}
+
+impl Mailbox {
+    fn put(&self, mut state: State) {
+        let mut waiting = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if state.copied.is_none() {
+            state.copied = waiting.take().and_then(|waiting| waiting.copied);
+        }
+        *waiting = Some(state);
+        drop(waiting);
+        self.ready.notify_one();
+    }
+
+    fn take(&self) -> Option<State> {
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+    }
 }
 
 impl Pipe {
@@ -192,8 +232,18 @@ impl Pipe {
             .map_err(|_| Error::Stopped)
     }
 
-    pub async fn receive(&mut self) -> Option<Bytes> {
-        self.incoming.recv().await
+    /// The newest state comes before the pictures that wait.
+    pub async fn receive(&mut self) -> Option<ToView> {
+        loop {
+            if let Some(state) = self.mailbox.take() {
+                return Some(ToView::State(ToViewer::State(Box::new(state)).encode()));
+            }
+            tokio::select! {
+                biased;
+                () = self.mailbox.ready.notified() => {}
+                picture = self.incoming.recv() => return picture.map(ToView::Picture),
+            }
+        }
     }
 }
 
@@ -255,6 +305,7 @@ struct Seat {
     viewer: Viewer,
     number: u64,
     outgoing: mpsc::Sender<Bytes>,
+    mailbox: Arc<Mailbox>,
     pointer: Option<(f64, f64)>,
     /// The size of the viewer's view, which the page takes while this viewer is in control.
     size: Option<Size>,
@@ -462,11 +513,7 @@ impl Live {
             .collect();
         self.published.send_replace(self.state.clone());
         for seat in self.seats.values() {
-            let state = self.state_for(&seat.viewer.id);
-            drop(
-                seat.outgoing
-                    .try_send(ToViewer::State(Box::new(state)).encode()),
-            );
+            seat.mailbox.put(self.state_for(&seat.viewer.id));
         }
         self.copied = None;
     }
@@ -495,15 +542,16 @@ impl Live {
                 viewer,
                 seat,
                 outgoing,
+                mailbox,
             } => {
-                let state = self.state_for(&viewer.id);
-                drop(outgoing.try_send(ToViewer::State(Box::new(state)).encode()));
+                mailbox.put(self.state_for(&viewer.id));
                 self.seats.insert(
                     viewer.id.clone(),
                     Seat {
                         viewer,
                         number: seat,
                         outgoing,
+                        mailbox,
                         pointer: None,
                         size: None,
                     },
@@ -1201,6 +1249,7 @@ mod tests {
             },
             number,
             outgoing: mpsc::channel(1).0,
+            mailbox: Arc::default(),
             pointer: None,
             size: None,
         }
@@ -1217,8 +1266,9 @@ mod tests {
         )
     }
 
-    async fn join(live: &mut Live, id: &str) -> mpsc::Receiver<Bytes> {
+    async fn join(live: &mut Live, id: &str) -> Pipe {
         let (outgoing, incoming) = mpsc::channel(VIEWER_QUEUE);
+        let mailbox = Arc::new(Mailbox::default());
         let viewer = Viewer {
             id: id.to_owned(),
             person: id.to_owned(),
@@ -1229,9 +1279,24 @@ mod tests {
             viewer,
             seat,
             outgoing,
+            mailbox: Arc::clone(&mailbox),
         })
         .await;
-        incoming
+        Pipe {
+            viewer: id.to_owned(),
+            seat,
+            incoming,
+            mailbox,
+            events: mpsc::channel(1).0,
+        }
+    }
+
+    fn newest(pipe: &Pipe) -> Option<State> {
+        pipe.mailbox.take()
+    }
+
+    fn copied(pipe: &Pipe) -> Option<String> {
+        newest(pipe).and_then(|state| state.copied)
     }
 
     async fn say(live: &mut Live, viewer: &str, input: serde_json::Value) {
@@ -1291,17 +1356,12 @@ mod tests {
     #[tokio::test]
     async fn a_new_size_of_the_viewer_in_control_applies_at_once_and_reaches_every_viewer() {
         let mut live = live();
-        let mut ana = join(&mut live, "ana").await;
+        let ana = join(&mut live, "ana").await;
         look(&mut live, "ana", view(900, 700)).await;
         reshape(&mut live, "ana", view(1100, 700)).await;
         assert_eq!(live.size, view(1100, 700));
-        let sizes: Vec<_> = std::iter::from_fn(|| ana.try_recv().ok())
-            .filter_map(|message| match ToViewer::decode(&message) {
-                Ok(ToViewer::State(state)) => Some((state.width, state.height)),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(sizes.last(), Some(&(1100, 700)));
+        let shown = newest(&ana).map(|state| (state.width, state.height));
+        assert_eq!(shown, Some((1100, 700)));
     }
 
     #[tokio::test]
@@ -1319,50 +1379,75 @@ mod tests {
         assert_eq!(live.size, view(600, 1000));
     }
 
-    fn copies(incoming: &mut mpsc::Receiver<Bytes>) -> Vec<Option<String>> {
-        std::iter::from_fn(|| incoming.try_recv().ok())
-            .filter_map(|message| match ToViewer::decode(&message) {
-                Ok(ToViewer::State(state)) => Some(state.copied),
-                _ => None,
-            })
-            .collect()
-    }
-
     #[tokio::test]
     async fn each_copy_reaches_the_viewer_who_pressed_once_also_the_same_words_again() {
         let mut live = live();
-        let mut ana = join(&mut live, "ana").await;
-        let mut bob = join(&mut live, "bob").await;
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
         press(&mut live, "ana").await;
         live.handle(Event::Copied("word".to_owned())).await;
         live.publish();
-        assert_eq!(copies(&mut ana), [None, Some("word".to_owned())]);
-        assert_eq!(copies(&mut bob), [None, None]);
+        assert_eq!(copied(&ana).as_deref(), Some("word"));
+        assert_eq!(copied(&bob), None);
 
         live.handle(Event::Shape("text".to_owned())).await;
-        assert_eq!(copies(&mut ana), [None]);
+        assert_eq!(copied(&ana), None);
 
         live.handle(Event::Copied("word".to_owned())).await;
         live.publish();
-        assert_eq!(copies(&mut ana), [Some("word".to_owned())]);
+        assert_eq!(copied(&ana).as_deref(), Some("word"));
 
-        let mut again = join(&mut live, "ana").await;
-        assert_eq!(copies(&mut again), [None]);
+        let again = join(&mut live, "ana").await;
+        assert_eq!(copied(&again), None);
     }
 
     #[tokio::test]
     async fn a_copy_goes_to_the_viewer_whose_key_asked_for_it() {
         let mut live = live();
-        let mut ana = join(&mut live, "ana").await;
-        let mut bob = join(&mut live, "bob").await;
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
         press(&mut live, "ana").await;
         press(&mut live, "bob").await;
         let copy = json!({ "kind": "key", "action": "down", "key": "c", "code": "KeyC", "keyCode": 67, "modifiers": 4 });
         say(&mut live, "ana", copy).await;
         live.handle(Event::Copied("word".to_owned())).await;
         live.publish();
-        assert_eq!(copies(&mut ana).last(), Some(&Some("word".to_owned())));
-        assert_eq!(copies(&mut bob).last(), Some(&None));
+        assert_eq!(copied(&ana).as_deref(), Some("word"));
+        assert_eq!(copied(&bob), None);
+    }
+
+    #[tokio::test]
+    async fn a_copy_that_waits_for_its_viewer_goes_once_with_the_newest_state() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        press(&mut live, "ana").await;
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        live.handle(Event::Shape("text".to_owned())).await;
+        let state = newest(&ana).unwrap();
+        assert_eq!(
+            (state.copied.as_deref(), state.shape.as_str()),
+            (Some("word"), "text")
+        );
+        live.handle(Event::Shape("pointer".to_owned())).await;
+        assert_eq!(copied(&ana), None);
+    }
+
+    #[tokio::test]
+    async fn the_newest_state_reaches_a_viewer_whose_queue_is_full_of_pictures() {
+        let mut live = live();
+        let mut ana = join(&mut live, "ana").await;
+        look(&mut live, "ana", view(900, 700)).await;
+        let outgoing = live.seats["ana"].outgoing.clone();
+        while outgoing.try_send(Bytes::from_static(&[1])).is_ok() {}
+        reshape(&mut live, "ana", view(1100, 700)).await;
+        let Some(ToView::State(state)) = ana.receive().await else {
+            panic!("the state must come before the pictures");
+        };
+        let Ok(ToViewer::State(state)) = ToViewer::decode(&state) else {
+            panic!("a state is expected");
+        };
+        assert_eq!((state.width, state.height), (1100, 700));
     }
 
     #[test]

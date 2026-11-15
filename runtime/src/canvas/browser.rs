@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde_json::Value;
-use shared_browser::{Place, State, Viewer, Window};
+use shared_browser::{Place, State, ToView, Viewer, Window};
 use tokio::{
     sync::{mpsc, watch},
     time::Instant,
@@ -459,6 +459,9 @@ impl Browser {
         let (sender, mut from_view) = mpsc::channel::<Vec<u8>>(PIPE_QUEUE);
         let (to_view, receiver) = mpsc::channel(PIPE_QUEUE);
         tokio::spawn(async move {
+            // A state that finds no room waits here, and the window keeps the newer ones until
+            // it goes.
+            let mut waiting: Option<Vec<u8>> = None;
             loop {
                 tokio::select! {
                     message = from_view.recv() => {
@@ -467,11 +470,26 @@ impl Browser {
                             break;
                         }
                     }
-                    message = pipe.receive() => {
-                        let Some(message) = message else { break };
-                        // A view that falls behind asks for a new key frame.
-                        if to_view.try_send(message.to_vec()).is_err() && to_view.is_closed() {
-                            break;
+                    room = to_view.reserve(), if waiting.is_some() => {
+                        let Ok(room) = room else { break };
+                        if let Some(state) = waiting.take() {
+                            room.send(state);
+                        }
+                    }
+                    message = pipe.receive(), if waiting.is_none() => {
+                        match message {
+                            None => break,
+                            // A view that falls behind asks for a new key frame.
+                            Some(ToView::Picture(picture)) => {
+                                if to_view.try_send(picture.to_vec()).is_err() && to_view.is_closed() {
+                                    break;
+                                }
+                            }
+                            Some(ToView::State(state)) => match to_view.try_send(state.to_vec()) {
+                                Ok(()) => {}
+                                Err(mpsc::error::TrySendError::Full(state)) => waiting = Some(state),
+                                Err(mpsc::error::TrySendError::Closed(_)) => break,
+                            },
                         }
                     }
                 }
