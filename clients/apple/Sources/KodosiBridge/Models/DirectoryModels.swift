@@ -139,11 +139,6 @@ public struct RepositoryChoices: Decodable, Equatable, Sendable {
 
     public let github: GitHub
     public let repositories: [RepositoryChoice]
-
-    public init(github: GitHub, repositories: [RepositoryChoice]) {
-        self.github = github
-        self.repositories = repositories
-    }
 }
 
 public struct RepositoryChoice: Decodable, Equatable, Identifiable, Sendable {

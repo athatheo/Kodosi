@@ -10,14 +10,6 @@ public struct Canvas: Decodable, Equatable, Sendable {
     /// What changed last: a file, or the browser by a command of the agent. Each device acts on it once.
     public let change: CanvasOpen?
 
-    public init(sequence: UInt64, items: [CanvasItem], browser: CanvasBrowser?, open: CanvasOpen? = nil, change: CanvasOpen? = nil) {
-        self.sequence = sequence
-        self.items = items
-        self.browser = browser
-        self.open = open
-        self.change = change
-    }
-
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         sequence = try container.decode(UInt64.self, forKey: .sequence)
@@ -68,11 +60,6 @@ public enum CanvasSection: String, Identifiable, Sendable {
 public struct CanvasOpen: Decodable, Equatable, Sendable {
     public let key: String
     public let at: UInt64
-
-    public init(key: String, at: UInt64) {
-        self.key = key
-        self.at = at
-    }
 }
 
 public enum CanvasShown: Equatable, Identifiable, Sendable {
@@ -205,22 +192,11 @@ public struct BrowserDoing: Decodable, Equatable, Sendable {
     public struct Point: Decodable, Equatable, Sendable {
         public let x: Int
         public let y: Int
-
-        public init(x: Int, y: Int) {
-            self.x = x
-            self.y = y
-        }
     }
 
     public let agent: String
     public let kind: Kind
     public let point: Point?
-
-    public init(agent: String, kind: Kind, point: Point?) {
-        self.agent = agent
-        self.kind = kind
-        self.point = point
-    }
 }
 
 public struct BrowserStatus: Equatable, Sendable {
