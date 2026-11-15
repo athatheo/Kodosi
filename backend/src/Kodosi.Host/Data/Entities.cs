@@ -43,7 +43,6 @@ public sealed class PushToken
     public string Platform { get; set; } = "";
     public string Token { get; set; } = "";
     public string? Environment { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 public sealed class DeviceList
@@ -75,7 +74,6 @@ public sealed class Block
 {
     public Guid BlockerId { get; set; }
     public Guid BlockedId { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class IdentityReset

@@ -30,9 +30,6 @@ namespace Kodosi.Data.Migrations
                     b.Property<Guid>("BlockedId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.HasKey("BlockerId", "BlockedId");
 
                     b.HasIndex("BlockedId");
@@ -487,9 +484,6 @@ namespace Kodosi.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(4096)
                         .HasColumnType("character varying(4096)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");

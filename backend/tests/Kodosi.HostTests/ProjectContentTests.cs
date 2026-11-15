@@ -115,7 +115,7 @@ public sealed class ProjectContentTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task AConcurrentTerminalShareCannotRejoinARoomAfterMemberRemoval()
+    public async Task AConcurrentTerminalShareCannotRejoinAProjectAfterMemberRemoval()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var store = await TestStore.CreateAsync(postgres);
@@ -192,7 +192,7 @@ public sealed class ProjectContentTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task TheNextKeysOfARoomKeepAMemberWhoseAccountWasDeletedButNoOtherPerson()
+    public async Task TheNextKeysOfAProjectKeepAMemberWhoseAccountWasDeletedButNoOtherPerson()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var store = await TestStore.CreateAsync(postgres);
@@ -222,7 +222,7 @@ public sealed class ProjectContentTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task ARoomKeyStateNamesNoMorePeopleThanARoomCanHave()
+    public async Task AProjectKeyStateNamesNoMorePeopleThanAProjectCanHave()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var store = await TestStore.CreateAsync(postgres);

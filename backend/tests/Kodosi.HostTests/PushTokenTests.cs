@@ -108,7 +108,7 @@ public sealed class PushTokenTests(PostgresFixture postgres)
         var list = await store.Db.DeviceLists.SingleAsync(x => x.UserId == owner.User.Id, ct);
         (list.Generation, list.Body, list.Signature, list.IssuedAtMs) = (2, both, owner.Fixture.Sign(Proofs.Tagged(DomainTags.DeviceListV1, both)), issued + 1);
         await store.Db.SaveChangesAsync(ct);
-        var tokens = new PushTokens(store.Db, PushKeys.Settings(), TimeProvider.System);
+        var tokens = new PushTokens(store.Db, PushKeys.Settings());
         await tokens.RegisterAsync(owner.User.Id, phone.DeviceId, new("apns", AppleToken, "production"), ct);
         await tokens.RegisterAsync(owner.User.Id, owner.Device.Id, new("fcm", "fcm:token-1"), ct);
         store.Db.ChangeTracker.Clear();
