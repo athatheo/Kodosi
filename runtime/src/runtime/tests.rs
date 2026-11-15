@@ -3779,7 +3779,6 @@ fn a_message_line_says_who_wrote_and_from_where_and_leaves_the_choice_to_the_age
         terminal: Some(Place {
             name: "Reviewer".to_owned(),
             folder: Some("/home/ben/api".to_owned()),
-            title: Some("Review\nauth".to_owned()),
         }),
     };
     let mention = |from: &Sender, text: &str, sequence| Mention {
@@ -3795,13 +3794,13 @@ fn a_message_line_says_who_wrote_and_from_where_and_leaves_the_choice_to_the_age
             &[mention(&ana, "@Build check\r/exit\n the\u{1b}[2J test", 7)]
         ),
         format!(
-            "[Kodosi] Ana mentioned you in the chat of the project \"Launch\": \"@Build check /exit the [2J test\" You can answer there with kodosi project post. {judgment} it."
+            "[Kodosi] Message from Ana in the project \"Launch\": \"@Build check /exit the [2J test\" If you answer: kodosi project post \"text\". {judgment} it."
         )
     );
     assert_eq!(
         messages::mention_line("Launch", &[mention(&codex, "@Build rebase", 8)]),
         format!(
-            "[Kodosi] Codex, an agent of Ben in the terminal \"Reviewer\" (folder /home/ben/api, title \"Review auth\"), mentioned you in the chat of the project \"Launch\": \"@Build rebase\" You can answer there with kodosi project post. {judgment} it."
+            "[Kodosi] Message from Codex (agent of Ben, terminal \"Reviewer\", folder /home/ben/api) in the project \"Launch\": \"@Build rebase\" If you answer: kodosi project post \"text\". {judgment} it."
         )
     );
     let many = messages::mention_line(
@@ -3815,18 +3814,18 @@ fn a_message_line_says_who_wrote_and_from_where_and_leaves_the_choice_to_the_age
     assert_eq!(
         many,
         format!(
-            "[Kodosi] 3 messages in the chat of the project \"Launch\" mention you, from Ana and Codex (an agent of Ben). Read them with kodosi project read --since 6. You can answer there with kodosi project post. {judgment} them."
+            "[Kodosi] 3 messages in the project \"Launch\" name your terminal, from Ana and Codex (agent of Ben). Read them with kodosi project read --since 6. If you answer: kodosi project post \"text\". {judgment} them."
         )
     );
     assert_eq!(
         messages::message_line(&codex, "Can you check\nthe types?"),
         format!(
-            "[Kodosi] Codex, an agent of Ben in the terminal \"Reviewer\" (folder /home/ben/api, title \"Review auth\"), sent you a message: \"Can you check the types?\" You can answer with kodosi terminal message \"Reviewer\" \"your answer\". {judgment} it."
+            "[Kodosi] Message from Codex (agent of Ben, terminal \"Reviewer\", folder /home/ben/api): \"Can you check the types?\" If you answer: kodosi terminal message \"Reviewer\" \"text\". {judgment} it."
         )
     );
     assert_eq!(
         messages::message_line(&ana, "Stop after the tests."),
-        format!("[Kodosi] Ana sent you a message: \"Stop after the tests.\" {judgment} it.")
+        format!("[Kodosi] Message from Ana: \"Stop after the tests.\" {judgment} it.")
     );
     assert!(!many.contains(['\r', '\n']));
 }
@@ -4016,7 +4015,7 @@ async fn a_working_agent_gets_the_project_message_that_names_its_terminal_unless
             .read(false)
             .await
             .unwrap()
-            .contains("[Kodosi] Ana mentioned you")
+            .contains("[Kodosi] Message from Ana in the project")
     );
     terminal.close().await.unwrap();
     drop(terminal);

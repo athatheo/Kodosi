@@ -182,6 +182,10 @@ const TASK: &str =
 const REPOSITORY: &str =
     "The repository: its name or address that `kodosi project repo list` shows";
 
+/// An agent learns at each post what a post costs, where no skill text reaches it.
+const POSTED_BY_AGENT: &str =
+    "Done. People read each post. Post again only for a result, a question or a no.";
+
 fn terminal() -> Option<String> {
     super::this_terminal()
 }
@@ -248,12 +252,19 @@ pub(super) async fn run(
         return change(client, context, command, json_output).await;
     }
     if let ProjectAction::Post { text, agent } = args.action {
+        let agent = agent.or_else(|| this_agent(context));
+        let by_agent = agent.is_some();
         let action = Action::Post {
             text,
-            agent: agent.or_else(|| this_agent(context)),
+            agent,
             terminal_id: terminal(),
         };
-        return done(&call(client, context, &project, action).await?, json_output);
+        let result = call(client, context, &project, action).await?;
+        return if by_agent {
+            output(&result, json_output, POSTED_BY_AGENT)
+        } else {
+            done(&result, json_output)
+        };
     }
     let before = match &args.action {
         ProjectAction::Read { before, .. } => *before,
