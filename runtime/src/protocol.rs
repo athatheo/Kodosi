@@ -32,7 +32,7 @@ fn validate_participants(users: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub const VERSION: u32 = 89;
+pub const VERSION: u32 = 90;
 include!(concat!(env!("OUT_DIR"), "/protocol_contract.rs"));
 pub const MAX_COMMAND_BYTES: usize = 2 * 1024 * 1024;
 pub(crate) const MESSAGE_MAX_BYTES: usize = 1500;
@@ -300,6 +300,10 @@ pub enum Command {
         agent: Option<AgentStart>,
         #[serde(default)]
         prompt: Option<String>,
+        /// A running terminal of the host that makes the new one, whose agent the new
+        /// terminal starts with the same account and choices.
+        #[serde(default)]
+        like: Option<String>,
         #[serde(default)]
         size: Option<StartSize>,
     },
@@ -2630,10 +2634,11 @@ impl Command {
                 command,
                 agent,
                 prompt,
+                like,
                 size,
                 ..
             } => {
-                if let Some(id) = project_id {
+                for id in project_id.iter().chain(like) {
                     parse_id(id)?;
                 }
                 if let Some(size) = size {

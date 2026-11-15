@@ -72,6 +72,11 @@ QVariantList SessionCatalogModel::folderGroups() const
         group.insert(QStringLiteral("ownerUserId"), friends ? session.ownerUserId : QString {});
         if (local && session.repository)
             group.insert(QStringLiteral("repository"), true);
+        const auto like = group.value(QStringLiteral("like")).toString();
+        if (!session.program.isEmpty() && (like.isEmpty() || QUuid(like) < QUuid(session.id))) {
+            group.insert(QStringLiteral("like"), session.id);
+            group.insert(QStringLiteral("likeAgent"), session.program);
+        }
         auto entries = group.value(QStringLiteral("sessions")).toList();
         entries.append(fields(session));
         group.insert(QStringLiteral("sessions"), entries);

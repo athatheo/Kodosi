@@ -229,21 +229,15 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     return try JSONDecoder().decode(RuntimeSession.self, from: JSONEncoder().encode(fields))
 }
 
-@Test @MainActor func `same agent starts the agent of the selected terminal with its account and choices`() async throws {
+@Test @MainActor func `same agent starts one more like the selected terminal of this computer that runs an agent`() async throws {
     let (app, sent) = try launcherApp("SameAgent")
     defer { app.shutdownProcess() }
-    try await answerAgentRequests(app, sent: sent)
-    let claude = try terminal(running: [
-        "program": .string("claude"), "programAccount": .int(1),
-        "programSettings": .object([
-            "model": .string("opus"), "effort": .string("high"), "permissions": .string("auto"), "output": .string("detailed"),
-        ]),
-        "programPending": .object(["model": .string("sonnet")]),
-    ])
+    let claude = try terminal(running: ["program": .string("claude")])
     let plain = try terminal(running: [:])
-    app.sessions = [claude, plain]
+    let remote = try terminal(running: ["program": .string("claude"), "kind": .string("remote"), "connectionState": .string("connected")])
+    app.sessions = [claude, plain, remote]
     var created: [[String: JSONValue]] = []
-    for selected in [claude, plain] {
+    for selected in [claude, plain, remote] {
         app.workbench.selectedSessionId = selected.id
         app.perform(.sameAgent)
         for _ in 0 ..< 200 where sent().filter({ $0["type"] == .string("session.create") }).count == created.count {
@@ -256,12 +250,10 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
         ]))
         app.typeAhead.drop()
     }
-    #expect(created.count == 2)
+    #expect(created.count == 3)
     #expect(created.first?["workingDir"] == .string(FileManager.default.temporaryDirectory.path))
-    #expect(created.first?["agent"] == AgentStart(
-        agent: "claude", account: "work", model: "sonnet", effort: "", permissions: .auto, output: .detailed,
-    ).json)
-    #expect(created.last?["agent"] == nil)
+    #expect(created.map { $0["like"] } == [.string(claude.id), nil, nil])
+    #expect(created.allSatisfy { $0["agent"] == nil })
 }
 
 @Test @MainActor func `a launcher for another computer asks that computer and starts there`() async throws {

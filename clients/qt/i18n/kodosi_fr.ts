@@ -3506,6 +3506,10 @@
         <translation>Nouveau terminal sur une nouvelle branche</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>Lancer %1 dans %2</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>Nouveau terminal dans %1</translation>
     </message>

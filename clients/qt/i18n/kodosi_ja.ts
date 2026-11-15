@@ -3494,6 +3494,10 @@
         <translation>新しいブランチでターミナルを開く</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>%2 で %1 を起動</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>%1 で新しいターミナルを開く</translation>
     </message>

@@ -13,9 +13,9 @@ mod shell;
 mod usage;
 
 #[cfg(feature = "host")]
-pub(crate) use launch::Launch;
-#[cfg(feature = "host")]
 pub use launch::Launcher;
+#[cfg(feature = "host")]
+pub(crate) use launch::{Launch, RunningAgent};
 #[cfg(feature = "host")]
 pub(crate) use live::NO_RUNNING_AGENT;
 #[cfg(feature = "host")]

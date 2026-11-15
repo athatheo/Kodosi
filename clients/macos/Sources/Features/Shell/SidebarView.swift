@@ -140,13 +140,15 @@ struct SidebarView: View {
 
     private var projects: some View {
         VStack(alignment: .leading, spacing: 2) {
-            SidebarSectionHeader(title: "Projects", addTitle: "New project", identifier: "projects.create") {
+            SidebarSectionHeader(title: "Projects") {
                 deps.showProjects()
-            } add: {
-                if deps.account.isReady {
-                    deps.workbench.showsNewProject = true
-                } else {
-                    deps.beginSignIn()
+            } accessory: {
+                IconButton(title: "New project", symbol: "plus", identifier: "projects.create", size: 22) {
+                    if deps.account.isReady {
+                        deps.workbench.showsNewProject = true
+                    } else {
+                        deps.beginSignIn()
+                    }
                 }
             }
             if !deps.account.isReady {
@@ -180,10 +182,8 @@ struct SidebarView: View {
 
     private var terminals: some View {
         VStack(alignment: .leading, spacing: 2) {
-            SidebarSectionHeader(title: "Terminals", addTitle: "New terminal", identifier: "sidebar.terminals.new") {
+            SidebarSectionHeader(title: "Terminals") {
                 deps.workbench.section = .sessions
-            } add: {
-                deps.openLauncher()
             }
             let listed = deps.listedSessions
             let pinned = deps.workbench.pinnedSessionIds.compactMap { id in listed.first { $0.id == id } }
@@ -194,7 +194,7 @@ struct SidebarView: View {
                         .transition(AnyTransition.rise)
                 }
             }
-            let computers = SessionComputerGroup.groups(listed.filter { !deps.workbench.isPinned($0.id) })
+            let computers = SessionComputerGroup.groups(listed, pinned: Set(deps.workbench.pinnedSessionIds))
             let titled = computers.contains { $0.computer != nil }
             ForEach(computers) { computer in
                 let collapsed = titled && collapsedComputers.contains(computer.id)

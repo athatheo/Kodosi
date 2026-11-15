@@ -17,6 +17,7 @@
 <p align="center"><img src="../media/launcher.webp" width="580" alt="在启动器中选择了 Claude Code，并填写了文件夹和第一条提示词。"></p>
 
 - 想要普通终端，按 ⌘D（Linux 和 Windows 上为 Ctrl+Shift+O）。它会立即在所选终端的文件夹中打开。⌘T（Ctrl+Shift+T）会用所选终端的 Agent 打开它，账户和选择都相同。
+- 侧边栏中文件夹的 + 按钮会用该文件夹中运行的 Agent 再打开一个终端，账户和选择都相同；如果没有 Agent 在运行，则打开普通终端。
 - 按键与 Ghostty 一致。⌘1 到 ⌘9 选择终端（Linux 和 Windows 上为 Alt+1 到 Alt+9），⌥⌘ 加方向键选择相邻的终端（Ctrl+Alt 加方向键），⌘W 关闭所选终端。“设置 › 快捷键”列出了所有按键，并可以修改。
 - 如果缺少某个 Agent，启动器会显示它的安装命令。
 - Agent 启动时为“不受限制”：会直接修改文件、运行命令，不会先询问你。若想让某个 Agent 先询问，在模型后面的“更多”中选择“询问”。在那里还可以选择“详细程度”，即 Claude Code、Codex 和 Copilot CLI 显示多少工作内容，开始时为“简洁”。Copilot CLI 只从自己的设置中读取详细程度，因此在 Copilot CLI 以“简洁”运行期间，Kodosi 会修改它的设置，结束后再改回来。

@@ -2108,10 +2108,12 @@ impl Runtime {
                 command: saved.line.clone(),
                 agent: None,
                 prompt: None,
+                like: None,
                 size: None,
             };
             match self.begin_creation(
                 command,
+                None,
                 Some(self.restore.screen_file(saved.id)),
                 saved.quiet_settings.clone(),
             ) {

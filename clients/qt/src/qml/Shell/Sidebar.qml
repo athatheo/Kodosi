@@ -147,7 +147,7 @@ Item {
         AbstractButton {
             id: titleButton
             anchors.left: parent.left
-            anchors.right: add.left
+            anchors.right: add.visible ? add.left : parent.right
             anchors.rightMargin: 4
             height: parent.height
             hoverEnabled: true
@@ -171,6 +171,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             size: 22
             glyph: "plus"
+            visible: header.addName.length > 0
             objectName: header.identifier + ".add"
             Accessible.id: objectName
             Accessible.name: header.addName
@@ -866,10 +867,8 @@ Item {
                 Item { width: 1; height: 14 }
                 SectionHeader {
                     title: qsTr("Terminals")
-                    addName: qsTr("New terminal")
                     identifier: "sidebar.terminals"
                     onClicked: Models.DesktopState.activeView = Models.DesktopState.Sessions
-                    onAddClicked: root.newTerminalRequested()
                 }
                 Repeater {
                     model: root.groups.length
@@ -998,14 +997,18 @@ Item {
                                     onClicked: branchPopover.openAt(branchButton, folder.group.directory)
                                 }
                                 KIconButton {
+                                    readonly property string agent: folder.group.likeAgent || ""
+
                                     Layout.rightMargin: 2
                                     size: 20
                                     glyph: "plus"
                                     visible: folder.group.canStart === true && folderHover.hovered
                                     objectName: "sidebar.folder.new." + folder.group.key
                                     Accessible.id: objectName
-                                    Accessible.name: qsTr("New terminal in %1").arg(folder.group.name)
-                                    onClicked: Models.SessionActions.create("", folder.group.directory, "", "", "", ({}), folder.group.computerId || "")
+                                    Accessible.name: agent.length > 0
+                                        ? qsTr("New %1 in %2").arg(Models.DesktopSettings.agentLabel(agent)).arg(folder.group.name)
+                                        : qsTr("New terminal in %1").arg(folder.group.name)
+                                    onClicked: Models.SessionActions.createInFolder(folder.group.key)
                                 }
                                 KIconButton {
                                     Layout.rightMargin: 2

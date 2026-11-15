@@ -62,6 +62,7 @@ impl TestRuntime {
             command: None,
             agent: None,
             prompt: None,
+            like: None,
             size: None,
         })
         .await;
@@ -143,6 +144,7 @@ async fn a_terminal_on_a_new_branch_keeps_its_folder_until_it_closes_unchanged()
                 command: None,
                 agent: None,
                 prompt: None,
+                like: None,
                 size: None,
             })
             .await;
@@ -394,6 +396,7 @@ async fn a_stale_epoch_creates_nothing_and_hears_why() {
                 command: None,
                 agent: None,
                 prompt: None,
+                like: None,
                 size: None,
             },
         })
@@ -458,6 +461,7 @@ async fn a_viewer_says_that_terminals_and_conversations_stay_on_a_computer() {
             command: None,
             agent: None,
             prompt: None,
+            like: None,
             size: None,
         })
         .await;
@@ -536,6 +540,7 @@ async fn create_retry_is_exact_and_does_not_launch_a_second_process() {
         command: None,
         agent: None,
         prompt: None,
+        like: None,
         size: None,
     };
     runtime.send(command.clone()).await;
@@ -964,6 +969,7 @@ async fn a_terminal_started_on_another_computer_is_answered_when_it_shows_here()
         command: None,
         agent: None,
         prompt: None,
+        like: None,
         size: None,
     };
     runtime
@@ -1340,6 +1346,7 @@ async fn create_completion_publishes_catalog_before_its_result_and_retry_checks_
         command: None,
         agent: None,
         prompt: None,
+        like: None,
         size: None,
     };
     runtime.send(command).await;
@@ -1359,6 +1366,7 @@ async fn create_completion_publishes_catalog_before_its_result_and_retry_checks_
             command: None,
             agent: None,
             prompt: None,
+            like: None,
             size: None,
         })
         .await;
@@ -3462,6 +3470,7 @@ async fn create_named(
         command: line,
         agent: None,
         prompt: None,
+        like: None,
         size: None,
     };
     send_to(handle, command).await;
@@ -4516,6 +4525,211 @@ async fn a_change_of_the_agent_waits_for_its_next_prompt_and_types_its_own_comma
     assert_eq!(runtime.local[&id].entry.program_pending, None);
     terminal.close().await.unwrap();
     drop(terminal);
+}
+
+#[cfg(all(unix, feature = "host"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "each way to start one more terminal like another, with the lines its shells get"
+)]
+async fn one_more_terminal_like_another_starts_its_agent_with_its_account_and_choices() {
+    use crate::agents::{AgentChoiceChange, AgentPick, AgentSettings, Launcher, Permissions};
+    use std::os::unix::fs::PermissionsExt as _;
+
+    async fn answer(
+        runtime: &mut Runtime,
+        events: &mut broadcast::Receiver<Event>,
+        command: &Command,
+    ) -> Value {
+        runtime
+            .expect_answer(command, Uuid::now_v7(), CancellationToken::new())
+            .unwrap();
+        runtime.apply(command).unwrap();
+        timeout(Duration::from_secs(20), async {
+            loop {
+                while let Ok(event) = events.try_recv() {
+                    let mut event = serde_json::to_value(event).unwrap();
+                    if event["requestId"] == command.request_id() {
+                        crate::text::render(&mut event, crate::text::Language::English);
+                        return event;
+                    }
+                }
+                match runtime.jobs.join_next().await {
+                    Some(job) => runtime.complete(job.unwrap()),
+                    None => tokio::time::sleep(Duration::from_millis(20)).await,
+                }
+            }
+        })
+        .await
+        .unwrap()
+    }
+    async fn typed(folder: &Path) -> String {
+        timeout(Duration::from_secs(20), async {
+            loop {
+                let lines = std::fs::read_to_string(folder.join("typed")).unwrap_or_default();
+                if lines.ends_with('\n') {
+                    return lines;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .unwrap()
+    }
+    let create = |request: &str, folder: &Path, like: Option<Uuid>| Command::CreateSession {
+        request_id: request.to_owned(),
+        name: "Build".to_owned(),
+        working_dir: Some(folder.to_string_lossy().into_owned()),
+        project_id: None,
+        resume: None,
+        branch: None,
+        worktrees: None,
+        command: None,
+        agent: None,
+        prompt: None,
+        like: like.map(|id| id.to_string()),
+        size: None,
+    };
+    let (mut runtime, storage) = registry_fixture();
+    let root = kodosi_os::fs::canonicalize(storage.path()).unwrap();
+    let home = runtime.config.home.clone();
+    std::fs::create_dir_all(home.join(".claude-work")).unwrap();
+    let executable = |path: PathBuf, text: String| {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, text).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        path
+    };
+    let bin = root.join("bin");
+    executable(
+        bin.join("claude"),
+        "#!/bin/sh\nprintf '  --effort <level>  Effort level\\n      (low, high, max)\\n'\n"
+            .to_owned(),
+    );
+    let shell = executable(
+        root.join("shells/sh"),
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = -l ]; then shift; PATH='{}' exec /bin/sh \"$@\"; fi\nstty -icanon\nwhile IFS= read -r line; do printf '%s\\n' \"$line\" >> typed; done\n",
+            bin.display()
+        ),
+    );
+    runtime.config.initial_shell = Some(shell.to_string_lossy().into_owned());
+    runtime.launcher = Arc::new(Launcher::load(&runtime.config.data_root, &home, &shell));
+    runtime.launcher.choose(&AgentChoiceChange::Pick(AgentPick {
+        agent: crate::agents::Agent::Claude,
+        account: Some("default".to_owned()),
+        model: Some("haiku".to_owned()),
+        effort: Some("high".to_owned()),
+        permissions: Some(Permissions::Ask),
+        output: Some(crate::agents::Output::Standard),
+    }));
+    let folder = |name: &str| {
+        let folder = root.join(name);
+        std::fs::create_dir_all(&folder).unwrap();
+        folder
+    };
+    let mut events = runtime.events.subscribe();
+    let mut started = async |runtime: &mut Runtime, folder: &Path, like: Option<Uuid>| {
+        let request = Uuid::now_v7().to_string();
+        let answer = answer(runtime, &mut events, &create(&request, folder, like)).await;
+        assert_eq!(answer["type"], "session.result", "{answer}");
+        Uuid::parse_str(answer["sessionId"].as_str().unwrap()).unwrap()
+    };
+    let agent = started(&mut runtime, &folder("agent"), None).await;
+    let plain = started(&mut runtime, &folder("plain"), None).await;
+    let settings = |model: &str, effort: Option<&str>, permissions| AgentSettings {
+        model: Some(model.to_owned()),
+        effort: effort.map(str::to_owned),
+        permissions: Some(permissions),
+        output: None,
+    };
+    let runs = |runtime: &mut Runtime, account_place, pending: AgentSettings| {
+        let entry = &mut runtime.local.get_mut(&agent).unwrap().entry;
+        entry.program = Some("claude".to_owned());
+        entry.program_account = Some(account_place);
+        entry.program_settings = Some(settings("opus", Some("low"), Permissions::Unrestricted));
+        entry.program_pending = Some(pending);
+    };
+
+    runs(
+        &mut runtime,
+        1,
+        AgentSettings {
+            effort: Some("max".to_owned()),
+            ..AgentSettings::default()
+        },
+    );
+    let work = folder("work");
+    started(&mut runtime, &work, Some(agent)).await;
+    assert_eq!(
+        typed(&work).await,
+        format!(
+            "env CLAUDE_CONFIG_DIR={}/.claude-work claude --model opus --effort max --dangerously-skip-permissions\n",
+            home.display()
+        ),
+        "the account, model and permissions of the agent and the effort that waits; the output of the last choice"
+    );
+
+    runs(
+        &mut runtime,
+        0,
+        AgentSettings {
+            model: Some("sonnet".to_owned()),
+            ..AgentSettings::default()
+        },
+    );
+    let default = folder("default");
+    started(&mut runtime, &default, Some(agent)).await;
+    assert_eq!(
+        typed(&default).await,
+        "claude --model sonnet --dangerously-skip-permissions\n",
+        "a new model that waits runs at its own effort"
+    );
+
+    let shell_only = folder("shell");
+    let new = started(&mut runtime, &shell_only, Some(plain)).await;
+    runtime.local[&new]
+        .terminal
+        .send_input(Bytes::from_static(b"probe\r"))
+        .await
+        .unwrap();
+    assert_eq!(
+        typed(&shell_only).await,
+        "probe\n",
+        "a terminal like a plain one types nothing before the person"
+    );
+
+    assert!(matches!(
+        runtime.apply(&create(
+            &Uuid::now_v7().to_string(),
+            &root,
+            Some(Uuid::now_v7())
+        )),
+        Err(Error::NotFound)
+    ));
+    for (field, value) in [
+        ("command", json!("make")),
+        ("agent", json!({"agent": "claude"})),
+        (
+            "resume",
+            json!({"provider": "claude", "nativeConversationId": Uuid::now_v7()}),
+        ),
+        ("prompt", json!("Fix the build")),
+    ] {
+        let mut refused = json!({"type": "session.create", "requestId": Uuid::now_v7(), "name": "Build", "like": agent});
+        refused[field] = value;
+        let refused = serde_json::from_value(refused).unwrap();
+        assert_eq!(
+            answer(&mut runtime, &mut events, &refused).await["message"],
+            "A terminal like another starts without a command, an agent, a conversation or a prompt.",
+            "{field}"
+        );
+    }
+    assert_eq!(runtime.local.len(), 5, "a refused terminal does not start");
+    for local in runtime.local.values() {
+        drop(local.terminal.close().await);
+    }
 }
 
 #[cfg(feature = "host")]

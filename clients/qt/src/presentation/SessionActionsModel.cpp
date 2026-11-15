@@ -247,7 +247,8 @@ bool SessionActionsModel::createOnBranch(const QString& directory, const QString
 }
 
 bool SessionActionsModel::create(const QString& name, const QString& directory, const QString& command,
-    const QString& prompt, const QString& projectId, const QVariantMap& agent, const QString& computer)
+    const QString& prompt, const QString& projectId, const QVariantMap& agent, const QString& computer,
+    const QString& like)
 {
     QJsonObject line;
     if (!command.trimmed().isEmpty())
@@ -258,11 +259,25 @@ bool SessionActionsModel::create(const QString& name, const QString& directory, 
         line.insert(QStringLiteral("prompt"), prompt.trimmed());
     if (!computer.isEmpty())
         line.insert(QStringLiteral("computer"), computer);
+    if (!like.isEmpty())
+        line.insert(QStringLiteral("like"), like);
     if (!createInternal(name, directory, {}, {}, projectId, {}, line))
         return false;
     if (computer.isEmpty())
         m_settings.setWorkingDirectory(directory);
     return true;
+}
+
+bool SessionActionsModel::createInFolder(const QString& key)
+{
+    const auto groups = m_sessions.folderGroups();
+    const auto group = std::ranges::find(
+        groups, key, [](const QVariant& entry) { return entry.toMap().value(QStringLiteral("key")).toString(); });
+    if (group == groups.end())
+        return false;
+    const auto fields = group->toMap();
+    return create({}, fields.value(QStringLiteral("directory")).toString(), {}, {}, {}, {},
+        fields.value(QStringLiteral("computerId")).toString(), fields.value(QStringLiteral("like")).toString());
 }
 
 bool SessionActionsModel::createQuick()
@@ -272,10 +287,13 @@ bool SessionActionsModel::createQuick()
 
 bool SessionActionsModel::createSameAgent()
 {
-    return openQuick(selectedAgent());
+    const auto selected = m_sessions.session(m_desktop.selectedSessionId());
+    return openQuick(selected && selected->kind == QStringLiteral("local") && !selected->program.isEmpty()
+            ? selected->id
+            : QString());
 }
 
-bool SessionActionsModel::openQuick(const QVariantMap& agent)
+bool SessionActionsModel::openQuick(const QString& like)
 {
     if (m_typeAhead.holding())
         return false;
@@ -285,40 +303,11 @@ bool SessionActionsModel::openQuick(const QVariantMap& agent)
     }
     const auto selected = m_sessions.session(m_desktop.selectedSessionId());
     const auto folder = selected && selected->kind == QStringLiteral("local") ? selected->workingDirectory : QString();
-    if (!create({}, QFileInfo(folder).isDir() ? folder : m_settings.effectiveWorkingDirectory(), {}, {}, {}, agent))
+    if (!create({}, QFileInfo(folder).isDir() ? folder : m_settings.effectiveWorkingDirectory(), {}, {}, {}, {}, {},
+            like))
         return false;
     m_typeAhead.hold();
     return true;
-}
-
-// What Kodosi does not know of the running agent stays the launcher's last choice.
-QVariantMap SessionActionsModel::selectedAgent() const
-{
-    const auto selected = m_sessions.session(m_desktop.selectedSessionId());
-    if (!selected || selected->kind != QStringLiteral("local") || selected->program.isEmpty())
-        return {};
-    QVariantMap agent { { QStringLiteral("agent"), selected->program } };
-    const auto accounts = m_accounts ? m_accounts(selected->program) : QStringList {};
-    if (selected->programAccount >= 0 && selected->programAccount < accounts.size())
-        agent.insert(QStringLiteral("account"), accounts.at(selected->programAccount));
-    const auto& settings = selected->programSettings;
-    const auto& pending = selected->programPending;
-    const auto take = [&](const QString& key, bool known) {
-        if (pending.contains(key))
-            agent.insert(key, pending.value(key));
-        else if (settings.contains(key))
-            agent.insert(key, settings.value(key));
-        else if (known)
-            agent.insert(key, QString());
-    };
-    take(QStringLiteral("model"), !settings.isEmpty());
-    if (pending.contains(QStringLiteral("model")))
-        agent.insert(QStringLiteral("effort"), pending.value(QStringLiteral("effort"), QString()));
-    else
-        take(QStringLiteral("effort"), !settings.isEmpty());
-    take(QStringLiteral("permissions"), false);
-    take(QStringLiteral("output"), false);
-    return agent;
 }
 
 bool SessionActionsModel::createInternal(const QString& name, const QString& directory,

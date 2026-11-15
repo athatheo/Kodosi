@@ -813,6 +813,81 @@ fn an_agent_start_takes_the_last_choice_and_explicit_values_win() {
     );
 }
 
+#[test]
+fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
+    let accounts = claude_with_accounts().accounts;
+    let settings = |model: Option<&str>, effort: Option<&str>, permissions| AgentSettings {
+        model: model.map(str::to_owned),
+        effort: effort.map(str::to_owned),
+        permissions,
+        output: None,
+    };
+    let like = |account_place, settings, pending| {
+        RunningAgent {
+            agent: Agent::Claude,
+            account_place,
+            settings,
+            pending,
+        }
+        .start(&accounts)
+    };
+    let start = |account: Option<&str>, model: Option<&str>, effort: Option<&str>, permissions| {
+        AgentStart {
+            agent: Agent::Claude,
+            account: account.map(str::to_owned),
+            model: model.map(str::to_owned),
+            effort: effort.map(str::to_owned),
+            permissions,
+            output: None,
+        }
+    };
+    let running = Some(settings(Some("opus"), Some("low"), Some(Permissions::Auto)));
+
+    assert_eq!(
+        like(
+            Some(1),
+            running.clone(),
+            Some(settings(None, Some("high"), Some(Permissions::Ask)))
+        ),
+        start(
+            Some("work"),
+            Some("opus"),
+            Some("high"),
+            Some(Permissions::Ask)
+        ),
+        "a change that waits for the end of the turn wins"
+    );
+    assert_eq!(
+        like(Some(0), running, Some(settings(Some("haiku"), None, None))),
+        start(
+            Some("default"),
+            Some("haiku"),
+            Some(""),
+            Some(Permissions::Auto)
+        ),
+        "a new model runs at its own effort"
+    );
+    assert_eq!(
+        like(
+            Some(0),
+            Some(settings(None, None, Some(Permissions::Unrestricted))),
+            None
+        ),
+        start(
+            Some("default"),
+            Some(""),
+            Some(""),
+            Some(Permissions::Unrestricted)
+        ),
+        "a model and an effort that the agent started without are its own"
+    );
+    assert_eq!(
+        like(Some(2), None, None),
+        start(None, None, None, None),
+        "an account outside the list and unknown choices stay the last choice"
+    );
+}
+
 fn installed(agent: Agent) -> AgentInfo {
     AgentInfo {
         agent,
@@ -992,6 +1067,64 @@ async fn the_launch_choice_survives_a_restart() {
     let choice = Launcher::load(root.path(), root.path(), Path::new("/bin/sh")).choice();
     assert_eq!(choice.agent, Some(Agent::Codex));
     assert_eq!(choice.pick(Agent::Codex), pick);
+}
+
+#[cfg(unix)]
+fn shell_finding(folder: &Path, programs: &[&str]) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let bin = folder.join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let executable = |path: std::path::PathBuf, text: String| {
+        fs::write(&path, text).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        path
+    };
+    for program in programs {
+        executable(bin.join(program), "#!/bin/sh\n".to_owned());
+    }
+    executable(
+        folder.join("sh"),
+        format!(
+            "#!/bin/sh\n[ \"$1\" = -l ] && shift\nPATH='{}' exec /bin/sh \"$@\"\n",
+            bin.display()
+        ),
+    )
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_person_who_never_chose_starts_on_the_first_installed_agent() {
+    let root = tempfile::tempdir().unwrap();
+    let nothing = shell_finding(&root.path().join("nothing"), &[]);
+    let agents = shell_finding(&root.path().join("agents"), &["codex", "copilot"]);
+    let load = |data: &str, shell: &Path| {
+        let data = root.path().join(data);
+        fs::create_dir_all(&data).unwrap();
+        Arc::new(Launcher::load(&data, root.path(), shell))
+    };
+    let first = async |launcher: &Launcher| launcher.catalog().await.unwrap().choice.agent;
+
+    let new = load("new", &agents);
+    assert_eq!(new.choice().agent, None, "before Kodosi knows the agents");
+    assert_eq!(first(&new).await, Some(Agent::Codex));
+    assert_eq!(first(&load("bare", &nothing)).await, None);
+
+    let chosen = load("chosen", &agents);
+    chosen.choose(&AgentChoiceChange::Tab {
+        agent: Some(Agent::Copilot),
+    });
+    assert_eq!(first(&chosen).await, Some(Agent::Copilot));
+
+    let plain = load("plain", &agents);
+    plain.choose(&AgentChoiceChange::Tab { agent: None });
+    assert_eq!(first(&plain).await, None);
+    Arc::clone(&plain).save().await;
+    assert_eq!(
+        first(&load("plain", &agents)).await,
+        None,
+        "the plain terminal stays the choice after a restart"
+    );
 }
 
 #[cfg(unix)]

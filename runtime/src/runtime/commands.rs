@@ -22,7 +22,7 @@ use crate::{
 #[cfg(feature = "host")]
 use crate::{
     Config,
-    agents::{AgentStart, Launch, Launcher},
+    agents::{AgentStart, Launch, Launcher, RunningAgent},
     protocol::{SessionEntry, SessionKind},
     provider::{self, ConversationIdentity},
     terminal::{SessionChange, TerminalSession},
@@ -1092,7 +1092,10 @@ impl Runtime {
     #[cfg(feature = "host")]
     fn create(&mut self, command: Command) -> Result<()> {
         let Command::CreateSession {
-            request_id, resume, ..
+            request_id,
+            resume,
+            like,
+            ..
         } = &command
         else {
             return Err(Error::Invalid("expected session creation".to_owned()));
@@ -1115,13 +1118,38 @@ impl Runtime {
                 .any(|command| matches!(command, Command::CreateSession { resume: Some(active), .. } if active == resume)) {
                 return Err(Error::Refused(text!("This provider conversation is already running in Kodosi.")));
             }
-        self.begin_creation(command, None, None).map(drop)
+        let like = match like {
+            Some(terminal) => self.running_agent(terminal)?,
+            None => None,
+        };
+        self.begin_creation(command, like, None, None).map(drop)
+    }
+
+    #[cfg(feature = "host")]
+    fn running_agent(&self, terminal: &str) -> Result<Option<RunningAgent>> {
+        let local = self
+            .local
+            .get(&parse_id(terminal)?)
+            .filter(|local| local.comes_back())
+            .ok_or(Error::NotFound)?;
+        Ok(local
+            .entry
+            .program
+            .as_deref()
+            .and_then(crate::agents::Agent::named)
+            .map(|agent| RunningAgent {
+                agent,
+                account_place: local.entry.program_account,
+                settings: local.entry.program_settings.clone(),
+                pending: local.entry.program_pending.clone(),
+            }))
     }
 
     #[cfg(feature = "host")]
     pub(super) fn begin_creation(
         &mut self,
         command: Command,
+        like: Option<RunningAgent>,
         screen: Option<PathBuf>,
         quiet_settings: Option<PathBuf>,
     ) -> Result<Uuid> {
@@ -1142,6 +1170,7 @@ impl Runtime {
                 services,
                 &launcher,
                 &command,
+                like,
                 screen,
                 quiet_settings,
                 changes,
@@ -2201,12 +2230,18 @@ async fn start_folder(
 }
 
 #[cfg(feature = "host")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the parts of one new terminal"
+)]
 async fn create_session(
     id: Uuid,
     config: Config,
     services: crate::canvas::CanvasServices,
     launcher: &Arc<Launcher>,
     command: &Command,
+    like: Option<RunningAgent>,
     screen: Option<PathBuf>,
     quiet_settings: Option<PathBuf>,
     changes: mpsc::Sender<SessionChange>,
@@ -2219,6 +2254,7 @@ async fn create_session(
         command: start,
         agent,
         prompt,
+        like: like_terminal,
         size,
         ..
     } = command
@@ -2230,6 +2266,14 @@ async fn create_session(
         .transpose()?
         .unwrap_or_default();
     let directory = start_folder(&config, working_dir.as_deref(), worktrees.as_deref()).await?;
+    if like_terminal.is_some()
+        && (start.is_some() || agent.is_some() || resume.is_some() || prompt.is_some())
+    {
+        return Err(Error::Invalid(
+            "A terminal like another starts without a command, an agent, a conversation or a prompt."
+                .to_owned(),
+        ));
+    }
     if branch.is_some() && resume.is_some() {
         return Err(Error::Invalid(
             "A conversation resumes in its own folder, not on a new branch.".to_owned(),
@@ -2245,6 +2289,10 @@ async fn create_session(
             "Start either a command or an agent.".to_owned(),
         ));
     }
+    let agent = match like {
+        Some(running) => Some(launcher.start_like(running).await),
+        None => agent.clone(),
+    };
     let start = start_line(
         &config,
         launcher,

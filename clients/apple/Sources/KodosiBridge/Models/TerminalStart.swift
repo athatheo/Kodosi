@@ -7,6 +7,7 @@ public struct TerminalStart: Equatable, Sendable {
     public var projectId: String?
     public var command: String?
     public var agent: AgentStart?
+    public var like: String?
     public var prompt: String?
     public var branch: String?
     public var worktrees: String?
@@ -14,7 +15,8 @@ public struct TerminalStart: Equatable, Sendable {
 
     public init(
         name: String, directory: String? = nil, computer: String? = nil, projectId: String? = nil, command: String? = nil,
-        agent: AgentStart? = nil, prompt: String? = nil, branch: String? = nil, worktrees: String? = nil, size: JSONValue? = nil,
+        agent: AgentStart? = nil, like: String? = nil, prompt: String? = nil, branch: String? = nil, worktrees: String? = nil,
+        size: JSONValue? = nil,
     ) {
         self.name = name
         self.directory = directory
@@ -22,6 +24,7 @@ public struct TerminalStart: Equatable, Sendable {
         self.projectId = projectId
         self.command = command
         self.agent = agent
+        self.like = like
         self.prompt = prompt
         self.branch = branch
         self.worktrees = worktrees
@@ -31,8 +34,8 @@ public struct TerminalStart: Equatable, Sendable {
     public var fields: [String: JSONValue] {
         var fields: [String: JSONValue] = ["name": .string(name)]
         let words = [
-            ("projectId", projectId), ("workingDir", directory), ("computer", computer), ("command", command), ("prompt", prompt),
-            ("branch", branch), ("worktrees", worktrees),
+            ("projectId", projectId), ("workingDir", directory), ("computer", computer), ("command", command), ("like", like),
+            ("prompt", prompt), ("branch", branch), ("worktrees", worktrees),
         ]
         for case let (key, value?) in words {
             fields[key] = .string(value)

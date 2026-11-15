@@ -19,6 +19,7 @@ public struct SessionFolderGroup: Identifiable, Sendable {
     public let computerId: String?
     public let owner: Owner?
     public let sessions: [RuntimeSession]
+    public let newestAgentTerminal: RuntimeSession?
 
     public var name: String {
         directory.map(HostPath.folderName) ?? String(localized: "Terminals", bundle: .module)
@@ -56,12 +57,14 @@ public struct SessionComputerGroup: Identifiable, Sendable {
         session.kind == .local ? "local" : session.hostDeviceId ?? session.ownerUserId ?? session.id
     }
 
-    public static func groups(_ sessions: [RuntimeSession]) -> [Self] {
+    /// A pinned terminal shows apart from its folder and still is a terminal of it. Terminal IDs are
+    /// UUID version 7, so the greatest ID is the newest terminal.
+    public static func groups(_ sessions: [RuntimeSession], pinned: Set<String> = []) -> [Self] {
         let computers = Dictionary(grouping: sessions, by: key)
         let friendsComputers = Dictionary(grouping: computers.values.compactMap(\.first).filter { $0.kind != .local && !$0.isOwner }) {
             $0.ownerUserId ?? $0.ownerName ?? ""
         }
-        return computers.map { key, sessions in
+        return computers.compactMap { key, sessions in
             let first = sessions[0]
             let remote = first.kind != .local
             let owner = remote && !first.isOwner
@@ -74,13 +77,15 @@ public struct SessionComputerGroup: Identifiable, Sendable {
             } else {
                 computer ?? String(localized: "This Mac", bundle: .module)
             }
-            let folders = Dictionary(grouping: sessions) { $0.workingDir ?? "" }.map { directory, sessions in
-                SessionFolderGroup(
+            let folders = Dictionary(grouping: sessions) { $0.workingDir ?? "" }.compactMap { directory, sessions in
+                let shown = sessions.filter { !pinned.contains($0.id) }
+                return shown.isEmpty ? nil : SessionFolderGroup(
                     id: "\(key):\(directory)", directory: directory.isEmpty ? nil : directory, computer: computer,
-                    computerId: remote ? first.hostDeviceId : nil, owner: owner, sessions: sessions,
+                    computerId: remote ? first.hostDeviceId : nil, owner: owner, sessions: shown,
+                    newestAgentTerminal: sessions.filter { $0.program != nil }.max { $0.id < $1.id },
                 )
             }.sorted { ($0.directory == nil ? 1 : 0, $0.directory ?? "") < ($1.directory == nil ? 1 : 0, $1.directory ?? "") }
-            return Self(id: key, computer: computer, owner: owner, title: title, folders: folders)
+            return folders.isEmpty ? nil : Self(id: key, computer: computer, owner: owner, title: title, folders: folders)
         }.sorted { ($0.rank, $0.title) < ($1.rank, $1.title) }
     }
 

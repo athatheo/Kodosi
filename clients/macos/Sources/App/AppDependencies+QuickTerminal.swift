@@ -12,11 +12,11 @@ extension AppDependencies {
             }
     }
 
-    var selectedAgent: AgentStart? {
-        workbench.selectedSessionId.flatMap(session).flatMap { AgentStart(runningIn: $0, info: launcher.agent($0.program)) }
+    var selectedAgentTerminal: String? {
+        workbench.selectedSessionId.flatMap(session).flatMap { $0.kind == .local && $0.program != nil ? $0.id : nil }
     }
 
-    func openQuickTerminal(agent: AgentStart? = nil) {
+    func openQuickTerminal(like: String? = nil) {
         if let event = NSApp?.currentEvent, event.type == .keyDown, event.isARepeat {
             return
         }
@@ -31,7 +31,7 @@ extension AppDependencies {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await typeAhead.expect(createSession(name: generateSessionName(), directory: directory, agent: agent))
+                try await typeAhead.expect(createSession(name: generateSessionName(), directory: directory, like: like))
             } catch {
                 typeAhead.drop()
                 errorMessage = error.localizedDescription

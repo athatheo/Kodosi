@@ -3494,6 +3494,10 @@
         <translation>在新分支上新建终端</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>在 %2 中启动 %1</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>在 %1 中新建终端</translation>
     </message>

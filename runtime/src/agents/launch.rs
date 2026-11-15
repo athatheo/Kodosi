@@ -8,12 +8,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
     Agent, AgentAccount, AgentCatalog, AgentChoice, AgentChoiceChange, AgentInfo, AgentModel,
-    AgentModels, AgentModelsReply, AgentOption, AgentPick, AgentStart, AgentUsageReply, Output,
-    Permissions, as_shell_word,
+    AgentModels, AgentModelsReply, AgentOption, AgentPick, AgentSettings, AgentStart,
+    AgentUsageReply, Output, Permissions, as_shell_word,
     quiet::{self, QuietSettings},
     usage,
 };
@@ -37,11 +38,62 @@ pub(crate) struct Launch {
     pub(crate) quiet_settings: Option<PathBuf>,
 }
 
+pub(crate) struct RunningAgent {
+    pub(crate) agent: Agent,
+    pub(crate) account_place: Option<u8>,
+    pub(crate) settings: Option<AgentSettings>,
+    pub(crate) pending: Option<AgentSettings>,
+}
+
+impl RunningAgent {
+    /// What Kodosi does not know of the running agent stays the launcher's last choice.
+    pub(super) fn start(self, accounts: &[AgentAccount]) -> AgentStart {
+        let pending = self.pending.unwrap_or_default();
+        let known = self.settings.is_some();
+        let settings = self.settings.unwrap_or_default();
+        let known_or_own = |value: Option<String>| known.then(|| value.unwrap_or_default());
+        let effort = if pending.model.is_some() {
+            Some(pending.effort.unwrap_or_default())
+        } else {
+            pending.effort.or_else(|| known_or_own(settings.effort))
+        };
+        AgentStart {
+            agent: self.agent,
+            account: self
+                .account_place
+                .and_then(|place| accounts.get(usize::from(place)))
+                .map(|account| account.name.clone()),
+            model: pending.model.or_else(|| known_or_own(settings.model)),
+            effort,
+            permissions: pending.permissions.or(settings.permissions),
+            output: pending.output.or(settings.output),
+        }
+    }
+}
+
 #[derive(Default)]
 struct State {
-    saved: AgentChoice,
+    saved: Saved,
     catalog: Option<(Instant, AgentCatalog)>,
     models: HashMap<Agent, AgentModels>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Saved {
+    #[serde(flatten)]
+    choice: AgentChoice,
+    #[serde(default)]
+    plain_terminal: bool,
+}
+
+impl Saved {
+    fn apply(&mut self, change: &AgentChoiceChange) {
+        if let AgentChoiceChange::Tab { agent } = change {
+            self.plain_terminal = agent.is_none();
+        }
+        self.choice.apply(change);
+    }
 }
 
 impl Launcher {
@@ -141,6 +193,15 @@ impl Launcher {
         }
     }
 
+    pub(crate) async fn start_like(&self, running: RunningAgent) -> AgentStart {
+        let catalog = self.known_catalog(false).await.ok();
+        let accounts = catalog
+            .as_ref()
+            .and_then(|catalog| agent_info(catalog, running.agent))
+            .map_or(&[][..], |info| info.accounts.as_slice());
+        running.start(accounts)
+    }
+
     pub(crate) async fn line(self: &Arc<Self>, start: &AgentStart) -> Result<Launch, String> {
         let mut catalog = self.known_catalog(false).await?;
         let fresh = |catalog: &AgentCatalog| {
@@ -163,7 +224,7 @@ impl Launcher {
                 info.install
             ));
         }
-        let saved = self.state().saved.pick(start.agent);
+        let saved = self.state().saved.choice.pick(start.agent);
         let wanted = |explicit: &Option<String>, saved: &Option<String>| {
             explicit
                 .as_ref()
@@ -184,8 +245,10 @@ impl Launcher {
             .and_then(|(folder, output)| quiet::settings_file(start.agent, output, &folder));
         {
             let mut state = self.state();
-            state.saved.agent = Some(start.agent);
-            state.saved.set(pick);
+            state.saved.apply(&AgentChoiceChange::Tab {
+                agent: Some(start.agent),
+            });
+            state.saved.apply(&AgentChoiceChange::Pick(pick));
         }
         Arc::clone(self).save().await;
         Ok(Launch {
@@ -300,7 +363,7 @@ impl AgentChoice {
 impl State {
     fn resolved(&self) -> AgentChoice {
         AgentChoice {
-            agent: self.saved.agent,
+            agent: self.saved.choice.agent.or_else(|| self.first_agent()),
             picks: Agent::ALL
                 .into_iter()
                 .map(|agent| self.resolved_pick(agent))
@@ -308,8 +371,18 @@ impl State {
         }
     }
 
+    fn first_agent(&self) -> Option<Agent> {
+        let (_, catalog) = self
+            .catalog
+            .as_ref()
+            .filter(|_| !self.saved.plain_terminal)?;
+        Agent::ALL
+            .into_iter()
+            .find(|agent| agent_info(catalog, *agent).is_some_and(|info| info.installed))
+    }
+
     fn resolved_pick(&self, agent: Agent) -> AgentPick {
-        let mut saved = self.saved.pick(agent);
+        let mut saved = self.saved.choice.pick(agent);
         saved.permissions = Some(permissions_of(agent, saved.permissions));
         saved.output = Some(output_of(agent, saved.output));
         let account = match self

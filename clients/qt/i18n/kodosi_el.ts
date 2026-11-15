@@ -3506,6 +3506,10 @@
         <translation>Νέο τερματικό σε νέο branch</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>Εκκίνηση %1 στο %2</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>Νέο τερματικό στο %1</translation>
     </message>
