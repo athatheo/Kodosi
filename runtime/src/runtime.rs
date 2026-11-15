@@ -2273,7 +2273,6 @@ impl Runtime {
         Some(messages::Place {
             name: entry.name.clone(),
             folder: entry.working_dir.clone(),
-            title: entry.title.clone(),
         })
     }
 

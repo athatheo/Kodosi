@@ -28,7 +28,6 @@ pub(super) enum Sender {
 pub(super) struct Place {
     pub name: String,
     pub folder: Option<String>,
-    pub title: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,10 +154,10 @@ pub(super) fn takes_messages(program: Option<&str>, status: Option<&ProgramStatu
 
 pub(super) fn mention_line(project: &str, mentions: &[Mention]) -> String {
     let project = plain(project, MOST_NAME);
-    let answer = "You can answer there with kodosi project post.";
+    let answer = "If you answer: kodosi project post \"text\".";
     if let [mention] = mentions {
         return format!(
-            "[Kodosi] {} mentioned you in the chat of the project \"{project}\": \"{}\" {answer} {JUDGMENT} it.",
+            "[Kodosi] Message from {} in the project \"{project}\": \"{}\" {answer} {JUDGMENT} it.",
             describe(&mention.from),
             plain(&mention.text, MOST_TEXT)
         );
@@ -176,7 +175,7 @@ pub(super) fn mention_line(project: &str, mentions: &[Mention]) -> String {
         }
     }
     format!(
-        "[Kodosi] {} messages in the chat of the project \"{project}\" mention you, from {}. Read them with kodosi project read --since {}. {answer} {JUDGMENT} them.",
+        "[Kodosi] {} messages in the project \"{project}\" name your terminal, from {}. Read them with kodosi project read --since {}. {answer} {JUDGMENT} them.",
         mentions.len(),
         listed(&authors),
         first.saturating_sub(1)
@@ -189,13 +188,13 @@ pub(super) fn message_line(from: &Sender, text: &str) -> String {
             terminal: Some(place),
             ..
         } => format!(
-            " You can answer with kodosi terminal message \"{}\" \"your answer\".",
+            " If you answer: kodosi terminal message \"{}\" \"text\".",
             plain(&place.name, MOST_NAME)
         ),
         _ => String::new(),
     };
     format!(
-        "[Kodosi] {} sent you a message: \"{}\"{answer} {JUDGMENT} it.",
+        "[Kodosi] Message from {}: \"{}\"{answer} {JUDGMENT} it.",
         describe(from),
         plain(text, crate::protocol::MESSAGE_MAX_BYTES)
     )
@@ -210,46 +209,21 @@ fn describe(from: &Sender) -> String {
     else {
         return short(from);
     };
-    let Some(place) = terminal else {
-        return format!(
-            "{}, an agent of {},",
-            plain(agent, MOST_NAME),
-            plain(person, MOST_NAME)
-        );
-    };
-    let details = [
-        place
-            .folder
-            .as_deref()
-            .map(|folder| format!("folder {}", plain(folder, MOST_FOLDER))),
-        place
-            .title
-            .as_deref()
-            .map(|title| plain(title, MOST_NAME))
-            .filter(|title| !title.is_empty())
-            .map(|title| format!("title \"{title}\"")),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-    let details = if details.is_empty() {
-        String::new()
-    } else {
-        format!(" ({})", details.join(", "))
-    };
-    format!(
-        "{}, an agent of {} in the terminal \"{}\"{details},",
-        plain(agent, MOST_NAME),
-        plain(person, MOST_NAME),
-        plain(&place.name, MOST_NAME)
-    )
+    let mut details = vec![format!("agent of {}", plain(person, MOST_NAME))];
+    if let Some(place) = terminal {
+        details.push(format!("terminal \"{}\"", plain(&place.name, MOST_NAME)));
+        if let Some(folder) = &place.folder {
+            details.push(format!("folder {}", plain(folder, MOST_FOLDER)));
+        }
+    }
+    format!("{} ({})", plain(agent, MOST_NAME), details.join(", "))
 }
 
 fn short(from: &Sender) -> String {
     match from {
         Sender::Person(name) => plain(name, MOST_NAME),
         Sender::Agent { person, agent, .. } => format!(
-            "{} (an agent of {})",
+            "{} (agent of {})",
             plain(agent, MOST_NAME),
             plain(person, MOST_NAME)
         ),

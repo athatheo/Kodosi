@@ -7,14 +7,11 @@ description: "Read and edit .docx documents, .xlsx sheets, .pptx presentations, 
 
 `kodosi doc` reads and edits a live document. When people have the file open on the canvas,
 they see your edit at once in your name, and you see theirs. With nobody there, the command
-opens the file and saves it. Each part of the file that you do not change stays as it was. A
-text file keeps its line endings and its byte order mark.
+opens the file and saves it. Each part of the file that you do not change stays as it was.
+`kodosi show <file>` opens the file on the canvas for the user.
 
-A text file of more than 10,000 lines or 512 KB is too long to edit live: `kodosi doc` says
-so, and you edit it with your own tools.
-
-Show a file with `kodosi show <file>`: the canvas opens with it for the people of the
-terminal. Say in one line why they should look.
+A text file keeps its line endings and its byte order mark. One of more than 10,000 lines or
+512 KB is too long to edit live: `kodosi doc` says so, and you edit it with your own tools.
 
 ## Commands
 

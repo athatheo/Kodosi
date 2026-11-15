@@ -1,65 +1,60 @@
 ---
 name: kodosi-canvas
-description: "The canvas beside a Kodosi terminal and its shared browser. Use it to show people what is easier to see than to read, in place of asking them to open a file or an address: a web app that you run, an HTML page or artifact, a report, a plan with choices, a diagram, a picture, a document, sheet, presentation or PDF. Use it also whenever you need a browser yourself, to open, test, click through or take a picture of a web page or a local app: people see that browser, can use it, and can sign in for you."
+description: "Show the user an image, a file, a website or the app that you run, on the canvas beside this Kodosi terminal, and use the shared browser there. Use it when the user asks to see, open or preview a thing, when a table, a plan with choices, a comparison or a diagram is easier to see than to read, and when you need a browser yourself to open, test, click through or take a picture of a web page."
 ---
 
 # Kodosi canvas
 
-Each Kodosi terminal has a canvas beside it, on every computer and phone where people see the
-terminal. Show them what is easier to see than to read: a page or artifact that you made, a
-plan with choices, a table, a diagram, a picture, a report, the app that you build.
-
-`kodosi show <file or address>` opens the canvas with it for the people who look at this
-terminal. Say in one line what it is and what they should look at. Do not ask them to open a
-file or an address themselves.
+Each Kodosi terminal has a canvas beside it: a panel for files and one shared browser. The
+user sees it on each device where they watch the terminal, and so do the people that they
+share the terminal with. They see what you do there as you do it: your pointer in the
+browser, and your edits in a document in your name. They can click, type and edit in the
+same place at the same time.
 
 ## Show
 
-- `kodosi show <file>`: show one or more files. The canvas opens at the first. When you
-  change a file, the canvas shows the new version, so show a file once and then edit it.
-- `kodosi show <address>`: open a web address in the shared browser on the canvas, such as
-  the app that you run (`kodosi show http://localhost:5173`) or a page on the web.
-- Pages are HTML, Markdown and text files. Markdown and text get the look of Kodosi.
-  Pictures (PNG, JPEG, GIF, WebP, SVG) show as they are. Documents (.docx), sheets (.xlsx),
-  presentations (.pptx) and PDFs are live: people edit them there, and you edit them with
-  `kodosi doc`. Read `kodosi skill documents` first.
-- A page runs in a closed frame: its own scripts run, but it loads nothing from the network
-  and opens no other files. Put the styles, scripts and pictures into the page, with inline
-  SVG or data: addresses for pictures. A page that loads from the network, such as one with
-  a script from a CDN, opens in the shared browser instead.
-- `kodosi skill page` prints a page with the look of Kodosi: its colors, cards, tags and
-  tables, in light and dark. Start from it for a page that people decide on.
-- Write pages where you can write files, for example the temporary folder or your working
-  folder.
-- `kodosi canvas` lists what the canvas shows. `kodosi canvas remove <name>` takes an item
-  off, and `kodosi canvas remove --all` takes all files off.
+- `kodosi show <file>`: puts one or more files on the canvas and opens the canvas for the
+  user at the first, also when they closed it. When you change a file later, the canvas
+  shows the new version, so show a file one time.
+- `kodosi show <address>`: opens a website, or the app that you run, in the shared browser
+  on the canvas, for example `kodosi show http://localhost:5173`.
+- `kodosi show browser`: opens the canvas at the shared browser as it is, without a new
+  load of its page. Use it after your work in the browser, when the user must look.
+- After you show a thing, say in one line what it is. Do not ask the user to open a file
+  or an address themselves.
+- What the canvas shows: HTML, Markdown and text files as pages (Markdown and text get the
+  look of Kodosi), pictures (PNG, JPEG, GIF, WebP, SVG), and documents (.docx), sheets
+  (.xlsx), presentations (.pptx) and PDFs, which people edit there
+  (`kodosi skill documents`).
+- An HTML page runs its own scripts, but it loads nothing from the network and opens no
+  other file. Put its styles, scripts and pictures into the page, with inline SVG or
+  data: addresses. A page that loads from the network opens in the shared browser.
+- `kodosi skill page` prints a page with the look of Kodosi, in light and dark. Start from
+  it for a plan with choices, a comparison or a report, and mark your recommendation.
+- `kodosi canvas` lists what the canvas has. `kodosi canvas remove <name>` takes one item
+  off, and `kodosi canvas remove --all` all files.
+- The user can select words on the canvas and send them to you, with the file or the
+  address that they come from.
 
-A good page has one subject: a title, a line that says what the page is for, the facts, and
-what the person must decide. Mark your recommendation.
+## Shared browser
 
-## Use the shared browser
+`kodosi browser <command>` runs an agent-browser command in the browser of this terminal.
+The browser starts at the first command. The user sees your work there while the canvas
+is open, and `kodosi show browser` opens it.
 
-`kodosi browser <command>` runs an agent-browser command on the browser of this terminal,
-for your own work in it, such as a test of your app. The browser starts at the first command.
-It sleeps after 10 minutes with no use and wakes with the same sign-ins. The people see it on
-the canvas, and they can click and type in it. To show them a page, use
-`kodosi show <address>`.
-
-- `kodosi browser open https://example.com`: go to an address.
+- `kodosi browser open https://example.com`: goes to an address.
 - `kodosi browser snapshot -i`: the parts of the page that you can use, each with a
-  reference such as `@e2`. Take a new snapshot after each change of the page.
+  reference such as `@e2`. A reference is good until the page changes. Take a new
+  snapshot after each change, and when Kodosi says that a person used the browser.
 - `kodosi browser click @e2`, `kodosi browser fill @e3 "text"`,
-  `kodosi browser press Enter`, `kodosi browser scroll down`.
-- `kodosi browser get text @e1` and `kodosi browser get url` read the page.
-- `kodosi browser screenshot shot.png` saves a picture; show it with `kodosi show shot.png`.
-- `kodosi browser upload @e4 report.pdf` gives a file to a file field. A file that a page
-  downloads goes into the folder of this terminal and shows on the canvas.
+  `kodosi browser press Enter` and `kodosi browser scroll down` use the page.
+- `kodosi browser get text @e1` and `kodosi browser get url` read it.
+- `kodosi browser screenshot shot.png`: saves a picture.
+- `kodosi browser upload @e4 report.pdf`: gives a file to a file field. A file that a
+  page downloads goes into the folder of this terminal and shows on the canvas.
 - `kodosi browser wait --load networkidle`, `kodosi browser back`,
   `kodosi browser tab new https://example.com` and `kodosi browser tab close`.
-- `kodosi browser --help` lists every command.
-
-When a person used the browser since your last command, Kodosi says so. Take a new
-snapshot before you use references again.
-
-When a page asks for a sign-in, ask the person to sign in on the canvas. Never ask for a
-password, and never type one that you found.
+  `kodosi browser --help` lists each command.
+- The browser sleeps after 10 minutes without use and wakes with the same sign-ins.
+- When a page asks for a sign-in, ask the user to sign in on the canvas. Never ask for a
+  password, and never type one that you found.

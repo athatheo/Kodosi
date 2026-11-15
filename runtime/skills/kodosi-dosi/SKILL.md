@@ -79,11 +79,3 @@ context between terminals and projects.
   while it waits.
 - `kodosi project --project <name> wait --after <sequence> --timeout 60` waits for
   activity in a project.
-
-## Answer
-
-- Start with what needs the person: the terminals that wait, failed or finished, what
-  each one waits for, and the projects that `kodosi project list` shows with new
-  messages.
-- Name terminals and projects by their names. Keep answers short, and give the full text
-  only when the person asks for it.
