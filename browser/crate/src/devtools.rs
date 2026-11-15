@@ -153,6 +153,34 @@ impl Devtools {
             tracing::debug!(method, "the debug connection is full");
         }
     }
+
+    /// Goes out at once, in order with `send`, and the answer comes when the page took it.
+    pub(crate) fn ask(
+        &self,
+        method: &str,
+        params: &Value,
+        session: Option<&str>,
+    ) -> Option<oneshot::Receiver<Result<Value, Error>>> {
+        let id = self.next.fetch_add(1, Ordering::Relaxed);
+        let (reply, answered) = oneshot::channel();
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id, reply);
+        if self
+            .outgoing
+            .try_send(command(method, params, session, id))
+            .is_err()
+        {
+            self.pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&id);
+            tracing::debug!(method, "the debug connection is full");
+            return None;
+        }
+        Some(answered)
+    }
 }
 
 fn command(method: &str, params: &Value, session: Option<&str>, id: u64) -> String {

@@ -20,6 +20,7 @@ constexpr char messageTag = 0;
 constexpr char frameTag = 1;
 constexpr qsizetype frameHeader = 14;
 constexpr int longestWait = 30000;
+constexpr int settleWait = 250;
 constexpr qsizetype mostTyped = 16 * 1024;
 
 int browserModifiers(int modifiers)
@@ -74,6 +75,9 @@ BrowserVideo::BrowserVideo(QQuickItem* parent)
     m_decoding.start();
     m_again.setSingleShot(true);
     connect(&m_again, &QTimer::timeout, this, &BrowserVideo::join);
+    m_settle.setSingleShot(true);
+    m_settle.setInterval(settleWait);
+    connect(&m_settle, &QTimer::timeout, this, &BrowserVideo::sendSize);
 }
 
 BrowserVideo::~BrowserVideo()
@@ -154,8 +158,8 @@ void BrowserVideo::opened(const QString& pipe)
         return;
     m_wait = 1000;
     m_behind = true;
-    m_sentSize = size().toSize();
-    post({ { QStringLiteral("type"), QStringLiteral("watch") }, { QStringLiteral("size"), sizeMessage() } });
+    m_sentSize = sizeMessage();
+    post({ { QStringLiteral("type"), QStringLiteral("watch") }, { QStringLiteral("size"), m_sentSize } });
 }
 
 void BrowserVideo::received(const QString& pipe, const QByteArray& message)
@@ -234,6 +238,28 @@ QJsonObject BrowserVideo::sizeMessage() const
 void BrowserVideo::input(const QJsonObject& event)
 {
     post({ { QStringLiteral("type"), QStringLiteral("input") }, { QStringLiteral("input"), event } });
+    if (event.value(QStringLiteral("kind")).toString() == QStringLiteral("mouse")) {
+        const auto action = event.value(QStringLiteral("action")).toString();
+        if (action == QStringLiteral("move") && event.value(QStringLiteral("button")).toString() == QStringLiteral("none"))
+            return;
+        if (action == QStringLiteral("press"))
+            m_holding = true;
+        else if (action == QStringLiteral("release"))
+            m_holding = false;
+    }
+    sendSize();
+}
+
+// The page takes the shape of the view of the person who acted last, so a new size goes to the
+// host once the view settles, never while a button is held, and one that waits goes right after
+// the person's act: the act then reaches the page that the person saw.
+void BrowserVideo::sendSize()
+{
+    const auto size = sizeMessage();
+    if (m_holding || size == m_sentSize)
+        return;
+    m_sentSize = size;
+    post({ { QStringLiteral("type"), QStringLiteral("size") }, { QStringLiteral("size"), size } });
 }
 
 void BrowserVideo::step(const QVariantMap& input)
@@ -252,10 +278,6 @@ void BrowserVideo::pointer(const QString& action, qreal x, qreal y, int button, 
     if (!at)
         return;
     const bool moving = action == QStringLiteral("move");
-    if (!moving && size().toSize() != m_sentSize) {
-        m_sentSize = size().toSize();
-        post({ { QStringLiteral("type"), QStringLiteral("size") }, { QStringLiteral("size"), sizeMessage() } });
-    }
     const auto name = button == Qt::LeftButton ? QStringLiteral("left")
         : button == Qt::RightButton            ? QStringLiteral("right")
         : button == Qt::MiddleButton           ? QStringLiteral("middle")
@@ -361,7 +383,16 @@ QSGNode* BrowserVideo::updatePaintNode(QSGNode* node, UpdatePaintNodeData*)
 void BrowserVideo::geometryChange(const QRectF& next, const QRectF& previous)
 {
     QQuickItem::geometryChange(next, previous);
+    if (next.size() != previous.size())
+        m_settle.start();
     update();
+}
+
+void BrowserVideo::itemChange(ItemChange change, const ItemChangeData& value)
+{
+    QQuickItem::itemChange(change, value);
+    if (change == ItemDevicePixelRatioHasChanged)
+        m_settle.start();
 }
 }
 

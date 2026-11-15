@@ -12,6 +12,7 @@ public final class BrowserFeed {
     private static let messageTag: UInt8 = 0
     private static let frameTag: UInt8 = 1
     private static let longestWait = Duration.seconds(30)
+    private static let settle = Duration.milliseconds(250)
 
     public private(set) var window = BrowserWindow()
     public private(set) var hasPicture = false
@@ -20,8 +21,25 @@ public final class BrowserFeed {
     public private(set) var touches = 0
     @ObservationIgnored public var show: (CMSampleBuffer) -> Void = { _ in }
     @ObservationIgnored public var copied: (String) -> Void = { _ in }
-    @ObservationIgnored public var viewSize = CGSize.zero
-    @ObservationIgnored public var viewScale: CGFloat = 1
+    /// The page takes the shape of the view of the person who acted last, so a new size goes to
+    /// the host once the view settles, never while a button is held, and one that waits goes
+    /// right after the person's act: the act then reaches the page that the person saw.
+    @ObservationIgnored public var viewSize = CGSize.zero {
+        didSet {
+            if viewSize != oldValue {
+                settleSize()
+            }
+        }
+    }
+
+    @ObservationIgnored public var viewScale: CGFloat = 1 {
+        didSet {
+            if viewScale != oldValue {
+                settleSize()
+            }
+        }
+    }
+
     @ObservationIgnored private let store: CanvasStore
     @ObservationIgnored private let session: String
     @ObservationIgnored private var link: DocumentLink?
@@ -29,6 +47,8 @@ public final class BrowserFeed {
     @ObservationIgnored private var lastFrame: UInt32 = 0
     @ObservationIgnored private var behind = true
     @ObservationIgnored private var sentSize: BrowserSize?
+    @ObservationIgnored private var settling: Task<Void, Never>?
+    @ObservationIgnored private var holding = false
 
     init(store: CanvasStore, session: String) {
         self.store = store
@@ -68,11 +88,17 @@ public final class BrowserFeed {
     }
 
     public func send(_ event: BrowserInput) {
-        if !event.isPlainMove {
-            touches += 1
-            sendSize()
-        }
         post(.input(event))
+        guard !event.isPlainMove else { return }
+        touches += 1
+        if case let .mouse(action, _, _, _, _, _, _, _) = event {
+            if action == .mousePressed {
+                holding = true
+            } else if action == .mouseReleased {
+                holding = false
+            }
+        }
+        sendSize()
     }
 
     /// The files go into the folder of the terminal first, because the browser runs on the
@@ -144,12 +170,20 @@ public final class BrowserFeed {
         BrowserSize(width: Int(viewSize.width), height: Int(viewSize.height), scale: Double(viewScale))
     }
 
+    private func settleSize() {
+        settling?.cancel()
+        settling = Task { [weak self] in
+            try? await Task.sleep(for: Self.settle)
+            guard !Task.isCancelled else { return }
+            self?.sendSize()
+        }
+    }
+
     private func sendSize() {
         let size = currentSize
-        if size != sentSize {
-            sentSize = size
-            post(.size(size))
-        }
+        guard !holding, size != sentSize else { return }
+        sentSize = size
+        post(.size(size))
     }
 
     private func post(_ message: ToBrowserWindow) {

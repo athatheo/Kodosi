@@ -10,7 +10,7 @@ use std::{
 
 use bytes::Bytes;
 use serde_json::json;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
     Error, driver,
@@ -29,6 +29,8 @@ const VIEWER_QUEUE: usize = 1024;
 const TICK: Duration = Duration::from_millis(100);
 const SLEEP_AFTER: Duration = Duration::from_mins(10);
 const RETRY_CAPTURE: Duration = Duration::from_secs(1);
+/// How long a new size of the page waits for the page to take the last press, release or scroll.
+const ANSWER_LIMIT: Duration = Duration::from_secs(1);
 const SIZES: std::ops::RangeInclusive<u32> = 200..=4096;
 /// Chrome keeps its window at least this wide.
 const NARROWEST: u32 = 500;
@@ -69,6 +71,8 @@ pub(crate) enum Event {
     Close,
     Frame(EncodedFrame),
     CaptureFailed,
+    /// The page took the last press, release or scroll that a new size waited for.
+    Answered,
     Tabs {
         tabs: Vec<EngineTab>,
         active: Option<i64>,
@@ -232,7 +236,14 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
         used,
     };
     let stopped = engine.stopped();
-    let live = Live::new(engine, id, folder, state_in, used_in);
+    let live = Live::new(
+        engine,
+        id,
+        folder,
+        state_in,
+        used_in,
+        window.events.downgrade(),
+    );
     tokio::spawn(async move {
         live.run(events, stopped).await;
         open_in.send_replace(false);
@@ -245,6 +256,8 @@ struct Seat {
     number: u64,
     outgoing: mpsc::Sender<Bytes>,
     pointer: Option<(f64, f64)>,
+    /// The size of the viewer's view, which the page takes while this viewer is in control.
+    size: Option<Size>,
 }
 
 /// Frees a viewer's seat only for the join that took it. A viewer that joined again on a new
@@ -272,6 +285,24 @@ struct Context {
     copies: Vec<String>,
 }
 
+/// The viewer whose press, key or scroll came last, or the first viewer while nobody acted: the
+/// page has the size of its view, and a list, a copy or a file picker that the page opens is its
+/// own.
+struct Control {
+    viewer: String,
+    /// The viewer holds a button, so the page keeps its size until the release.
+    held: bool,
+}
+
+impl Control {
+    fn of(viewer: &str) -> Self {
+        Self {
+            viewer: viewer.to_owned(),
+            held: false,
+        }
+    }
+}
+
 struct Copied {
     viewer: String,
     text: String,
@@ -294,7 +325,11 @@ struct Live {
     capture_failed_at: Option<Instant>,
     next_frame: u32,
     used_at: Instant,
-    last_press: Option<String>,
+    control: Option<Control>,
+    /// The page's answer to the last press, release or scroll, which a new size waits for.
+    answer: Option<oneshot::Receiver<Result<serde_json::Value, Error>>>,
+    answering: bool,
+    events: mpsc::WeakSender<Event>,
     /// A copy goes once, with the next state, so that each copy reaches the pasteboard, also
     /// the same words again, and an old copy never comes back.
     copied: Option<Copied>,
@@ -322,6 +357,7 @@ impl Live {
         folder: PathBuf,
         published: watch::Sender<State>,
         used: watch::Sender<Option<Instant>>,
+        events: mpsc::WeakSender<Event>,
     ) -> Self {
         let state = published.borrow().clone();
         Self {
@@ -341,7 +377,10 @@ impl Live {
             capture_failed_at: None,
             next_frame: 0,
             used_at: Instant::now(),
-            last_press: None,
+            control: None,
+            answer: None,
+            answering: false,
+            events,
             copied: None,
             open_menu: None,
             context: None,
@@ -432,10 +471,10 @@ impl Live {
         self.copied = None;
     }
 
-    /// A list, a copy and a file picker belong to the viewer whose press opened them, and a
-    /// viewer's own pointer is on its own screen.
+    /// A list, a copy and a file picker belong to the viewer in control, and a viewer's own
+    /// pointer is on its own screen.
     fn state_for(&self, viewer: &str) -> State {
-        let pressed = self.last_press.as_deref() == Some(viewer);
+        let pressed = self.in_control(viewer);
         let mut state = self.state.clone();
         state.pointers.retain(|pointer| pointer.viewer != viewer);
         state.menu.take_if(|menu| menu.viewer != viewer);
@@ -466,6 +505,7 @@ impl Live {
                         number: seat,
                         outgoing,
                         pointer: None,
+                        size: None,
                     },
                 );
             }
@@ -474,8 +514,13 @@ impl Live {
                 if free(&mut self.seats, &viewer, seat) {
                     self.flow.leave(&viewer);
                     self.update_capture();
+                    self.gone(&viewer);
                     self.dirty = true;
                 }
+            }
+            Event::Answered => {
+                self.answering = false;
+                self.follow();
             }
             Event::Touch => {
                 self.used_at = Instant::now();
@@ -551,7 +596,8 @@ impl Live {
             ToWindow::Watch { size } => {
                 self.flow.seat(viewer, now);
                 self.used_at = now;
-                self.resize(size);
+                self.control.get_or_insert_with(|| Control::of(viewer));
+                self.keep_size(viewer, size);
                 self.update_capture();
                 self.flow.keyframe_sent(now);
                 self.ask_keyframe();
@@ -562,7 +608,7 @@ impl Live {
                     self.ask_keyframe();
                 }
             }
-            ToWindow::Size { size } => self.resize(size),
+            ToWindow::Size { size } => self.keep_size(viewer, size),
             ToWindow::Input { input } => self.input(viewer, input),
         }
     }
@@ -599,6 +645,7 @@ impl Live {
         }
         for viewer in delivery.dropped {
             self.seats.remove(&viewer);
+            self.gone(&viewer);
             self.dirty = true;
         }
     }
@@ -645,23 +692,80 @@ impl Live {
         });
     }
 
-    /// The engine draws the pages of this window at the size and the scale of the viewer, so
-    /// that the picture has the pixels that the viewer shows.
-    fn resize(&mut self, size: Size) {
-        let Some(size) = fitted(size) else {
+    /// A viewer that only looks keeps its size here, so that it never changes the page under the
+    /// viewer who uses it.
+    fn keep_size(&mut self, viewer: &str, size: Size) {
+        if let Some(seat) = self.seats.get_mut(viewer) {
+            seat.size = Some(size);
+        }
+        self.follow();
+    }
+
+    fn in_control(&self, viewer: &str) -> bool {
+        self.control
+            .as_ref()
+            .is_some_and(|control| control.viewer == viewer)
+    }
+
+    /// The control goes to the viewer that came first of those that stay.
+    fn gone(&mut self, viewer: &str) {
+        if self.in_control(viewer) {
+            self.control = self
+                .seats
+                .values()
+                .min_by_key(|seat| seat.number)
+                .map(|seat| Control::of(&seat.viewer.id));
+            self.follow();
+        }
+    }
+
+    /// The page takes the size of the view in control, but never under a held button, and only
+    /// after the page took the last press, release or scroll. Those reach the page by its debug
+    /// port and the size by the engine's link, so without the wait a press could meet the new
+    /// layout with the place that the viewer found on the old one.
+    fn follow(&mut self) {
+        if self.answering {
+            return;
+        }
+        let Some(size) = self
+            .control
+            .as_ref()
+            .filter(|control| !control.held)
+            .and_then(|control| self.seats.get(&control.viewer))
+            .and_then(|seat| seat.size)
+            .and_then(fitted)
+        else {
             return;
         };
         if size == self.size {
             return;
         }
+        if let Some(answer) = self.answer.take() {
+            self.answering = true;
+            let events = self.events.clone();
+            tokio::spawn(async move {
+                drop(tokio::time::timeout(ANSWER_LIMIT, answer).await);
+                if let Some(events) = events.upgrade() {
+                    drop(events.send(Event::Answered).await);
+                }
+            });
+            return;
+        }
+        self.resize(size);
+    }
+
+    /// The engine draws the pages of this window at the size and the scale of the viewer, so
+    /// that the picture has the pixels that the viewer shows. The new size goes to the viewers
+    /// at once, because they place each point by it.
+    fn resize(&mut self, size: Size) {
         self.size = size;
         self.state.width = size.width;
         self.state.height = size.height;
-        self.dirty = true;
         self.engine.command(ToEngine::Resize {
             window: self.id,
             size,
         });
+        self.publish();
     }
 
     fn active_session(&self) -> Option<String> {
@@ -705,16 +809,32 @@ impl Live {
         }
     }
 
-    /// A press names the viewer whose menu or file picker may follow.
     fn mouse(&mut self, viewer: &str, mouse: input::Mouse, mac: bool) {
         if let Some(seat) = self.seats.get_mut(viewer) {
             seat.pointer = Some((mouse.x, mouse.y));
             self.dirty = true;
         }
-        if mouse.action == MouseAction::Press {
-            self.last_press = Some(viewer.to_owned());
+        let event = input::mouse(mouse, mac);
+        if mouse.action == MouseAction::Move {
+            self.page("Input.dispatchMouseEvent", &event);
+        } else if let Some(answer) = self.active_session().and_then(|session| {
+            self.engine
+                .devtools()
+                .ask("Input.dispatchMouseEvent", &event, Some(&session))
+        }) {
+            self.answer = Some(answer);
         }
-        self.page("Input.dispatchMouseEvent", &input::mouse(mouse, mac));
+        if let Some(control) = self
+            .control
+            .as_mut()
+            .filter(|control| control.viewer == viewer)
+        {
+            match mouse.action {
+                MouseAction::Press => control.held = true,
+                MouseAction::Release => control.held = false,
+                MouseAction::Move | MouseAction::Wheel => {}
+            }
+        }
     }
 
     fn input(&mut self, viewer: &str, event: Input) {
@@ -732,14 +852,18 @@ impl Live {
             self.used.send_replace(Some(self.used_at));
             self.may_download = true;
         }
-        if matches!(
+        let acts = !matches!(
             event,
-            Input::Key {
-                action: KeyAction::Down,
+            Input::Mouse {
+                action: MouseAction::Move | MouseAction::Release,
+                ..
+            } | Input::Key {
+                action: KeyAction::Up,
                 ..
             }
-        ) {
-            self.last_press = Some(viewer.to_owned());
+        );
+        if acts && !self.in_control(viewer) {
+            self.control = Some(Control::of(viewer));
         }
         match event {
             Input::Mouse {
@@ -811,6 +935,7 @@ impl Live {
             Input::Dialog { accept, text } => self.answer_dialog(accept, text),
             Input::Files { paths } => self.give_files(&paths),
         }
+        self.follow();
     }
 
     fn move_in_history(&self, step: i64) {
@@ -841,7 +966,7 @@ impl Live {
     }
 
     fn open_list(&mut self, tab: i64, frame: i64, menu: u32, items: Vec<MenuItem>) {
-        let Some(viewer) = self.last_press.clone() else {
+        let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) else {
             return;
         };
         self.open_menu = Some(OpenMenu { tab, frame, menu });
@@ -862,7 +987,7 @@ impl Live {
     }
 
     fn context_menu(&mut self, selection: &str, link: Option<String>) {
-        let Some(viewer) = self.last_press.clone() else {
+        let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) else {
             return;
         };
         let item = |label: &str, enabled: bool| MenuItem {
@@ -887,7 +1012,7 @@ impl Live {
     }
 
     fn copy(&mut self, text: &str) {
-        if let Some(viewer) = self.last_press.clone() {
+        if let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) {
             self.copied = Some(Copied {
                 viewer,
                 text: cut(text, MOST_TEXT),
@@ -1077,6 +1202,7 @@ mod tests {
             number,
             outgoing: mpsc::channel(1).0,
             pointer: None,
+            size: None,
         }
     }
 
@@ -1087,6 +1213,7 @@ mod tests {
             PathBuf::new(),
             watch::channel(State::default()).0,
             watch::channel(None).0,
+            mpsc::channel(1).0.downgrade(),
         )
     }
 
@@ -1119,6 +1246,77 @@ mod tests {
     async fn press(live: &mut Live, viewer: &str) {
         let press = json!({ "kind": "mouse", "action": "press", "x": 1, "y": 1, "button": "left", "clicks": 1 });
         say(live, viewer, press).await;
+    }
+
+    async fn release(live: &mut Live, viewer: &str) {
+        let release = json!({ "kind": "mouse", "action": "release", "x": 1, "y": 1, "button": "left", "clicks": 1 });
+        say(live, viewer, release).await;
+    }
+
+    fn view(width: u32, height: u32) -> Size {
+        Size {
+            width,
+            height,
+            scale: 2.0,
+        }
+    }
+
+    async fn look(live: &mut Live, viewer: &str, size: Size) {
+        live.handle(Event::Message {
+            viewer: viewer.to_owned(),
+            message: ToWindow::Watch { size },
+        })
+        .await;
+    }
+
+    async fn reshape(live: &mut Live, viewer: &str, size: Size) {
+        live.handle(Event::Message {
+            viewer: viewer.to_owned(),
+            message: ToWindow::Size { size },
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn a_viewer_that_only_joins_leaves_the_page_in_the_shape_of_the_one_who_uses_it() {
+        let mut live = live();
+        let _ana = join(&mut live, "ana").await;
+        look(&mut live, "ana", view(900, 700)).await;
+        let _bob = join(&mut live, "bob").await;
+        look(&mut live, "bob", view(600, 1000)).await;
+        reshape(&mut live, "bob", view(620, 1000)).await;
+        assert_eq!(live.size, view(900, 700));
+    }
+
+    #[tokio::test]
+    async fn a_new_size_of_the_viewer_in_control_applies_at_once_and_reaches_every_viewer() {
+        let mut live = live();
+        let mut ana = join(&mut live, "ana").await;
+        look(&mut live, "ana", view(900, 700)).await;
+        reshape(&mut live, "ana", view(1100, 700)).await;
+        assert_eq!(live.size, view(1100, 700));
+        let sizes: Vec<_> = std::iter::from_fn(|| ana.try_recv().ok())
+            .filter_map(|message| match ToViewer::decode(&message) {
+                Ok(ToViewer::State(state)) => Some((state.width, state.height)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(sizes.last(), Some(&(1100, 700)));
+    }
+
+    #[tokio::test]
+    async fn a_press_of_another_viewer_reaches_the_page_it_saw_and_the_page_takes_its_view_after_the_release()
+     {
+        let mut live = live();
+        let _ana = join(&mut live, "ana").await;
+        look(&mut live, "ana", view(900, 700)).await;
+        let _bob = join(&mut live, "bob").await;
+        look(&mut live, "bob", view(600, 1000)).await;
+        press(&mut live, "bob").await;
+        assert_eq!(live.size, view(900, 700));
+        assert!(live.in_control("bob"));
+        release(&mut live, "bob").await;
+        assert_eq!(live.size, view(600, 1000));
     }
 
     fn copies(incoming: &mut mpsc::Receiver<Bytes>) -> Vec<Option<String>> {
