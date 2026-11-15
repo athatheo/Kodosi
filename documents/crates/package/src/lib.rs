@@ -244,6 +244,18 @@ pub fn rewrite(file: &[u8], parts: &Parts) -> Result<Vec<u8>, PackageError> {
     Ok(writer.finish().map_err(broken)?.into_inner())
 }
 
+pub fn create<N: AsRef<str>, B: AsRef<[u8]>>(
+    parts: impl IntoIterator<Item = (N, B)>,
+) -> Result<Vec<u8>, PackageError> {
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    for (name, bytes) in parts {
+        writer.start_file(name.as_ref(), options).map_err(broken)?;
+        writer.write_all(bytes.as_ref()).map_err(broken)?;
+    }
+    Ok(writer.finish().map_err(broken)?.into_inner())
+}
+
 /// The characters that XML 1.0 cannot hold, such as most control characters, go.
 pub fn escape(text: &str) -> String {
     let mut escaped = String::with_capacity(text.len());

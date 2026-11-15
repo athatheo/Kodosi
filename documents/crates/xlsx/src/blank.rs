@@ -1,8 +1,7 @@
-use std::{fmt::Write as _, io::Write as _};
+use std::fmt::Write as _;
 
 use package::escape;
 use serde_json::Value as Json;
-use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 use crate::formula::cell_name;
 
@@ -143,23 +142,15 @@ pub fn new_file(source: Option<(&str, &str)>) -> Result<Vec<u8>, String> {
         Some(("json", text)) => rows_of_json(text)?,
         Some((_, text)) => rows_of_csv(text),
     };
-    let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    let error = |error: zip::result::ZipError| error.to_string();
-    for (name, bytes) in [
+    package::create([
         ("[Content_Types].xml", TYPES.to_owned()),
         ("_rels/.rels", ROOT_RELATIONS.to_owned()),
         ("xl/workbook.xml", WORKBOOK.to_owned()),
         ("xl/_rels/workbook.xml.rels", RELATIONS.to_owned()),
         ("xl/styles.xml", STYLES.to_owned()),
         ("xl/worksheets/sheet1.xml", sheet_xml(&rows)),
-    ] {
-        writer.start_file(name, options).map_err(error)?;
-        writer
-            .write_all(bytes.as_bytes())
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(writer.finish().map_err(error)?.into_inner())
+    ])
+    .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]

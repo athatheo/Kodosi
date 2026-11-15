@@ -1088,7 +1088,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "text",
- "zip",
 ]
 
 [[package]]
@@ -2554,7 +2553,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "text",
- "zip",
 ]
 
 [[package]]
@@ -4268,7 +4266,6 @@ dependencies = [
  "roxmltree",
  "serde",
  "serde_json",
- "zip",
 ]
 
 [[package]]

@@ -1,7 +1,6 @@
-use std::{fmt::Write as _, io::Write as _};
+use std::fmt::Write as _;
 
 use package::{escape, spans};
-use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 const MAIN: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const TYPES: &str = concat!(
@@ -152,21 +151,13 @@ pub fn new_file(markdown: Option<&str>) -> Result<Vec<u8>, String> {
         document,
         r#"<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>"#
     );
-    let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    let error = |error: zip::result::ZipError| error.to_string();
-    for (name, bytes) in [
+    package::create([
         ("[Content_Types].xml", TYPES.to_owned()),
         ("_rels/.rels", ROOT_RELATIONS.to_owned()),
         ("word/document.xml", document),
         ("word/styles.xml", styles()),
         ("word/numbering.xml", numbering()),
         ("word/_rels/document.xml.rels", RELATIONS.to_owned()),
-    ] {
-        writer.start_file(name, options).map_err(error)?;
-        writer
-            .write_all(bytes.as_bytes())
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(writer.finish().map_err(error)?.into_inner())
+    ])
+    .map_err(|error| error.to_string())
 }

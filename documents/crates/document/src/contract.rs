@@ -19,8 +19,7 @@ pub type Rev = u64;
 pub type Seq = u64;
 
 /// Each view of one person has the same `id`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Viewer {
     pub id: String,
     pub name: String,
