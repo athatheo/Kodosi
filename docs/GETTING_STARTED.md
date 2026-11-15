@@ -246,7 +246,7 @@ does.
 | `kodosi terminal wait <terminal> --until done,failed` | Waits for a state. |
 | `kodosi terminal show <terminal>` | Shows the terminal in the app. |
 | `kodosi dosi say "What needs me?"` | Asks Dosi. `kodosi dosi show` prints the conversation, and `kodosi dosi stop` stops Dosi. |
-| `kodosi show <file>` | Shows a file on the canvas of this terminal, which opens for the people who look at it; `kodosi show <address>` shows a web address in its browser. `kodosi canvas` lists what it shows, and `kodosi canvas remove <file>` takes a file off. |
+| `kodosi show <file>` | Shows a file on the canvas of this terminal, which opens for the people who look at it; `kodosi show <address>` shows a web address in its browser, and `kodosi show browser` shows that browser as it is. `kodosi canvas` lists what it shows, and `kodosi canvas remove <file>` takes a file off. |
 | `kodosi browser open <address>` | Opens a page in the shared browser of this terminal. The other agent-browser commands work too. |
 | `kodosi skill` | Prints the skill that lets an agent work with the people and agents in Kodosi. `kodosi skill canvas` prints the skill for the canvas. |
 | `kodosi dosi skill` | Prints the skill that lets another agent act as Dosi. |

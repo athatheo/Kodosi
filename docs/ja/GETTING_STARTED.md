@@ -120,7 +120,7 @@ Dosi の顔の隣の行には、Dosi が作業中か、答えたか、質問が�
 | `kodosi terminal wait <terminal> --until done,failed` | 指定した状態になるまで待ちます。 |
 | `kodosi terminal show <terminal>` | アプリでターミナルを表示します。 |
 | `kodosi dosi say "What needs me?"` | Dosi に聞きます。`kodosi dosi show` は会話を出力し、`kodosi dosi stop` は Dosi を止めます。 |
-| `kodosi show <file>` | このターミナルのキャンバスにファイルを表示し、ターミナルを見ている人のキャンバスを開きます。`kodosi show <address>` はウェブアドレスをブラウザに表示します。`kodosi canvas` は表示中のものを一覧し、`kodosi canvas remove <file>` はファイルを取り除きます。 |
+| `kodosi show <file>` | このターミナルのキャンバスにファイルを表示し、ターミナルを見ている人のキャンバスを開きます。`kodosi show <address>` はウェブアドレスをブラウザに表示し、`kodosi show browser` はそのブラウザを今の状態のまま表示します。`kodosi canvas` は表示中のものを一覧し、`kodosi canvas remove <file>` はファイルを取り除きます。 |
 | `kodosi browser open <address>` | このターミナルの共有ブラウザでページを開きます。agent-browser のほかのコマンドも使えます。 |
 | `kodosi skill` | Kodosi の人やエージェントと作業するための skill を出力します。`kodosi skill canvas` はキャンバス用の skill を出力します。 |
 | `kodosi dosi skill` | ほかのエージェントが Dosi として動くための skill を出力します。 |
