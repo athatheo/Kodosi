@@ -236,6 +236,7 @@
 "This account's identity is not the identity that was approved.": "이 계정의 신원은 승인된 신원과 달라요.",
 "This code adds a new device. Scan it with the device that you want to add.": "이 코드는 새 기기를 추가하는 코드예요. 추가하려는 기기로 스캔하세요.",
 "This code is from another account. Sign in to the same account on both devices.": "이 코드는 다른 계정의 코드예요. 두 기기에서 같은 계정으로 로그인하세요.",
+"This computer cannot open more terminals. Close a terminal and try again.": "이 컴퓨터에서는 터미널을 더 열 수 없어요. 터미널을 하나 닫고 다시 시도하세요.",
 "This computer did not finish in time.": "이 컴퓨터에서 제때 처리를 끝내지 못했어요.",
 "This computer takes only the choices and the start of a new terminal from your other devices.": "이 컴퓨터는 내 다른 기기에서 보낸 선택과 새 터미널 시작만 받아요.",
 "This device cannot start terminals.": "이 기기는 터미널을 시작할 수 없어요.",

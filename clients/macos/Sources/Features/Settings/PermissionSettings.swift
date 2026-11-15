@@ -26,6 +26,8 @@ struct PermissionsGroup: View {
             }
             ListRow(String(localized: "Notifications"), subtitle: notificationsLine, symbol: "bell.badge.fill", tint: TileTint.red) {
                 switch notifications {
+                case nil:
+                    EmptyView()
                 case .notDetermined:
                     Button("Allow") {
                         Task { @MainActor in
@@ -35,12 +37,10 @@ struct PermissionsGroup: View {
                     }
                     .buttonStyle(.kodosi(.secondary, size: .small))
                     .accessibilityIdentifier("settings.permissions.notifications")
-                case .denied:
+                default:
                     Button("Open Settings…") { Privacy.openNotifications() }
                         .buttonStyle(.kodosi(.secondary, size: .small))
                         .accessibilityIdentifier("settings.permissions.notifications")
-                default:
-                    EmptyView()
                 }
             }
         }

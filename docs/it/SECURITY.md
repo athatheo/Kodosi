@@ -41,9 +41,9 @@ degli aggiornamenti di Kodosi e il download ha lo SHA-256 indicato dal feed.
 Il servizio vede i dati di account e dispositivi, i membri dei progetti, i metadati di progetti
 e terminali, l'agente e lo stato di ogni terminale (ad esempio al lavoro o in attesa di
 un'approvazione, mai il suo testo) e se hai già visto quello stato, i campi di instradamento, i
-tempi e le dimensioni del testo cifrato. Vede anche, per ognuno dei tuoi dispositivi, se sei in
-Kodosi, a quel computer in un'altra app, o lontano, così che una notifica arrivi solo dove sei.
-Le notifiche push al tuo iPhone, iPad o dispositivo Android passano dal servizio push di Apple
+tempi e le dimensioni del testo cifrato. Vede anche, per ognuno dei tuoi dispositivi, se usi
+Kodosi su di esso, se usi un'altra app su quel computer o se non lo usi, così che una notifica
+arrivi solo a un dispositivo che usi. Le notifiche push al tuo iPhone, iPad o dispositivo Android passano dal servizio push di Apple
 o di Google, che vede gli ID dei tuoi terminali che attendono, hanno finito o non sono
 riusciti, i loro agenti e i loro stati, mai nomi o testo. La crittografia non nasconde questi
 metadati e non evita un'interruzione del servizio. Un dispositivo che rimuovi perde l'accesso

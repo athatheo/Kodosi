@@ -304,7 +304,7 @@
     <string name="open_app_link">Άνοιγμα σε άλλη εφαρμογή;</string>
     <string name="link_on_computer">Αυτός ο σύνδεσμος βρίσκεται στο %1$s. Ανοίξτε τον σε εκείνον τον υπολογιστή.</string>
     <string name="invalid_link">Αυτός ο σύνδεσμος δεν είναι πλήρης, ασφαλής διεύθυνση.</string>
-    <string name="notifications">Γνωστοποιήσεις</string>
+    <string name="notifications">Ειδοποιήσεις</string>
     <string name="notifications_description">Όταν ένα τερματικό περιμένει, ολοκληρώνει ή αποτυγχάνει</string>
     <string name="notifications_waiting">Περιμένει εσάς</string>
     <string name="notifications_waiting_description">Όταν ένα τερματικό σας χρειάζεται</string>

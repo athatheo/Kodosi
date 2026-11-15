@@ -44,12 +44,13 @@ Le service voit les données des comptes et des appareils, les membres des proje
 métadonnées des projets et des terminaux, l'agent et l'état de chaque terminal (par exemple en
 cours ou en attente d'une approbation, jamais son texte) et si vous avez déjà vu cet état, les
 champs de routage, les horaires et la taille des textes chiffrés. Il voit aussi, pour chacun de
-vos appareils, si vous êtes dans Kodosi, devant cet ordinateur dans une autre app, ou ailleurs,
-pour qu'une notification n'aille que là où vous êtes. Les notifications push vers votre iPhone,
-iPad ou appareil Android passent par le service push d'Apple ou de Google, qui voit les
-identifiants de vos terminaux qui attendent, ont terminé ou ont échoué, leurs agents et leurs
-états, jamais de noms ni de texte. Le chiffrement ne cache pas ces métadonnées et n'empêche pas
-une panne. Un appareil que vous retirez perd l'accès dès ce moment. Après avoir retiré un
+vos appareils, si vous y utilisez Kodosi, si vous utilisez une autre app sur cet ordinateur ou
+si vous ne l'utilisez pas, pour qu'une notification n'aille que sur un appareil que vous
+utilisez. Les notifications push vers votre iPhone, iPad ou appareil Android passent par le
+service push d'Apple ou de Google, qui voit les identifiants de vos terminaux qui attendent,
+ont terminé ou ont échoué, leurs agents et leurs états, jamais de noms ni de texte. Le
+chiffrement ne cache pas ces métadonnées et n'empêche pas une panne. Un appareil que vous
+retirez perd l'accès dès ce moment. Après avoir retiré un
 appareil perdu ou volé, créez une nouvelle clé de récupération pour garder cet appareil dehors.
 Quand quelqu'un repart de zéro sur votre compte alors que vous avez des appareils, cela attend
 un jour et vos appareils l'affichent, pour que vous puissiez l'arrêter. Les identifiants GitHub
