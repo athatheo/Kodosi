@@ -15,15 +15,10 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonPrimitive
 
 @Serializable
-data class Device(
-    val deviceId: String,
-    val label: String,
-    val recoveryKey: Boolean = false,
-    val certIssuedAtMs: Long = 0
-)
+data class Device(val deviceId: String, val label: String, val recoveryKey: Boolean = false)
 
 @Serializable
-data class DeviceRequest(val requestId: String, val deviceLabel: String)
+data class DeviceRequest(val deviceLabel: String)
 
 @Serializable
 data class DeviceReset(val resetId: String, val deviceLabel: String, val thisDevice: Boolean, val readyAtMs: Long)
@@ -54,7 +49,6 @@ data class AccountState(
         .sortedBy { it.label.lowercase() }
 }
 
-/** The account of this device: sign-in, the approval of this device and the person's devices. */
 class AccountStore(private val commands: CommandSink, private val words: Words, private val language: () -> String) {
     private val mutableState = MutableStateFlow(AccountState())
     val state: StateFlow<AccountState> = mutableState
@@ -128,19 +122,16 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         }
     }
 
-    /** Follows whether Kodosi reaches the server; a short drop keeps it online. */
     fun receiveConnection(event: RuntimeEvent) {
         if (event.type != "connection.state") return
         val online = event.bool("online") ?: return
         mutableState.update { it.copy(online = online) }
     }
 
-    /** Reaches for the server and the terminals of other computers now. */
     fun retryConnection() {
         commands.perform("connection.retry")
     }
 
-    /** Takes an error that belongs to sign-in; tells whether it is shown already. */
     fun absorb(event: RuntimeEvent, message: String): Boolean {
         val current = mutableState.value
         if (event.type.startsWith("auth.")) {
@@ -191,7 +182,6 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         )
     }
 
-    /** The system browser shows the sign-in page now. */
     fun openedSignInPage() {
         mutableState.update { it.copy(signInPage = null) }
     }

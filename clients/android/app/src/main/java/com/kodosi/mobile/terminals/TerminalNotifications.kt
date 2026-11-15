@@ -211,8 +211,6 @@ class TerminalNotifications(private val application: Context, private val prefer
     }
 
     private fun channels() {
-        // Android keeps a channel, with the settings that the person gave it, until the app deletes it.
-        manager.deleteNotificationChannel(RETIRED)
         manager.createNotificationChannels(
             listOf(
                 NotificationChannel(
@@ -252,7 +250,6 @@ class TerminalNotifications(private val application: Context, private val prefer
     companion object {
         private const val WAITING = "terminal-waiting"
         private const val ENDED = "terminal-ended"
-        private const val RETIRED = "terminal-updates"
         private const val SHOWN = 0
         private const val SUMMARY = 1
         private const val COMPUTER = "computer:"

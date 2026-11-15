@@ -5,12 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ProgramStatus(
-    val state: State,
-    val kind: Kind? = null,
-    val title: String? = null,
-    val message: String? = null
-) {
+data class ProgramStatus(val state: State, val kind: Kind? = null) {
     @Serializable
     enum class State {
         @SerialName("idle")
@@ -40,9 +35,6 @@ data class ProgramStatus(
         @SerialName("auth")
         AUTH
     }
-
-    val caption: String?
-        get() = listOfNotNull(title, message).joinToString(": ").ifEmpty { null }
 }
 
 @Serializable
@@ -75,8 +67,6 @@ data class RuntimeSession(
     val attention: Boolean = false,
     val hidden: Boolean = false,
     val projectId: String? = null,
-    val connectedUsers: List<String>? = null,
-    val sharedWith: List<String> = emptyList(),
     val restoredFrom: String? = null,
     val canvas: Canvas? = null
 ) {
@@ -130,7 +120,6 @@ data class RuntimeSession(
         get() = connectionState == Connection.BLOCKED || status == Status.OFFLINE ||
             (connectionState == Connection.OFFLINE && message != null)
 
-    /** Whether Kodosi cannot reach this terminal of another computer because this device is offline. */
     fun unreachable(online: Boolean): Boolean = !online && kind == Kind.REMOTE && connectionState != Connection.BLOCKED
 
     val needsUser: Boolean get() = waitState == ProgramStatus.State.BLOCKED
@@ -140,7 +129,6 @@ data class RuntimeSession(
     val folderName: String? get() = workingDir?.trimEnd('/', '\\')?.substringAfterLast('/')?.substringAfterLast('\\')
 }
 
-/** The program of a terminal, which picks its mark. */
 enum class AgentKind {
     CLAUDE,
     CODEX,

@@ -83,7 +83,7 @@ class CanvasStoreTest {
 
     @Test
     fun explicitOpensReopenTheNewestClosedPartButRespectAChosenPart() {
-        val browser = CanvasBrowser("sleeping", 2, width = 800, height = 600)
+        val browser = CanvasBrowser("sleeping", 2)
         val canvas = Canvas(1, listOf(item), browser)
         assertEquals("browser", canvas.openKey(null, setOf("files", "browser")))
         assertEquals("file", canvas.openKey(null, setOf("browser")))
@@ -93,7 +93,7 @@ class CanvasStoreTest {
 
     @Test
     fun closedPartsStayClosedAcrossSnapshotsUntilTheirOwnContentChanges() {
-        val browser = CanvasBrowser("sleeping", 2, width = 800, height = 600)
+        val browser = CanvasBrowser("sleeping", 2)
         val canvas = Canvas(1, listOf(item), browser)
         val preferences = Preferences(
             closedCanvas = setOf("terminal/files/0", "terminal/browser/2", "other/files/0")

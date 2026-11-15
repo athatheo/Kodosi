@@ -40,7 +40,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 
-/** The app's state: the runtime, its events and the stores that they fill. */
 class AppModel(
     private val application: Application,
     val preferences: AppPreferences = AppPreferences(application),
@@ -151,7 +150,6 @@ class AppModel(
         if (runtime != null) RuntimeHandle.setLanguage(AppLanguage.tag(application))
     }
 
-    /** Asks again for what may have changed while the app was away. */
     fun refresh() {
         if (phase.value != Phase.Ready) return
         terminals.list()
@@ -311,7 +309,7 @@ class AppModel(
         mutablePhase.value = Phase.Failed(message)
     }
 
-    /** Stops the runtime away from the main thread; the next start waits for it. */
+    /** Runs away from the main thread; the next start waits for it. */
     private fun stop() {
         commands.cancelPending()
         commands.transport = null

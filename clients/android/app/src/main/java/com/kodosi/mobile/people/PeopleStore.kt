@@ -15,8 +15,7 @@ data class Person(
     val handle: String,
     val displayName: String,
     val verified: Boolean = false,
-    val identityState: String = "",
-    val inviteNeeded: Boolean = false
+    val identityState: String = ""
 ) {
     val name: String get() = displayName.ifBlank { handle }
     val trusted: Boolean get() = verified && identityState != "changed"

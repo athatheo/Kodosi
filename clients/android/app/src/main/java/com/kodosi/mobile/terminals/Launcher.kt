@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-data class AgentAccount(val name: String, val command: String, val identity: String? = null, val folder: String? = null)
+data class AgentAccount(val name: String, val identity: String? = null)
 
 @Serializable
 data class AgentInfo(

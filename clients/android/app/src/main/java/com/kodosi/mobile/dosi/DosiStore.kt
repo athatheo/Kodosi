@@ -54,8 +54,7 @@ data class DosiSnapshot(
     val queued: List<JsonObject> = emptyList(),
     val asks: List<JsonObject> = emptyList(),
     val last: DosiComputer? = null,
-    val conversation: JsonObject? = null,
-    val remote: JsonObject? = null
+    val conversation: JsonObject? = null
 )
 
 data class DosiState(

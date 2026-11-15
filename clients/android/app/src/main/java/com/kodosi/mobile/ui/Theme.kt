@@ -25,7 +25,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-/** The roles of the Kodosi palette; plain values are dark and the light set is their pair. */
 @Immutable
 data class KodosiColors(
     val isDark: Boolean,
@@ -127,7 +126,6 @@ object Radius {
     val tile = 12.dp
 }
 
-/** The text styles of Kodosi, which follow the person's font size. */
 object KodosiType {
     val large =
         TextStyle(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.6).sp)
