@@ -2,6 +2,9 @@
   "use strict";
   const stringify = JSON.stringify;
   const selection = getSelection.bind(window);
+  const on = addEventListener.bind(window);
+  const off = removeEventListener.bind(window);
+  const soon = setTimeout.bind(window);
   let waiting = null;
   let nextMenu = 1;
 
@@ -32,15 +35,29 @@
     pickFrom(select);
   }
 
+  // A page's own handler may cancel the copy and give other words, so the words are read after
+  // the handlers, as the event leaves the window. A handler that stops the event hides them.
   function copied(event) {
     if (!event.isTrusted) return;
-    const text = String(selection() ?? "");
-    if (text) toHost({ type: "copied", text });
+    const selected = String(selection() ?? "");
+    let told = false;
+    const tell = () => {
+      if (told) return;
+      told = true;
+      off(event.type, last);
+      const text = event.defaultPrevented ? (event.clipboardData?.getData("text/plain") ?? "") : selected;
+      if (text) toHost({ type: "copied", text });
+    };
+    const last = (leaving) => {
+      if (leaving === event) tell();
+    };
+    on(event.type, last);
+    soon(tell, 0);
   }
 
-  addEventListener("mousedown", pressed, { capture: true });
-  addEventListener("copy", copied, { capture: true, passive: true });
-  addEventListener("cut", copied, { capture: true, passive: true });
+  on("mousedown", pressed, { capture: true });
+  on("copy", copied, { capture: true, passive: true });
+  on("cut", copied, { capture: true, passive: true });
 
   listen((menu, choice) => {
     if (!waiting || waiting.menu !== menu) return;
