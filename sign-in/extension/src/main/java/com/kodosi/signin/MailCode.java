@@ -48,10 +48,8 @@ final class MailCode {
         void drop(String key);
     }
 
-    /** What the page says about a request for a mail. */
     enum Shown { SENT, WAIT, LATER }
 
-    /** The mail that goes out: none, a code, or a note that the address has an account. */
     enum Mail { NONE, CODE, ACCOUNT }
 
     record Send(Shown shown, Mail mail, String code) {}
@@ -117,7 +115,6 @@ final class MailCode {
         return Check.ENDED;
     }
 
-    /** Drops the wait of the address before, when the person gives a different one. */
     void forget() {
         notes.remove(LAST);
     }

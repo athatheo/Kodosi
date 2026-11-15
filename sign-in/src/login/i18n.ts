@@ -250,7 +250,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
 
       accountUpdatedMessage: "Your account is updated",
       accountPasswordUpdatedMessage: "Your password changed",
-      emailVerifySendCooldown: "Wait {0} seconds, then send it again.",
       confirmExecutionOfActions: "Do these steps for your account",
       staleEmailVerificationLink: "That link expired. You may have confirmed your email already.",
       alreadyLoggedIn: "You are signed in already",
@@ -529,7 +528,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "Eine Anmeldung, die auf deinem Computer bleibt",
       accountUpdatedMessage: "Dein Konto wurde aktualisiert",
       accountPasswordUpdatedMessage: "Dein Passwort wurde geändert",
-      emailVerifySendCooldown: "Warte {0} Sekunden und sende dann erneut.",
       confirmExecutionOfActions: "Erledige diese Schritte für dein Konto",
       staleEmailVerificationLink:
         "Dieser Link ist abgelaufen. Vielleicht hast du deine E-Mail-Adresse schon bestätigt.",
@@ -806,7 +804,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "Μια σύνδεση που μένει στον υπολογιστή σας",
       accountUpdatedMessage: "Ο λογαριασμός σας ενημερώθηκε",
       accountPasswordUpdatedMessage: "Ο κωδικός πρόσβασής σας άλλαξε",
-      emailVerifySendCooldown: "Περιμένετε {0} δευτερόλεπτα και στείλτε ξανά.",
       confirmExecutionOfActions: "Ολοκληρώστε αυτά τα βήματα για τον λογαριασμό σας",
       staleEmailVerificationLink:
         "Αυτός ο σύνδεσμος έληξε. Ίσως έχετε ήδη επιβεβαιώσει το email σας.",
@@ -1087,7 +1084,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "Una sesión que se queda en tu ordenador",
       accountUpdatedMessage: "Tu cuenta se ha actualizado",
       accountPasswordUpdatedMessage: "Tu contraseña se ha cambiado",
-      emailVerifySendCooldown: "Espera {0} segundos y vuelve a enviarlo.",
       confirmExecutionOfActions: "Completa estos pasos para tu cuenta",
       staleEmailVerificationLink:
         "Ese enlace ha caducado. Puede que ya hayas confirmado tu correo.",
@@ -1364,7 +1360,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "Une connexion qui reste sur votre ordinateur",
       accountUpdatedMessage: "Votre compte a été mis à jour",
       accountPasswordUpdatedMessage: "Votre mot de passe a été modifié",
-      emailVerifySendCooldown: "Patientez {0} secondes, puis renvoyez.",
       confirmExecutionOfActions: "Effectuez ces étapes pour votre compte",
       staleEmailVerificationLink:
         "Ce lien a expiré. Vous avez peut-être déjà confirmé votre adresse e-mail.",
@@ -1636,7 +1631,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "Un accesso che resta sul tuo computer",
       accountUpdatedMessage: "Il tuo account è stato aggiornato",
       accountPasswordUpdatedMessage: "La tua password è stata cambiata",
-      emailVerifySendCooldown: "Attendi {0} secondi, poi invia di nuovo.",
       confirmExecutionOfActions: "Completa questi passaggi per il tuo account",
       staleEmailVerificationLink: "Questo link è scaduto. Forse hai già confermato la tua email.",
       alreadyLoggedIn: "Hai già effettuato l'accesso",
@@ -1915,7 +1909,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "コンピュータに保存されるサインイン",
       accountUpdatedMessage: "アカウントを更新しました",
       accountPasswordUpdatedMessage: "パスワードを変更しました",
-      emailVerifySendCooldown: "{0} 秒待ってから、もう一度送信してください。",
       confirmExecutionOfActions: "アカウントの設定を完了するため、次の手順を行ってください",
       staleEmailVerificationLink:
         "このリンクは有効期限が切れています。メールアドレスはすでに確認済みかもしれません。",
@@ -2184,7 +2177,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "컴퓨터에 유지되는 로그인",
       accountUpdatedMessage: "계정 정보가 업데이트됐어요",
       accountPasswordUpdatedMessage: "비밀번호가 바뀌었어요",
-      emailVerifySendCooldown: "{0}초 기다린 뒤 다시 보내세요.",
       confirmExecutionOfActions: "계정 설정을 마치려면 다음 단계를 진행하세요",
       staleEmailVerificationLink: "이 링크는 만료됐어요. 이미 이메일을 확인했을 수도 있어요.",
       alreadyLoggedIn: "이미 로그인했어요",
@@ -2446,7 +2438,6 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       offlineAccessScopeConsentText: "保留在你电脑上的登录",
       accountUpdatedMessage: "你的账号已更新",
       accountPasswordUpdatedMessage: "你的密码已更新",
-      emailVerifySendCooldown: "请等待 {0} 秒后再发送。",
       confirmExecutionOfActions: "请为你的账号完成以下步骤",
       staleEmailVerificationLink: "该链接已过期。你可能已经确认过邮箱。",
       alreadyLoggedIn: "你已登录",
