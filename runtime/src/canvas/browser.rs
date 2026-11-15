@@ -92,6 +92,7 @@ impl Places {
     }
 }
 
+/// The `kodosi` command can be a link to the app's own, and macOS names a program by the link.
 pub(super) fn agent_browser() -> PathBuf {
     let name = if cfg!(windows) {
         "agent-browser.exe"
@@ -100,6 +101,7 @@ pub(super) fn agent_browser() -> PathBuf {
     };
     std::env::current_exe()
         .ok()
+        .map(|program| kodosi_os::fs::canonicalize(&program).unwrap_or(program))
         .and_then(|program| program.parent().map(|folder| folder.join(name)))
         .unwrap_or_else(|| PathBuf::from(name))
 }
@@ -321,7 +323,7 @@ impl Browser {
                     target.to_owned(),
                     "--json".into(),
                 ],
-                Some(driver),
+                driver,
                 QUICK_LIMIT,
             )
             .await
@@ -351,19 +353,6 @@ impl Browser {
             .find(|word| !word.starts_with('-'))
             .cloned()
             .unwrap_or_default();
-        if matches!(command.as_str(), "" | "help" | "skills")
-            || arguments
-                .iter()
-                .any(|word| matches!(word.as_str(), "--help" | "-h" | "--version" | "-V"))
-        {
-            let run = self
-                .agent_browser(&folder, &arguments, None, QUICK_LIMIT)
-                .await?;
-            return Ok(CanvasAnswer::Text {
-                text: run.output,
-                code: run.code,
-            });
-        }
         let _one = self.commands.lock().await;
         let window = self.window().await?;
         window.driven().await;
@@ -398,7 +387,7 @@ impl Browser {
             }
         }
         let run = self
-            .agent_browser(&folder, &arguments, Some(&driver), COMMAND_LIMIT)
+            .agent_browser(&folder, &arguments, &driver, COMMAND_LIMIT)
             .await;
         let action = acting.then(|| BrowserAction {
             agent,
@@ -558,7 +547,7 @@ impl Browser {
         &self,
         folder: &Path,
         arguments: &[String],
-        driver: Option<&str>,
+        driver: &str,
         limit: Duration,
     ) -> Result<Run, Text> {
         if !self.places.binary.is_file() {
@@ -570,48 +559,16 @@ impl Browser {
             .arg("--session")
             .arg(self.terminal.id.simple().to_string())
             .arg("--config")
-            .arg(&self.places.config);
-        if let Some(driver) = driver {
-            command.arg("--cdp").arg(driver);
-        }
-        command
+            .arg(&self.places.config)
+            .arg("--cdp")
+            .arg(driver)
             .args(arguments)
             .current_dir(if folder.is_dir() {
                 folder
             } else {
                 &self.places.sockets
-            })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        let child = command
-            .spawn()
-            .map_err(|error| Text::plain(format!("agent-browser did not start: {error}")))?;
-        let output = tokio::time::timeout(limit, child.wait_with_output())
-            .await
-            .map_err(|_| {
-                Text::plain(format!(
-                    "agent-browser did not answer in {} s.",
-                    limit.as_secs()
-                ))
-            })?
-            .map_err(|error| Text::plain(format!("agent-browser failed: {error}")))?;
-        let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
-        let errors = String::from_utf8_lossy(&output.stderr);
-        if !errors.trim().is_empty() {
-            push_line(&mut text, errors.trim_end());
-        }
-        if text.len() > MOST_OUTPUT {
-            let mut end = MOST_OUTPUT;
-            while !text.is_char_boundary(end) {
-                end -= 1;
-            }
-            text.truncate(end);
-            text.push_str("\n…");
-        }
-        Ok(Run {
-            code: output.status.code().unwrap_or(1),
-            output: text.trim_end().to_owned(),
-        })
+            });
+        finished(command, limit).await
     }
 }
 
@@ -665,6 +622,66 @@ pub(super) fn refused(arguments: &[String]) -> Option<&str> {
             }) || (closing && matches!(word.as_str(), "--all" | "-a"))
         })
         .map(String::as_str)
+}
+
+/// agent-browser answers these by itself, without a browser or a terminal.
+pub(crate) fn answers_alone(arguments: &[String]) -> bool {
+    let command = arguments
+        .iter()
+        .find(|word| !word.starts_with('-'))
+        .map_or("", String::as_str);
+    matches!(command, "" | "help" | "skills")
+        || arguments
+            .iter()
+            .any(|word| matches!(word.as_str(), "--help" | "-h" | "--version" | "-V"))
+}
+
+pub(crate) async fn answer_alone(
+    data_root: &Path,
+    arguments: &[String],
+) -> Result<(String, i32), Text> {
+    let binary = agent_browser();
+    if !binary.is_file() {
+        return Err(no_agent_browser());
+    }
+    let mut command = agent_browser_command(&binary, &sockets(data_root));
+    command.args(arguments);
+    let run = finished(command, QUICK_LIMIT).await?;
+    Ok((run.output, run.code))
+}
+
+async fn finished(mut command: tokio::process::Command, limit: Duration) -> Result<Run, Text> {
+    let child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| Text::plain(format!("agent-browser did not start: {error}")))?;
+    let output = tokio::time::timeout(limit, child.wait_with_output())
+        .await
+        .map_err(|_| {
+            Text::plain(format!(
+                "agent-browser did not answer in {} s.",
+                limit.as_secs()
+            ))
+        })?
+        .map_err(|error| Text::plain(format!("agent-browser failed: {error}")))?;
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let errors = String::from_utf8_lossy(&output.stderr);
+    if !errors.trim().is_empty() {
+        push_line(&mut text, errors.trim_end());
+    }
+    if text.len() > MOST_OUTPUT {
+        let mut end = MOST_OUTPUT;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        text.truncate(end);
+        text.push_str("\n…");
+    }
+    Ok(Run {
+        code: output.status.code().unwrap_or(1),
+        output: text.trim_end().to_owned(),
+    })
 }
 
 fn agent_browser_command(binary: &Path, sockets: &Path) -> tokio::process::Command {

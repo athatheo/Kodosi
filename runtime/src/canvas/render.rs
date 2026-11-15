@@ -5,7 +5,6 @@ use std::{
 };
 
 use base64::Engine as _;
-use clap::Parser;
 use documents::Viewer;
 use serde::Deserialize;
 use serde_json::json;
@@ -17,16 +16,6 @@ use crate::text::Text;
 
 const RENDER_LIMIT: Duration = Duration::from_mins(2);
 const MOST_PICTURES: usize = 300;
-
-#[derive(Parser)]
-#[command(name = "kodosi doc render")]
-pub(super) struct RenderArguments {
-    /// A document, sheet, presentation, PDF or text file.
-    pub file: PathBuf,
-    /// The folder of the pictures. Without it, they go to a private folder of the terminal.
-    #[arg(long)]
-    pub out: Option<PathBuf>,
-}
 
 /// A place in the page, in CSS pixels from the top left of the document.
 #[derive(Deserialize)]

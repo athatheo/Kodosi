@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Subcommand;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use super::{Context, output, print_json, print_text, request};
+use super::{Action, Context, output, print_json, print_text, request};
 use crate::{Error, Result, local_host};
 
 const NO_TERMINAL: &str =
@@ -30,6 +30,30 @@ fn terminal(context: &Context) -> Result<Uuid> {
         .and_then(|id| Uuid::parse_str(&id).ok())
         .filter(|id| context.session(*id).is_ok())
         .ok_or_else(|| Error::Invalid(NO_TERMINAL.to_owned()))
+}
+
+pub(super) async fn without_terminal(action: &Action, data_root: &Path) -> Result<Option<u8>> {
+    match action {
+        Action::Doc { arguments } => {
+            if let Err(usage) = crate::documents::parse(arguments.clone()) {
+                usage.print()?;
+                return Ok(Some(u8::try_from(usage.exit_code()).unwrap_or(2)));
+            }
+        }
+        Action::Browser { arguments } if crate::canvas::answers_alone(arguments) => {
+            let (text, code) = crate::canvas::answer_alone(data_root, arguments)
+                .await
+                .map_err(|problem| Error::Other(problem.to_string()))?;
+            print_text(&text)?;
+            return Ok(Some(u8::try_from(code).unwrap_or(1)));
+        }
+        Action::Browser { .. } | Action::Show { .. } | Action::Canvas { .. } => {}
+        _ => return Ok(None),
+    }
+    if super::this_terminal().is_none() {
+        return Err(Error::Invalid(NO_TERMINAL.to_owned()));
+    }
+    Ok(None)
 }
 
 pub(super) async fn show(

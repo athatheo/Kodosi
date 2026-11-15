@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use clap::Parser as _;
+use documents_cli::Command;
 use tokio::sync::{mpsc, oneshot, watch};
 use uuid::Uuid;
 
@@ -15,9 +15,9 @@ use super::{
     browser::{self, Browser, Places, Terminal},
     engine::BrowserHost,
     files::{self, Files, Showing, Stamp, key_of},
-    render::{self, RenderArguments},
+    render,
 };
-use crate::documents::{DocumentHost, changed_file, path_of};
+use crate::documents::{DocumentAction, DocumentHost, RenderArguments, path_of};
 use crate::text::Text;
 
 const JOBS: usize = 64;
@@ -249,12 +249,24 @@ impl CanvasHandle {
             name,
             can_edit: true,
         };
-        if arguments.first().is_some_and(|word| word == "render") {
-            return self.render(viewer, &folder, arguments).await;
-        }
-        let changes = changed_file(&folder, &arguments);
-        let answer = self.documents.run(&viewer, &folder, arguments).await;
-        if let (Some(path), CanvasAnswer::Text { code: 0, .. }) = (changes, &answer) {
+        let command = match crate::documents::parse(arguments) {
+            Ok(DocumentAction::Edit(command)) => command.rooted(&folder),
+            Ok(DocumentAction::Render(parsed)) => {
+                return self.render(viewer, &folder, parsed).await;
+            }
+            Err(usage) => {
+                return CanvasAnswer::Text {
+                    text: usage.render().to_string(),
+                    code: usage.exit_code(),
+                };
+            }
+        };
+        let edited = match &command {
+            Command::Apply(apply) => Some(apply.file.clone()),
+            _ => None,
+        };
+        let answer = self.documents.run(&viewer, command).await;
+        if let (Some(path), CanvasAnswer::Text { code: 0, .. }) = (edited, &answer) {
             drop(self.jobs.try_send(Job::Edited { path }));
         }
         answer
@@ -264,17 +276,8 @@ impl CanvasHandle {
         &self,
         viewer: documents::Viewer,
         folder: &Path,
-        arguments: Vec<String>,
+        parsed: RenderArguments,
     ) -> CanvasAnswer {
-        let parsed = match RenderArguments::try_parse_from(arguments) {
-            Ok(parsed) => parsed,
-            Err(error) => {
-                return CanvasAnswer::Text {
-                    text: error.render().to_string(),
-                    code: i32::from(error.use_stderr()) * 2,
-                };
-            }
-        };
         let file = folder.join(parsed.file);
         let out = parsed.out.map(|out| folder.join(out));
         let viewer = documents::Viewer {

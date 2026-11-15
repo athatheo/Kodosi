@@ -540,6 +540,9 @@ async fn dispatch(args: Arguments) -> Result<u8> {
     if let Some(skill) = skill(&args.command) {
         return print_text(skill).map(|()| 0);
     }
+    if let Some(code) = canvas::without_terminal(&args.command, &config.data_root).await? {
+        return Ok(code);
+    }
     refuse_for_dosi(&args.command)?;
     let mut client = local_host::connect_or_start(&config.data_root).await?;
     let mut context = Context::from_events(&client.initial_events);
