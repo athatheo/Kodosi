@@ -8,14 +8,12 @@ enum SidebarIndent {
     static let folder: CGFloat = 14
 }
 
-struct SidebarSectionHeader: View {
+struct SidebarSectionHeader<Accessory: View>: View {
     @Environment(\.theme) private var theme
     @State private var hovered = false
     let title: LocalizedStringKey
-    let addTitle: LocalizedStringKey
-    let identifier: String
     let open: () -> Void
-    let add: () -> Void
+    @ViewBuilder let accessory: () -> Accessory
 
     var body: some View {
         HStack(spacing: 4) {
@@ -28,10 +26,16 @@ struct SidebarSectionHeader: View {
                 .padding(.leading, SidebarIndent.section).frame(height: 26).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            IconButton(title: addTitle, symbol: "plus", identifier: identifier, size: 22, action: add)
+            accessory()
         }
         .onHover { hovered = $0 }
         .animation(theme.motion.hover, value: hovered)
+    }
+}
+
+extension SidebarSectionHeader where Accessory == EmptyView {
+    init(title: LocalizedStringKey, open: @escaping () -> Void) {
+        self.init(title: title, open: open) { EmptyView() }
     }
 }
 
@@ -166,6 +170,10 @@ struct SidebarFolderHeader: View {
         group.computer == nil && group.sessions.contains { $0.repository == true }
     }
 
+    private var newTitle: LocalizedStringKey {
+        group.newestAgentTerminal.map { "New \($0.agent.label) here" } ?? "New terminal here"
+    }
+
     var body: some View {
         HStack(spacing: 2) {
             Button(action: toggle) {
@@ -184,6 +192,9 @@ struct SidebarFolderHeader: View {
             .accessibilityIdentifier("sidebar.folder.\(AccessibilityIdentifier.token(group.id))")
             .contextMenu {
                 if group.canStartTerminal, let directory = group.directory {
+                    if let like = group.newestAgentTerminal {
+                        Button(newTitle) { deps.openTerminal(in: directory, computer: group.computerId, like: like.id) }
+                    }
                     Button("New terminal here") { deps.openTerminal(in: directory, computer: group.computerId) }
                     if branches {
                         Button("New terminal on a new branch…") { branching = true }
@@ -211,10 +222,10 @@ struct SidebarFolderHeader: View {
                     .opacity(hovered || branching ? 1 : 0)
                     .kodosiPopover(isPresented: $branching, arrowEdge: .trailing) { NewBranchPopover(directory: directory) }
                 }
-                IconButton(title: "New terminal here", symbol: "plus",
+                IconButton(title: newTitle, symbol: "plus",
                            identifier: "sidebar.folder.\(AccessibilityIdentifier.token(group.id)).new", size: 20)
                 {
-                    deps.openTerminal(in: directory, computer: group.computerId)
+                    deps.openTerminal(in: directory, computer: group.computerId, like: group.newestAgentTerminal?.id)
                 }
                 .opacity(hovered ? 1 : 0)
             }

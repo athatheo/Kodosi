@@ -26,6 +26,9 @@ Befehl in die Shell des neuen Terminals.
 - Für ein einfaches Terminal drückst du ⌘D (Strg+Umschalt+O unter Linux und Windows). Es
   öffnet sich sofort im Ordner des ausgewählten Terminals. ⌘T (Strg+Umschalt+T) öffnet es mit
   dem Agent des ausgewählten Terminals, mit demselben Konto und denselben Einstellungen.
+- Der +-Button eines Ordners in der Seitenleiste öffnet ein weiteres Terminal mit dem Agent,
+  der in diesem Ordner läuft, mit demselben Konto und denselben Einstellungen, oder ein
+  einfaches Terminal, wenn dort kein Agent läuft.
 - Die Tasten folgen Ghostty. ⌘1 bis ⌘9 wählen ein Terminal aus (Alt+1 bis Alt+9 unter Linux
   und Windows), ⌥⌘ mit einem Pfeil wählt das daneben (Strg+Alt mit einem Pfeil), und ⌘W
   schließt das ausgewählte Terminal. Einstellungen › Kurzbefehle listet jede Taste auf und

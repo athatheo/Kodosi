@@ -25,6 +25,9 @@ commande dans le shell du nouveau terminal.
 - Pour un terminal simple, appuyez sur ⌘D (Ctrl+Maj+O sous Linux et Windows). Il s'ouvre
   aussitôt dans le dossier du terminal sélectionné. ⌘T (Ctrl+Maj+T) l'ouvre avec l'agent du
   terminal sélectionné, avec le même compte et les mêmes choix.
+- Le bouton + d'un dossier dans la barre latérale ouvre un autre terminal avec l'agent qui
+  tourne dans ce dossier, avec le même compte et les mêmes choix, ou un terminal simple quand
+  aucun agent n'y tourne.
 - Les touches suivent Ghostty. ⌘1 à ⌘9 sélectionnent un terminal (Alt+1 à Alt+9 sous Linux
   et Windows), ⌥⌘ avec une flèche sélectionne celui d'à côté (Ctrl+Alt avec une flèche) et ⌘W
   ferme le terminal sélectionné. Réglages › Raccourcis liste chaque touche et permet de la

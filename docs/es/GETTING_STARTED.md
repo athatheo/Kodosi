@@ -25,6 +25,9 @@ la shell del terminal nuevo.
 - Para un terminal sin más, pulsa ⌘D (Ctrl+Mayús+O en Linux y Windows). Se abre al momento en
   la carpeta del terminal seleccionado. ⌘T (Ctrl+Mayús+T) lo abre con el agente del terminal
   seleccionado, con la misma cuenta y las mismas opciones.
+- El botón + de una carpeta en la barra lateral abre otro terminal con el agente que se
+  ejecuta en esa carpeta, con la misma cuenta y las mismas opciones, o un terminal sin más
+  cuando allí no se ejecuta ningún agente.
 - Las teclas siguen a Ghostty. ⌘1 a ⌘9 seleccionan un terminal (Alt+1 a Alt+9 en Linux y
   Windows), ⌥⌘ con una flecha selecciona el de al lado (Ctrl+Alt con una flecha) y ⌘W cierra
   el terminal seleccionado. Ajustes › Atajos muestra todas las teclas y las cambia.

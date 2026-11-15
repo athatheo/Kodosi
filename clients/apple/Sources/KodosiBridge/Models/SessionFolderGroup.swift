@@ -31,6 +31,11 @@ public struct SessionFolderGroup: Identifiable, Sendable {
     public var away: Bool {
         computer != nil && !sessions.isEmpty && sessions.allSatisfy(\.hostOffline)
     }
+
+    /// Terminal IDs are UUID version 7, so the greatest ID is the newest terminal.
+    public var newestAgentTerminal: RuntimeSession? {
+        sessions.filter { $0.program != nil }.max { $0.id < $1.id }
+    }
 }
 
 public struct SessionComputerGroup: Identifiable, Sendable {

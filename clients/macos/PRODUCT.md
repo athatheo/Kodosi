@@ -10,8 +10,8 @@ follows it.
   from the keyboard.
 - **The launcher is the terminal about to open.** It chooses the computer, the folder,
   the agent with its account and choices, and a first prompt. Each agent keeps its
-  choices for the next terminal, and Settings changes them too. Quick Terminal and Same
-  Agent open a terminal without it.
+  choices for the next terminal, and Settings changes them too. Quick Terminal, Same
+  Agent and the + of a folder open a terminal without it.
 - **A terminal's header holds its actions.** They start an agent or change the running
   one, share the terminal, open its canvas and rename it.
 - **The canvas opens beside its terminal.** It can take the stage while the terminal

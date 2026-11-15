@@ -24,6 +24,9 @@ comando nella shell del nuovo terminale.
 - Per un terminale semplice, premi ⌘D (Ctrl+Maiusc+O su Linux e Windows). Si apre subito
   nella cartella del terminale selezionato. ⌘T (Ctrl+Maiusc+T) lo apre con l'agente del
   terminale selezionato, con lo stesso account e le stesse scelte.
+- Il pulsante + di una cartella nella barra laterale apre un altro terminale con l'agente che
+  gira in quella cartella, con lo stesso account e le stesse scelte, o un terminale semplice
+  se lì non gira nessun agente.
 - I tasti seguono Ghostty. Da ⌘1 a ⌘9 selezioni un terminale (da Alt+1 ad Alt+9 su Linux e
   Windows), ⌥⌘ con una freccia seleziona quello accanto (Ctrl+Alt con una freccia) e ⌘W chiude
   il terminale selezionato. Impostazioni › Scorciatoie elenca ogni tasto e lo cambia.

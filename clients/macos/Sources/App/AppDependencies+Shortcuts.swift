@@ -39,7 +39,7 @@ extension AppDependencies {
     func perform(_ action: AppShortcut, number: Int? = nil) {
         switch action {
         case .newTerminal: openLauncher()
-        case .sameAgent: openQuickTerminal(agent: selectedAgent)
+        case .sameAgent: openQuickTerminal(like: selectedAgentTerminal)
         case .quickTerminal: openQuickTerminal()
         case .resume: workbench.showsHistory = true
         case .close: closeSelected()

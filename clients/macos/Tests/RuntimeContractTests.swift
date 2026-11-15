@@ -22,7 +22,7 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
                     connection: String = "offline", status: String = "running", owner: Bool = true,
                     directory: String? = "/remote/project", restoredFrom: String? = nil,
                     ownerUserId: String? = nil, hostDeviceId: String? = nil, ownerName: String? = nil,
-                    hostName: String? = nil) throws -> RuntimeSession
+                    hostName: String? = nil, program: String? = nil) throws -> RuntimeSession
 {
     var fields: [String: JSONValue] = [
         "id": .string(id), "incarnationId": .string("01992e43-53db-7040-8e02-f6ebf4149b29"),
@@ -37,6 +37,7 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
     fields["ownerUserId"] = ownerUserId.map(JSONValue.string)
     fields["hostDeviceId"] = hostDeviceId.map(JSONValue.string)
     fields["hostName"] = hostName.map(JSONValue.string)
+    fields["program"] = program.map(JSONValue.string)
     return try JSONDecoder().decode(RuntimeSession.self, from: JSONEncoder().encode(fields))
 }
 
@@ -165,6 +166,17 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
     #expect(computers.map { $0.folders.map(\.canStartTerminal) } == [[true], [true], [false], [false]])
     #expect(computers[2].owner == SessionFolderGroup.Owner(name: "Ben Okafor", userId: "ben"))
     #expect(computers[2].folders.map(\.directory) == [nil])
+}
+
+@Test func `a folder starts one more like its newest terminal that runs an agent`() throws {
+    func local(_ id: String, _ program: String?) throws -> RuntimeSession {
+        try runtimeSession("01992e43-53db-7040-8e02-f6ebf4149b3\(id)", kind: "local", connection: "local", program: program)
+    }
+    let (oldest, older, newest, plain) = try (local("1", "claude"), local("2", "codex"), local("3", "claude"), local("4", nil))
+    let folder = try #require(SessionComputerGroup.groups([older, plain, newest, oldest]).first?.folders.first)
+    #expect(folder.newestAgentTerminal?.id == newest.id)
+    let shells = try #require(SessionComputerGroup.groups([plain]).first?.folders.first)
+    #expect(shells.newestAgentTerminal == nil)
 }
 
 @Test func `each host folder shows its last folder`() throws {

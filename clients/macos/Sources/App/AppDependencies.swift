@@ -321,10 +321,10 @@ final class AppDependencies {
         }
     }
 
-    func openTerminal(in directory: String, computer: String? = nil) {
+    func openTerminal(in directory: String, computer: String? = nil, like: String? = nil) {
         Task { @MainActor [weak self] in
             do {
-                try await self?.createSession(name: generateSessionName(), directory: directory, computer: computer)
+                try await self?.createSession(name: generateSessionName(), directory: directory, computer: computer, like: like)
             } catch {
                 self?.errorMessage = error.localizedDescription
             }
@@ -345,7 +345,7 @@ final class AppDependencies {
     func createSession(
         name: String, directory: String?, computer: String? = nil, projectId: String? = nil,
         resume: ProviderConversationIdentity? = nil, branch: String? = nil, command: String? = nil,
-        agent: AgentStart? = nil, prompt: String? = nil,
+        agent: AgentStart? = nil, like: String? = nil, prompt: String? = nil,
     ) async throws -> String? {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard ProductInput.validName(name) else {
@@ -355,8 +355,9 @@ final class AppDependencies {
             projectWorkspace(projectId).shownSection = 0
         }
         var fields = TerminalStart(
-            name: name, directory: directory, computer: computer, projectId: projectId, command: command, agent: agent, prompt: prompt,
-            branch: branch, worktrees: branch == nil ? nil : settings.branchFolder, size: startSize(computer: computer, projectId: projectId),
+            name: name, directory: directory, computer: computer, projectId: projectId, command: command, agent: agent, like: like,
+            prompt: prompt, branch: branch, worktrees: branch == nil ? nil : settings.branchFolder,
+            size: startSize(computer: computer, projectId: projectId),
         ).fields
         if let resume {
             fields["resume"] = .object(["provider": .string(resume.provider.rawValue), "nativeConversationId": .string(resume.nativeConversationId)])
