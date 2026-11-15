@@ -218,7 +218,6 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
     }
 
-    /** Asks with the code that this device scanned on an approved computer. */
     fun joinDevice(scanned: String) {
         when ((mutableState.value.stage as? SignInStage.TrustingDevice)?.trust) {
             DeviceTrust.Choose, is DeviceTrust.PendingApproval, is DeviceTrust.Failed -> {
