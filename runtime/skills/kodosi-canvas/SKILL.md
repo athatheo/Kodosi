@@ -46,6 +46,8 @@ is open, and `kodosi show browser` opens it.
 - `kodosi browser snapshot -i`: the parts of the page that you can use, each with a
   reference such as `@e2`. A reference is good until the page changes. Take a new
   snapshot after each change, and when Kodosi says that a person used the browser.
+  In PowerShell, write a reference without the @ sign (`e2`), because PowerShell drops
+  a word that starts with @.
 - `kodosi browser click @e2`, `kodosi browser fill @e3 "text"`,
   `kodosi browser press Enter` and `kodosi browser scroll down` use the page.
 - `kodosi browser get text @e1` and `kodosi browser get url` read it.
