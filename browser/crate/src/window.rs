@@ -68,7 +68,7 @@ pub(crate) enum Event {
         viewer: String,
         seat: u64,
     },
-    Touch,
+    Driven,
     Close,
     Frame(EncodedFrame),
     CaptureFailed,
@@ -167,9 +167,10 @@ impl Window {
         *self.used.borrow()
     }
 
-    /// Counts as use, so an agent's work keeps the window awake.
-    pub async fn touch(&self) {
-        drop(self.events.send(Event::Touch).await);
+    /// An agent's command starts. It counts as use, so an agent's work keeps the window awake,
+    /// and a copy that the page makes after it is no person's.
+    pub async fn driven(&self) {
+        drop(self.events.send(Event::Driven).await);
     }
 
     pub async fn close(&self) {
@@ -359,6 +360,14 @@ struct Copied {
     text: String,
 }
 
+/// Whose act on the page came last. A copy goes to the clipboard of the person who made it, and
+/// a copy after an agent's command is no person's.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Actor {
+    Person,
+    Agent,
+}
+
 struct Live {
     engine: Arc<Engine>,
     id: i64,
@@ -377,6 +386,7 @@ struct Live {
     next_frame: u32,
     used_at: Instant,
     control: Option<Control>,
+    actor: Actor,
     /// The page's answer to the last press, release or scroll, which a new size waits for.
     answer: Option<oneshot::Receiver<Result<serde_json::Value, Error>>>,
     answering: bool,
@@ -429,6 +439,7 @@ impl Live {
             next_frame: 0,
             used_at: Instant::now(),
             control: None,
+            actor: Actor::Person,
             answer: None,
             answering: false,
             events,
@@ -570,10 +581,7 @@ impl Live {
                 self.answering = false;
                 self.follow();
             }
-            Event::Touch => {
-                self.used_at = Instant::now();
-                self.may_download = true;
-            }
+            Event::Driven => self.driven(),
             Event::Close => {}
             Event::Frame(frame) => self.frame(frame),
             Event::CaptureFailed => {
@@ -749,6 +757,19 @@ impl Live {
         self.follow();
     }
 
+    fn driven(&mut self) {
+        self.used_at = Instant::now();
+        self.may_download = true;
+        self.actor = Actor::Agent;
+    }
+
+    fn acted(&mut self, viewer: &str) {
+        self.actor = Actor::Person;
+        if !self.in_control(viewer) {
+            self.control = Some(Control::of(viewer));
+        }
+    }
+
     fn in_control(&self, viewer: &str) -> bool {
         self.control
             .as_ref()
@@ -910,8 +931,8 @@ impl Live {
                 ..
             }
         );
-        if acts && !self.in_control(viewer) {
-            self.control = Some(Control::of(viewer));
+        if acts {
+            self.acted(viewer);
         }
         match event {
             Input::Mouse {
@@ -1060,6 +1081,9 @@ impl Live {
     }
 
     fn copy(&mut self, text: &str) {
+        if self.actor == Actor::Agent {
+            return;
+        }
         if let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) {
             self.copied = Some(Copied {
                 viewer,
@@ -1414,6 +1438,22 @@ mod tests {
         live.publish();
         assert_eq!(copied(&ana).as_deref(), Some("word"));
         assert_eq!(copied(&bob), None);
+    }
+
+    #[tokio::test]
+    async fn a_copy_after_an_agents_command_is_no_persons_until_a_person_acts() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        press(&mut live, "ana").await;
+        live.handle(Event::Driven).await;
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        assert_eq!(copied(&ana), None);
+
+        press(&mut live, "ana").await;
+        live.handle(Event::Copied("word".to_owned())).await;
+        live.publish();
+        assert_eq!(copied(&ana).as_deref(), Some("word"));
     }
 
     #[tokio::test]
