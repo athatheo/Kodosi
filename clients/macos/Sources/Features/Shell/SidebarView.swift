@@ -194,7 +194,7 @@ struct SidebarView: View {
                         .transition(AnyTransition.rise)
                 }
             }
-            let computers = SessionComputerGroup.groups(listed.filter { !deps.workbench.isPinned($0.id) })
+            let computers = SessionComputerGroup.groups(listed, pinned: Set(deps.workbench.pinnedSessionIds))
             let titled = computers.contains { $0.computer != nil }
             ForEach(computers) { computer in
                 let collapsed = titled && collapsedComputers.contains(computer.id)

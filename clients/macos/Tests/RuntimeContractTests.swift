@@ -177,6 +177,10 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
     #expect(folder.newestAgentTerminal?.id == newest.id)
     let shells = try #require(SessionComputerGroup.groups([plain]).first?.folders.first)
     #expect(shells.newestAgentTerminal == nil)
+    let withPin = try #require(SessionComputerGroup.groups([plain, newest], pinned: [newest.id]).first?.folders.first)
+    #expect(withPin.sessions.map(\.id) == [plain.id])
+    #expect(withPin.newestAgentTerminal?.id == newest.id)
+    #expect(SessionComputerGroup.groups([newest], pinned: [newest.id]).isEmpty)
 }
 
 @Test func `each host folder shows its last folder`() throws {
