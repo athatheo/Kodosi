@@ -33,7 +33,7 @@ pub use page::HostPage;
 #[cfg(feature = "host")]
 pub use sign_ins::{CopyError, SignInSource, SignIns, copied_sites, sign_in_sources};
 #[cfg(feature = "host")]
-pub use window::{Pipe, Window};
+pub use window::{Pipe, ToView, Window};
 
 #[cfg(feature = "host")]
 mod host {

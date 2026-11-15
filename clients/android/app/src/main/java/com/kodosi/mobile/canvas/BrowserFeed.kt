@@ -40,6 +40,9 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
     private var last: Long? = null
     private var decoder: BrowserDecoder? = null
     private var size = fields("width" to 360, "height" to 640, "scale" to 1)
+    private var sent: JsonObject? = null
+    private var settling: Job? = null
+    private var holding = false
 
     init {
         link.onFrame = ::receive
@@ -67,16 +70,22 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
         if (active) mutablePicture.value = true
     }
 
+    /**
+     * The page takes the shape of the view of the person who acted last, so a new size goes to
+     * the host once the view settles, never while a button is held, and one that waits goes
+     * right after the person's act: the act then reaches the page that the person saw.
+     */
     fun resize(width: Int, height: Int, density: Float) {
         if (width <= 0 || height <= 0) return
-        val next = fields(
+        size = fields(
             "width" to (width / density).toInt().coerceAtLeast(1),
             "height" to (height / density).toInt().coerceAtLeast(1),
             "scale" to density
         )
-        if (next != size) {
-            size = next
-            post(fields("type" to "size", "size" to size))
+        settling?.cancel()
+        settling = scope.launch {
+            delay(SETTLE_MS)
+            sendSize()
         }
     }
 
@@ -94,8 +103,21 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
 
     fun input(value: JsonObject) {
         mutableTouches.value++
-        post(fields("type" to "size", "size" to size))
         post(fields("type" to "input", "input" to value))
+        if (value.string("kind") == "mouse") {
+            when (value.string("action")) {
+                "move" -> if (value.string("button") == "none") return
+                "press" -> holding = true
+                "release" -> holding = false
+            }
+        }
+        sendSize()
+    }
+
+    private fun sendSize() {
+        if (holding || size == sent) return
+        sent = size
+        post(fields("type" to "size", "size" to size))
     }
 
     private fun join() {
@@ -109,6 +131,7 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
                     link.open()
                     behind = true
                     last = null
+                    sent = size
                     post(fields("type" to "watch", "size" to size))
                     return@launch
                 } catch (cancelled: CancellationException) {
@@ -167,6 +190,7 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
 
     private companion object {
         const val HEADER = 14
+        const val SETTLE_MS = 250L
     }
 }
 

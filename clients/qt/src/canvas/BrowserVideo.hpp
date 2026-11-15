@@ -49,6 +49,7 @@ signals:
 protected:
     QSGNode* updatePaintNode(QSGNode* node, UpdatePaintNodeData* data) override;
     void geometryChange(const QRectF& next, const QRectF& previous) override;
+    void itemChange(ItemChange change, const ItemChangeData& value) override;
 
 private:
     void join();
@@ -61,6 +62,7 @@ private:
     void decoded(quint32 frame, const QImage& image);
     void post(const QJsonObject& message);
     void input(const QJsonObject& event);
+    void sendSize();
     void press(int key, const QString& typed, bool down, int modifiers);
     void type(const QString& text);
     [[nodiscard]] QJsonObject sizeMessage() const;
@@ -78,7 +80,9 @@ private:
     bool m_behind = true;
     int m_wait = 1000;
     QTimer m_again;
-    QSize m_sentSize;
+    QTimer m_settle;
+    QJsonObject m_sentSize;
+    bool m_holding = false;
     QThread m_decoding;
 };
 }
