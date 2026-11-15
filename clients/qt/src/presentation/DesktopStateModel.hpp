@@ -21,7 +21,7 @@ class DesktopStateModel final : public QObject {
     Q_PROPERTY(ActiveView activeView READ activeView WRITE setActiveView NOTIFY activeViewChanged)
     Q_PROPERTY(bool sidebarOpen READ sidebarOpen WRITE setSidebarOpen NOTIFY sidebarOpenChanged)
     Q_PROPERTY(bool dosiOpen READ dosiOpen WRITE setDosiOpen NOTIFY dosiOpenChanged)
-    Q_PROPERTY(bool dosiOn READ dosiOn WRITE setDosiOn NOTIFY dosiOnChanged)
+    Q_PROPERTY(bool dosiOn READ dosiOn NOTIFY dosiOnChanged)
     Q_PROPERTY(qreal sidebarWidth READ sidebarWidth NOTIFY sidebarWidthChanged)
     Q_PROPERTY(QString selectedSessionId READ selectedSessionId NOTIFY selectedSessionIdChanged)
     Q_PROPERTY(QStringList stagedSessionIds READ stagedSessionIds NOTIFY stagedSessionIdsChanged)
@@ -61,7 +61,7 @@ public:
     void setCanvasWide(bool value);
     void setCanvasWidth(qreal value);
     Q_INVOKABLE void openCanvas(const QString& id, const QString& section = {});
-    Q_INVOKABLE void hideCanvas();
+    void hideCanvas();
     Q_INVOKABLE void closeCanvas();
     StageLayoutMode stageLayoutMode() const { return m_mode; }
     QString lastError() const { return m_error; }

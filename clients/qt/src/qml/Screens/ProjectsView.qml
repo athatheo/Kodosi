@@ -301,7 +301,7 @@ Item {
 
             RowLayout {
                 spacing: 12
-                ProjectSigil { key: name.text.trim().length > 0 ? name.text.trim() : "new-room"; size: 40 }
+                ProjectSigil { key: name.text.trim().length > 0 ? name.text.trim() : "new"; size: 40 }
                 PlainLabel { Layout.fillWidth: true; text: qsTr("New project"); font.pixelSize: KodosiTheme.fontTitle; font.weight: Font.DemiBold }
             }
             KTextField {
