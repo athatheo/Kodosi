@@ -63,6 +63,11 @@ const NOT_HERE: &[&str] = &[
     "plugin",
     "doctor",
 ];
+/// How agent-browser starts its answer to a command with too few words. PowerShell, the usual
+/// shell of a terminal on Windows, takes `@e2` as an operator and `#name` as a comment, and
+/// gives the program nothing.
+const MISSING_WORD: &str = "Missing arguments for:";
+const POWERSHELL_WORDS: &str = "PowerShell drops a word that starts with @ or #. Write a reference without the @ sign, for example e2, and a selector such as \"#name\" in quotes.";
 const LOOKS: &[&str] = &[
     "snapshot",
     "get",
@@ -396,6 +401,9 @@ impl Browser {
         self.finish(action);
         let run = run.map_err(|problem| self.problem(problem))?;
         let mut text = run.output;
+        if cfg!(windows) && text.starts_with(MISSING_WORD) {
+            push_line(&mut text, POWERSHELL_WORDS);
+        }
         if !introduced {
             push_line(
                 &mut text,
