@@ -32,8 +32,6 @@ public:
 
     bool busy() const;
     void setStartSize(std::function<QJsonObject()> startSize) { m_startSize = std::move(startSize); }
-    // The names of an agent's accounts on this computer, in the order that a terminal's account place counts.
-    void setAccounts(std::function<QStringList(const QString&)> accounts) { m_accounts = std::move(accounts); }
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE bool activate(const QString& sessionId);
@@ -42,7 +40,8 @@ public:
     Q_INVOKABLE bool minimize(const QString& sessionId);
     Q_INVOKABLE bool create(const QString& name, const QString& directory, const QString& command = {},
         const QString& prompt = {}, const QString& projectId = {}, const QVariantMap& agent = {},
-        const QString& computer = {});
+        const QString& computer = {}, const QString& like = {});
+    Q_INVOKABLE bool createInFolder(const QString& key);
     Q_INVOKABLE bool createQuick();
     Q_INVOKABLE bool createSameAgent();
     Q_INVOKABLE bool createOnBranch(const QString& directory, const QString& branch);
@@ -86,15 +85,13 @@ private:
     QSet<QString> m_created;
     TerminalTypeAhead m_typeAhead;
     std::function<QJsonObject()> m_startSize;
-    std::function<QStringList(const QString&)> m_accounts;
     void completeCreation(const QString& sessionId, const QString& projectId);
     bool activateSession(const QString& sessionId, bool inProject);
     bool opening(const QString& sessionId) const;
     bool openRemote(const QString& sessionId, bool quiet = false);
     void dropRemote(const QString& sessionId);
 
-    bool openQuick(const QVariantMap& agent);
-    QVariantMap selectedAgent() const;
+    bool openQuick(const QString& like);
     bool createInternal(const QString& name, const QString& directory,
         const QString& provider, const QString& nativeConversationId, const QString& projectId = {},
         const QString& branch = {}, const QJsonObject& line = {});

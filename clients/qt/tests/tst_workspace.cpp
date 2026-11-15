@@ -1053,30 +1053,19 @@ private slots:
         QVERIFY(!sent.contains(QStringLiteral("command")));
         QVERIFY(!sent.contains(QStringLiteral("computer")));
     }
-    void sameAgentStartsTheAgentOfTheSelectedTerminalWithItsAccountAndChoices()
+    void sameAgentStartsOneMoreLikeTheSelectedTerminal()
     {
         Fixture f;
-        f.workspace.sessionActions().setAccounts([](const QString& agent) {
-            return agent == QStringLiteral("claude") ? QStringList { QStringLiteral("claude"), QStringLiteral("work") }
-                                                     : QStringList {};
-        });
         auto claude = test::session(1);
         claude.insert(QStringLiteral("workingDir"), f.dir.path());
         claude.insert(QStringLiteral("program"), QStringLiteral("claude"));
-        claude.insert(QStringLiteral("programAccount"), 1);
-        claude.insert(QStringLiteral("programSettings"),
-            QJsonObject { { QStringLiteral("model"), QStringLiteral("opus") }, { QStringLiteral("effort"), QStringLiteral("high") },
-                { QStringLiteral("permissions"), QStringLiteral("auto") }, { QStringLiteral("output"), QStringLiteral("detailed") } });
-        claude.insert(QStringLiteral("programPending"), QJsonObject { { QStringLiteral("model"), QStringLiteral("sonnet") } });
         f.workspace.apply(test::snapshot({ claude, test::session(2) }), 0);
         QVERIFY(f.workspace.sessionActions().activate(test::id(1)));
         QVERIFY(f.workspace.sessionActions().createSameAgent());
         const auto sent = f.commands.values.last();
         QCOMPARE(sent.value(QStringLiteral("workingDir")).toString(), f.dir.path());
-        QCOMPARE(sent.value(QStringLiteral("agent")).toObject(),
-            (QJsonObject { { QStringLiteral("agent"), QStringLiteral("claude") }, { QStringLiteral("account"), QStringLiteral("work") },
-                { QStringLiteral("model"), QStringLiteral("sonnet") }, { QStringLiteral("effort"), QString() },
-                { QStringLiteral("permissions"), QStringLiteral("auto") }, { QStringLiteral("output"), QStringLiteral("detailed") } }));
+        QCOMPARE(sent.value(QStringLiteral("like")).toString(), test::id(1));
+        QVERIFY(!sent.contains(QStringLiteral("agent")));
 
         f.workspace.apply(test::snapshot({ claude, test::session(2), test::session(3) }), 0);
         f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("session.result") },
@@ -1087,7 +1076,45 @@ private slots:
         f.workspace.sessionActions().giveTypedKeys(test::id(3));
         QVERIFY(f.workspace.sessionActions().activate(test::id(2)));
         QVERIFY(f.workspace.sessionActions().createSameAgent());
-        QVERIFY(!f.commands.values.last().contains(QStringLiteral("agent")));
+        QVERIFY(!f.commands.values.last().contains(QStringLiteral("like")));
+    }
+    void theNewTerminalOfAFolderStartsLikeItsNewestAgent()
+    {
+        Fixture f;
+        const auto in = [](int value, const QString& folder, const QString& program, bool remote = false) {
+            auto entry = test::session(value, remote);
+            entry.insert(QStringLiteral("workingDir"), folder);
+            if (!program.isEmpty())
+                entry.insert(QStringLiteral("program"), program);
+            if (remote) {
+                entry.insert(QStringLiteral("hostDeviceId"), QStringLiteral("mini"));
+                entry.insert(QStringLiteral("hostName"), QStringLiteral("Mini"));
+            }
+            return entry;
+        };
+        f.workspace.apply(test::snapshot({ in(3, QStringLiteral("/repo/app"), QStringLiteral("claude")),
+                              in(4, QStringLiteral("/repo/app"), QStringLiteral("codex")),
+                              in(2, QStringLiteral("/repo/app"), QStringLiteral("claude")), in(5, QStringLiteral("/repo/app"), {}),
+                              in(6, QStringLiteral("/repo/notes"), {}),
+                              in(7, QStringLiteral("/home/me/site"), QStringLiteral("claude"), true) }),
+            0);
+        const auto start = [&](const QString& directory) {
+            const auto groups = f.sessions.folderGroups();
+            const auto group = std::ranges::find(groups, directory,
+                [](const QVariant& entry) { return entry.toMap().value(QStringLiteral("directory")).toString(); });
+            return group != groups.end()
+                && f.workspace.sessionActions().createInFolder(group->toMap().value(QStringLiteral("key")).toString());
+        };
+
+        QVERIFY(start(QStringLiteral("/repo/app")));
+        QCOMPARE(f.commands.values.last().value(QStringLiteral("like")).toString(), test::id(4));
+        QCOMPARE(f.commands.values.last().value(QStringLiteral("workingDir")).toString(), QStringLiteral("/repo/app"));
+        QVERIFY(start(QStringLiteral("/repo/notes")));
+        QVERIFY(!f.commands.values.last().contains(QStringLiteral("like")));
+        QCOMPARE(f.commands.values.last().value(QStringLiteral("workingDir")).toString(), QStringLiteral("/repo/notes"));
+        QVERIFY(start(QStringLiteral("/home/me/site")));
+        QCOMPARE(f.commands.values.last().value(QStringLiteral("like")).toString(), test::id(7));
+        QCOMPARE(f.commands.values.last().value(QStringLiteral("computer")).toString(), QStringLiteral("mini"));
     }
     void aTerminalOfThisComputerAsksForTheGridOfItsTile()
     {

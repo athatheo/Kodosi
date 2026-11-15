@@ -3494,6 +3494,10 @@
         <translation>새 브랜치에서 터미널 열기</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>%2에서 %1 시작</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>%1에서 새 터미널 열기</translation>
     </message>

@@ -3506,6 +3506,10 @@
         <translation>Nuevo terminal en una rama nueva</translation>
     </message>
     <message>
+        <source>New %1 in %2</source>
+        <translation>Iniciar %1 en %2</translation>
+    </message>
+    <message>
         <source>New terminal in %1</source>
         <translation>Nuevo terminal en %1</translation>
     </message>
