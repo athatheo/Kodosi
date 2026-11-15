@@ -13,8 +13,6 @@ use crate::{
     local_host,
 };
 
-pub(super) const SKILL: &str = include_str!("../../skills/kodosi-dosi/SKILL.md");
-
 pub(super) async fn run(
     action: DosiAction,
     client: &mut local_host::Client,

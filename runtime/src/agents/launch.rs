@@ -85,7 +85,6 @@ struct State {
 struct Saved {
     #[serde(flatten)]
     choice: AgentChoice,
-    #[serde(default)]
     plain_terminal: bool,
 }
 

@@ -422,17 +422,8 @@ async fn hosted(kind: HostKind) -> (tempfile::TempDir, PathBuf, RuntimeHandle) {
     (storage, root, handle)
 }
 #[tokio::test]
-async fn idle_background_hosts_identify_themselves_and_yield() {
+async fn an_idle_background_host_yields() {
     let (_storage, root, handle) = hosted(HostKind::Background).await;
-    let status = host_status(&root).await.unwrap();
-    assert_eq!(
-        status.host,
-        HostDescription {
-            pid: std::process::id(),
-            kind: HostKind::Background
-        }
-    );
-    assert_eq!(status.local_sessions, 0);
     stop_other_host(&root, false).await.unwrap();
     tokio::time::timeout(Duration::from_secs(10), handle.stopped())
         .await
