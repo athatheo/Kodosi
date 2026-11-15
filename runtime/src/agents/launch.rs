@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use super::{
     Agent, AgentAccount, AgentCatalog, AgentChoice, AgentChoiceChange, AgentInfo, AgentModel,
-    AgentModels, AgentModelsReply, AgentOption, AgentPick, AgentStart, AgentUsageReply, Output,
-    Permissions, as_shell_word,
+    AgentModels, AgentModelsReply, AgentOption, AgentPick, AgentSettings, AgentStart,
+    AgentUsageReply, Output, Permissions, as_shell_word,
     quiet::{self, QuietSettings},
     usage,
 };
@@ -35,6 +35,39 @@ pub struct Launcher {
 pub(crate) struct Launch {
     pub(crate) line: String,
     pub(crate) quiet_settings: Option<PathBuf>,
+}
+
+pub(crate) struct RunningAgent {
+    pub(crate) agent: Agent,
+    pub(crate) account_place: Option<u8>,
+    pub(crate) settings: Option<AgentSettings>,
+    pub(crate) pending: Option<AgentSettings>,
+}
+
+impl RunningAgent {
+    /// What Kodosi does not know of the running agent stays the launcher's last choice.
+    pub(super) fn start(self, accounts: &[AgentAccount]) -> AgentStart {
+        let pending = self.pending.unwrap_or_default();
+        let known = self.settings.is_some();
+        let settings = self.settings.unwrap_or_default();
+        let known_or_own = |value: Option<String>| known.then(|| value.unwrap_or_default());
+        let effort = if pending.model.is_some() {
+            Some(pending.effort.unwrap_or_default())
+        } else {
+            pending.effort.or_else(|| known_or_own(settings.effort))
+        };
+        AgentStart {
+            agent: self.agent,
+            account: self
+                .account_place
+                .and_then(|place| accounts.get(usize::from(place)))
+                .map(|account| account.name.clone()),
+            model: pending.model.or_else(|| known_or_own(settings.model)),
+            effort,
+            permissions: pending.permissions.or(settings.permissions),
+            output: pending.output.or(settings.output),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -139,6 +172,15 @@ impl Launcher {
         if let Err(error) = saved {
             tracing::warn!(%error, "the launch choice was not saved");
         }
+    }
+
+    pub(crate) async fn start_like(&self, running: RunningAgent) -> AgentStart {
+        let catalog = self.known_catalog(false).await.ok();
+        let accounts = catalog
+            .as_ref()
+            .and_then(|catalog| agent_info(catalog, running.agent))
+            .map_or(&[][..], |info| info.accounts.as_slice());
+        running.start(accounts)
     }
 
     pub(crate) async fn line(self: &Arc<Self>, start: &AgentStart) -> Result<Launch, String> {

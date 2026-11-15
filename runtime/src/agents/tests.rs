@@ -813,6 +813,81 @@ fn an_agent_start_takes_the_last_choice_and_explicit_values_win() {
     );
 }
 
+#[test]
+fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
+    let accounts = claude_with_accounts().accounts;
+    let settings = |model: Option<&str>, effort: Option<&str>, permissions| AgentSettings {
+        model: model.map(str::to_owned),
+        effort: effort.map(str::to_owned),
+        permissions,
+        output: None,
+    };
+    let like = |account_place, settings, pending| {
+        RunningAgent {
+            agent: Agent::Claude,
+            account_place,
+            settings,
+            pending,
+        }
+        .start(&accounts)
+    };
+    let start = |account: Option<&str>, model: Option<&str>, effort: Option<&str>, permissions| {
+        AgentStart {
+            agent: Agent::Claude,
+            account: account.map(str::to_owned),
+            model: model.map(str::to_owned),
+            effort: effort.map(str::to_owned),
+            permissions,
+            output: None,
+        }
+    };
+    let running = Some(settings(Some("opus"), Some("low"), Some(Permissions::Auto)));
+
+    assert_eq!(
+        like(
+            Some(1),
+            running.clone(),
+            Some(settings(None, Some("high"), Some(Permissions::Ask)))
+        ),
+        start(
+            Some("work"),
+            Some("opus"),
+            Some("high"),
+            Some(Permissions::Ask)
+        ),
+        "a change that waits for the end of the turn wins"
+    );
+    assert_eq!(
+        like(Some(0), running, Some(settings(Some("haiku"), None, None))),
+        start(
+            Some("default"),
+            Some("haiku"),
+            Some(""),
+            Some(Permissions::Auto)
+        ),
+        "a new model runs at its own effort"
+    );
+    assert_eq!(
+        like(
+            Some(0),
+            Some(settings(None, None, Some(Permissions::Unrestricted))),
+            None
+        ),
+        start(
+            Some("default"),
+            Some(""),
+            Some(""),
+            Some(Permissions::Unrestricted)
+        ),
+        "a model and an effort that the agent started without are its own"
+    );
+    assert_eq!(
+        like(Some(2), None, None),
+        start(None, None, None, None),
+        "an account outside the list and unknown choices stay the last choice"
+    );
+}
+
 fn installed(agent: Agent) -> AgentInfo {
     AgentInfo {
         agent,
