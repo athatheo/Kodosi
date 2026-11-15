@@ -300,7 +300,7 @@ public final class TerminalRendererSession: ObservableObject {
         TerminalDebugLog.enable([.lifecycle, .metrics])
     }
 
-    nonisolated static let hostManagedPolicyOverrides: [(key: String, value: String)] = [
+    private nonisolated static let hostManagedPolicyOverrides: [(key: String, value: String)] = [
         ("clipboard-read", "allow"),
         ("clipboard-write", "allow"),
         ("image-storage-limit", String(KODOSI_TERMINAL_IMAGE_STORAGE_MAX_BYTES)),
