@@ -296,6 +296,7 @@ final class WorkbenchState {
         showsNewProject = false
         trusting = nil
         reporting = nil
+        blocking = nil
         projectShare = nil
         friendDraft = ""
         launcher = nil

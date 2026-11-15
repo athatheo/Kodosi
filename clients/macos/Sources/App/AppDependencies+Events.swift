@@ -77,8 +77,9 @@ extension AppDependencies {
         people.absorb(error: event)
         let message = event.string("message") ?? String(localized: "That did not work.")
         let stage = account.stage
-        account.absorb(error: event, message: message)
-        guard !signInPresented || account.stage == stage, !event.failedRefresh else { return }
+        let inItsSheet = account.absorb(error: event, message: message)
+            && ["devices.link.offer", "devices.link.check", "devices.link.approve"].contains(event.string("operation"))
+        guard !inItsSheet, !signInPresented || account.stage == stage, !event.failedRefresh else { return }
         errorMessage = message
     }
 
@@ -134,6 +135,7 @@ extension AppDependencies {
         workbench.sharingSessionId = nil
         workbench.trusting = nil
         workbench.reporting = nil
+        workbench.blocking = nil
         workbench.section = .sessions
         notified = (terminal, .now + .seconds(30))
         showNotifiedTerminal()
