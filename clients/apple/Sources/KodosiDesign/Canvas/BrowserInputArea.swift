@@ -180,10 +180,22 @@ extension BrowserKeys {
             }
         }
 
+        @objc func copy(_: Any?) {
+            command(keyCode: 8, "c")
+        }
+
+        @objc func cut(_: Any?) {
+            command(keyCode: 7, "x")
+        }
+
         override func selectAll(_: Any?) {
-            guard let key = BrowserKeys.key(macKeyCode: 0) else { return }
-            feed.press(key, typed: "a", down: true, modifiers: .meta)
-            feed.press(key, typed: "a", down: false, modifiers: .meta)
+            command(keyCode: 0, "a")
+        }
+
+        private func command(keyCode: UInt16, _ letter: String) {
+            guard let key = BrowserKeys.key(macKeyCode: keyCode) else { return }
+            feed.press(key, typed: letter, down: true, modifiers: .meta)
+            feed.press(key, typed: letter, down: false, modifiers: .meta)
         }
 
         private func mouse(_ type: BrowserInput.MouseEvent, _ event: NSEvent, button: BrowserInput.MouseButton) {

@@ -108,6 +108,15 @@ impl Devtools {
         ))
     }
 
+    #[cfg(test)]
+    pub(crate) fn idle() -> Self {
+        Self {
+            outgoing: mpsc::channel(OUTGOING).0,
+            pending: Pending::default(),
+            next: Arc::new(AtomicU64::new(1)),
+        }
+    }
+
     pub(crate) async fn call(
         &self,
         method: &str,

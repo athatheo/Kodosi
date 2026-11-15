@@ -169,6 +169,8 @@
         }
 
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            // AppKit offers a key equivalent to every view in the window, also to a terminal that SwiftUI hides.
+            guard window?.firstResponder === self else { return false }
             let modifiers = event.modifierFlags
                 .intersection(.deviceIndependentFlagsMask)
             if modifiers == [.command, .shift],
@@ -177,15 +179,8 @@
                 shareShortcut?()
                 return true
             }
-            if !allowsInput,
-               modifiers == [.command],
-               event.charactersIgnoringModifiers?.lowercased() == "c"
-            {
-                copy(nil)
-                return true
-            }
             // Ghostty binds keys such as ⌘N and ⌘K to windows and screens of its own app.
-            if modifiers.contains(.command), window?.firstResponder === self,
+            if modifiers.contains(.command),
                NSApp.mainMenu?.performKeyEquivalent(with: event) == true
             {
                 return true

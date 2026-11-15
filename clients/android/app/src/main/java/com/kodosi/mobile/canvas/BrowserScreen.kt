@@ -149,8 +149,8 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
         }
     }
     LaunchedEffect(dialog) { dialogText = dialog?.string("text").orEmpty() }
-    LaunchedEffect(window.string("copied")) {
-        window.string("copied")?.let {
+    LaunchedEffect(feed) {
+        feed.copies.collect {
             context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("", it))
         }
     }
