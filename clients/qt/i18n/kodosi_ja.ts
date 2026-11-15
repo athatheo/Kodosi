@@ -4054,8 +4054,8 @@
         <translation>%1 は、今のターンが終わると変更します。</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1 は、このモデルと推論レベルを次回以降のセッションでも使います。</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1 は、次回の起動時もこのモデルと推論レベルを使います。</translation>
     </message>
     <message>
         <source>Copy</source>

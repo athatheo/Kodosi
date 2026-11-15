@@ -4054,8 +4054,8 @@
         <translation>%1은(는) 지금 차례가 끝나면 바꿔요.</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1은(는) 이 모델과 추론 수준을 다음 세션에도 그대로 써요.</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1은(는) 다음에 시작할 때도 이 모델과 추론 수준을 그대로 써요.</translation>
     </message>
     <message>
         <source>Copy</source>

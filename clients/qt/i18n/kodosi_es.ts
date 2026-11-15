@@ -4067,8 +4067,8 @@
         <translation>%1 lo cambia cuando termina su turno.</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1 también conserva el modelo y el razonamiento para sus próximas sesiones.</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1 también conserva el modelo y el razonamiento la próxima vez que se inicie.</translation>
     </message>
     <message>
         <source>Copy</source>

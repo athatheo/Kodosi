@@ -362,7 +362,7 @@
     <string name="agent_standard_detail">エージェントの設定どおりに作業を表示します。</string>
     <string name="agent_detailed_detail">作業の各ステップをすべて表示します。</string>
     <string name="agent_after_turn">%1$s（このターンの後）</string>
-    <string name="agent_keeps_settings">%1$s は、このモデルと推論レベルを次回以降のセッションでも使います。</string>
+    <string name="agent_keeps_settings">%1$s は、次回の起動時もこのモデルと推論レベルを使います。</string>
     <string name="agent_effort_none">なし</string>
     <string name="agent_effort_minimal">最小</string>
     <string name="agent_effort_low">低</string>

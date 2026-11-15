@@ -4067,8 +4067,8 @@
         <translation>%1 le change à la fin de son tour.</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1 garde aussi le modèle et le raisonnement pour ses prochaines sessions.</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1 garde aussi le modèle et le raisonnement à son prochain démarrage.</translation>
     </message>
     <message>
         <source>Copy</source>

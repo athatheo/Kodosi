@@ -4067,8 +4067,8 @@
         <translation>Το %1 το αλλάζει όταν τελειώσει τη σειρά του.</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>Το %1 κρατά το μοντέλο και την ένταση σκέψης και για τις επόμενες συνεδρίες του.</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>Το %1 κρατά το μοντέλο και την ένταση σκέψης και την επόμενη φορά που θα ξεκινήσει.</translation>
     </message>
     <message>
         <source>Copy</source>

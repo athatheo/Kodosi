@@ -4067,8 +4067,8 @@
         <translation>%1 ändert es, wenn es mit seiner Antwort fertig ist.</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1 behält Modell und Denkaufwand auch für seine nächsten Sitzungen.</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1 behält Modell und Denkaufwand auch beim nächsten Start.</translation>
     </message>
     <message>
         <source>Copy</source>
