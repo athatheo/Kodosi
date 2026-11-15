@@ -1237,7 +1237,8 @@ pub async fn start(config: Config) -> Result<RuntimeHandle> {
         &commands::shell(&config),
     ));
     #[cfg(feature = "host")]
-    if let Err(error) = crate::agents::write_notes(&config.data_root.join("agents")) {
+    if let Err(error) = crate::agents::write_notes(&crate::agents::notes_folder(&config.data_root))
+    {
         tracing::warn!(%error, "the note for agents was not written");
     }
     #[cfg(feature = "host")]
@@ -1770,15 +1771,19 @@ impl Runtime {
         let Some(local) = self.local.get(&id) else {
             return;
         };
-        let variable = agent
-            .home()
-            .map_or(crate::agents::CONTEXT_VARIABLE, |(_, variable)| variable);
         let terminal = local.terminal.clone();
         let launcher = Arc::clone(&self.launcher);
         let home = self.config.home.clone();
         self.spawn(async move {
-            let foreground = terminal.foreground(variable).await.unwrap_or_default();
-            let outside = agent.started_without_note(&foreground.arguments);
+            let foreground = terminal
+                .foreground(agent.shown_variable())
+                .await
+                .unwrap_or_default();
+            let outside = agent.started_without_note(
+                &foreground.arguments,
+                foreground.variable.as_deref(),
+                &launcher.notes(),
+            );
             let settings = agent.started_with(&foreground.arguments);
             let account = match agent.account_folder(&home, foreground.variable) {
                 Some(folder) => launcher.account_of(agent, &folder).await,
@@ -1952,12 +1957,12 @@ impl Runtime {
             if let Some(program) = local.entry.program.clone().filter(|_| local.comes_back()) {
                 let (id, terminal, home) = (*id, local.terminal.clone(), self.config.home.clone());
                 let folder = local.entry.working_dir.clone().map(PathBuf::from);
-                let shell = commands::shell(&self.config);
+                let notes = self.launcher.notes();
                 let changed = local.changed.clone();
                 asking.spawn(async move {
                     (
                         id,
-                        restore::agent_line(terminal, program, home, shell, folder, changed).await,
+                        restore::agent_line(terminal, program, home, notes, folder, changed).await,
                     )
                 });
             }
@@ -1998,12 +2003,12 @@ impl Runtime {
                 ));
             }
         }
-        let shell = commands::shell(&self.config);
+        let notes = self.launcher.notes();
         for (id, terminal, program, folder, changed) in asking {
-            let (home, shell) = (self.config.home.clone(), shell.clone());
+            let (home, notes) = (self.config.home.clone(), notes.clone());
             self.spawn(async move {
                 let line =
-                    restore::agent_line(terminal, program.clone(), home, shell, folder, changed)
+                    restore::agent_line(terminal, program.clone(), home, notes, folder, changed)
                         .await;
                 Completion::Conversation { id, program, line }
             });
@@ -2030,7 +2035,7 @@ impl Runtime {
 
     #[cfg(feature = "host")]
     fn save_terminals(&mut self, mut lines: HashMap<Uuid, restore::AgentLine>) {
-        let shell = commands::shell(&self.config);
+        let notes = self.launcher.notes();
         let now = tokio::time::Instant::now();
         let mut ids = self
             .local
@@ -2049,7 +2054,7 @@ impl Runtime {
                             .entry
                             .program
                             .as_deref()
-                            .and_then(|program| restore::usual_line(program, &shell))
+                            .and_then(|program| restore::usual_line(program, &notes))
                     });
                 let quiet_settings = line.as_ref().and_then(|_| {
                     if local.entry.program.as_deref() == Some(crate::agents::Agent::Copilot.name())

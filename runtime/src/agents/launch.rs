@@ -14,7 +14,7 @@ use uuid::Uuid;
 use super::{
     Agent, AgentAccount, AgentCatalog, AgentChoice, AgentChoiceChange, AgentInfo, AgentModel,
     AgentModels, AgentModelsReply, AgentOption, AgentPick, AgentSettings, AgentStart,
-    AgentUsageReply, Output, Permissions, as_shell_word,
+    AgentUsageReply, Installed, Notes, Output, Permissions, as_shell_word,
     quiet::{self, QuietSettings},
     usage,
 };
@@ -26,6 +26,7 @@ pub struct Launcher {
     file: PathBuf,
     home: PathBuf,
     shell: PathBuf,
+    notes: PathBuf,
     state: Mutex<State>,
     writing: Mutex<()>,
     unsaved: AtomicBool,
@@ -75,6 +76,7 @@ impl RunningAgent {
 struct State {
     saved: Saved,
     catalog: Option<(Instant, AgentCatalog)>,
+    installed: Installed,
     models: HashMap<Agent, AgentModels>,
 }
 
@@ -107,6 +109,7 @@ impl Launcher {
             file,
             home: home.to_owned(),
             shell: shell.to_owned(),
+            notes: super::notes_folder(data_root),
             state: Mutex::new(State {
                 saved,
                 ..State::default()
@@ -122,10 +125,19 @@ impl Launcher {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    pub(crate) fn notes(&self) -> Notes {
+        Notes {
+            shell: self.shell.clone(),
+            folder: self.notes.clone(),
+            installed: self.state().installed,
+        }
+    }
+
     pub async fn catalog(&self) -> Result<AgentCatalog, String> {
-        let catalog = super::catalog(&self.home, &self.shell).await?;
+        let (catalog, installed) = super::catalog(&self.home, &self.shell).await?;
         let mut state = self.state();
         state.catalog = Some((Instant::now(), catalog.clone()));
+        state.installed = installed;
         Ok(AgentCatalog {
             choice: state.resolved(),
             ..catalog
@@ -252,7 +264,7 @@ impl Launcher {
         }
         Arc::clone(self).save().await;
         Ok(Launch {
-            line: start.agent.with_context(&line, &self.shell),
+            line: start.agent.with_context(&line, &self.notes()),
             quiet_settings,
         })
     }

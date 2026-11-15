@@ -9,7 +9,11 @@ use serde::{Deserialize, Serialize};
 use tokio::time::Instant;
 use uuid::Uuid;
 
-use crate::{agents::Agent, terminal::TerminalSession, worktree::Worktree};
+use crate::{
+    agents::{Agent, Notes},
+    terminal::TerminalSession,
+    worktree::Worktree,
+};
 
 use super::saver::Saver;
 
@@ -200,7 +204,7 @@ pub(super) async fn agent_line(
     terminal: TerminalSession,
     program: String,
     home: PathBuf,
-    shell: PathBuf,
+    notes: Notes,
     folder: Option<PathBuf>,
     changed: crate::agents::AgentSettings,
 ) -> Option<AgentLine> {
@@ -214,7 +218,7 @@ pub(super) async fn agent_line(
         &account,
         &foreground.arguments,
         &changed,
-        &shell,
+        &notes,
     );
     let conversation = match foreground.group {
         Some(group) => crate::provider::shown_conversation(agent, account, group, folder).await,
@@ -330,16 +334,16 @@ pub(super) fn restart_command(
     account: &Path,
     arguments: &[String],
     changed: &crate::agents::AgentSettings,
-    shell: &Path,
+    notes: &Notes,
 ) -> String {
     let mut words = vec![crate::agents::account_command(agent, home, account)];
     words.extend(agent.chosen(arguments, changed));
-    agent.with_context(&words.join(" "), shell)
+    agent.with_context(&words.join(" "), notes)
 }
 
-pub(super) fn usual_line(program: &str, shell: &Path) -> Option<String> {
+pub(super) fn usual_line(program: &str, notes: &Notes) -> Option<String> {
     let agent = Agent::named(program)?;
-    resume_line(agent, &agent.with_context(agent.program(), shell), None)
+    resume_line(agent, &agent.with_context(agent.program(), notes), None)
 }
 
 pub(super) fn resume_line(

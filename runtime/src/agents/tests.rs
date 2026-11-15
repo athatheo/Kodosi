@@ -604,29 +604,138 @@ fn agents_get_kodosi_s_note_from_the_terminal_variable_in_every_shell() {
         variable_word(Path::new("nu"), "a=", CONTEXT_VARIABLE),
         "$\"a=($env.KODOSI_AGENT_CONTEXT)\""
     );
-    let zsh = Path::new("/bin/zsh");
+    let notes = Notes {
+        shell: "/bin/zsh".into(),
+        ..Notes::default()
+    };
     assert_eq!(
-        Agent::Codex.with_context("codex", zsh),
+        Agent::Codex.with_context("codex", &notes),
         "codex --no-daemon -c \"developer_instructions=$KODOSI_AGENT_CONTEXT\""
     );
     for agent in [Agent::Claude, Agent::Copilot, Agent::Gemini] {
-        assert_eq!(agent.with_context(agent.program(), zsh), agent.program());
+        assert_eq!(agent.with_context(agent.program(), &notes), agent.program());
     }
     assert!(!CONTEXT.trim().contains(['"', '%', '\n']));
 }
 
 #[test]
 fn only_a_codex_that_a_person_started_by_hand_misses_kodosi_s_note() {
+    let notes = Notes::default();
     let words = |line: &str| line.split(' ').map(str::to_owned).collect::<Vec<_>>();
-    assert!(Agent::Codex.started_without_note(&words("codex -m gpt-5.6-sol")));
-    assert!(!Agent::Codex.started_without_note(&[
-        "codex".to_owned(),
-        "-c".to_owned(),
-        format!("developer_instructions={}", CONTEXT.trim()),
-    ]));
-    assert!(!Agent::Codex.started_without_note(&[]));
-    assert!(!Agent::Claude.started_without_note(&words("claude")));
-    assert!(!Agent::Copilot.started_without_note(&words("copilot")));
+    assert!(Agent::Codex.started_without_note(&words("codex -m gpt-5.6-sol"), None, &notes));
+    assert!(!Agent::Codex.started_without_note(
+        &[
+            "codex".to_owned(),
+            "-c".to_owned(),
+            format!("developer_instructions={}", CONTEXT.trim()),
+        ],
+        None,
+        &notes
+    ));
+    assert!(!Agent::Codex.started_without_note(&[], None, &notes));
+    assert!(!Agent::Claude.started_without_note(&words("claude"), None, &notes));
+    assert!(!Agent::Copilot.started_without_note(&words("copilot"), None, &notes));
+}
+
+#[cfg(unix)]
+#[test]
+fn cursor_and_opencode_get_the_note_only_in_the_line_that_kodosi_types_where_they_take_it() {
+    let root = tempfile::tempdir().unwrap();
+    let root = kodosi_os::fs::canonicalize(root.path()).unwrap();
+    let folder = root.join("data root").join("agents");
+    write_notes(&folder).unwrap();
+    let bin = root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    for program in ["cursor-agent", "opencode"] {
+        let stub = bin.join(program);
+        fs::write(
+            &stub,
+            "#!/bin/sh\nprintf '%s\\0' \"$OPENCODE_CONFIG_CONTENT\" \"$@\"\n",
+        )
+        .unwrap();
+        fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    }
+    let run = |line: &str| {
+        let printed = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg(line)
+            .env_clear()
+            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .output()
+            .unwrap();
+        let printed = String::from_utf8(printed.stdout).unwrap();
+        let mut words = printed.split_terminator('\0').map(str::to_owned);
+        (words.next().unwrap_or_default(), words.collect::<Vec<_>>())
+    };
+    let notes = |cursor_plugins, opencode_version| Notes {
+        shell: "/bin/sh".into(),
+        folder: folder.clone(),
+        installed: Installed {
+            cursor_plugins,
+            opencode_version,
+        },
+    };
+
+    let cursor = Agent::Cursor.with_context("cursor-agent --force", &notes(true, None));
+    let (_, arguments) = run(&cursor);
+    let plugin = folder.join("cursor");
+    assert_eq!(
+        arguments,
+        ["--force", "--plugin-dir", plugin.to_str().unwrap()]
+    );
+    let arguments = [vec!["cursor-agent".to_owned()], arguments].concat();
+    assert!(!Agent::Cursor.started_without_note(&arguments, None, &notes(true, None)));
+    assert!(Agent::Cursor.started_without_note(
+        &["cursor-agent".to_owned(), "--force".to_owned()],
+        None,
+        &notes(true, None)
+    ));
+    let rule = fs::read_to_string(plugin.join("rules").join("kodosi.mdc")).unwrap();
+    assert_eq!(
+        rule,
+        format!("---\nalwaysApply: true\n---\n\n{}\n", CONTEXT.trim())
+    );
+    let without_plugin = Notes {
+        folder: root.join("nothing"),
+        ..notes(true, None)
+    };
+    for notes in [notes(false, None), without_plugin] {
+        assert_eq!(
+            Agent::Cursor.with_context("cursor-agent", &notes),
+            "cursor-agent"
+        );
+    }
+
+    for (version, standalone) in [(1, false), (2, true)] {
+        let line = Agent::Opencode.with_context("opencode --auto", &notes(false, Some(version)));
+        let (config, arguments) = run(&line);
+        let expected: &[&str] = if standalone {
+            &["--auto", "--standalone"]
+        } else {
+            &["--auto"]
+        };
+        assert_eq!(arguments, expected, "{line}");
+        let instructions: serde_json::Value = serde_json::from_str(&config).unwrap();
+        let note = fs::read_to_string(instructions["instructions"][0].as_str().unwrap()).unwrap();
+        assert_eq!(note.trim(), CONTEXT.trim());
+        assert!(!Agent::Opencode.started_without_note(
+            &["opencode".to_owned()],
+            Some(&config),
+            &notes(false, Some(version))
+        ));
+        assert!(Agent::Opencode.started_without_note(
+            &["opencode".to_owned()],
+            None,
+            &notes(false, Some(version))
+        ));
+    }
+    assert_eq!(
+        Agent::Opencode.with_context("opencode", &notes(true, None)),
+        "opencode"
+    );
+    assert_eq!(major_version("1.19.5\n"), Some(1));
+    assert_eq!(major_version("opencode v2.3.0\n"), Some(2));
+    assert_eq!(major_version("opencode\n"), None);
 }
 
 #[test]
@@ -650,14 +759,24 @@ fn agents_find_the_note_and_the_plugin_in_the_folder_that_kodosi_writes() {
         format!("---\napplyTo: \"**\"\n---\n\n{}\n", CONTEXT.trim())
     );
     let plugin = notes.join("plugin");
-    let manifest: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(plugin.join(".claude-plugin").join("plugin.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(manifest["name"], "kodosi");
-    for (skill, text) in [("kodosi", SKILL), ("kodosi-canvas", CANVAS_SKILL)] {
-        let file = plugin.join("skills").join(skill).join("SKILL.md");
-        assert_eq!(fs::read_to_string(file).unwrap(), text);
+    for (root, manifest) in [
+        (plugin.clone(), ".claude-plugin"),
+        (notes.join("cursor"), ".cursor-plugin"),
+    ] {
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(root.join(manifest).join("plugin.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(manifest["name"], "kodosi");
+        let skills = root.join("skills");
+        for (skill, text) in [
+            ("kodosi", SKILL),
+            ("kodosi-canvas", CANVAS_SKILL),
+            ("kodosi-documents", DOCUMENTS_SKILL),
+        ] {
+            let file = skills.join(skill).join("SKILL.md");
+            assert_eq!(fs::read_to_string(file).unwrap(), text);
+        }
     }
     let hooks: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(plugin.join("hooks").join("hooks.json")).unwrap())
@@ -1032,7 +1151,11 @@ fn a_running_agent_shows_each_permissions_and_output_that_kodosi_starts_it_with(
                     output: None,
                 };
                 let (line, _) = plan(&installed(agent), None, &saved, &start, shell).unwrap();
-                let line = agent.with_context(&line, shell);
+                let notes = Notes {
+                    shell: shell.to_owned(),
+                    ..Notes::default()
+                };
+                let line = agent.with_context(&line, &notes);
                 let started = agent.started_with(&arguments(&line));
                 assert_eq!(started.permissions, Some(permissions), "{line}");
                 if agent != Agent::Copilot {

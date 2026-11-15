@@ -2327,7 +2327,7 @@ async fn create_session(
         arguments,
         directory.clone(),
         Some(config.data_root.join("shell")),
-        Some(config.data_root.join("agents")),
+        Some(crate::agents::notes_folder(&config.data_root)),
         screen,
         grid,
         crate::canvas::CanvasHandle::spawn(id, &config.data_root, services),
