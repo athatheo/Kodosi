@@ -1,6 +1,7 @@
 //! A document can come from anyone, so reading limits the entries, the unpacked size and the
-//! compression ratio, and it checks each entry name. Writing copies each part that did not change
-//! byte for byte.
+//! compression ratio, and it checks each entry name. It refuses a package that another program
+//! could read as other parts: one with data before it, or with two entries of one name. Writing
+//! copies each part that did not change byte for byte.
 
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -42,6 +43,12 @@ pub struct Package<'a> {
 impl<'a> Package<'a> {
     pub fn open(file: &'a [u8]) -> Result<Self, PackageError> {
         let mut archive = ZipArchive::new(Cursor::new(file)).map_err(broken)?;
+        if archive.offset() != 0 {
+            return Err(PackageError::Unsafe("data before the package".to_owned()));
+        }
+        if archive.has_duplicate_names() {
+            return Err(PackageError::Unsafe("two entries with one name".to_owned()));
+        }
         if archive.len() > MOST_ENTRIES {
             return Err(PackageError::Unsafe("too many entries".to_owned()));
         }
@@ -315,6 +322,21 @@ mod tests {
     fn an_entry_that_leaves_the_package_is_refused() {
         let file = package_of(&[("../evil", b"x")]);
         assert!(matches!(Package::open(&file), Err(PackageError::Unsafe(_))));
+    }
+
+    #[test]
+    fn a_package_that_another_program_reads_otherwise_is_refused() {
+        let file = package_of(&[("a.xml", b"<a/>"), ("b.xml", b"<b/>")]);
+        let mut twice = file.clone();
+        for at in 0..twice.len() - 5 {
+            if &twice[at..at + 5] == b"b.xml" {
+                twice[at] = b'a';
+            }
+        }
+        let behind = [b"MZ".as_slice(), &file].concat();
+        for file in [twice, behind] {
+            assert!(matches!(Package::open(&file), Err(PackageError::Unsafe(_))));
+        }
     }
 
     #[test]

@@ -54,4 +54,4 @@ text = { path = "crates/text" }
 thiserror = "2.0.21"
 ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
 xlsx = { path = "crates/xlsx" }
-zip = { version = "9.2.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.5.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
