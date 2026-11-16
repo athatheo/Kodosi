@@ -51,13 +51,7 @@ struct AppShell: View {
         .kodosiPopoverLayer()
         .buttonStyle(.kodosi(.secondary))
         .textFieldStyle(WellTextFieldStyle()).toggleStyle(KodosiSwitchStyle())
-        .confirmationDialog(
-            projectShareTitle, isPresented: Binding(get: { workbench.projectShare != nil }, set: {
-                if !$0 {
-                    workbench.projectShare = nil
-                }
-            }), titleVisibility: .visible, presenting: workbench.projectShare,
-        ) { share in
+        .confirmationDialog(projectShareTitle, item: $workbench.projectShare, titleVisibility: .visible) { share in
             Button("Share") { deps.share(share) }
             Button("Cancel", role: .cancel) {}
         } message: { share in
