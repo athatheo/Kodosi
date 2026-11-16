@@ -1,4 +1,6 @@
 import Foundation
+import KodosiBridge
+import os
 
 final nonisolated class EphemeralUserDefaults: UserDefaults {
     let suiteName: String
@@ -26,7 +28,7 @@ final nonisolated class EphemeralUserDefaults: UserDefaults {
         do {
             try cleanUp()
         } catch {
-            NSLog("Ephemeral preferences cleanup failed for %@: %@", suiteName, String(describing: error))
+            Logger.app.error("Isolated preferences cleanup failed: \(error.localizedDescription)")
         }
     }
 
