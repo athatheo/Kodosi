@@ -32,7 +32,7 @@ public enum ProjectDates {
     }
 
     public static func startsGroup(_ message: ProjectMessage, after previous: ProjectMessage?) -> Bool {
-        guard let previous, previous.authorId == message.authorId, previous.agent == message.agent,
+        guard let previous, !previous.deleted, previous.authorId == message.authorId, previous.agent == message.agent,
               previous.terminalId == message.terminalId
         else { return true }
         guard let date = parse(message.createdAt), let before = parse(previous.createdAt) else { return false }

@@ -10,6 +10,7 @@ struct ProjectConversationView: View {
     @Bindable var state: ProjectViewState
     let workspace: ProjectWorkspace
     @State private var copied = false
+    @State private var confirmingClear = false
 
     private var messages: [ProjectMessage] {
         deps.projects.snapshots[projectId]?.messages ?? []
@@ -38,6 +39,17 @@ struct ProjectConversationView: View {
                         copied = false
                     }
                 }
+                Menu {
+                    Button("Clear chat…", role: .destructive) { confirmingClear = true }
+                        .disabled(messages.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.colors.inkMuted)
+                        .frame(width: 26, height: 26).contentShape(Circle())
+                }
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                .help("Chat options")
+                .accessibilityLabel(Text("Chat options"))
+                .accessibilityIdentifier("project.conversation.options")
             }
             .padding(.leading, 16).padding(.trailing, 8).frame(height: 46)
             if deps.projects.snapshots[projectId] == nil {
@@ -53,6 +65,9 @@ struct ProjectConversationView: View {
         }
         .raised(Radius.xl, fill: theme.colors.sheet)
         .showsProjectPart(.conversation, of: state)
+        .confirmationDialog("Clear the chat for you?", isPresented: $confirmingClear, titleVisibility: .visible) {
+            Button("Clear chat", role: .destructive, action: clear)
+        } message: { Text("The messages up to now disappear from all your devices. Everyone else keeps them.") }
         .animation(theme.motion.snappy, value: copied)
         .environment(\.openURL, OpenURLAction { url in
             guard let id = ProjectMentions.terminalId(in: url) else { return .systemAction }
@@ -72,7 +87,7 @@ struct ProjectConversationView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if deps.projects.snapshots[projectId]?.hasOlder == true, let first = messages.first {
                         ProjectEarlierKey(loading: state.loading, identifier: "project.messages.earlier") {
-                            Task { await deps.projects.read(projectId, before: first.sequence); proxy.scrollTo(first.id, anchor: .top) }
+                            Task { await deps.projects.read(projectId, before: first.position); proxy.scrollTo(first.id, anchor: .top) }
                         }
                         .padding(.bottom, 10)
                     } else if deps.projects.snapshots[projectId]?.historyTrimmed == true, !messages.isEmpty {
@@ -129,6 +144,14 @@ struct ProjectConversationView: View {
                     withAnimation(theme.motion.soft) { proxy.scrollTo("latest", anchor: .bottom) }
                 }
             }
+        }
+    }
+
+    private func clear() {
+        Task { @MainActor in
+            do {
+                try await deps.projects.clearConversation(projectId)
+            } catch { state.failure = error.localizedDescription }
         }
     }
 

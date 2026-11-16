@@ -11,6 +11,7 @@ struct ProjectInfoSheet: View {
     @State private var invited: Set<String> = []
     @State private var renaming = false
     @State private var confirmingEnd = false
+    @State private var confirmingClear = false
     @State private var removing: ProjectMemberEntry?
     @State private var memberAction = MemberAction()
     @State private var busy = false
@@ -67,6 +68,12 @@ struct ProjectInfoSheet: View {
                             .buttonStyle(ListRowButtonStyle())
                             .accessibilityIdentifier("projects.rename")
                         }
+                        Button { confirmingClear = true } label: {
+                            ListRow(String(localized: "Clear chat…"), symbol: "eraser", tint: TileTint.graphite)
+                        }
+                        .buttonStyle(ListRowButtonStyle())
+                        .disabled(projects.snapshots[projectId]?.messages.isEmpty ?? true)
+                        .accessibilityIdentifier("projects.clear")
                         Button { confirmingEnd = true } label: {
                             ListRow(owner ? String(localized: "Delete project…") : String(localized: "Leave project…"),
                                     symbol: owner ? "trash.fill" : "rectangle.portrait.and.arrow.right", tint: TileTint.red,
@@ -106,6 +113,13 @@ struct ProjectInfoSheet: View {
                 } else {
                     Text("You lose its terminals and conversation until someone invites you again.")
                 }
+            }
+            .confirmationDialog("Clear the chat for you?", isPresented: $confirmingClear, titleVisibility: .visible) {
+                Button("Clear chat", role: .destructive) {
+                    perform { try await projects.clearConversation(projectId) }
+                }
+            } message: {
+                Text("The messages up to now disappear from all your devices. Everyone else keeps them.")
             }
             .confirmationDialog(
                 String(localized: "Remove \(removing?.personName ?? "")?"),

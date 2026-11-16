@@ -64,8 +64,8 @@ private let people = [
 @Test func `messages group by author and time`() throws {
     func message(_ id: String, author: String, at date: String) throws -> ProjectMessage {
         try JSONValue.object([
-            "id": .string(id), "sequence": .uint(1), "authorId": .string(author), "authorName": .string("Ana"),
-            "agent": .null, "terminalId": .null, "text": .string("Hello"), "createdAt": .string(date),
+            "id": .string(id), "position": .uint(1), "authorId": .string(author), "authorName": .string("Ana"),
+            "agent": .null, "terminalId": .null, "text": .string("Hello"), "deleted": .bool(false), "createdAt": .string(date),
         ]).decode(as: ProjectMessage.self)
     }
     let first = try message("m1", author: "u2", at: "2026-10-11T10:00:00Z")

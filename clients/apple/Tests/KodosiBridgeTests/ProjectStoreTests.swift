@@ -61,7 +61,25 @@ struct ProjectStoreTests {
         #expect(projects.view("project-1").unread == 0)
         let seen = try await log.next("project.seen")
         #expect(seen["projectId"] as? String == "project-1")
-        #expect(sequence(of: seen) == 5)
+        #expect(position(of: seen) == 5)
+    }
+
+    @Test func `a deletion replaces only a kept message and a clear drops the messages up to its position`() throws {
+        try deliver("project.snapshot", ["content": content("project-1", messages: [
+            message("m5", 5, author: "user-2"), message("m6", 6, author: "user-2"),
+        ])])
+        try deliver("project.snapshot", ["content": content(
+            "project-1",
+            messages: [message("m7", 7, author: "user-2"), message("m8", 8, author: "user-2", deleted: true)],
+            replacements: [message("m5", 5, author: "user-2", deleted: true), message("m2", 2, author: "user-2", deleted: true)],
+        )])
+        let merged = projects.snapshots["project-1"]?.messages ?? []
+        #expect(merged.map(\.id) == ["m5", "m6", "m7", "m8"])
+        #expect(merged.map(\.deleted) == [true, false, false, true])
+        #expect(projects.view("project-1").unread == 1)
+        try deliver("project.snapshot", ["content": content("project-1", messages: [message("m9", 9, author: "user-2")], clearedPosition: 7)])
+        #expect(projects.snapshots["project-1"]?.messages.map(\.id) == ["m8", "m9"])
+        #expect(projects.view("project-1").unread == 1)
     }
 
     @Test func `older pages are not new`() throws {
@@ -79,16 +97,16 @@ struct ProjectStoreTests {
     @Test func `reading the conversation keeps it read`() async throws {
         try deliver("project.snapshot", ["content": content("project-1", messages: [message("m1", 1, author: "user-2")])])
         projects.view("project-1").show(.conversation)
-        #expect(try await sequence(of: log.next("project.seen")) == 1)
+        #expect(try await position(of: log.next("project.seen")) == 1)
         try deliver("project.snapshot", ["content": content("project-1", messages: [message("m2", 2, author: "user-2")])])
         #expect(projects.view("project-1").unread == 0)
-        #expect(try await sequence(of: log.next("project.seen")) == 2)
+        #expect(try await position(of: log.next("project.seen")) == 2)
         projects.view("project-1").followsLatest = false
         try deliver("project.snapshot", ["content": content("project-1", messages: [message("m3", 3, author: "user-2")])])
         #expect(projects.view("project-1").unread == 1)
         projects.view("project-1").followsLatest = true
         #expect(projects.view("project-1").unread == 0)
-        #expect(try await sequence(of: log.next("project.seen")) == 3)
+        #expect(try await position(of: log.next("project.seen")) == 3)
     }
 
     @Test func `what the person read away from the front is seen when the app comes back`() async throws {
@@ -102,7 +120,7 @@ struct ProjectStoreTests {
         #expect(log.take("project.seen") == nil)
         front = true
         projects.markShownRead()
-        #expect(try await sequence(of: log.next("project.seen")) == 5)
+        #expect(try await position(of: log.next("project.seen")) == 5)
     }
 
     @Test func `a project that the list shows unread is seen again`() async throws {
@@ -110,8 +128,8 @@ struct ProjectStoreTests {
         try deliver("project.snapshot", ["content": content("project-1", messages: [message("m1", 1, author: "user-2")])])
         projects.markRead("project-1")
         projects.markRead("project-1")
-        #expect(try await sequence(of: log.next("project.seen")) == 1)
-        #expect(try await sequence(of: log.next("project.seen")) == 1)
+        #expect(try await position(of: log.next("project.seen")) == 1)
+        #expect(try await position(of: log.next("project.seen")) == 1)
         try deliver("projects.snapshot", list(["project-1"]))
         projects.markRead("project-1")
         #expect(log.take("project.seen") == nil)
@@ -367,8 +385,8 @@ private extension ProjectStoreTests {
         ["operation": "project.act", "projectId": "project-1", "itemId": NSNull(), "action": action]
     }
 
-    func sequence(of command: [String: Any]) -> UInt64? {
-        (command["sequence"] as? NSNumber)?.uint64Value
+    func position(of command: [String: Any]) -> UInt64? {
+        (command["position"] as? NSNumber)?.uint64Value
     }
 
     func list(_ projects: [String], truncated: Bool = false, unread: Bool = false) -> [String: Any] {
@@ -386,17 +404,21 @@ private extension ProjectStoreTests {
         ["id": id, "projectId": project, "projectName": "Launch", "inviterName": "Ana", "createdAt": "2026-10-11T10:00:00Z"]
     }
 
-    func content(_ id: String, messages: [[String: Any]] = [], tasks: [[String: Any]] = [], hasOlder: Bool = false) -> [String: Any] {
+    func content(
+        _ id: String, messages: [[String: Any]] = [], replacements: [[String: Any]] = [], clearedPosition: Int = 0,
+        tasks: [[String: Any]] = [], hasOlder: Bool = false,
+    ) -> [String: Any] {
         [
-            "projectId": id, "messages": messages, "tasks": tasks, "repositories": [], "sequence": messages.count,
-            "hasOlder": hasOlder, "historyTrimmed": false,
+            "projectId": id, "messages": messages, "replacements": replacements, "clearedPosition": clearedPosition, "tasks": tasks,
+            "repositories": [], "sequence": messages.count, "hasOlder": hasOlder, "historyTrimmed": false,
         ]
     }
 
-    func message(_ id: String, _ sequence: Int, author: String, agent: String? = nil, text: String = "Hello") -> [String: Any] {
+    func message(_ id: String, _ position: Int, author: String, agent: String? = nil, text: String = "Hello", deleted: Bool = false) -> [String: Any] {
         [
-            "id": id, "sequence": sequence, "authorId": author, "authorName": author == "user-1" ? "Me" : "Ana",
-            "agent": agent ?? NSNull(), "terminalId": NSNull(), "text": text, "createdAt": "2026-10-11T10:0\(sequence % 10):00Z",
+            "id": id, "position": position, "authorId": author, "authorName": author == "user-1" ? "Me" : "Ana",
+            "agent": agent ?? NSNull(), "terminalId": NSNull(), "text": deleted ? "" : text, "deleted": deleted,
+            "createdAt": "2026-10-11T10:0\(position % 10):00Z",
         ]
     }
 
