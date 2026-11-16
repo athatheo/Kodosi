@@ -148,10 +148,11 @@ public sealed partial class ProjectService
         var project = await RequireMemberAsync(id, userId, ct);
         if (after < 0 || before is <= 0 || limit is < 1 or > 200 || kind is not (null or "message" or "task" or "repository"))
             throw ApiException.Invalid("Invalid project history request.");
+        var cleared = await db.ClearedConversations.Where(x => x.ProjectId == id && x.UserId == userId).Select(x => x.Position).SingleOrDefaultAsync(ct);
         var query = db.ProjectItems.AsNoTracking().Where(x => x.ProjectId == id && (kind == null || x.Kind == kind)
-            && x.Sequence > after && (before == null || x.Sequence < before));
+            && x.Sequence > after && (before == null || x.Position < before) && (x.Kind != "message" || x.Position > cleared));
         var take = limit ?? 100;
-        var items = before != null ? await query.OrderByDescending(x => x.Sequence).Take(take + 1).ToListAsync(ct)
+        var items = before != null ? await query.OrderByDescending(x => x.Position).Take(take + 1).ToListAsync(ct)
             : await query.OrderBy(x => x.Sequence).Take(take + 1).ToListAsync(ct);
         var selected = new List<ProjectItem>();
         var bytes = 0;
@@ -162,11 +163,26 @@ public sealed partial class ProjectService
         }
         var more = items.Count > selected.Count;
         return new { sequence = project.ContentSequence, keyVersion = project.KeyVersion, hasMore = more,
-            historyTrimmed = project.HistoryTrimmed, items = selected.OrderBy(x => x.Sequence).Select(ItemDto) };
+            historyTrimmed = project.HistoryTrimmed, clearedPosition = cleared,
+            items = selected.OrderBy(x => before != null ? x.Position : x.Sequence).Select(ItemDto) };
+    }
+
+    public async Task ClearConversationAsync(Guid id, Guid userId, long position, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var project = await RequireMemberForUpdateAsync(id, userId, ct);
+        RequireProject(project);
+        if (position < 0 || position > project.ContentSequence) throw ApiException.Invalid("Invalid project position.");
+        var cleared = await db.ClearedConversations.SingleOrDefaultAsync(x => x.ProjectId == id && x.UserId == userId, ct);
+        if (cleared is null) db.ClearedConversations.Add(new ClearedConversation { ProjectId = id, UserId = userId, Position = position });
+        else if (cleared.Position < position) cleared.Position = position;
+        else return;
+        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+        connections.Notify([userId], "projectContent", id);
     }
 
     private static object ItemDto(ProjectItem item) => new
-    { item.Id, item.Kind, item.Version, item.Sequence, item.KeyVersion, item.UserId, item.DeviceId, item.CreatedAt,
+    { item.Id, item.Kind, item.Version, item.Sequence, item.Position, item.KeyVersion, item.UserId, item.DeviceId, item.CreatedAt,
         body = Convert.ToBase64String(item.Body), signature = Convert.ToBase64String(item.Signature) };
 
     public async Task<object> PutContentAsync(Guid id, Guid itemId, Guid userId, ContentWrite request, CancellationToken ct, ApprovedDevice? signer = null)
@@ -196,17 +212,19 @@ public sealed partial class ProjectService
         if (project.KeyVersion == 0 || keyVersion != project.KeyVersion) throw ApiException.Conflict("Project keys changed; refresh before posting.");
         var epoch = await db.ProjectKeyStates.Where(x => x.ProjectId == id && x.Version == keyVersion).Select(x => x.Epoch).SingleAsync(ct);
         if (content.Epoch != epoch) throw ApiException.Invalid("The content belongs to another project key epoch.");
-        if ((existing?.Version ?? 0) != request.ExpectedVersion || (existing is not null && (existing.Kind != kind || kind == "message")))
+        if ((existing?.Version ?? 0) != request.ExpectedVersion || (existing is not null && existing.Kind != kind))
             throw ApiException.Conflict("This project item changed; refresh before retrying.");
+        if (existing is { Kind: "message" } && existing.UserId != userId)
+            throw ApiException.Forbidden("You can delete only your own messages.");
         if (existing is null && kind != "message" && await db.ProjectItems.CountAsync(x => x.ProjectId == id && x.Kind == kind, ct) >= 4096)
             throw ApiException.Conflict("The project has reached its item limit.");
         project.ContentBytes += (long)body.Length + signature.Length - (existing is null ? 0 : (long)existing.Body.Length + existing.Signature.Length);
         var planned = (await plans.LimitsAsync(db, project.OwnerUserId, ct)).ProjectBytes;
         if ((project.Dosi ? Math.Min(planned ?? DosiProjectBytes, DosiProjectBytes) : planned) is { } most && project.ContentBytes > most)
             await TrimHistoryAsync(project, most, ct);
-        var item = existing ?? new ProjectItem { ProjectId = id, Id = itemId, CreatedAt = clock.GetUtcNow() };
-        item.Kind = kind; item.Version = version; item.KeyVersion = keyVersion;
         project.ContentSequence = checked(project.ContentSequence + 1);
+        var item = existing ?? new ProjectItem { ProjectId = id, Id = itemId, Position = project.ContentSequence, CreatedAt = clock.GetUtcNow() };
+        item.Kind = kind; item.Version = version; item.KeyVersion = keyVersion;
         item.Sequence = project.ContentSequence; item.Body = body; item.Signature = signature;
         item.UserId = userId; item.DeviceId = device.Id;
         if (existing is null) db.ProjectItems.Add(item);
@@ -223,13 +241,13 @@ public sealed partial class ProjectService
         while (freed < excess)
         {
             var oldest = await db.ProjectItems.AsNoTracking()
-                .Where(x => x.ProjectId == project.Id && x.Kind == "message" && x.Sequence > after).OrderBy(x => x.Sequence).Take(64)
-                .Select(x => new { x.Id, x.Sequence, Size = (long)x.Body.Length + x.Signature.Length }).ToListAsync(ct);
+                .Where(x => x.ProjectId == project.Id && x.Kind == "message" && x.Position > after).OrderBy(x => x.Position).Take(64)
+                .Select(x => new { x.Id, x.Position, Size = (long)x.Body.Length + x.Signature.Length }).ToListAsync(ct);
             if (oldest.Count == 0)
                 throw ApiException.Forbidden("This project is full, because its tasks and repositories use all of its space. Make a new project to continue.");
             foreach (var message in oldest.TakeWhile(_ => freed < excess))
             {
-                removed.Add(message.Id); freed += message.Size; after = message.Sequence;
+                removed.Add(message.Id); freed += message.Size; after = message.Position;
             }
         }
         await db.ProjectItems.Where(x => x.ProjectId == project.Id && removed.Contains(x.Id)).ExecuteDeleteAsync(ct);
@@ -251,5 +269,6 @@ public sealed partial class ProjectService
     public sealed record RecipientKeyWrite(string PublicKey, string Signature);
     public sealed record ProjectKeyWrite(string DeviceId, string Body, string Signature);
     public sealed record ContentWrite(long ExpectedVersion, string DeviceId, string Body, string Signature);
+    public sealed record ConversationClear(long Position);
     public sealed record MembershipWrite(ProjectKeyWrite? Keys = null);
 }
