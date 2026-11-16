@@ -706,7 +706,7 @@ fn cursor_and_opencode_get_the_note_only_in_the_line_that_kodosi_types_where_the
         );
     }
 
-    for (version, standalone) in [(1, false), (2, true)] {
+    for (version, standalone) in [(0, false), (1, false), (2, true), (3, true)] {
         let line = Agent::Opencode.with_context("opencode --auto", &notes(false, Some(version)));
         let (config, arguments) = run(&line);
         let expected: &[&str] = if standalone {
