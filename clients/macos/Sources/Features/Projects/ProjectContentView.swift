@@ -39,6 +39,7 @@ struct ProjectContentView: View {
 private struct ProjectTerminals: View {
     @Environment(AppDependencies.self) private var deps
     @Environment(\.theme) private var theme
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     @Namespace private var tab
     @Namespace private var keys
     let projectId: String
@@ -102,7 +103,8 @@ private struct ProjectTerminals: View {
                                 } detail: {
                                     HStack(spacing: 4) {
                                         DeviceGlyph(label: session.hostLabel).font(.system(size: 9, weight: .medium))
-                                        SessionActivityText(session: session, fallback: session.hostLabel)
+                                        SessionActivityText(session: session, fallback: session.hostLabel,
+                                                            naming: session.leadingSummary(summaryFirst) != nil)
                                     }
                                 } accessory: {
                                     if let sign = deps.sign(of: session) {

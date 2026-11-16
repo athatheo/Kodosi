@@ -688,6 +688,7 @@ Item {
                                                 required property string modelData
                                                 readonly property var session: Models.Sessions.sessions.find(entry => entry.id === modelData) || ({})
                                                 readonly property var viewers: (session.connectedUsers || []).filter(user => user !== Models.Account.userId)
+                                                readonly property string summary: Models.Appearance.leadingSummary(session, Models.Appearance.summaryFirst)
 
                                                 width: grid.cardWidth
                                                 height: 62
@@ -704,14 +705,14 @@ Item {
                                                     ColumnLayout {
                                                         Layout.fillWidth: true
                                                         spacing: 2
-                                                        PlainLabel { Layout.fillWidth: true; text: card.session.name || ""; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                                        PlainLabel { Layout.fillWidth: true; text: card.summary || card.session.name || ""; font.weight: Font.DemiBold; elide: Text.ElideRight }
                                                         RowLayout {
                                                             spacing: 5
                                                             KIcon { Layout.preferredWidth: 11; Layout.preferredHeight: 11; name: "laptop"; color: KodosiTheme.inkFaint }
                                                             ActivityLine {
                                                                 Layout.fillWidth: true
                                                                 session: card.session
-                                                                words: card.session.activity || card.session.hostLabel || ""
+                                                                words: card.summary.length > 0 ? card.session.name || "" : card.session.activity || card.session.hostLabel || ""
                                                             }
                                                         }
                                                     }

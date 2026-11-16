@@ -6,11 +6,14 @@ public struct SessionActivityText: View {
     let session: RuntimeSession
     let fallback: String?
     let showsPlace: Bool
+    let naming: Bool
 
-    public init(session: RuntimeSession, fallback: String? = nil, showsPlace: Bool = false) {
+    /// With `naming`, the line names the terminal, because its title shows the agent's summary.
+    public init(session: RuntimeSession, fallback: String? = nil, showsPlace: Bool = false, naming: Bool = false) {
         self.session = session
         self.fallback = fallback
         self.showsPlace = showsPlace
+        self.naming = naming
     }
 
     private var place: TerminalPlace? {
@@ -18,7 +21,7 @@ public struct SessionActivityText: View {
     }
 
     private var words: String? {
-        session.activity ?? fallback
+        naming ? session.name : session.activity ?? fallback
     }
 
     public var body: some View {

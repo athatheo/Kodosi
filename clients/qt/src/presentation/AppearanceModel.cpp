@@ -1,5 +1,7 @@
 #include "presentation/AppearanceModel.hpp"
 
+#include "presentation/DesktopSettings.hpp"
+
 #include <QAccessibilityHints>
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -12,6 +14,7 @@ namespace {
 
 const auto preferenceKey = QStringLiteral("appearance/preference");
 const auto motionKey = QStringLiteral("appearance/reduceMotion");
+const auto summaryKey = QStringLiteral("appearance/summaryFirst");
 
 QString preferenceName(const AppearanceModel::Preference preference)
 {
@@ -89,6 +92,7 @@ AppearanceModel::AppearanceModel(
     Q_ASSERT(m_styleHooks.unsetColorScheme);
     m_preference = preferenceFromName(m_settings->value(preferenceKey).toString()).value_or(Preference::System);
     m_reducesMotion = m_settings->value(motionKey).toString() == QStringLiteral("true");
+    m_summaryFirst = m_settings->value(summaryKey).toString() == QStringLiteral("true");
     applyPreference();
 }
 
@@ -132,6 +136,24 @@ bool AppearanceModel::reduceMotion() const noexcept
 bool AppearanceModel::systemReducesMotion() const noexcept
 {
     return m_systemReducesMotion;
+}
+
+bool AppearanceModel::summaryFirst() const noexcept
+{
+    return m_summaryFirst;
+}
+
+QString AppearanceModel::leadingSummary(const QVariantMap& session, const bool summaryFirst)
+{
+    const auto connection = session.value(QStringLiteral("connectionState")).toString();
+    const auto status = session.value(QStringLiteral("status")).toString();
+    const bool troubled = connection == QStringLiteral("blocked") || status == QStringLiteral("offline")
+        || (connection == QStringLiteral("offline") && !session.value(QStringLiteral("message")).toString().isEmpty());
+    if (!summaryFirst || troubled || connection == QStringLiteral("connecting") || status != QStringLiteral("running")
+        || DesktopSettings::agentOf(session.value(QStringLiteral("program")).toString()) == QStringLiteral("shell")) {
+        return {};
+    }
+    return session.value(QStringLiteral("activity")).toString();
 }
 
 QString AppearanceModel::settingsError() const
@@ -178,6 +200,22 @@ bool AppearanceModel::setReducesMotion(const bool enabled)
     }
     setError({});
     updateMotion(m_systemReducesMotion, enabled);
+    return true;
+}
+
+bool AppearanceModel::setSummaryFirst(const bool enabled)
+{
+    if (enabled == m_summaryFirst) {
+        return true;
+    }
+    if (!store(summaryKey, enabled ? QStringLiteral("true") : QStringLiteral("false"))) {
+        setError(tr(
+            "Title settings could not be written. The previous choice remains active."));
+        return false;
+    }
+    setError({});
+    m_summaryFirst = enabled;
+    emit summaryFirstChanged();
     return true;
 }
 

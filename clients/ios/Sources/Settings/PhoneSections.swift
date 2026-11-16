@@ -6,6 +6,7 @@ struct TerminalSection: View {
     @Environment(AppModel.self) private var model
     @AppStorage(ThemePreference.storageKey) private var themePreference = ThemePreference.system.rawValue
     @AppStorage(TerminalAppearance.TextSize.storageKey) private var textSize = TerminalAppearance.TextSize.standard.rawValue
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     @AppStorage(ScreenAwake.storageKey) private var keepScreenOn = false
 
     private var size: TerminalAppearance.TextSize {
@@ -29,6 +30,12 @@ struct TerminalSection: View {
                         SegmentOption(value: $0.rawValue, title: $0.title)
                     }, compact: true, identifier: "settings.terminal.textSize")
                 }
+                ListRow(String(localized: "Title"), symbol: "text.alignleft", tint: TileTint.blue) {
+                    SegmentedPill(selection: $summaryFirst, options: [
+                        SegmentOption(value: false, title: String(localized: "Name")),
+                        SegmentOption(value: true, title: String(localized: "Summary")),
+                    ], compact: true, identifier: "settings.terminal.title")
+                }
                 SwitchRow(String(localized: "Keep the screen on"), subtitle: String(localized: "While a terminal is open"),
                           symbol: "sun.max", tint: TileTint.amber, isOn: $keepScreenOn)
                     .accessibilityIdentifier("settings.terminal.keepScreenOn")
@@ -36,6 +43,7 @@ struct TerminalSection: View {
         }
         .sensoryFeedback(.selection, trigger: themePreference)
         .sensoryFeedback(.selection, trigger: textSize)
+        .sensoryFeedback(.selection, trigger: summaryFirst)
         .onChange(of: textSize) { _, _ in model.terminals.live.applyStyle(TerminalAppearance.style) }
         .onChange(of: keepScreenOn) { _, _ in ScreenAwake.update() }
     }

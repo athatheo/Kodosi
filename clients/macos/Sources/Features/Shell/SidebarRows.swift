@@ -307,6 +307,7 @@ struct FoldTriangle: View {
 struct SidebarTerminalRow: View {
     @Environment(AppDependencies.self) private var deps
     @Environment(\.theme) private var theme
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     let session: RuntimeSession
     let selected: Bool
     let pill: Namespace.ID
@@ -394,7 +395,7 @@ struct SidebarTerminalRow: View {
                         }
                         .accessibilityIdentifier("\(AccessibilityIdentifier.sidebarSession(session.id)).name")
                 } else {
-                    Text(session.name).appTextStyle(.body).fontWeight(selected ? .medium : .regular)
+                    Text(session.leadingSummary(summaryFirst) ?? session.name).appTextStyle(.body).fontWeight(selected ? .medium : .regular)
                         .foregroundStyle(staged || selected ? theme.colors.ink : theme.colors.inkMuted).lineLimit(1)
                         .contentTransition(.interpolate)
                 }
@@ -412,7 +413,7 @@ struct SidebarTerminalRow: View {
                             if session.place != nil {
                                 Text(verbatim: "·")
                             }
-                            SessionActivityText(session: session)
+                            SessionActivityText(session: session, naming: session.leadingSummary(summaryFirst) != nil)
                         }
                     }
                     .appTextStyle(.caption).fontWeight(.regular).foregroundStyle(theme.colors.inkFaint)
