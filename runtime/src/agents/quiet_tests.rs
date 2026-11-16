@@ -129,3 +129,49 @@ fn the_settings_that_an_ended_host_held_go_back_when_kodosi_starts() {
     QuietSettings::load(root.path());
     assert_eq!(text(&settings), SETTINGS_OF_COPILOT);
 }
+
+#[test]
+fn copilot_stays_as_it_was_when_kodosi_cannot_keep_what_it_would_change() {
+    let root = tempfile::tempdir().unwrap();
+    let (_folder, settings) = account();
+    let quiet = QuietSettings::load(root.path());
+    std::fs::create_dir(root.path().join(FILE)).unwrap();
+
+    quiet.hold(Uuid::now_v7(), &settings);
+
+    assert_eq!(text(&settings), SETTINGS_OF_COPILOT);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_quiet_copilot_leaves_its_folder_its_link_and_the_mode_of_its_settings() {
+    use std::os::unix::fs::{PermissionsExt as _, symlink};
+
+    let root = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let real = home.path().join("dotfiles-copilot");
+    std::fs::create_dir(&real).unwrap();
+    std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(real.join(SETTINGS), SETTINGS_OF_COPILOT).unwrap();
+    std::fs::set_permissions(real.join(SETTINGS), std::fs::Permissions::from_mode(0o644)).unwrap();
+    let linked = home.path().join(".copilot");
+    symlink(&real, &linked).unwrap();
+    let settings = linked.join(SETTINGS);
+    let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    let quiet = QuietSettings::load(root.path());
+    let terminal = Uuid::now_v7();
+
+    quiet.hold(terminal, &settings);
+    assert_eq!(value(&settings)["banner"], "never");
+    assert_eq!((mode(&real), mode(&settings)), (0o755, 0o644));
+    assert!(
+        std::fs::symlink_metadata(&linked)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+
+    quiet.release(terminal);
+    assert_eq!(text(&settings), SETTINGS_OF_COPILOT);
+    assert_eq!((mode(&real), mode(&settings)), (0o755, 0o644));
+}
