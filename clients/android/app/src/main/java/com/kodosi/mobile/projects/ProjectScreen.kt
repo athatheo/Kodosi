@@ -46,6 +46,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -61,6 +63,7 @@ import com.kodosi.mobile.ui.ActionIcon
 import com.kodosi.mobile.ui.AgentMark
 import com.kodosi.mobile.ui.AppIcon
 import com.kodosi.mobile.ui.AppSymbol
+import com.kodosi.mobile.ui.ConfirmDialog
 import com.kodosi.mobile.ui.DockItem
 import com.kodosi.mobile.ui.Elevation
 import com.kodosi.mobile.ui.EmptyState
@@ -270,23 +273,28 @@ private fun Conversation(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             items(messages.asReversed(), key = { it.id }) { message ->
-                MessageRow(
-                    model,
-                    projectId,
-                    message,
-                    message.isOwn(account.userId),
-                    members.firstOrNull { it.userId == message.authorId && it.userId != account.userId }?.person,
-                    { reporting = it },
-                    { blocking = it },
-                    terminal
-                )
+                if (message.deleted) {
+                    DeletedMessage(message.isOwn(account.userId))
+                } else {
+                    MessageRow(
+                        model,
+                        projectId,
+                        message,
+                        message.isOwn(account.userId),
+                        message.deletable(account.userId),
+                        members.firstOrNull { it.userId == message.authorId && it.userId != account.userId }?.person,
+                        { reporting = it },
+                        { blocking = it },
+                        terminal
+                    )
+                }
             }
             item {
                 if (snapshot?.hasOlder == true) {
                     KodosiTextButton(enabled = !earlier, onClick = {
                         earlier = true
                         scope.launch {
-                            model.runAction { model.projects.read(projectId, messages.firstOrNull()?.sequence) }
+                            model.runAction { model.projects.read(projectId, messages.firstOrNull()?.position) }
                             earlier = false
                         }
                     }) { Text(stringResource(R.string.load_older)) }
@@ -344,11 +352,24 @@ private fun Conversation(
 }
 
 @Composable
+private fun DeletedMessage(own: Boolean) {
+    Text(
+        stringResource(R.string.message_deleted),
+        Modifier.fillMaxWidth().padding(start = if (own) 48.dp else 32.dp),
+        style = KodosiType.footnote,
+        color = KodosiTheme.colors.inkFaint,
+        fontStyle = FontStyle.Italic,
+        textAlign = if (own) TextAlign.End else TextAlign.Start
+    )
+}
+
+@Composable
 private fun MessageRow(
     model: AppModel,
     projectId: String,
     message: ProjectMessage,
     own: Boolean,
+    deletable: Boolean,
     author: Person?,
     report: (Person) -> Unit,
     block: (Person) -> Unit,
@@ -357,6 +378,7 @@ private fun MessageRow(
     val colors = KodosiTheme.colors
     val scope = rememberCoroutineScope()
     var actions by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         if (own) {
             Spacer(Modifier.width(48.dp))
@@ -416,6 +438,15 @@ private fun MessageRow(
                                 terminal(id)
                             })
                         }
+                        if (deletable) {
+                            KodosiMenuItem(
+                                text = { Text(stringResource(R.string.delete_message), color = colors.danger) },
+                                onClick = {
+                                    actions = false
+                                    deleting = true
+                                }
+                            )
+                        }
                         author?.let { person ->
                             KodosiMenuItem(
                                 text = {
@@ -439,6 +470,19 @@ private fun MessageRow(
             }
         }
         if (!own) Spacer(Modifier.width(12.dp))
+    }
+    if (deleting) {
+        ConfirmDialog(
+            stringResource(R.string.delete_message_title),
+            stringResource(R.string.delete_message_notice),
+            stringResource(R.string.delete_message),
+            { deleting = false },
+            {
+                deleting = false
+                scope.launch { model.runAction { model.projects.delete(projectId, message) } }
+            },
+            destructive = true
+        )
     }
 }
 

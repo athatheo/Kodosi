@@ -59,11 +59,17 @@ class ProjectStore(private val commands: CommandSink) {
         mutableState.update { current ->
             val previous = current.snapshots[next.projectId]
             val fresh = previous != null && next.messages.any {
-                it.sequence > (previous.messages.maxOfOrNull { message -> message.sequence } ?: 0) && !it.isOwn(userId)
+                it.position > (previous.messages.maxOfOrNull { message -> message.position } ?: 0) &&
+                    !it.deleted && !it.isOwn(userId)
             }
+            val cleared = previous != null && next.clearedPosition > previous.clearedPosition
             current.copy(
                 snapshots = current.snapshots + (next.projectId to (previous?.let(next::merging) ?: next)),
-                unread = if (fresh && reading != next.projectId) current.unread + next.projectId else current.unread
+                unread = when {
+                    fresh && reading != next.projectId -> current.unread + next.projectId
+                    cleared -> current.unread - next.projectId
+                    else -> current.unread
+                }
             )
         }
     }
@@ -87,10 +93,10 @@ class ProjectStore(private val commands: CommandSink) {
     }
 
     fun markRead(id: String) {
-        val sequence = state.value.snapshots[id]?.messages?.maxOfOrNull { it.sequence } ?: return
-        if (sequence > (seen[id] ?: 0)) {
-            seen[id] = sequence
-            commands.perform("project.seen", fields("projectId" to id, "sequence" to sequence))
+        val position = state.value.snapshots[id]?.messages?.maxOfOrNull { it.position } ?: return
+        if (position > (seen[id] ?: 0)) {
+            seen[id] = position
+            commands.perform("project.seen", fields("projectId" to id, "position" to position))
         }
         mutableState.update {
             it.copy(
@@ -110,6 +116,14 @@ class ProjectStore(private val commands: CommandSink) {
 
     suspend fun act(id: String, action: JsonObject): RuntimeEvent =
         commands.request("project.act", fields("projectId" to id, "action" to action))
+
+    suspend fun delete(id: String, message: ProjectMessage) {
+        act(id, fields("type" to "deleteMessage", "messageId" to message.id))
+    }
+
+    suspend fun clearChat(id: String) {
+        act(id, fields("type" to "clearConversation"))
+    }
 
     suspend fun post(id: String, text: String) {
         val message = text.trim()

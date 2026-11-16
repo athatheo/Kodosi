@@ -133,6 +133,13 @@
     <string name="write_message">Escribe un mensaje</string>
     <string name="load_older">Cargar mensajes anteriores</string>
     <string name="history_trimmed">Se eliminaron los mensajes más antiguos para mantener este proyecto dentro de su límite.</string>
+    <string name="delete_message">Eliminar mensaje</string>
+    <string name="delete_message_title">¿Eliminar este mensaje?</string>
+    <string name="delete_message_notice">Todos en el proyecto ven que se eliminó un mensaje.</string>
+    <string name="message_deleted">Mensaje eliminado</string>
+    <string name="clear_chat">Vaciar chat</string>
+    <string name="clear_chat_title">¿Vaciar el chat para ti?</string>
+    <string name="clear_chat_notice">Los mensajes hasta ahora desaparecen de todos tus dispositivos. Los demás los conservan.</string>
     <string name="create_task">Crear tarea</string>
     <string name="no_tasks">Aún no hay tareas</string>
     <string name="closed_tasks">Tareas cerradas</string>

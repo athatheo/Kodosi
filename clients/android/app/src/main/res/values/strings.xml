@@ -141,6 +141,13 @@
     <string name="write_message">Write a message</string>
     <string name="load_older">Load earlier messages</string>
     <string name="history_trimmed">The oldest messages were removed to keep this project within its limit.</string>
+    <string name="delete_message">Delete message</string>
+    <string name="delete_message_title">Delete this message?</string>
+    <string name="delete_message_notice">Everyone in the project sees that a message was deleted.</string>
+    <string name="message_deleted">Message deleted</string>
+    <string name="clear_chat">Clear chat</string>
+    <string name="clear_chat_title">Clear the chat for you?</string>
+    <string name="clear_chat_notice">The messages up to now disappear from all your devices. Everyone else keeps them.</string>
     <string name="create_task">Create task</string>
     <string name="no_tasks">No tasks yet</string>
     <string name="closed_tasks">Closed tasks</string>
