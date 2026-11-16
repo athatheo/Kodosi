@@ -15,7 +15,7 @@ and `just` and Python 3. On Linux the default SDK is `.tools/android/sdk/` and t
 ```sh
 brew install openjdk@21
 brew install --cask android-commandlinetools
-android --sdk="$HOME/Library/Android/sdk" sdk install platform-tools platforms/android-37.0 \
+android --sdk="$HOME/Library/Android/sdk" sdk install platform-tools platforms/android-37.2 \
   build-tools/37.0.0 ndk/30.0.16248370 cmake/4.1.2 emulator \
   system-images/android-37.0/google_apis/arm64-v8a
 just android-tools-install

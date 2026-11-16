@@ -72,7 +72,10 @@ fun firebaseFields(packageName: String): Map<String, String> {
 
 android {
     namespace = "com.kodosi.mobile"
-    compileSdk = libs.versions.compileSdk.get().toInt()
+    compileSdk {
+        val (api, minor) = libs.versions.compileSdk.get().split('.').map(String::toInt)
+        version = release(api) { minorApiLevel = minor }
+    }
     buildToolsVersion = libs.versions.buildTools.get()
     ndkVersion = libs.versions.ndk.get()
 
