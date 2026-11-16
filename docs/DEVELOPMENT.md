@@ -16,6 +16,11 @@ downloads in `.tools/maven/`. Keep every tool and dependency inside the project.
 native prerequisites; on Windows run the recipes in Git Bash. The apps need Bun for the
 document views.
 
+Cargo takes a new release of a dependency only after it has been public for a while, as
+[.cargo/config.toml](../.cargo/config.toml) sets, so that a bad release is found before
+Kodosi takes it. For a fix that cannot wait, run
+`CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate> --precise <version>`.
+
 ## Commands
 
 Run these from the repository root; `just --list` shows the rest.
