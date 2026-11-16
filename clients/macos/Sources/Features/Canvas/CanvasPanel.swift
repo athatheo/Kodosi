@@ -3,10 +3,14 @@ import KodosiBridge
 import KodosiDesign
 import SwiftUI
 
-struct CanvasPlace {
+struct CanvasPlace: Equatable {
     var flight: Namespace.ID?
     var open: String?
     var show: @MainActor (RuntimeSession, CanvasSection) -> Void = { _, _ in }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.flight == rhs.flight && lhs.open == rhs.open
+    }
 }
 
 extension EnvironmentValues {
