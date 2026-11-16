@@ -1,12 +1,16 @@
 import Foundation
+import Synchronization
 
-public final class RuntimeEventInbox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var queue: [Data] = []
-    private var byteCount = 0
-    private var waiter: CheckedContinuation<Data?, Never>?
-    private var closed = false
-    private var overflowed = false
+public final class RuntimeEventInbox: Sendable {
+    private struct State {
+        var queue: [Data] = []
+        var byteCount = 0
+        var waiter: CheckedContinuation<Data?, Never>?
+        var closed = false
+        var overflowed = false
+    }
+
+    private let state = Mutex(State())
     private let maximumBytes: Int
     private let maximumCount: Int
 
@@ -16,29 +20,29 @@ public final class RuntimeEventInbox: @unchecked Sendable {
     }
 
     public var didOverflow: Bool {
-        lock.withLock { overflowed }
+        state.withLock { $0.overflowed }
     }
 
     public func reopen() {
-        lock.withLock {
-            precondition(waiter == nil && queue.isEmpty)
-            closed = false
-            overflowed = false
+        state.withLock {
+            precondition($0.waiter == nil && $0.queue.isEmpty)
+            $0.closed = false
+            $0.overflowed = false
         }
     }
 
     public func push(_ data: Data) -> Bool {
         var waiting: CheckedContinuation<Data?, Never>?
-        let accepted = lock.withLock {
-            guard !closed, data.count <= maximumBytes else { return false }
-            if let current = waiter {
+        let accepted = state.withLock { state in
+            guard !state.closed, data.count <= maximumBytes else { return false }
+            if let current = state.waiter {
                 waiting = current
-                waiter = nil
+                state.waiter = nil
                 return true
             }
-            guard queue.count < maximumCount, byteCount <= maximumBytes - data.count else { return false }
-            queue.append(data)
-            byteCount += data.count
+            guard state.queue.count < maximumCount, state.byteCount <= maximumBytes - data.count else { return false }
+            state.queue.append(data)
+            state.byteCount += data.count
             return true
         }
         waiting?.resume(returning: data)
@@ -49,15 +53,15 @@ public final class RuntimeEventInbox: @unchecked Sendable {
         await withCheckedContinuation { continuation in
             var value: Data?
             var finished = false
-            lock.withLock {
-                if !queue.isEmpty {
-                    value = queue.removeFirst()
-                    byteCount -= value?.count ?? 0
-                } else if closed {
+            state.withLock { state in
+                if !state.queue.isEmpty {
+                    value = state.queue.removeFirst()
+                    state.byteCount -= value?.count ?? 0
+                } else if state.closed {
                     finished = true
                 } else {
-                    precondition(waiter == nil, "one runtime event consumer")
-                    waiter = continuation
+                    precondition(state.waiter == nil, "one runtime event consumer")
+                    state.waiter = continuation
                 }
             }
             if let value {
@@ -69,13 +73,13 @@ public final class RuntimeEventInbox: @unchecked Sendable {
     }
 
     public func close(overflowed: Bool = false) {
-        let waiting = lock.withLock {
-            closed = true
-            self.overflowed = self.overflowed || overflowed
-            queue.removeAll()
-            byteCount = 0
-            let current = waiter
-            waiter = nil
+        let waiting = state.withLock {
+            $0.closed = true
+            $0.overflowed = $0.overflowed || overflowed
+            $0.queue.removeAll()
+            $0.byteCount = 0
+            let current = $0.waiter
+            $0.waiter = nil
             return current
         }
         waiting?.resume(returning: nil)

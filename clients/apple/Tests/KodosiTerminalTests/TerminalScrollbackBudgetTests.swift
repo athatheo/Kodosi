@@ -3,18 +3,18 @@
     import GhosttyTerminal
     @testable import KodosiTerminal
     import SwiftUI
+    import Synchronization
     import Testing
 
-    private final class LockedByteRecorder: @unchecked Sendable {
-        private let lock = NSLock()
-        private var storage: [Data] = []
+    private final class LockedByteRecorder: Sendable {
+        private let storage = Mutex<[Data]>([])
 
         var values: [Data] {
-            lock.withLock { storage }
+            storage.withLock { $0 }
         }
 
         func append(_ value: Data) {
-            lock.withLock { storage.append(value) }
+            storage.withLock { $0.append(value) }
         }
     }
 

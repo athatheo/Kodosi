@@ -2,74 +2,76 @@ import Combine
 import Foundation
 import GhosttyTerminal
 import KodosiKit
+import Synchronization
 #if os(iOS)
     import UIKit
 #endif
 
 public typealias TerminalFocusRevoker = @MainActor () -> Void
 
-private final class TerminalInputAuthority: @unchecked Sendable {
-    private let lock = NSLock()
-    private var allowed = true
+private final class TerminalInputAuthority: Sendable {
+    private let allowed = Mutex(true)
 
     var isAllowed: Bool {
-        lock.withLock { allowed }
+        allowed.withLock { $0 }
     }
 
     func update(_ value: Bool) {
-        lock.withLock { allowed = value }
+        allowed.withLock { $0 = value }
     }
 }
 
-private final class TerminalSurfaceGenerationCell: @unchecked Sendable {
-    private let lock = NSLock()
-    private var generation: UInt64 = 0
+private final class TerminalSurfaceGenerationCell: Sendable {
+    private let generation = Mutex<UInt64>(0)
 
     var value: UInt64 {
-        lock.withLock { generation }
+        generation.withLock { $0 }
     }
 
     @discardableResult
     func advance() -> UInt64 {
-        lock.withLock {
-            generation &+= 1
-            return generation
+        generation.withLock {
+            $0 &+= 1
+            return $0
         }
     }
 }
 
-final class TerminalAccessibilityUpdateRelay: @unchecked Sendable {
+final class TerminalAccessibilityUpdateRelay: Sendable {
     typealias Handler = @MainActor @Sendable () -> Bool
+
+    private struct State {
+        var signalled = false
+        var workerRunning = false
+        var handlers: [UUID: Handler] = [:]
+    }
 
     private static let refreshAttempts = 40
     private static let refreshInterval = Duration.milliseconds(50)
 
-    private let lock = NSLock()
-    private var signalled = false
-    private var workerRunning = false
-    private var handlers: [UUID: Handler] = [:]
+    private let state = Mutex(State())
     @MainActor private var lastRefresh: ContinuousClock.Instant?
 
     func register(_ handler: @escaping Handler) -> UUID {
         let token = UUID()
-        lock.withLock {
-            handlers[token] = handler
+        state.withLock {
+            $0.handlers[token] = handler
         }
         return token
     }
 
     func unregister(_ token: UUID) {
-        _ = lock.withLock {
-            handlers.removeValue(forKey: token)
+        _ = state.withLock {
+            $0.handlers.removeValue(forKey: token)
         }
     }
 
     func signal() {
-        let shouldStartWorker = lock.withLock {
-            guard !handlers.isEmpty else { return false }
-            signalled = true
-            guard !workerRunning else { return false }
-            workerRunning = true
+        let shouldStartWorker = state.withLock {
+            guard !$0.handlers.isEmpty else { return false }
+            $0.signalled = true
+            guard !$0.workerRunning else { return false }
+            $0.workerRunning = true
             return true
         }
         guard shouldStartWorker else { return }
@@ -105,20 +107,20 @@ final class TerminalAccessibilityUpdateRelay: @unchecked Sendable {
             }
             wait = Self.refreshInterval
         }
-        lock.withLock { workerRunning = false }
+        state.withLock { $0.workerRunning = false }
     }
 
     private func takeSignal() -> (fresh: Bool, handlers: [Handler]) {
-        lock.withLock {
-            defer { signalled = false }
-            return (signalled, Array(handlers.values))
+        state.withLock {
+            defer { $0.signalled = false }
+            return ($0.signalled, Array($0.handlers.values))
         }
     }
 
     private func stopWorker() -> Bool {
-        lock.withLock {
-            guard !signalled else { return false }
-            workerRunning = false
+        state.withLock {
+            guard !$0.signalled else { return false }
+            $0.workerRunning = false
             return true
         }
     }

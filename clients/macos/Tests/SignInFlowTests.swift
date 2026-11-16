@@ -36,7 +36,7 @@ private struct SignInRecord {
     }
 }
 
-private final class Box<T>: @unchecked Sendable {
+private final class Box<T> {
     var value: T
     init(_ value: T) {
         self.value = value

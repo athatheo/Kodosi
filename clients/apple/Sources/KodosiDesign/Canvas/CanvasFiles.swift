@@ -279,7 +279,7 @@ struct CanvasCard: View {
     }
 }
 
-enum CanvasPreview: @unchecked Sendable {
+enum CanvasPreview: Sendable {
     case picture(CGImage)
     case title(String)
 
