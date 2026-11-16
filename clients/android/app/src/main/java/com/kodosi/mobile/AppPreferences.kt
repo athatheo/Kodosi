@@ -7,7 +7,6 @@ import com.kodosi.mobile.canvas.Canvas
 import com.kodosi.mobile.runtime.RuntimeJson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.encodeToString
 
 data class Preferences(
     val appearance: String = "system",

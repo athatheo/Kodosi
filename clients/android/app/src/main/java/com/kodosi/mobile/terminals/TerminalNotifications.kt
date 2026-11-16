@@ -18,7 +18,6 @@ import com.kodosi.mobile.R
 import com.kodosi.mobile.notifications.PushedTerminal
 import com.kodosi.mobile.runtime.RuntimeJson
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 
 class TerminalNotifications(private val application: Context, private val preferences: AppPreferences) {
     @Serializable
