@@ -26,7 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
@@ -333,7 +333,7 @@ private fun Home(model: AppModel) {
             }
         )
     }
-    val adaptive = currentWindowAdaptiveInfo()
+    val adaptive = currentWindowAdaptiveInfoV2()
     val compact = !adaptive.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
     val destination = (stack.lastOrNull() as? Destination)?.kind
     val fullScreen = destination in setOf("terminal", "canvas") || (destination == "project" && compact)
