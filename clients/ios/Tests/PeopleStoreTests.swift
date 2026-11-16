@@ -3,7 +3,6 @@ import KodosiBridge
 import KodosiKit
 import Testing
 
-@MainActor
 struct PeopleStoreTests {
     private let outbox = PeopleOutbox()
     private let store: PeopleStore
@@ -132,7 +131,6 @@ struct PeopleStoreTests {
     }
 }
 
-@MainActor
 private final class PeopleOutbox {
     let commands = CommandSink()
     private(set) var sent: [[String: JSONValue]] = []

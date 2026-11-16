@@ -64,7 +64,7 @@ struct SettingsTests {
         #expect(questions == 2)
     }
 
-    @Test @MainActor func `the lock covers what Kodosi presents and takes the keys only while it is locked`() throws {
+    @Test func `the lock covers what Kodosi presents and takes the keys only while it is locked`() throws {
         let scene = try #require(UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first)
         let main = UIWindow(windowScene: scene)
         main.rootViewController = UIViewController()
