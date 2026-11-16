@@ -3,7 +3,7 @@ import SwiftUI
 
 struct CanvasBody: View, Animatable {
     static let band: CGFloat = 38
-    static let waist: CGFloat = 14
+    nonisolated static let waist: CGFloat = 14
     static let split: CGFloat = 10
     /// The room that a header leaves free at the waist.
     static let clearance: CGFloat = 10

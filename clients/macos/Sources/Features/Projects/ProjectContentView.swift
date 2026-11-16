@@ -49,7 +49,7 @@ private struct ProjectTerminals: View {
     @State private var tabFrame: CGRect?
     @State private var stageFrame = CGRect.zero
 
-    private static let space = "project.terminals"
+    private nonisolated static let space = "project.terminals"
 
     private var sessions: [RuntimeSession] {
         deps.projectSessions(projectId)
