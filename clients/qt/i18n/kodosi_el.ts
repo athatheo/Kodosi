@@ -2773,6 +2773,14 @@
         <translation>Αντιγράψτε τις οδηγίες. Επικολλήστε τες στον agent σας.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>Επιλογές συνομιλίας</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>Εκκαθάριση συνομιλίας…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>Η συζήτηση δεν φορτώθηκε</translation>
     </message>
@@ -2809,6 +2817,10 @@
         <translation>Το Kodosi αφαίρεσε τα παλαιότερα μηνύματα για να κάνει χώρο για νέα.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>Το μήνυμα διαγράφηκε</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>για %1</translation>
     </message>
@@ -2836,6 +2848,14 @@
         <source>Report…</source>
         <translation>Αναφορά…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>Επιλογές μηνύματος</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>Διαγραφή μηνύματος…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2858,6 +2878,30 @@
     <message>
         <source>Send message</source>
         <translation>Αποστολή μηνύματος</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>Διαγραφή αυτού του μηνύματος;</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>Διαγραφή μηνύματος</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>Όλοι στο έργο βλέπουν ότι διαγράφηκε ένα μήνυμα.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>Εκκαθάριση της συνομιλίας για εσάς;</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>Εκκαθάριση συνομιλίας</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>Τα μηνύματα μέχρι τώρα εξαφανίζονται από όλες τις συσκευές σας. Όλοι οι άλλοι τα κρατούν.</translation>
     </message>
 </context>
 <context>

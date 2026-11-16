@@ -32,7 +32,7 @@ fn validate_participants(users: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub const VERSION: u32 = 91;
+pub const VERSION: u32 = 92;
 include!(concat!(env!("OUT_DIR"), "/protocol_contract.rs"));
 pub const MAX_COMMAND_BYTES: usize = 2 * 1024 * 1024;
 pub(crate) const MESSAGE_MAX_BYTES: usize = 1500;
@@ -632,7 +632,7 @@ pub enum Command {
         request_id: String,
         #[serde(rename = "projectId")]
         project_id: String,
-        sequence: u64,
+        position: u64,
     },
     #[serde(rename = "project.invite")]
     InviteProject {

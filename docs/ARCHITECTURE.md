@@ -76,9 +76,11 @@ PostgreSQL. It relays terminal traffic without storing it.
 
 Devices encrypt and sign project messages, tasks and repository links. The backend
 stores the ciphertext, numbers the items and tells members' devices that a project
-changed; each device fetches the newer items. Issue actions run on the participant's
-computer with its own credentials. See [Security](SECURITY.md) and the
-[encryption design](CRYPTOGRAPHY.md).
+changed; each device fetches the newer items. A deleted message is its author's next
+version of it and keeps its place. A person who clears the conversation leaves the
+backend a position, so that each of their devices hides the same messages. Issue actions
+run on the participant's computer with its own credentials. See [Security](SECURITY.md)
+and the [encryption design](CRYPTOGRAPHY.md).
 
 ## Agents
 

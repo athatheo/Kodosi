@@ -53,7 +53,7 @@ struct ProjectConversation: View {
                 if snapshot.hasOlder, let first = messages.first {
                     ProjectEarlierKey(loading: state.loading, identifier: "projects.messages.earlier") {
                         Task {
-                            await projects.read(projectId, before: first.sequence)
+                            await projects.read(projectId, before: first.position)
                             position.scrollTo(id: first.id, anchor: .top)
                         }
                     }

@@ -227,10 +227,10 @@ impl Runtime {
             command if command.is_dosi() => self.dosi_command(command)?,
             Command::SeeProject {
                 project_id,
-                sequence,
+                position,
                 ..
             } => {
-                self.see_project(project_id, *sequence)?;
+                self.see_project(project_id, *position)?;
                 self.result(command);
             }
             Command::CloseSession { .. } | Command::InterruptSession { .. } => {

@@ -37,6 +37,24 @@ namespace Kodosi.Data.Migrations
                     b.ToTable("blocks", (string)null);
                 });
 
+            modelBuilder.Entity("Kodosi.Data.ClearedConversation", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Position")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ProjectId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("cleared_conversations", (string)null);
+                });
+
             modelBuilder.Entity("Kodosi.Data.DeletedAccount", b =>
                 {
                     b.Property<string>("Issuer")
@@ -378,6 +396,9 @@ namespace Kodosi.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<long>("Position")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("Sequence")
                         .HasColumnType("bigint");
 
@@ -396,6 +417,8 @@ namespace Kodosi.Data.Migrations
 
                     b.HasIndex("ProjectId", "Sequence")
                         .IsUnique();
+
+                    b.HasIndex("ProjectId", "Kind", "Position");
 
                     b.HasIndex("ProjectId", "Kind", "Sequence");
 
@@ -667,6 +690,21 @@ namespace Kodosi.Data.Migrations
                     b.HasOne("Kodosi.Data.User", null)
                         .WithMany()
                         .HasForeignKey("BlockerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Kodosi.Data.ClearedConversation", b =>
+                {
+                    b.HasOne("Kodosi.Data.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Kodosi.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

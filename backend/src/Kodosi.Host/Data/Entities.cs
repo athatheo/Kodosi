@@ -157,6 +157,13 @@ public sealed class ProjectMember
     public Guid UserId { get; set; }
 }
 
+public sealed class ClearedConversation
+{
+    public Guid UserId { get; set; }
+    public Guid ProjectId { get; set; }
+    public long Position { get; set; }
+}
+
 public sealed class ProjectInvitation
 {
     public Guid Id { get; set; }
@@ -190,6 +197,7 @@ public sealed class ProjectItem
     public string Kind { get; set; } = "";
     public long Version { get; set; }
     public long Sequence { get; set; }
+    public long Position { get; set; }
     public long KeyVersion { get; set; }
     public byte[] Body { get; set; } = [];
     public byte[] Signature { get; set; } = [];

@@ -2766,6 +2766,14 @@
         <translation>复制指令，然后粘贴到你的 Agent 中。</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>聊天选项</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>清空聊天…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>对话未能加载</translation>
     </message>
@@ -2802,6 +2810,10 @@
         <translation>为了给新消息腾出空间，Kodosi 删除了最早的消息。</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>消息已删除</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>给 %1</translation>
     </message>
@@ -2829,6 +2841,14 @@
         <source>Report…</source>
         <translation>举报…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>消息选项</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>删除消息…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2850,6 +2870,30 @@
     <message>
         <source>Send message</source>
         <translation>发送消息</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>删除这条消息？</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>删除消息</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>项目中的每个人都会看到有一条消息已被删除。</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>为你清空聊天？</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>清空聊天</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>到目前为止的消息会从你的所有设备上消失。其他人仍会保留。</translation>
     </message>
 </context>
 <context>

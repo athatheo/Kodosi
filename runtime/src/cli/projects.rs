@@ -55,10 +55,10 @@ enum ProjectAction {
     Show,
     /// Read the conversation.
     Read {
-        /// Print only the messages after this sequence number.
+        /// Print only the messages after this position.
         #[arg(long)]
         since: Option<u64>,
-        /// Print the messages before this sequence number.
+        /// Print the messages before this position.
         #[arg(long)]
         before: Option<u64>,
     },
@@ -69,6 +69,13 @@ enum ProjectAction {
         #[arg(long)]
         agent: Option<String>,
     },
+    /// Delete a message that you or your agent posted. The members see that it was deleted.
+    DeleteMessage {
+        /// The message: its ID or the end of its ID that `kodosi project read` shows.
+        message: String,
+    },
+    /// Clear the conversation up to now for you, on all your devices. The members keep it.
+    Clear,
     /// Wait for activity in the project.
     Wait {
         /// The longest wait, in seconds.
@@ -251,20 +258,15 @@ pub(super) async fn run(
         command["projectId"] = json!(project);
         return change(client, context, command, json_output).await;
     }
-    if let ProjectAction::Post { text, agent } = args.action {
-        let agent = agent.or_else(|| this_agent(context));
-        let by_agent = agent.is_some();
-        let action = Action::Post {
-            text,
-            agent,
-            terminal_id: terminal(),
-        };
-        let result = call(client, context, &project, action).await?;
-        return if by_agent {
-            output(&result, json_output, POSTED_BY_AGENT)
-        } else {
-            done(&result, json_output)
-        };
+    match args.action {
+        ProjectAction::Post { text, agent } => {
+            return post(client, context, &project, text, agent, json_output).await;
+        }
+        ProjectAction::Clear => {
+            let result = call(client, context, &project, Action::ClearConversation).await?;
+            return done(&result, json_output);
+        }
+        _ => {}
     }
     let before = match &args.action {
         ProjectAction::Read { before, .. } => *before,
@@ -275,7 +277,7 @@ pub(super) async fn run(
     match args.action {
         ProjectAction::Read { since, .. } => {
             if let Some(after) = since {
-                snapshot.messages.retain(|message| message.sequence > after);
+                snapshot.messages.retain(|message| message.position > after);
             }
             output(
                 &serde_json::to_value(&snapshot)?,
@@ -285,6 +287,12 @@ pub(super) async fn run(
         }
         ProjectAction::Wait { timeout, after } => {
             wait(client, context, &project, &snapshot, after, timeout).await
+        }
+        ProjectAction::DeleteMessage { message } => {
+            let action = Action::DeleteMessage {
+                message_id: message_id(&snapshot, &message)?,
+            };
+            done(&call(client, context, &project, action).await?, json_output)
         }
         ProjectAction::Task(TaskAction::List { available }) => {
             show_tasks(&snapshot, available, json_output)
@@ -297,6 +305,29 @@ pub(super) async fn run(
             repository(action, client, context, &project, &snapshot, json_output).await
         }
         _ => Err(Error::Invalid("Unsupported project action.".into())),
+    }
+}
+
+async fn post(
+    client: &mut local_host::Client,
+    context: &mut Context,
+    project: &str,
+    text: String,
+    agent: Option<String>,
+    json_output: bool,
+) -> Result<()> {
+    let agent = agent.or_else(|| this_agent(context));
+    let by_agent = agent.is_some();
+    let action = Action::Post {
+        text,
+        agent,
+        terminal_id: terminal(),
+    };
+    let result = call(client, context, project, action).await?;
+    if by_agent {
+        output(&result, json_output, POSTED_BY_AGENT)
+    } else {
+        done(&result, json_output)
     }
 }
 
@@ -699,13 +730,30 @@ fn repo_id(snapshot: &Snapshot, reference: &str) -> Result<String> {
     )
     .map(str::to_owned)
 }
+fn message_id(snapshot: &Snapshot, reference: &str) -> Result<String> {
+    if Uuid::parse_str(reference).is_ok() {
+        return Ok(reference.to_owned());
+    }
+    let messages = snapshot
+        .messages
+        .iter()
+        .filter(|message| !message.deleted)
+        .map(|message| (message.id.as_str(), ""));
+    let matching = crate::protocol::referred(reference, messages);
+    only(&matching, "message", reference, "kodosi project read").map(str::to_owned)
+}
+
 fn conversation(snapshot: &Snapshot) -> String {
     snapshot
         .messages
         .iter()
         .map(|message| {
+            let id = short_id(&message.id);
+            if message.deleted {
+                return format!("{id}  Message deleted");
+            }
             format!(
-                "{}{}: {}",
+                "{id}  {}{}: {}",
                 message.author_name,
                 message
                     .agent
@@ -745,7 +793,8 @@ mod tests {
 
     fn snapshot() -> Snapshot {
         serde_json::from_value(json!({
-            "projectId":Uuid::now_v7(),"messages":[],"sequence":0,"hasOlder":false,"historyTrimmed":false,
+            "projectId":Uuid::now_v7(),"messages":[],"replacements":[],"clearedPosition":0,"sequence":0,
+            "hasOlder":false,"historyTrimmed":false,
             "repositories":[
                 {"id":"019f0000-0000-7000-8000-000000000001","name":"team/api","url":"https://github.com/team/api","host":"github.com","owner":"team","repository":"api","provider":"github"},
                 {"id":"019f0000-0000-7000-8000-000000000002","name":"team/ui","url":"https://forge.example/team/ui","host":"forge.example","owner":"team","repository":"ui","provider":"gitea"}
@@ -888,7 +937,7 @@ mod tests {
     }
 
     #[test]
-    fn project_names_must_be_unambiguous_and_agent_authorship_is_visible() {
+    fn project_names_must_be_unambiguous_and_messages_show_their_ids_and_authors() {
         let context = Context::from_events(&[]);
         let id = Uuid::now_v7().to_string();
         let projects = json!({"projects":[{"id":id,"name":"Workspace"}]});
@@ -909,13 +958,19 @@ mod tests {
         assert!(resolve_project(None, &json!({}), &context).is_err());
         let mut project = snapshot();
         project.messages = serde_json::from_value(json!([
-            {"id":"1","sequence":1,"authorId":id,"authorName":"Alice","agent":null,"terminalId":null,"text":"Can someone review?","createdAt":"now"},
-            {"id":"2","sequence":2,"authorId":id,"authorName":"Alice","agent":"Claude","terminalId":null,"text":"I can pick it up.","createdAt":"now"}
+            {"id":"019f0000-0000-7000-8000-000000000011","position":1,"authorId":id,"authorName":"Alice","agent":null,"terminalId":null,"text":"Can someone review?","deleted":false,"createdAt":"now"},
+            {"id":"019f0000-0000-7000-8000-000000000012","position":2,"authorId":id,"authorName":"Alice","agent":"Claude","terminalId":null,"text":"I can pick it up.","deleted":false,"createdAt":"now"},
+            {"id":"019f0000-0000-7000-8000-000000000013","position":3,"authorId":id,"authorName":"","agent":null,"terminalId":null,"text":"","deleted":true,"createdAt":"now"}
         ])).unwrap();
         assert_eq!(
             conversation(&project),
-            "Alice: Can someone review?\nAlice · Claude: I can pick it up."
+            "000011  Alice: Can someone review?\n000012  Alice · Claude: I can pick it up.\n000013  Message deleted"
         );
+        assert_eq!(
+            message_id(&project, "000012").unwrap(),
+            project.messages[1].id
+        );
+        assert!(message_id(&project, "000013").is_err());
     }
 
     #[test]

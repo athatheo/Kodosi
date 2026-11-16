@@ -36,6 +36,14 @@ public extension ProjectStore {
         try await act(projectId, ProjectAction.createTask(from: message))
     }
 
+    func delete(_ message: ProjectMessage, in projectId: String) async throws {
+        try await act(projectId, ProjectAction.deleteMessage(message.id))
+    }
+
+    func clearConversation(_ projectId: String) async throws {
+        try await act(projectId, ProjectAction.clearConversation)
+    }
+
     func update(_ task: ProjectTask, in projectId: String, change: ProjectTaskChange, note: String? = nil) async throws {
         try await act(projectId, ProjectAction.updateTask(task.id, change: change, note: note))
     }

@@ -12,6 +12,7 @@ struct ProjectMessageRow: View {
     let next: ProjectMessage?
     let targets: [ProjectMention]
     @State private var madeTask = 0
+    @State private var confirmingDelete = false
 
     private var date: Date? {
         ProjectDates.parse(message.createdAt)
@@ -43,17 +44,32 @@ struct ProjectMessageRow: View {
                 ProjectDayDivider(date: date)
             }
             Group {
-                if isMine {
+                if message.deleted {
+                    deleted
+                } else if isMine {
                     mine
                 } else {
                     theirs
                 }
             }
             .padding(.top, startsGroup ? 12 : 3)
-            .accessibilityAction(named: Text("Make a task"), makeTask)
+            .accessibilityActions {
+                if !message.deleted {
+                    Button("Make a task", action: makeTask)
+                }
+            }
         }
         .sensoryFeedback(.success, trigger: madeTask)
         .accessibilityIdentifier("projects.message.\(AccessibilityIdentifier.token(message.id))")
+        .confirmationDialog("Delete this message?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete message", role: .destructive, action: delete)
+        } message: { Text("Everyone in the project sees that a message was deleted.") }
+    }
+
+    private var deleted: some View {
+        ProjectDeletedNote(alignment: isMine ? .trailing : .leading)
+            .padding(.leading, isMine ? 0 : 38)
+            .padding(.trailing, isMine ? 4 : 0)
     }
 
     private var mine: some View {
@@ -135,12 +151,28 @@ struct ProjectMessageRow: View {
                 Label("Open \(terminal.name)", systemImage: "apple.terminal")
             }
         }
+        if model.projects.canDelete(message) {
+            Button(role: .destructive) { confirmingDelete = true } label: {
+                Label("Delete message…", systemImage: "trash")
+            }
+        }
         if let author {
             Button(role: .destructive) { model.projectScreen(projectId).memberAction.block(author) } label: {
                 Label("Block…", systemImage: "hand.raised")
             }
             Button(role: .destructive) { model.projectScreen(projectId).memberAction.report(author) } label: {
                 Label("Report…", systemImage: "flag")
+            }
+        }
+    }
+
+    private func delete() {
+        let projects = model.projects
+        Task {
+            do {
+                try await projects.delete(message, in: projectId)
+            } catch {
+                projects.report(error)
             }
         }
     }

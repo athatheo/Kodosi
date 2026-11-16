@@ -33,10 +33,14 @@ struct CachedProject {
 struct Content {
     sequence: u64,
     messages: BTreeMap<u64, projects::Message>,
+    replacements: BTreeMap<u64, projects::Message>,
+    /// The ID and author of each older message that the apps got outside of `messages`.
+    shown_older: BTreeMap<u64, (String, String)>,
     tasks: BTreeMap<String, projects::Task>,
     repositories: BTreeMap<String, projects::Repository>,
     has_older: bool,
     history_trimmed: bool,
+    cleared_position: u64,
     shown: u64,
 }
 #[derive(Default)]
@@ -51,6 +55,7 @@ struct Item {
     kind: String,
     version: u64,
     sequence: u64,
+    position: u64,
     key_version: u64,
     user_id: String,
     device_id: String,
@@ -73,6 +78,7 @@ struct ContentPage {
     key_version: u64,
     has_more: bool,
     history_trimmed: bool,
+    cleared_position: u64,
     items: Vec<Item>,
 }
 #[derive(Clone, Deserialize)]
@@ -140,27 +146,28 @@ impl ProjectCache {
             .try_for_each(|item| content.take(cached, project, item, &credentials.user_id))
     }
 
+    /// Tells whether the person cleared the conversation further.
     fn merge(
         &mut self,
         credentials: &Credentials,
         project: Uuid,
-        items: &[Item],
+        page: &ContentPage,
         sequence: u64,
-        trimmed: bool,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.current(credentials)?;
         let cached = self
             .projects
             .get(&project)
             .ok_or_else(|| Error::Text(text!("Project keys are missing.")))?;
         let content = self.contents.get_mut(&project).ok_or(Error::Stale)?;
-        for item in items {
+        let cleared = content.clear(page.cleared_position);
+        for item in &page.items {
             content.take(cached, project, item, &credentials.user_id)?;
         }
         content.sequence = content.sequence.max(sequence);
-        content.history_trimmed |= trimmed;
+        content.history_trimmed |= page.history_trimmed;
         content.trim();
-        Ok(())
+        Ok(cleared)
     }
 
     fn absorb(&mut self, credentials: &Credentials, project: Uuid, item: &Item) {
@@ -191,7 +198,31 @@ impl ProjectCache {
             .contents
             .get(&project)
             .ok_or_else(|| Error::Text(text!("The project is not loaded.")))?;
-        Ok(content.view(project, Vec::new(), content.has_older))
+        Ok(content.view(project, Vec::new(), Vec::new(), content.has_older))
+    }
+
+    fn message(
+        &self,
+        credentials: &Credentials,
+        project: Uuid,
+        id: &str,
+    ) -> Result<Option<projects::Message>> {
+        self.current(credentials)?;
+        Ok(self.contents.get(&project).and_then(|content| {
+            content
+                .messages
+                .values()
+                .find(|message| message.id == id)
+                .cloned()
+        }))
+    }
+
+    fn remember_older(&mut self, project: Uuid, older: &Content) {
+        if let Some(content) = self.contents.get_mut(&project) {
+            for message in older.messages.values() {
+                content.remember_shown(message);
+            }
+        }
     }
 
     fn key_maker_left(&self, project: Uuid) -> bool {
@@ -222,6 +253,17 @@ impl Content {
         item: &Item,
         own: &str,
     ) -> Result<()> {
+        let message = |author_name, agent, terminal_id, text, deleted| projects::Message {
+            id: item.id.to_string(),
+            position: item.position,
+            author_id: item.user_id.clone(),
+            author_name,
+            agent,
+            terminal_id,
+            text,
+            deleted,
+            created_at: item.created_at.clone(),
+        };
         match BackendClient::project_payload(cached, project, item)? {
             Payload::Message {
                 text,
@@ -229,19 +271,10 @@ impl Content {
                 agent,
                 terminal_id,
             } if item.kind == "message" => {
-                self.messages.insert(
-                    item.sequence,
-                    projects::Message {
-                        id: item.id.to_string(),
-                        sequence: item.sequence,
-                        author_id: item.user_id.clone(),
-                        author_name,
-                        agent,
-                        terminal_id,
-                        text,
-                        created_at: item.created_at.clone(),
-                    },
-                );
+                self.keep(message(author_name, agent, terminal_id, text, false));
+            }
+            Payload::DeletedMessage { agent } if item.kind == "message" => {
+                self.keep(message(String::new(), agent, None, String::new(), true));
             }
             Payload::Task { mut task } if item.kind == "task" => {
                 task.id = item.id.to_string();
@@ -268,20 +301,92 @@ impl Content {
         Ok(())
     }
 
+    /// A deletion is the only change of a message, so that a server cannot bring back the text of
+    /// a deleted message, and it changes only the message with its own ID and author, because
+    /// nobody signs the position at which the server puts an item. The kept messages have no gap,
+    /// so the deletion of an older message only replaces it in the apps that got it.
+    fn keep(&mut self, message: projects::Message) {
+        let position = message.position;
+        if position <= self.cleared_position {
+            return;
+        }
+        let same = |id: &str, author: &str| id == message.id && author == message.author_id;
+        if let Some(kept) = self.messages.get(&position) {
+            if message.deleted && same(&kept.id, &kept.author_id) {
+                if position <= self.shown {
+                    self.replacements.insert(position, message.clone());
+                }
+                self.messages.insert(position, message);
+            }
+            return;
+        }
+        if !self.has_older
+            || self
+                .messages
+                .first_key_value()
+                .is_none_or(|(&oldest, _)| position >= oldest)
+        {
+            self.messages.insert(position, message);
+        } else if message.deleted
+            && self
+                .shown_older
+                .get(&position)
+                .is_some_and(|(id, author)| same(id, author))
+        {
+            self.replacements.insert(position, message);
+        }
+    }
+
+    fn remember_shown(&mut self, message: &projects::Message) {
+        self.shown_older.insert(
+            message.position,
+            (message.id.clone(), message.author_id.clone()),
+        );
+        while self.shown_older.len() > KEPT_MESSAGES {
+            self.shown_older.pop_first();
+        }
+    }
+
+    fn clear(&mut self, position: u64) -> bool {
+        if position <= self.cleared_position {
+            return false;
+        }
+        self.cleared_position = position;
+        let after = position.saturating_add(1);
+        let kept = self.messages.split_off(&after);
+        if !self.messages.is_empty() {
+            self.has_older = false;
+        }
+        self.messages = kept;
+        self.replacements = self.replacements.split_off(&after);
+        self.shown_older = self.shown_older.split_off(&after);
+        true
+    }
+
     fn trim(&mut self) {
         while self.messages.len() > KEPT_MESSAGES
             && let Some((&oldest, _)) = self.messages.first_key_value()
             && oldest <= self.shown
         {
-            self.messages.remove(&oldest);
+            if let Some(message) = self.messages.remove(&oldest) {
+                self.remember_shown(&message);
+            }
             self.has_older = true;
         }
     }
 
-    fn view(&self, project: Uuid, messages: Vec<projects::Message>, has_older: bool) -> Snapshot {
+    fn view(
+        &self,
+        project: Uuid,
+        messages: Vec<projects::Message>,
+        replacements: Vec<projects::Message>,
+        has_older: bool,
+    ) -> Snapshot {
         Snapshot {
             project_id: project.to_string(),
             messages,
+            replacements,
+            cleared_position: self.cleared_position,
             tasks: self.tasks.values().cloned().collect(),
             repositories: self.repositories.values().cloned().collect(),
             sequence: self.sequence,
@@ -308,11 +413,16 @@ impl Content {
             .range(floor..)
             .map(|(_, message)| message.clone())
             .collect();
+        let replacements = std::mem::take(&mut self.replacements)
+            .into_iter()
+            .filter(|(position, _)| *position < floor || !self.messages.contains_key(position))
+            .map(|(_, message)| message)
+            .collect();
         let has_older = self.has_older || self.messages.range(..floor).next().is_some();
         if let Some((&last, _)) = self.messages.last_key_value() {
             self.shown = self.shown.max(last);
         }
-        self.view(project, messages, has_older)
+        self.view(project, messages, replacements, has_older)
     }
 }
 
@@ -1274,6 +1384,7 @@ impl BackendClient {
                 let page = self.read_page(credentials, project, &query).await?;
                 first.get_or_insert(page.sequence);
                 content.history_trimmed |= page.history_trimmed;
+                content.cleared_position = content.cleared_position.max(page.cleared_position);
                 self.inner.projects.lock().await.decrypt(
                     credentials,
                     project,
@@ -1342,14 +1453,13 @@ impl BackendClient {
             } else {
                 last.unwrap_or(after).max(page.sequence)
             };
-            changed |= !page.items.is_empty();
-            self.inner.projects.lock().await.merge(
-                credentials,
-                project,
-                &page.items,
-                next,
-                page.history_trimmed,
-            )?;
+            let cleared =
+                self.inner
+                    .projects
+                    .lock()
+                    .await
+                    .merge(credentials, project, &page, next)?;
+            changed |= cleared || !page.items.is_empty();
             if !page.has_more {
                 return Ok(changed);
             }
@@ -1379,11 +1489,10 @@ impl BackendClient {
             )
             .await?;
         let mut older = Content::default();
-        self.inner
-            .projects
-            .lock()
-            .await
-            .decrypt(credentials, project, &mut older, &page.items)?;
+        let mut cache = self.inner.projects.lock().await;
+        cache.decrypt(credentials, project, &mut older, &page.items)?;
+        cache.remember_older(project, &older);
+        drop(cache);
         let mut view = self.project_view(credentials, project).await?;
         view.messages = older.messages.into_values().collect();
         view.has_older = page.has_more;
@@ -1626,6 +1735,51 @@ impl BackendClient {
                     .await?,
                 );
                 item_id = Some(id.to_string());
+            }
+            Action::DeleteMessage { message_id } => {
+                let id = Uuid::parse_str(&message_id)
+                    .map_err(|_| invalid("Invalid message identity."))?;
+                let kept =
+                    self.inner
+                        .projects
+                        .lock()
+                        .await
+                        .message(&credentials, project, &message_id)?;
+                if !kept.as_ref().is_some_and(|message| message.deleted) {
+                    let agent = kept.and_then(|message| message.agent);
+                    written = Some(
+                        self.project_write(
+                            &credentials,
+                            project,
+                            id,
+                            "message",
+                            1,
+                            &Payload::DeletedMessage { agent },
+                        )
+                        .await?,
+                    );
+                }
+                item_id = Some(message_id);
+            }
+            Action::ClearConversation => {
+                let position = self
+                    .inner
+                    .projects
+                    .lock()
+                    .await
+                    .sequence(&credentials, project)?
+                    .unwrap_or_default();
+                let _cleared: Value = self
+                    .inner
+                    .http
+                    .device(
+                        Method::PUT,
+                        &format!("api/projects/{project}/cleared"),
+                        &credentials,
+                        Some(json!({"position":position})),
+                    )
+                    .await?;
+                self.sync_project(&credentials, project, None).await?;
             }
             Action::CreateTask {
                 title,

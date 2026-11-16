@@ -134,6 +134,13 @@
     <string name="write_message">写消息</string>
     <string name="load_older">加载更早的消息</string>
     <string name="history_trimmed">最早的消息已移除，以使此项目保持在限制范围内。</string>
+    <string name="delete_message">删除消息</string>
+    <string name="delete_message_title">删除这条消息？</string>
+    <string name="delete_message_notice">项目中的每个人都会看到有一条消息已被删除。</string>
+    <string name="message_deleted">消息已删除</string>
+    <string name="clear_chat">清空聊天</string>
+    <string name="clear_chat_title">为你清空聊天？</string>
+    <string name="clear_chat_notice">到目前为止的消息会从你的所有设备上消失。其他人仍会保留。</string>
     <string name="create_task">创建任务</string>
     <string name="no_tasks">还没有任务</string>
     <string name="closed_tasks">已关闭的任务</string>

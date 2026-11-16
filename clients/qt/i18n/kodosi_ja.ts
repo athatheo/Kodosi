@@ -2766,6 +2766,14 @@
         <translation>指示をコピーして、エージェントに貼り付けてください。</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>チャットのオプション</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>チャットを消去…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>会話を読み込めませんでした</translation>
     </message>
@@ -2802,6 +2810,10 @@
         <translation>新しいメッセージのために、Kodosi が古いメッセージを削除しました。</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>メッセージは削除されました</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>%1 向け</translation>
     </message>
@@ -2829,6 +2841,14 @@
         <source>Report…</source>
         <translation>報告…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>メッセージのオプション</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>メッセージを削除…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2850,6 +2870,30 @@
     <message>
         <source>Send message</source>
         <translation>メッセージを送信</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>このメッセージを削除しますか？</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>メッセージを削除</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>プロジェクトの全員に、メッセージが削除されたことが表示されます。</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>自分のチャットを消去しますか？</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>チャットを消去</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>これまでのメッセージがすべてのデバイスから消えます。ほかの人には残ります。</translation>
     </message>
 </context>
 <context>

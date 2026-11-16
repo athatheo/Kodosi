@@ -99,6 +99,7 @@ Dosi の顔の隣の行には、Dosi が作業中か、答えたか、質問が�
 - タスクを募集し、引き受け、手放し、結果を添えて完了にしたり、再オープンしたりできます。
 - GitHub や Gitea のリポジトリをリンクすると、Issue がタスクになります。そのタスクを変更すると、Kodosi が Issue も変更します。GitHub は `gh` のサインインか Git の credential helper を、Gitea は credential helper か、`KODOSI_GITEA_URL` のサーバー用の `KODOSI_GITEA_TOKEN` を使います。認証情報はあなたのコンピュータに残ります。
 - チャットに `@` とターミナルの名前を書くと、Kodosi はあなたの名前とプロジェクトを添えて、そのターミナルのエージェントにメッセージを渡します。どうするかはエージェントが決めます。Kodosi のターミナルの Claude Code と Copilot CLI、そして Kodosi が起動した Codex、Cursor、OpenCode（OpenCode は Mac と Linux）は、Kodosi の中で動いていることを知っています。`kodosi skill` は、エージェントが参加するための [skill](../../runtime/skills/kodosi/SKILL.md) を出力します。Kodosi のターミナルではコマンドがプロジェクトを見つけます。それ以外の場所では `--project <name>` を追加してください。
+- 自分または自分のエージェントが書いたメッセージを削除でき、そこでメッセージが削除されたことが全員に表示されます。「チャットを消去」は、これまでの会話をあなたのすべてのデバイスから消去します。ほかの人には残ります。
 
 ## 8. コマンドラインを使う
 

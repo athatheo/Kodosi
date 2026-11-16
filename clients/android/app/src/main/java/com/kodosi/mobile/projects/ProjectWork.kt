@@ -320,6 +320,7 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
     val owner = project?.ownerUserId == account.userId
     var renaming by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf<String?>(null) }
+    var clearing by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<ProjectMember?>(null) }
     var blocking by remember { mutableStateOf<Person?>(null) }
     var reporting by remember { mutableStateOf<Person?>(null) }
@@ -409,6 +410,14 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
             }
         }
         item {
+            KodosiTextButton(
+                onClick = { clearing = true },
+                enabled = state.snapshots[projectId]?.messages?.isNotEmpty() == true
+            ) {
+                Text(stringResource(R.string.clear_chat))
+            }
+        }
+        item {
             KodosiTextButton(onClick = { confirming = if (owner) "project.delete" else "project.leave" }) {
                 Text(
                     stringResource(if (owner) R.string.delete_project else R.string.leave_project),
@@ -445,6 +454,19 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
                         left()
                     }
                 }
+            },
+            destructive = true
+        )
+    }
+    if (clearing) {
+        ConfirmDialog(
+            stringResource(R.string.clear_chat_title),
+            stringResource(R.string.clear_chat_notice),
+            stringResource(R.string.clear_chat),
+            { clearing = false },
+            {
+                clearing = false
+                scope.launch { model.runAction { model.projects.clearChat(projectId) } }
             },
             destructive = true
         )

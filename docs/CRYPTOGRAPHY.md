@@ -85,7 +85,8 @@ each field carries its length.
   the owner trusts a member's new identity; that member gets no new keys until then.
 - **Project content.** The author's device encrypts project messages, tasks and
   repository links under their epoch's key, binds them to their project and item, and signs
-  them.
+  them. The author deletes a message with its next version, which has no text, and a
+  device that read the deletion keeps it.
 - **Terminal status.** Each terminal's agent and state go to the backend unencrypted, and
   the backend accepts them only from the terminal's host. The title and text stay
   encrypted.
@@ -124,3 +125,5 @@ each field carries its length.
 15. The backend keeps the newest 1024 friend lists. A device that missed more changes, or
     whose list the backend does not continue, cannot follow the list. Removed and approved
     again, it starts without a list, as limit 14 says.
+16. A deleted message stays on the devices that read it, and an earlier copy of its record
+    still opens with the project's keys.

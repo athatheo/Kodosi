@@ -134,6 +134,13 @@
     <string name="write_message">Γράψτε ένα μήνυμα</string>
     <string name="load_older">Φόρτωση προηγούμενων μηνυμάτων</string>
     <string name="history_trimmed">Τα παλαιότερα μηνύματα αφαιρέθηκαν για να παραμείνει αυτό το έργο εντός του ορίου του.</string>
+    <string name="delete_message">Διαγραφή μηνύματος</string>
+    <string name="delete_message_title">Διαγραφή αυτού του μηνύματος;</string>
+    <string name="delete_message_notice">Όλοι στο έργο βλέπουν ότι διαγράφηκε ένα μήνυμα.</string>
+    <string name="message_deleted">Το μήνυμα διαγράφηκε</string>
+    <string name="clear_chat">Εκκαθάριση συνομιλίας</string>
+    <string name="clear_chat_title">Εκκαθάριση της συνομιλίας για εσάς;</string>
+    <string name="clear_chat_notice">Τα μηνύματα μέχρι τώρα εξαφανίζονται από όλες τις συσκευές σας. Όλοι οι άλλοι τα κρατούν.</string>
     <string name="create_task">Δημιουργία εργασίας</string>
     <string name="no_tasks">Δεν υπάρχουν ακόμη εργασίες</string>
     <string name="closed_tasks">Κλειστές εργασίες</string>

@@ -20,6 +20,7 @@ public sealed class KodosiDbContext(DbContextOptions<KodosiDbContext> options) :
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
+    public DbSet<ClearedConversation> ClearedConversations => Set<ClearedConversation>();
 
     public DbSet<ProjectRecipientKey> ProjectRecipientKeys => Set<ProjectRecipientKey>();
     public DbSet<ProjectKeyState> ProjectKeyStates => Set<ProjectKeyState>();
@@ -154,6 +155,12 @@ public sealed class KodosiDbContext(DbContextOptions<KodosiDbContext> options) :
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
+        model.Entity<ClearedConversation>(e =>
+        {
+            e.ToTable("cleared_conversations"); e.HasKey(x => new { x.ProjectId, x.UserId });
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         model.Entity<ProjectRecipientKey>(e =>
         {
             e.ToTable("project_recipient_keys"); e.HasKey(x => x.DeviceId);
@@ -174,6 +181,7 @@ public sealed class KodosiDbContext(DbContextOptions<KodosiDbContext> options) :
             e.Property(x => x.Version).IsConcurrencyToken();
             e.HasIndex(x => new { x.ProjectId, x.Sequence }).IsUnique();
             e.HasIndex(x => new { x.ProjectId, x.Kind, x.Sequence });
+            e.HasIndex(x => new { x.ProjectId, x.Kind, x.Position });
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
         model.Entity<ProjectInvitation>(e =>

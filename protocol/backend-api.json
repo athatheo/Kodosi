@@ -1,6 +1,6 @@
 {
-  "apiContractVersion": 34,
-  "oldestApiContractVersion": 34,
+  "apiContractVersion": 35,
+  "oldestApiContractVersion": 35,
   "authContractVersion": 1,
   "compatibility": {
     "range": "the server serves each client whose apiContractVersion is from oldestApiContractVersion to apiContractVersion, and whose authContractVersion is equal",
@@ -218,7 +218,8 @@
       "GET /api/projects/{id}/keys",
       "PUT /api/projects/{id}/keys",
       "GET /api/projects/{id}/content",
-      "PUT /api/projects/{id}/content/{itemId}"
+      "PUT /api/projects/{id}/content/{itemId}",
+      "PUT /api/projects/{id}/cleared"
     ],
     "push": [
       "PUT /api/me/push-token",
@@ -229,7 +230,7 @@
   "dosi": {
     "project": "POST /api/projects with dosi: true makes the person's one Dosi project; another Dosi project of the same person answers 409",
     "list": "GET /api/projects leaves the Dosi project out of projects and gives its ID as dosi, or null",
-    "rules": "its owner is its only person: invitations, renames and terminals are refused, and it does not count toward the projects that a person owns or sees",
+    "rules": "its owner is its only person: invitations, renames, terminals and clearing its conversation are refused, and it does not count toward the projects that a person owns or sees",
     "content": "its keys and content work like those of any project; each message holds one encrypted Dosi record, the task whose ID is the project ID holds Dosi's instructions, and past 4194304 bytes, or a smaller ProjectBytes, the project drops its oldest messages"
   },
   "projectContent": {
@@ -237,8 +238,9 @@
     "history": "new members receive current project keys and decrypt the backwards-wrapped key history",
     "keyHistory": "GET /api/projects/{id}/keys?afterVersion= gives the key states after that version in order, at most 4 MB and 256 states in one answer and always at least one, with the version of the project; the device asks again after its last state until it has that version",
     "membership": "signed project state commits member identities: those of the people of the project, and of members of the state before it whose accounts were deleted; removal rotates the content key, and when the person who left made that key, the next member device that writes or checks the project rotates it again; a member whose identity is not available keeps the last identity in the state; only the owner gives a member a new identity, with new keys; the relay holds no plaintext key",
-    "content": "immutable messages and versioned task/repository records; read by project sequence; compare expected version on updates",
-    "changes": "the device connection gets {type: changed, surface: projectContent, projectId, sequence} after a content write and {type: changed, surface: projectContent, projectId} after new project keys; it gets {type: changed, surface: projects, projectId} after a change of the project, its members, or the devices of a member; a device then reads only that project and only the items after the sequence that it has; it checks the identities and project keys of the members when it connects, when the members or their devices change, and when it uses a project whose last check is older than 5 minutes",
+    "content": "versioned message, task and repository records; each write takes the next project sequence, and a device reads the items after the sequence that it has; a message keeps the position of its first write, and only its author writes its next version, which deletes it; compare expected version on updates; GET /api/projects/{id}/content?before= gives the newest messages before a position",
+    "cleared": "PUT /api/projects/{id}/cleared {position} hides the messages up to that position, at most the project sequence, from the person who sends it on all of their devices; the position only rises, each content page gives the person's clearedPosition and leaves out their cleared messages, and leaving the project forgets it",
+    "changes": "the device connection gets {type: changed, surface: projectContent, projectId, sequence} after a content write and {type: changed, surface: projectContent, projectId} after new project keys, and the devices of a person after that person clears the conversation; it gets {type: changed, surface: projects, projectId} after a change of the project, its members, or the devices of a member; a device then reads only that project and only the items after the sequence that it has; it checks the identities and project keys of the members when it connects, when the members or their devices change, and when it uses a project whose last check is older than 5 minutes",
     "space": "with a ProjectBytes limit, the server counts the body and signature bytes of the items of each project; when a write goes past the limit, it deletes the oldest messages, and each content page then gives historyTrimmed: true; when only tasks and repositories are left, it refuses the write with the limit project-data",
     "limits": {
       "people": 65,
