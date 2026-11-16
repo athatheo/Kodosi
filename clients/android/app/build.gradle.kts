@@ -465,6 +465,5 @@ tasks.register<JavaExec>("ktlintFormat") {
     group = "formatting"
     classpath = ktlint
     mainClass = "com.pinterest.ktlint.Main"
-    jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
     args(listOf("-F") + ktlintSources)
 }
