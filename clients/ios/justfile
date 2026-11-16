@@ -16,14 +16,14 @@ tools-install:
 xcode-gen: tools-install
     KODOSI_VERSION="$(cat ../../VERSION)" KODOSI_BUILD="{{ build_number }}" KODOSI_IOS_DEPLOYMENT_TARGET="$(cat ../apple/Config/iOSDeploymentTarget)" "{{ xcodegen }}" generate --quiet
 
-# Lint the Swift sources of the iPhone and iPad app.
+# Lint the Swift sources of the iPhone and iPad app and of its notification extension.
 lint: tools-install
-    "{{ swiftformat }}" Sources Tests --lint
-    "{{ swiftlint }}" lint --quiet Sources Tests
+    "{{ swiftformat }}" Sources Tests Notifications --lint
+    "{{ swiftlint }}" lint --quiet Sources Tests Notifications
 
-# Format the Swift sources of the iPhone and iPad app.
+# Format the Swift sources of the iPhone and iPad app and of its notification extension.
 format: tools-install
-    "{{ swiftformat }}" Sources Tests
+    "{{ swiftformat }}" Sources Tests Notifications
 
 # Check that the Swift packages and the Ghostty iOS build agree with the deployment targets of the apps.
 deployment-targets-check:
