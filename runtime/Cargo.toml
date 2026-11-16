@@ -84,7 +84,7 @@ sha2 = "0.11.1"
 aws-lc-rs = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
-flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+flate2 = { version = "1.1.11", default-features = false, features = ["zlib-rs", "runtime_detection"] }
 futures-util = { workspace = true }
 qrcodegen = "1.8.0"
 reqwest = { workspace = true }

@@ -41,7 +41,7 @@ missing_const_for_fn = "allow"
 document = { path = "crates/document" }
 documents = { path = "crates/documents" }
 docx = { path = "crates/docx" }
-flate2 = "1.1.10"
+flate2 = { version = "1.1.11", default-features = false, features = ["zlib-rs", "runtime_detection"] }
 package = { path = "crates/package" }
 pdf = { path = "crates/pdf" }
 plain = { path = "crates/plain" }
