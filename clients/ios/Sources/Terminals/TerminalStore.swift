@@ -197,6 +197,10 @@ final class TerminalStore {
         act("session.interrupt", on: session)
     }
 
+    func removeFromProject(_ session: RuntimeSession) {
+        act("session.attachProject", on: session, fields: ["projectId": .null])
+    }
+
     func changeAgent(_ change: AgentSettings, in session: RuntimeSession) {
         act("session.agent", on: session, fields: ["change": change.json])
     }

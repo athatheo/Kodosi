@@ -154,6 +154,7 @@ pub(super) struct Terminal {
     pub(super) folder: watch::Receiver<PathBuf>,
     pub(super) shared: watch::Receiver<bool>,
     pub(super) show: Box<dyn Fn(PathBuf) + Send + Sync>,
+    pub(super) last_tab_closed: Box<dyn Fn(Weak<Browser>) + Send + Sync>,
 }
 
 pub(super) struct Browser {
@@ -176,6 +177,7 @@ impl Browser {
         stamp: Stamp,
     ) -> Arc<Self> {
         let (width, height) = FIRST_SIZE;
+        let own_sign_ins = *terminal.shared.borrow();
         Arc::new(Self {
             terminal,
             places,
@@ -190,6 +192,7 @@ impl Browser {
                 doing: None,
                 last: None,
                 problem: None,
+                own_sign_ins,
             }),
             stamp,
             commands: tokio::sync::Mutex::new(()),
@@ -510,6 +513,14 @@ impl Browser {
         problem
     }
 
+    /// A terminal that becomes shared or private changes the profile of its browser, so the
+    /// browser sleeps and wakes with the other one.
+    pub(super) async fn change_profile(&self) {
+        let shared = *self.terminal.shared.borrow();
+        self.change(|state| state.own_sign_ins = shared);
+        self.sleep().await;
+    }
+
     pub(super) async fn sleep(&self) {
         let window = self.window.lock().await.take();
         if let Some(window) = window {
@@ -599,7 +610,12 @@ async fn follow(browser: Weak<Browser>, window: Window, closed: CancellationToke
             }
         }
     }
-    if let Some(browser) = browser.upgrade() {
+    let Some(browser) = browser.upgrade() else {
+        return;
+    };
+    if window.emptied() {
+        (browser.terminal.last_tab_closed)(Arc::downgrade(&browser));
+    } else {
         browser.change(|state| {
             state.state = BrowserState::Asleep;
             state.doing = None;

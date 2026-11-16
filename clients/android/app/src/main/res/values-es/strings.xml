@@ -102,6 +102,7 @@
     <string name="close">Cerrar</string>
     <string name="remove">Quitar</string>
     <string name="copy">Copiar</string>
+    <string name="copy_link">Copiar enlace</string>
     <string name="rename">Renombrar</string>
     <string name="delete">Eliminar</string>
     <string name="working">Trabajando</string>
@@ -292,8 +293,11 @@
     <string name="browser_dialog">La página pregunta</string>
     <string name="choose_file">Elegir archivo</string>
     <string name="browser_menu">Menú de la página</string>
+    <string name="browser_shared">Compartido</string>
+    <string name="browser_shared_explained">Este terminal está compartido, así que su navegador tiene sus propios inicios de sesión, aparte de los tuyos. Todos en el terminal los usan.</string>
     <string name="terminal_actions">Acciones del terminal</string>
     <string name="interrupt">Interrumpir</string>
+    <string name="remove_from_project">Quitar del proyecto</string>
     <string name="close_terminal">Cerrar terminal</string>
     <string name="close_terminal_message">Esto cierra el terminal y sus programas para todos.</string>
     <string name="hide_terminal">Ocultar hasta que se conecte</string>

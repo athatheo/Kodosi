@@ -374,6 +374,38 @@ async fn a_browser_that_came_back_asleep_keeps_its_page_for_the_next_start() {
 }
 
 #[tokio::test]
+async fn the_browser_of_a_terminal_that_becomes_shared_says_it_keeps_its_own_sign_ins() {
+    let folder = tempfile::tempdir().unwrap();
+    let canvas = CanvasHandle::spawn(
+        uuid::Uuid::now_v7(),
+        folder.path(),
+        crate::canvas::CanvasServices::new(folder.path(), true),
+    );
+    canvas.restore(
+        Vec::new(),
+        Some("https://example.com".to_owned()),
+        uuid::Uuid::now_v7(),
+    );
+    let mut state = canvas.state();
+    let own = |canvas: &crate::canvas::Canvas| {
+        canvas.browser.as_ref().map(|browser| browser.own_sign_ins)
+    };
+    state
+        .wait_for(|canvas| own(canvas) == Some(false))
+        .await
+        .unwrap();
+
+    canvas.set_shared(true);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        state.wait_for(|canvas| own(canvas) == Some(true)),
+    )
+    .await
+    .expect("the browser says that it keeps its own sign-ins")
+    .unwrap();
+}
+
+#[tokio::test]
 async fn showing_the_browser_opens_the_canvas_at_it_and_keeps_its_page() {
     let folder = tempfile::tempdir().unwrap();
     let services = crate::canvas::CanvasServices {
@@ -799,6 +831,7 @@ async fn a_browser_ends_at_once_while_kodosi_browser_comes() {
             folder: tokio::sync::watch::channel(folder.path().to_owned()).1,
             shared: tokio::sync::watch::channel(false).1,
             show: Box::new(|_| {}),
+            last_tab_closed: Box::new(|_| {}),
         },
         Places::of(folder.path(), browser::agent_browser()),
         host,

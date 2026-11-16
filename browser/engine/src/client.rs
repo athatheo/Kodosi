@@ -14,6 +14,8 @@ use crate::{
 const SCREEN_WIDTH: u32 = 1920;
 const SCREEN_HEIGHT: u32 = 1080;
 const MENU_BAR: c_int = 25;
+/// Tabs show icons at 16 points, so 32 pixels are sharp on a Retina screen.
+const ICON_PIXELS: u32 = 32;
 
 /// The crate names the cursor handle on Linux and Windows only.
 #[cfg(target_os = "macos")]
@@ -249,6 +251,18 @@ wrap_display_handler! {
             }
         }
 
+        fn on_favicon_urlchange(&self, browser: Option<&mut Browser>, icon_urls: Option<&mut CefStringList>) {
+            let Some(browser) = browser else { return };
+            let tab = i64::from(browser.identifier());
+            let address = icon_urls.and_then(|urls| urls.clone().into_iter().next()).unwrap_or_default();
+            if engine::with(|engine| engine.icon_named(tab, &address)) == Some(true)
+                && let Some(host) = browser.host()
+            {
+                let mut fetched = IconBuilder::new(tab);
+                host.download_image(Some(&CefString::from(address.as_str())), 1, ICON_PIXELS, 0, Some(&mut fetched));
+            }
+        }
+
         fn on_cursor_change(
             &self,
             browser: Option<&mut Browser>,
@@ -260,6 +274,27 @@ wrap_display_handler! {
                 engine::with(|engine| engine.shape(tab, cursor::css_name(type_)));
             }
             1
+        }
+    }
+}
+
+wrap_download_image_callback! {
+    struct IconBuilder {
+        tab: i64,
+    }
+
+    impl DownloadImageCallback {
+        fn on_download_image_finished(&self, image_url: Option<&CefString>, _http_status_code: c_int, image: Option<&mut Image>) {
+            let address = image_url.map(CefString::to_string).unwrap_or_default();
+            let png = image
+                .and_then(|image| image.as_png(1.0, 1, None, None))
+                .map(|png| {
+                    let mut bytes = vec![0; png.size()];
+                    png.data(Some(&mut bytes), 0);
+                    bytes
+                })
+                .unwrap_or_default();
+            engine::with(|engine| engine.icon(self.tab, &address, &png));
         }
     }
 }

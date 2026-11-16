@@ -102,6 +102,7 @@
     <string name="close">닫기</string>
     <string name="remove">제거</string>
     <string name="copy">복사</string>
+    <string name="copy_link">링크 복사</string>
     <string name="rename">이름 변경</string>
     <string name="delete">삭제</string>
     <string name="working">작업 중</string>
@@ -292,8 +293,11 @@
     <string name="browser_dialog">페이지에서 묻습니다</string>
     <string name="choose_file">파일 선택</string>
     <string name="browser_menu">페이지 메뉴</string>
+    <string name="browser_shared">공유됨</string>
+    <string name="browser_shared_explained">이 터미널은 공유되어 있어서 브라우저에 내 것과 별개인 로그인 정보가 있어요. 터미널의 모든 사람이 이 정보를 사용해요.</string>
     <string name="terminal_actions">터미널 동작</string>
     <string name="interrupt">중단</string>
+    <string name="remove_from_project">프로젝트에서 제거</string>
     <string name="close_terminal">터미널 닫기</string>
     <string name="close_terminal_message">모든 사용자에게 터미널과 실행 중인 프로그램이 종료됩니다.</string>
     <string name="hide_terminal">온라인이 될 때까지 숨기기</string>

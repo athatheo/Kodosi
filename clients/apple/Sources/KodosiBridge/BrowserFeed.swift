@@ -1,6 +1,7 @@
 import CoreGraphics
 import CoreMedia
 import Foundation
+import ImageIO
 import Observation
 
 /// Each frame is acknowledged, so the host keeps the picture as sharp as the link allows and no
@@ -15,6 +16,7 @@ public final class BrowserFeed {
     private static let settle = Duration.milliseconds(250)
 
     public private(set) var window = BrowserWindow()
+    public private(set) var icons: [String: CGImage] = [:]
     public private(set) var hasPicture = false
     public private(set) var failure: String?
     /// Counts each press, key and scroll of a person on this device.
@@ -206,12 +208,27 @@ public final class BrowserFeed {
         case Self.messageTag:
             if let state = try? JSONDecoder().decode(BrowserWindow.self, from: message.dropFirst()) {
                 window = state
+                keep(state.icons, of: state.tabs)
                 if let words = state.copied {
                     copied(words)
                 }
             }
         default:
             break
+        }
+    }
+
+    private func keep(_ changed: [String: String], of tabs: [BrowserWindow.Tab]) {
+        var kept = icons
+        for (tab, png) in changed {
+            kept[tab] = Data(base64Encoded: png).flatMap { data in
+                CGImageSourceCreateWithData(data as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
+            }
+        }
+        let open = Set(tabs.map(\.id))
+        kept = kept.filter { open.contains($0.key) }
+        if kept.keys != icons.keys || !changed.isEmpty {
+            icons = kept
         }
     }
 

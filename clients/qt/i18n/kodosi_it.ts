@@ -476,6 +476,14 @@
         <translation>Indirizzo</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>Questo terminale è condiviso, quindi il suo browser ha accessi propri, separati dai tuoi. Tutti nel terminale li usano.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Condiviso</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 schede</translation>
     </message>
@@ -490,6 +498,18 @@
     <message>
         <source>Shared browser</source>
         <translation>Browser condiviso</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copia</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Copia link</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Incolla</translation>
     </message>
     <message>
         <source>Cancel</source>

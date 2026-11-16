@@ -547,7 +547,7 @@ Item {
                                 text: qsTr("Remove from project")
                                 iconName: "leave"
                                 destructive: true
-                                visible: root.projectEmbedded && root.session.isOwner === true
+                                visible: !!root.session.projectId && root.session.isOwner === true
                                 objectName: root.objectName + ".removeFromProject"
                                 onTriggered: Models.SessionActions.attachProject(root.sessionId, "")
                             }

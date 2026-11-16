@@ -604,6 +604,7 @@ impl Engine {
                 link,
             } => to_tab(tab, Event::Context { selection, link }),
             FromEngine::Copied { tab, text } => to_tab(tab, Event::Copied(text)),
+            FromEngine::Icon { tab, png } => to_tab(tab, Event::Icon { tab, png }),
             FromEngine::Dialog { tab, dialog } => to_tab(tab, Event::Dialog { tab, dialog }),
             FromEngine::DialogClosed { tab } => to_tab(tab, Event::DialogClosed { tab }),
             FromEngine::Tabs { tabs, .. } => {

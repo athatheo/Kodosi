@@ -476,6 +476,14 @@
         <translation>Διεύθυνση</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>Αυτό το τερματικό είναι κοινόχρηστο, οπότε ο browser του έχει δικές του συνδέσεις, χωριστά από τις δικές σας. Όλοι στο τερματικό τις χρησιμοποιούν.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Κοινόχρηστο</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 καρτέλες</translation>
     </message>
@@ -490,6 +498,18 @@
     <message>
         <source>Shared browser</source>
         <translation>Κοινόχρηστος browser</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Αντιγραφή</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Αντιγραφή συνδέσμου</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Επικόλληση</translation>
     </message>
     <message>
         <source>Cancel</source>

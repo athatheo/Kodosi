@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Weak},
     time::Duration,
 };
 
@@ -76,6 +76,9 @@ enum Job {
     },
     Downloaded {
         path: PathBuf,
+    },
+    LastTabClosed {
+        browser: Weak<Browser>,
     },
     Edited {
         path: PathBuf,
@@ -370,7 +373,7 @@ impl Actor {
                 },
                 changed = self.sharing.changed() => {
                     if changed.is_ok() && let Some(browser) = self.existing() {
-                        tokio::spawn(async move { browser.sleep().await });
+                        tokio::spawn(async move { browser.change_profile().await });
                     }
                 }
                 _ = check.tick(), if !self.files.is_empty() => {
@@ -485,6 +488,16 @@ impl Actor {
                     }
                 }
                 self.publish();
+            }
+            Job::LastTabClosed { browser } => {
+                let current = self
+                    .browser
+                    .as_ref()
+                    .is_some_and(|(open, _)| Weak::as_ptr(&browser) == Arc::as_ptr(open));
+                if current && let Some((browser, _)) = self.browser.take() {
+                    tokio::spawn(async move { browser.end().await });
+                    self.publish();
+                }
             }
             Job::Edited { path } => {
                 let key = key_of(&kodosi_os::fs::canonicalize(&path).unwrap_or(path));
@@ -719,6 +732,14 @@ impl Actor {
                     Box::new(move |path| {
                         if let Some(jobs) = jobs.upgrade() {
                             drop(jobs.try_send(Job::Downloaded { path }));
+                        }
+                    })
+                },
+                last_tab_closed: {
+                    let jobs = self.own_jobs.clone();
+                    Box::new(move |browser| {
+                        if let Some(jobs) = jobs.upgrade() {
+                            drop(jobs.try_send(Job::LastTabClosed { browser }));
                         }
                     })
                 },
