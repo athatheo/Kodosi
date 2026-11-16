@@ -25,6 +25,7 @@ final class AppModel {
     let push: PushNotifications
     var dosiDevice: String?
     var openedInvite: String?
+    @ObservationIgnored private var openedJoin: String?
 
     @ObservationIgnored private let inbox: RuntimeEventInbox
     @ObservationIgnored private let runtime: RuntimeHandle
@@ -214,6 +215,20 @@ final class AppModel {
             return
         }
         try dispatch(event)
+        joinOpened()
+    }
+
+    /// A code that opens the app before it knows its account joins once this device asks for trust.
+    func open(join code: String) {
+        openedJoin = code
+        joinOpened()
+    }
+
+    private func joinOpened() {
+        guard let code = openedJoin else { return }
+        if account.joinDevice(scanned: code) || account.stage == .signedIn {
+            openedJoin = nil
+        }
     }
 
     private func dispatch(_ event: RuntimeEvent) throws {

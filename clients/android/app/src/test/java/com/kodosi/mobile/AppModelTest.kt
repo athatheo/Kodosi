@@ -63,6 +63,23 @@ class AppModelTest {
     }
 
     @Test
+    fun aJoinCodeThatOpensTheAppAsksOnceThisDeviceNeedsTrust() {
+        val sent = SentCommands()
+        val model = AppModel(RuntimeEnvironment.getApplication())
+        model.commands.transport = sent.sink.transport
+        model.deviceJoin.value = "kodosi://device/join/ana#secret"
+        model.receive(event("""{"type":"system.ready","accountUserId":"ana","accountEpoch":1}"""))
+        assertFalse("devices.link.startSelf" in sent.types)
+
+        model.receive(
+            event("""{"type":"auth.ready","accountUserId":"ana","accountEpoch":1,"userId":"ana","enrolled":false}""")
+        )
+
+        assertEquals("kodosi://device/join/ana#secret", sent.last("devices.link.startSelf").string("code"))
+        assertNull(model.deviceJoin.value)
+    }
+
+    @Test
     fun aSignInFailureStaysInOnboardingAfterTheAccountWasResolved() {
         val model = AppModel(RuntimeEnvironment.getApplication())
         model.receive(event("system.ready", ""))

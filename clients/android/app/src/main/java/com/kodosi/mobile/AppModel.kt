@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
 import com.kodosi.mobile.account.AccountStore
 import com.kodosi.mobile.account.AppLock
+import com.kodosi.mobile.account.SignInStage
 import com.kodosi.mobile.canvas.CanvasStore
 import com.kodosi.mobile.canvas.DocumentPages
 import com.kodosi.mobile.dosi.DosiStore
@@ -67,6 +68,7 @@ class AppModel(
     data class TerminalTarget(val id: String, val account: String)
     val terminalTarget = MutableStateFlow<TerminalTarget?>(null)
     val friendInvite = MutableStateFlow<String?>(null)
+    val deviceJoin = MutableStateFlow<String?>(null)
     val projects = ProjectStore(commands)
     val people = PeopleStore(commands)
     val dosi = DosiStore(commands)
@@ -87,6 +89,13 @@ class AppModel(
     init {
         commands.onFailure = ::notify
         account.notify = ::notify
+        scope.launch {
+            combine(deviceJoin, account.state) { code, state -> code?.let { it to state.stage } }
+                .filterNotNull()
+                .collect { (code, stage) ->
+                    if (account.joinDevice(code) || stage == SignInStage.SignedIn) deviceJoin.value = null
+                }
+        }
     }
 
     fun start() {

@@ -218,15 +218,14 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
     }
 
-    fun joinDevice(scanned: String) {
-        when ((mutableState.value.stage as? SignInStage.TrustingDevice)?.trust) {
-            DeviceTrust.Choose, is DeviceTrust.PendingApproval, is DeviceTrust.Failed -> {
-                mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Joining)) }
-                commands.perform("devices.link.startSelf", fields("code" to scanned))
-            }
-
-            else -> Unit
+    fun joinDevice(scanned: String): Boolean = when ((mutableState.value.stage as? SignInStage.TrustingDevice)?.trust) {
+        DeviceTrust.Choose, is DeviceTrust.PendingApproval, is DeviceTrust.Failed -> {
+            mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Joining)) }
+            commands.perform("devices.link.startSelf", fields("code" to scanned))
+            true
         }
+
+        else -> false
     }
 
     fun useRecoveryKey(key: String) {
