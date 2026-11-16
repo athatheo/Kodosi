@@ -513,6 +513,7 @@ fn backend_refusals() -> Vec<Text> {
         text!("Too many open views."),
         text!("Too many pending device approvals."),
         text!("Unblock this person first."),
+        text!("You can delete only your own messages."),
         text!("You cannot leave your own terminal."),
         text!("You have too many terminals."),
         text!("You tried too many user names. You can try another one in 30 minutes."),

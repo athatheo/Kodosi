@@ -309,6 +309,7 @@
 "Wait for the terminal snapshot before sending a picture.": "Περιμένετε το στιγμιότυπο του τερματικού πριν στείλετε εικόνα.",
 "Wait for the terminal snapshot before sending input.": "Περιμένετε το στιγμιότυπο του τερματικού πριν στείλετε είσοδο.",
 "You are signed in to Kodosi": "Συνδεθήκατε στο Kodosi",
+"You can delete only your own messages.": "Μπορείτε να διαγράψετε μόνο τα δικά σας μηνύματα.",
 "You cannot leave your own terminal.": "Δεν μπορείτε να αποχωρήσετε από το δικό σας τερματικό.",
 "You chose more people than a terminal can have ({most}).": "Επιλέξατε περισσότερα άτομα από όσα επιτρέπει ένα τερματικό ({most}).",
 "You have not trusted this person yet.": "Δεν έχετε ορίσει ακόμη αυτό το άτομο ως αξιόπιστο.",

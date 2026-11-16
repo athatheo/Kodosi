@@ -309,6 +309,7 @@
 "Wait for the terminal snapshot before sending a picture.": "发送图片前，请等待终端快照。",
 "Wait for the terminal snapshot before sending input.": "发送输入前，请等待终端快照。",
 "You are signed in to Kodosi": "你已登录 Kodosi",
+"You can delete only your own messages.": "你只能删除自己的消息。",
 "You cannot leave your own terminal.": "你不能离开自己的终端。",
 "You chose more people than a terminal can have ({most}).": "你选择的人数超过了一个终端的上限（{most}）。",
 "You have not trusted this person yet.": "你还没有信任此人。",

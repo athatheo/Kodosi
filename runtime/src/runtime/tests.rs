@@ -2738,9 +2738,9 @@ async fn a_project_stays_unread_until_its_person_sees_what_others_wrote() {
         "projects.snapshot".to_owned(),
         json!({"type":"projects.snapshot","projects":[{"id":project,"name":"Project","ownerUserId":"me"}],"invitations":[]}),
     );
-    let message = |sequence: u64, author: &str, agent: Option<&str>| {
-        json!({"id":Uuid::now_v7().to_string(),"sequence":sequence,"authorId":author,"authorName":author,
-            "agent":agent,"terminalId":null,"text":"hello","createdAt":"2026-10-17T00:00:00Z"})
+    let message = |position: u64, author: &str, agent: Option<&str>| {
+        json!({"id":Uuid::now_v7().to_string(),"position":position,"authorId":author,"authorName":author,
+            "agent":agent,"terminalId":null,"text":"hello","deleted":false,"createdAt":"2026-10-17T00:00:00Z"})
     };
     let unread = |runtime: &Runtime| {
         runtime.cached_events["projects.snapshot"]["projects"][0]["unread"] == true
@@ -2758,6 +2758,18 @@ async fn a_project_stays_unread_until_its_person_sees_what_others_wrote() {
     runtime.project_seen.saved().await;
     runtime.project_seen = project_seen::ProjectSeen::load(&runtime.network.inner.config.data_root);
     assert_eq!(runtime.seen_projects().unwrap()[&project], 3);
+
+    let mut deleted = message(4, "friend", None);
+    deleted["deleted"] = json!(true);
+    runtime.content_changed(&json!({"projectId":project,"messages":[deleted]}));
+    assert!(!unread(&runtime), "a deletion is no new message");
+    runtime.content_changed(&json!({"projectId":project,"messages":[message(5, "friend", None)]}));
+    assert!(unread(&runtime));
+    runtime.content_changed(&json!({"projectId":project,"messages":[],"clearedPosition":5}));
+    assert!(
+        !unread(&runtime),
+        "a clear on another device reads the project here too"
+    );
 }
 
 #[tokio::test]
@@ -3851,11 +3863,12 @@ fn a_message_line_says_who_wrote_and_from_where_and_leaves_the_choice_to_the_age
             folder: Some("/home/ben/api".to_owned()),
         }),
     };
-    let mention = |from: &Sender, text: &str, sequence| Mention {
+    let mention = |from: &Sender, text: &str, position| Mention {
         project: "Launch".to_owned(),
+        project_id: Uuid::now_v7(),
         from: from.clone(),
         text: text.to_owned(),
-        sequence,
+        position,
     };
     let judgment = "Use your own judgment and your current work to decide if and how to act on";
     assert_eq!(
@@ -3907,9 +3920,10 @@ async fn a_delivery_that_ends_after_its_terminal_leaves_nothing_behind() {
     let gone = Uuid::now_v7();
     let mention = messages::Mention {
         project: "Launch".to_owned(),
+        project_id: Uuid::now_v7(),
         from: messages::Sender::Person("Ana".to_owned()),
         text: "@Build".to_owned(),
-        sequence: 3,
+        position: 3,
     };
     for result in [Ok(()), Err(Error::Invalid("refused".to_owned()))] {
         runtime.mentions.telling.insert(gone);
@@ -3921,9 +3935,42 @@ async fn a_delivery_that_ends_after_its_terminal_leaves_nothing_behind() {
 }
 
 #[cfg(feature = "host")]
+#[tokio::test]
+async fn a_deleted_message_takes_back_the_mentions_that_wait_for_its_agents() {
+    let (mut runtime, _root) = registry_fixture();
+    let project = Uuid::now_v7();
+    let mention = |position| messages::Mention {
+        project: "Launch".to_owned(),
+        project_id: project,
+        from: messages::Sender::Person("Ana".to_owned()),
+        text: "@Build hello".to_owned(),
+        position,
+    };
+    let terminal = Uuid::now_v7();
+    runtime.mentions.keep(terminal, mention(2));
+    runtime.mentions.keep(terminal, mention(5));
+    runtime.mentions.wait_for_check(messages::Unchecked {
+        project,
+        author: "ana".to_owned(),
+        terminal: Uuid::now_v7(),
+        mention: mention(3),
+        since: Instant::now(),
+    });
+    let deleted = |position: u64| {
+        json!({"id":Uuid::now_v7(),"position":position,"authorId":"ana","authorName":"","agent":null,
+            "terminalId":null,"text":"","deleted":true,"createdAt":"2026-11-16T00:00:00Z"})
+    };
+    runtime.note_mentions(
+        &json!({"projectId":project,"messages":[deleted(3)],"replacements":[deleted(2)]}),
+    );
+    assert_eq!(runtime.mentions.waiting[&terminal], [mention(5)]);
+    assert_eq!(runtime.mentions.unchecked, Vec::new());
+}
+
+#[cfg(feature = "host")]
 #[test]
 fn only_messages_after_the_first_look_at_a_project_name_agents() {
-    let message = |sequence: u64| json!({"sequence": sequence, "text": "@Build"});
+    let message = |position: u64| json!({"position": position, "text": "@Build"});
     let mut mentions = messages::Mentions::default();
     assert_eq!(
         mentions.new_messages("project", &[message(3), message(4)]),
@@ -4002,12 +4049,12 @@ async fn a_working_agent_gets_the_project_message_that_names_its_terminal_unless
     );
     let snapshot = |messages: Value| json!({"projectId": project, "messages": messages});
     runtime.note_mentions(&snapshot(
-        json!([{"sequence": 1, "text": "hello", "authorId": "ana", "authorName": "Ana"}]),
+        json!([{"position": 1, "text": "hello", "authorId": "ana", "authorName": "Ana"}]),
     ));
     runtime.note_mentions(&snapshot(json!([
-        {"sequence": 2, "text": "@Build please print came-through", "authorId": "ana", "authorName": "Ana"},
-        {"sequence": 3, "text": "@Build from itself", "authorId": "ana", "authorName": "Ana", "terminalId": id},
-        {"sequence": 4, "text": "@Build from someone who is not a friend", "authorId": "bo", "authorName": "Bo"},
+        {"position": 2, "text": "@Build please print came-through", "authorId": "ana", "authorName": "Ana"},
+        {"position": 3, "text": "@Build from itself", "authorId": "ana", "authorName": "Ana", "terminalId": id},
+        {"position": 4, "text": "@Build from someone who is not a friend", "authorId": "bo", "authorName": "Bo"},
     ])));
     assert!(
         runtime.mentions.waiting.is_empty(),
@@ -4033,9 +4080,10 @@ async fn a_working_agent_gets_the_project_message_that_names_its_terminal_unless
                 id,
                 messages::Mention {
                     project: "Launch".to_owned(),
+                    project_id: Uuid::parse_str(&project).unwrap(),
                     from: messages::Sender::Person("Ana".to_owned()),
                     text: "@Build please print came-through".to_owned(),
-                    sequence: 2,
+                    position: 2,
                 },
             )],
             later: Vec::new(),
@@ -4123,9 +4171,10 @@ async fn a_mention_whose_check_gets_no_answer_waits_a_while_for_a_later_check() 
         terminal: Uuid::now_v7(),
         mention: messages::Mention {
             project: "Launch".to_owned(),
+            project_id: Uuid::now_v7(),
             from: messages::Sender::Person("Ana".to_owned()),
             text: "@Build hello".to_owned(),
-            sequence: 2,
+            position: 2,
         },
         since: Instant::now(),
     };

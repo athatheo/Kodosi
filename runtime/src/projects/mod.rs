@@ -23,6 +23,10 @@ pub enum Action {
         #[serde(default)]
         agent: Option<String>,
     },
+    DeleteMessage {
+        message_id: String,
+    },
+    ClearConversation,
     CreateTask {
         title: String,
         #[serde(default)]
@@ -69,12 +73,14 @@ pub enum TaskChange {
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
-    pub sequence: u64,
+    pub position: u64,
     pub author_id: String,
     pub author_name: String,
     pub agent: Option<String>,
     pub terminal_id: Option<String>,
     pub text: String,
+    /// A deleted message keeps only its place, its author's ID, its agent and its time.
+    pub deleted: bool,
     pub created_at: String,
 }
 
@@ -169,6 +175,11 @@ pub struct Issue {
 pub struct Snapshot {
     pub project_id: String,
     pub messages: Vec<Message>,
+    /// Messages before `messages` that changed since the last snapshot. Each one replaces the
+    /// message with its ID that an app keeps, and an app that does not keep it leaves it out.
+    pub replacements: Vec<Message>,
+    /// The person cleared the messages up to this position for themselves.
+    pub cleared_position: u64,
     pub tasks: Vec<Task>,
     pub repositories: Vec<Repository>,
     pub sequence: u64,
@@ -186,6 +197,9 @@ pub(crate) enum Payload {
         agent: Option<String>,
         #[serde(rename = "terminalId")]
         terminal_id: Option<String>,
+    },
+    DeletedMessage {
+        agent: Option<String>,
     },
     Task {
         task: Task,
@@ -271,7 +285,10 @@ impl Action {
             Self::Issues { repository_id } | Self::ImportIssue { repository_id, .. } => {
                 crate::protocol::parse_id(repository_id)?;
             }
-            Self::Read { .. } => {}
+            Self::DeleteMessage { message_id } => {
+                crate::protocol::parse_id(message_id)?;
+            }
+            Self::Read { .. } | Self::ClearConversation => {}
         }
         Ok(())
     }
