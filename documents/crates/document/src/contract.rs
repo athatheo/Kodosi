@@ -32,51 +32,40 @@ pub struct Viewer {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum ToDocument {
     Join {
         contract: u32,
         client: String,
-        #[ts(type = "number")]
         epoch: u64,
-        #[ts(type = "number")]
         rev: Rev,
     },
     Change {
-        #[ts(type = "number")]
         seq: Seq,
-        #[ts(type = "number")]
         base: Rev,
         body: Value,
     },
     /// Where the person is, as the document was at `rev`.
     Place {
-        #[ts(type = "number")]
         rev: Rev,
         body: Value,
     },
     Query {
-        #[ts(type = "number")]
         id: u64,
         body: Value,
     },
     /// Who else is here and where, in the words of `read`. The answer is a list of names and
     /// places.
     People {
-        #[ts(type = "number")]
         id: u64,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Changed {
-    #[ts(type = "number")]
     pub rev: Rev,
     pub author: String,
     pub client: String,
-    #[ts(type = "number")]
     pub seq: Seq,
     pub body: Value,
 }
@@ -85,7 +74,6 @@ pub struct Changed {
 /// the document is now.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Peer {
     pub id: String,
     pub person: String,
@@ -99,7 +87,6 @@ pub struct Peer {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum Catchup {
     Snapshot { snapshot: Value },
     Missed { changes: Vec<Changed> },
@@ -107,7 +94,6 @@ pub enum Catchup {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum RefusedReason {
     /// Move the change across what came first and send it again, or read again.
     Behind,
@@ -117,7 +103,6 @@ pub enum RefusedReason {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum ClosedReason {
     Contract,
     Removed,
@@ -130,24 +115,19 @@ pub enum ClosedReason {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum ToClient {
     Joined {
         id: String,
         name: String,
         can_edit: bool,
-        #[ts(type = "number")]
         epoch: u64,
-        #[ts(type = "number")]
         rev: Rev,
-        #[ts(type = "number")]
         seq: Seq,
         peers: Vec<Peer>,
         catchup: Catchup,
     },
     Changed(Changed),
     Refused {
-        #[ts(type = "number")]
         seq: Seq,
         reason: RefusedReason,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -155,14 +135,11 @@ pub enum ToClient {
         detail: Option<String>,
     },
     Answer {
-        #[ts(type = "number")]
         id: u64,
-        #[ts(type = "number")]
         rev: Rev,
         body: Value,
     },
     Saved {
-        #[ts(type = "number")]
         rev: Rev,
         waits: bool,
     },
@@ -245,6 +222,19 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// Writes the contract that the views read, in their folder from wherever Cargo runs.
+    #[test]
+    fn the_views_get_the_contract() {
+        let config = ts_rs::Config::new()
+            .with_large_int("number")
+            .with_out_dir(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../views/contract/src/generated"
+            ));
+        ToDocument::export_all(&config).unwrap();
+        ToClient::export_all(&config).unwrap();
+    }
 
     #[test]
     fn a_small_message_stays_plain_json() {
