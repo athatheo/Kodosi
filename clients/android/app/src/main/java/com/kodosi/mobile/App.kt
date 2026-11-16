@@ -209,7 +209,7 @@ private fun Home(model: AppModel) {
         if (opening != null) {
             opening = id
             openingTab = at
-        } else if (Build.VERSION.SDK_INT >= 37 && !networkAsked &&
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN && !networkAsked &&
             context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED
         ) {
             networkAsked = true

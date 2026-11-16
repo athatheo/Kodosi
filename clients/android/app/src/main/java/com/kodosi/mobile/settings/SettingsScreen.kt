@@ -429,7 +429,7 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                     }
                 }
             }
-            if (Build.VERSION.SDK_INT >= 37) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
                 item {
                     ListGroup {
                         ListLine(
