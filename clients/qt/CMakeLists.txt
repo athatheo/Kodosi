@@ -27,11 +27,14 @@ set(KODOSI_GHOSTTY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../terminal/ghostty")
 include(cmake/${CMAKE_SYSTEM_NAME}.cmake)
 include(cmake/Evidence.cmake)
 
+# The app ships with the Qt that it builds with, so its use of Qt's private headers holds.
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
 find_package(
     Qt6 ${KODOSI_QT_VERSION}
     EXACT
     REQUIRED
-    COMPONENTS Core Gui LinguistTools Qml Quick QuickControls2 Test WebChannelQuick WebEngineCore WebEngineQuick Widgets ${KODOSI_PLATFORM_QT_COMPONENTS}
+    COMPONENTS Core Gui GuiPrivate LinguistTools Qml Quick QuickControls2 QuickPrivate Test WebChannelQuick WebEngineCore
+        WebEngineQuick Widgets ${KODOSI_PLATFORM_QT_COMPONENTS}
 )
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)

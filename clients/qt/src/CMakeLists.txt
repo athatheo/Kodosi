@@ -109,6 +109,7 @@ target_link_libraries(kodosi-application
     PRIVATE
         Kodosi::RustRuntime
         Qt6::Gui
+        Qt6::GuiPrivate
 )
 
 qt_add_library(kodosi-desktop-integration STATIC
@@ -147,6 +148,9 @@ if(LINUX)
         PRIVATE_CODE
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux/ext-idle-notify-v1.xml"
     )
+endif()
+if(WIN32)
+    target_link_libraries(kodosi-desktop-integration PRIVATE Qt6::GuiPrivate)
 endif()
 
 qt_add_resources(kodosi-desktop-integration "tray"
@@ -233,27 +237,6 @@ target_link_libraries(kodosi-qml-models
 )
 
 target_include_directories(kodosi-terminal-kernel PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-foreach(module Core Gui Qml Quick)
-    get_target_property(module_includes Qt6::${module} INTERFACE_INCLUDE_DIRECTORIES)
-    foreach(include_dir IN LISTS module_includes)
-        if(include_dir MATCHES "/include/Qt${module}$")
-            set(private_root "${include_dir}/${Qt6_VERSION}")
-            if(NOT IS_DIRECTORY "${private_root}/Qt${module}")
-                message(FATAL_ERROR "Qt ${module} private headers are required for accessibility")
-            endif()
-            target_include_directories(kodosi-terminal-kernel PRIVATE
-                "${private_root}" "${private_root}/Qt${module}")
-            if(module MATCHES "^(Core|Gui)$")
-                target_include_directories(kodosi-application SYSTEM PRIVATE
-                    "${private_root}" "${private_root}/Qt${module}")
-            endif()
-            if(WIN32 AND module MATCHES "^(Core|Gui)$")
-                target_include_directories(kodosi-desktop-integration PRIVATE
-                    "${private_root}" "${private_root}/Qt${module}")
-            endif()
-        endif()
-    endforeach()
-endforeach()
 
 target_link_libraries(kodosi-terminal-kernel
     PUBLIC
@@ -262,6 +245,7 @@ target_link_libraries(kodosi-terminal-kernel
         Qt6::Quick
         kodosi-application
     PRIVATE
+        Qt6::QuickPrivate
         Kodosi::RustRuntime
         kodosi-ghostty-vt
 )
