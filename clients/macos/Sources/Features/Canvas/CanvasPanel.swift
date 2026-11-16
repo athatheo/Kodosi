@@ -340,13 +340,9 @@ extension AppDependencies {
     }
 }
 
-private struct Grow: ViewModifier, Animatable {
+@Animatable
+private struct Grow: ViewModifier {
     var part: Double
-
-    var animatableData: Double {
-        get { part }
-        set { part = newValue }
-    }
 
     func body(content: Content) -> some View {
         GeometryReader { geometry in
@@ -405,13 +401,9 @@ extension AnyTransition {
     }
 }
 
-private struct Unfold: ViewModifier, Animatable {
+@Animatable
+private struct Unfold: ViewModifier {
     var shown: Double
-
-    var animatableData: Double {
-        get { shown }
-        set { shown = newValue }
-    }
 
     func body(content: Content) -> some View {
         content.mask(alignment: .leading) {

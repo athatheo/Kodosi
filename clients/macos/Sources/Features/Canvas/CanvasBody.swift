@@ -75,22 +75,15 @@ private nonisolated struct Outline: Shape {
     }
 }
 
+@Animatable
 nonisolated struct Lobes: Shape {
     var seam: CGFloat
     var depth: CGFloat
-    var radius: CGFloat
+    @AnimatableIgnored var radius: CGFloat
 
     static let reach: CGFloat = 20
     static let floor: CGFloat = 5
     static let floorReach: CGFloat = 12
-
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(seam, depth) }
-        set {
-            seam = newValue.first
-            depth = newValue.second
-        }
-    }
 
     func path(in rect: CGRect) -> Path {
         let r = min(radius, rect.width / 2, rect.height / 2)
