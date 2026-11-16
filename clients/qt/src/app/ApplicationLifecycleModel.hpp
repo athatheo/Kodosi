@@ -13,12 +13,12 @@ namespace kodosi {
 
 class ApplicationLifecycleModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(State state READ state NOTIFY stateChanged)
-    Q_PROPERTY(QString errorText READ errorText NOTIFY stateChanged)
-    Q_PROPERTY(bool hostOutdated READ hostOutdated NOTIFY stateChanged)
-    Q_PROPERTY(bool hostForeground READ hostForeground NOTIFY hostForegroundChanged)
-    Q_PROPERTY(int hostTerminals READ hostTerminals NOTIFY stateChanged)
-    Q_PROPERTY(bool updateInstalled READ updateInstalled NOTIFY updateInstalledChanged)
+    Q_PROPERTY(State state READ state NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QString errorText READ errorText NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool hostOutdated READ hostOutdated NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool hostForeground READ hostForeground NOTIFY hostForegroundChanged FINAL)
+    Q_PROPERTY(int hostTerminals READ hostTerminals NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool updateInstalled READ updateInstalled NOTIFY updateInstalledChanged FINAL)
 
 public:
     enum class State {

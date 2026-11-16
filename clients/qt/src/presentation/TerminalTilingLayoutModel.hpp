@@ -17,18 +17,21 @@ class TerminalTilingLayoutModel final : public QAbstractListModel {
         qreal viewportWidth
         READ viewportWidth
         WRITE setViewportWidth
-        NOTIFY viewportChanged)
+        NOTIFY viewportChanged
+        FINAL)
     Q_PROPERTY(
         qreal viewportHeight
         READ viewportHeight
         WRITE setViewportHeight
-        NOTIFY viewportChanged)
-    Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY geometryChanged)
+        NOTIFY viewportChanged
+        FINAL)
+    Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY geometryChanged FINAL)
     Q_PROPERTY(
         qreal accessibilityTextScale
         READ accessibilityTextScale
         WRITE setAccessibilityTextScale
-        NOTIFY accessibilityTextScaleChanged)
+        NOTIFY accessibilityTextScaleChanged
+        FINAL)
 
 public:
     enum class EntryType {

@@ -16,12 +16,12 @@ class CanvasDocuments;
 // device and the link allow, and no queue forms.
 class BrowserVideo : public QQuickItem {
     Q_OBJECT
-    Q_PROPERTY(QObject* documents READ documents WRITE setDocuments)
-    Q_PROPERTY(QString sessionId READ sessionId WRITE setSessionId)
-    Q_PROPERTY(bool active READ active WRITE setActive)
-    Q_PROPERTY(bool shows READ shows NOTIFY showsChanged)
-    Q_PROPERTY(QVariantMap window READ window NOTIFY windowChanged)
-    Q_PROPERTY(QVariantMap icons READ icons NOTIFY iconsChanged)
+    Q_PROPERTY(QObject* documents READ documents WRITE setDocuments FINAL)
+    Q_PROPERTY(QString sessionId READ sessionId WRITE setSessionId FINAL)
+    Q_PROPERTY(bool active READ active WRITE setActive FINAL)
+    Q_PROPERTY(bool shows READ shows NOTIFY showsChanged FINAL)
+    Q_PROPERTY(QVariantMap window READ window NOTIFY windowChanged FINAL)
+    Q_PROPERTY(QVariantMap icons READ icons NOTIFY iconsChanged FINAL)
 
 public:
     explicit BrowserVideo(QQuickItem* parent = nullptr);

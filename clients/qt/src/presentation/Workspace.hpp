@@ -26,7 +26,7 @@ class SessionCatalogModel;
 
 class Workspace final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    Q_PROPERTY(QString error READ error NOTIFY errorChanged FINAL)
 
 public:
     Workspace(CommandDispatcher& commands, SessionCatalogModel& sessions,

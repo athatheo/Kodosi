@@ -9,8 +9,8 @@ class QWindow;
 namespace kodosi {
 class DesktopFileIntegration final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
+    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged FINAL)
 public:
     using UrlOpener = std::function<bool(const QUrl&)>;
     explicit DesktopFileIntegration(QObject* parent = nullptr);

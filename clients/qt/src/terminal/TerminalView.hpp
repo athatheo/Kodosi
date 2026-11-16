@@ -58,24 +58,25 @@ private:
 
 class TerminalView : public QQuickItem {
     Q_OBJECT
-    Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
-    Q_PROPERTY(int fontPixelSize READ fontPixelSize WRITE setFontPixelSize NOTIFY fontPixelSizeChanged)
-    Q_PROPERTY(double lineHeight READ lineHeight WRITE setLineHeight NOTIFY lineHeightChanged)
-    Q_PROPERTY(int cursorStyle READ cursorStyle WRITE setCursorStyle NOTIFY cursorStyleChanged)
-    Q_PROPERTY(bool cursorBlink READ cursorBlink WRITE setCursorBlink NOTIFY cursorBlinkChanged)
-    Q_PROPERTY(int scrollbackLines READ scrollbackLines WRITE setScrollbackLines NOTIFY scrollbackLinesChanged)
-    Q_PROPERTY(QColor selectionBackground READ selectionBackground WRITE setSelectionBackground NOTIFY selectionBackgroundChanged)
-    Q_PROPERTY(QColor selectionForeground READ selectionForeground WRITE setSelectionForeground NOTIFY selectionForegroundChanged)
-    Q_PROPERTY(QColor preeditBackground READ preeditBackground WRITE setPreeditBackground NOTIFY preeditBackgroundChanged)
-    Q_PROPERTY(QColor preeditForeground READ preeditForeground WRITE setPreeditForeground NOTIFY preeditForegroundChanged)
-    Q_PROPERTY(bool terminalReady READ terminalReady NOTIFY terminalReadyChanged)
-    Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY frameChanged)
+    Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY fontFamilyChanged FINAL)
+    Q_PROPERTY(int fontPixelSize READ fontPixelSize WRITE setFontPixelSize NOTIFY fontPixelSizeChanged FINAL)
+    Q_PROPERTY(double lineHeight READ lineHeight WRITE setLineHeight NOTIFY lineHeightChanged FINAL)
+    Q_PROPERTY(int cursorStyle READ cursorStyle WRITE setCursorStyle NOTIFY cursorStyleChanged FINAL)
+    Q_PROPERTY(bool cursorBlink READ cursorBlink WRITE setCursorBlink NOTIFY cursorBlinkChanged FINAL)
+    Q_PROPERTY(int scrollbackLines READ scrollbackLines WRITE setScrollbackLines NOTIFY scrollbackLinesChanged FINAL)
+    Q_PROPERTY(QColor selectionBackground READ selectionBackground WRITE setSelectionBackground NOTIFY selectionBackgroundChanged FINAL)
+    Q_PROPERTY(QColor selectionForeground READ selectionForeground WRITE setSelectionForeground NOTIFY selectionForegroundChanged FINAL)
+    Q_PROPERTY(QColor preeditBackground READ preeditBackground WRITE setPreeditBackground NOTIFY preeditBackgroundChanged FINAL)
+    Q_PROPERTY(QColor preeditForeground READ preeditForeground WRITE setPreeditForeground NOTIFY preeditForegroundChanged FINAL)
+    Q_PROPERTY(bool terminalReady READ terminalReady NOTIFY terminalReadyChanged FINAL)
+    Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY frameChanged FINAL)
     Q_PROPERTY(
         bool asksBeforeClipboardRead
         READ asksBeforeClipboardRead
         WRITE setAsksBeforeClipboardRead
-        NOTIFY asksBeforeClipboardReadChanged)
-    Q_PROPERTY(QString otherComputer READ otherComputer WRITE setOtherComputer NOTIFY otherComputerChanged)
+        NOTIFY asksBeforeClipboardReadChanged
+        FINAL)
+    Q_PROPERTY(QString otherComputer READ otherComputer WRITE setOtherComputer NOTIFY otherComputerChanged FINAL)
 
 public:
     explicit TerminalView(QQuickItem* parent = nullptr);
