@@ -1654,6 +1654,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn each_viewer_sees_where_the_others_point_but_not_its_own_pointer() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
+        say(
+            &mut live,
+            "ana",
+            json!({ "kind": "mouse", "action": "move", "x": 40, "y": 30 }),
+        )
+        .await;
+        live.tick();
+        let pointers = |pipe: &Pipe| {
+            newest(pipe).map(|state| {
+                state
+                    .pointers
+                    .into_iter()
+                    .map(|pointer| (pointer.viewer, pointer.x, pointer.y))
+                    .collect::<Vec<_>>()
+            })
+        };
+        assert_eq!(pointers(&bob), Some(vec![("ana".to_owned(), 40.0, 30.0)]));
+        assert_eq!(pointers(&ana), Some(Vec::new()));
+    }
+
+    #[tokio::test]
     async fn the_newest_state_reaches_a_viewer_whose_queue_is_full_of_pictures() {
         let mut live = live();
         let mut ana = join(&mut live, "ana").await;
