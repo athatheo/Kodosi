@@ -27,9 +27,7 @@ set(KODOSI_GHOSTTY_VT_ARCHIVE_NAME "ghostty-vt-static.lib")
 set(KODOSI_RUNTIME_SYSTEM_LIBRARIES kernel32 ntdll userenv ws2_32 dbghelp)
 set(KODOSI_COMPILE_OPTIONS /W4 -Wpedantic /WX)
 # Rust's compiler_builtins and Zig's compiler_rt both define the builtins as weak symbols.
-if(CMAKE_CXX_COMPILER_LINKER_ID STREQUAL "LLD")
-    add_link_options(-lld-allow-duplicate-weak)
-endif()
+set(KODOSI_RUNTIME_LINK_OPTIONS "$<$<CXX_COMPILER_LINKER_ID:LLD>:-lld-allow-duplicate-weak>")
 set(KODOSI_PLATFORM_SOURCES
     platform/windows/PackageUpdate.cpp
     platform/windows/PackageUpdate.hpp

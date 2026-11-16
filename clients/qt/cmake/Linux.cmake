@@ -23,6 +23,7 @@ set(KODOSI_GHOSTTY_REF "LinuxGhostty.ref")
 set(KODOSI_GHOSTTY_LAYOUT "linux-x86_64")
 set(KODOSI_GHOSTTY_VT_ARCHIVE_NAME "libghostty-vt.a")
 set(KODOSI_RUNTIME_SYSTEM_LIBRARIES Threads::Threads ${CMAKE_DL_LIBS} util rt m)
+set(KODOSI_RUNTIME_LINK_OPTIONS "")
 set(KODOSI_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Werror)
 set(KODOSI_PLATFORM_SOURCES
     platform/linux/FreedesktopNotificationDriver.cpp

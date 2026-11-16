@@ -207,6 +207,7 @@ target_link_libraries(kodosi-canvas-web
         kodosi-application
     PRIVATE
         Qt6::WebEngineCore
+        Kodosi::RustRuntime
 )
 
 qt_add_library(kodosi-qml-models STATIC)
@@ -429,6 +430,7 @@ set_source_files_properties(controls/KeyRecorder.cpp controls/LightTrack.cpp
 
 target_link_libraries(kodosi-qt
     PRIVATE
+        Kodosi::RustRuntime
         Qt6::Core
         Qt6::Gui
         Qt6::Qml
