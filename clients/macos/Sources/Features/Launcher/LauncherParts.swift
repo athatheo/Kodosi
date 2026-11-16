@@ -161,7 +161,7 @@ struct ComputerKey: View {
     }
 }
 
-struct TabShape: Shape {
+nonisolated struct TabShape: Shape {
     let radius: CGFloat
     let flare: CGFloat
 

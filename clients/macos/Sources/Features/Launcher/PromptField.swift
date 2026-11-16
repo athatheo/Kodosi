@@ -64,7 +64,6 @@ struct PromptField: NSViewRepresentable {
         return CGSize(width: width, height: view.height(forWidth: width))
     }
 
-    @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: PromptField
         var focus = 0

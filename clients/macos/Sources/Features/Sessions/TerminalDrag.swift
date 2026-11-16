@@ -5,7 +5,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let kodosiTerminal = UTType(exportedAs: "com.kodosi.terminal")
+    nonisolated static let kodosiTerminal = UTType(exportedAs: "com.kodosi.terminal")
 }
 
 struct TerminalDrag: Codable, Transferable {

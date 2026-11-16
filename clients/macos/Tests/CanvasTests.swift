@@ -55,7 +55,7 @@ private func asleepBrowser(changed: UInt64) -> JSONValue {
     #expect(try terminal(canvas: ["sequence": .uint(1)]).canvas?.shown.isEmpty == true)
 }
 
-@Test @MainActor func `a canvas shows news only for what changed after this device saw it`() throws {
+@Test func `a canvas shows news only for what changed after this device saw it`() throws {
     let store = CanvasStore(commands: CommandSink())
     let first = try terminal(canvas: ["sequence": .uint(4), "items": .array([item("compare.html", changed: 4)])])
     store.observe([first])
@@ -90,7 +90,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     name.map { .object(["key": .string("/tmp/work/\($0)"), "at": .uint(at)]) }
 }
 
-@Test @MainActor func `each show and change of a canvas is news once, the older first, and none from before the start`() throws {
+@Test func `each show and change of a canvas is news once, the older first, and none from before the start`() throws {
     let store = CanvasStore(commands: CommandSink(), started: 6)
     let canvas = { (open: String?, openAt: UInt64, change: String?, changeAt: UInt64) in
         var fields: [String: JSONValue] = [
@@ -117,7 +117,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(store.news(back).isEmpty)
 }
 
-@Test @MainActor func `a terminal whose canvas comes later has news only from after the start`() throws {
+@Test func `a terminal whose canvas comes later has news only from after the start`() throws {
     let store = CanvasStore(commands: CommandSink(), started: 100)
     let shown = { (at: UInt64) in
         try terminal(canvas: [
@@ -136,7 +136,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(store.news(fresh).isEmpty)
 }
 
-@Test @MainActor func `a canvas that a person closed stays closed for changes until a show or the person opens it`() throws {
+@Test func `a canvas that a person closed stays closed for changes until a show or the person opens it`() throws {
     let store = CanvasStore(commands: CommandSink(), started: 1)
     let canvas = { (open: String?, change: UInt64) in
         var fields: [String: JSONValue] = ["sequence": .uint(9), "items": .array([item("plan.md", changed: 5)])]
@@ -164,7 +164,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(!store.isShut(shown.id))
 }
 
-@Test @MainActor func `a show opens the canvas in front or switches it, and a change opens it only when the person did not close it`() throws {
+@Test func `a show opens the canvas in front or switches it, and a change opens it only when the person did not close it`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "CanvasNews"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -227,7 +227,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(app.workbench.canvasSessionId == id && current() == plan)
 }
 
-@Test @MainActor func `a canvas that a person closed on this device opens again at its newest part only`() throws {
+@Test func `a canvas that a person closed on this device opens again at its newest part only`() throws {
     let store = CanvasStore(commands: CommandSink())
     let both = try terminal(canvas: [
         "sequence": .uint(5), "items": .array([item("plan.md", changed: 3)]), "browser": asleepBrowser(changed: 5),
@@ -266,7 +266,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(BrowserFeed.viewPoint(CGPoint(x: 1, y: 1), in: .zero, browser: browser) == nil)
 }
 
-@Test @MainActor func `a document that loses its pipe closes it in the runtime`() async throws {
+@Test func `a document that loses its pipe closes it in the runtime`() async throws {
     let commands = CommandSink()
     var sent: [[String: JSONValue]] = []
     commands.transport = { data in
@@ -314,7 +314,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(CanvasPair.zoom(tile: .zero, stage: CGSize(width: 1200, height: 700)) == 1)
 }
 
-@Test @MainActor func `a canvas opens beside its terminal alone, which stays alone when it hides`() throws {
+@Test func `a canvas opens beside its terminal alone, which stays alone when it hides`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageCanvas"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.switchAccount(nil)
@@ -340,7 +340,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(workbench.canvasSessionId == nil)
 }
 
-@Test @MainActor func `a canvas left open is open again when the person comes back to its terminal`() throws {
+@Test func `a canvas left open is open again when the person comes back to its terminal`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageCanvasBack"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.switchAccount(nil)
@@ -364,7 +364,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(workbench.canvasSessionId == nil)
 }
 
-@Test @MainActor func `a canvas that a person opens before it has anything shows when it comes`() throws {
+@Test func `a canvas that a person opens before it has anything shows when it comes`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageCanvasLater"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.switchAccount(nil)
@@ -383,7 +383,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(workbench.canvasSessionId == browsing.id)
 }
 
-@Test @MainActor func `the stage shows a canvas only with something open on this device, and opening it shows its newest part`() throws {
+@Test func `the stage shows a canvas only with something open on this device, and opening it shows its newest part`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageCanvasClosed"))
     let store = CanvasStore(commands: CommandSink())
     let workbench = WorkbenchState(defaults: defaults, canvas: store)
@@ -412,7 +412,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(workbench.canvasSessionId == nil && workbench.focusedSessionId == files.id)
 }
 
-@Test @MainActor func `a file added to a canvas closed on this device opens it at the file when it comes, and the browser stays closed`() throws {
+@Test func `a file added to a canvas closed on this device opens it at the file when it comes, and the browser stays closed`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageCanvasAddFile"))
     let store = CanvasStore(commands: CommandSink())
     let workbench = WorkbenchState(defaults: defaults, canvas: store)
@@ -470,7 +470,7 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(kept == history)
 }
 
-@Test @MainActor func `settings of the browser read its status while no download runs`() async throws {
+@Test func `settings of the browser read its status while no download runs`() async throws {
     let commands = CommandSink()
     var request: String?
     commands.transport = { data in

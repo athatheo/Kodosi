@@ -3,7 +3,7 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@Test @MainActor func `a project that the person left is no longer shown`() throws {
+@Test func `a project that the person left is no longer shown`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "ProjectLeft"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)

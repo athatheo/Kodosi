@@ -11,7 +11,7 @@ protocol DesktopNotificationDriving: Sendable {
     func remove(identifiers: [String])
 }
 
-struct SystemNotificationDriver: DesktopNotificationDriving {
+nonisolated struct SystemNotificationDriver: DesktopNotificationDriving {
     let center = UNUserNotificationCenter.current()
 
     func getAuthorizationStatus(

@@ -24,7 +24,6 @@ enum FoldPart {
     static let newTerminal = "terminal.new"
 }
 
-@MainActor
 final class FoldFrames {
     nonisolated static let space = "sidebar.fold"
     var frames: [String: CGRect] = [:]
@@ -51,7 +50,6 @@ extension EnvironmentValues {
     @Entry var sidebarPointer: SidebarPointer?
 }
 
-@MainActor
 @Observable
 final class SidebarPointer {
     var location: CGPoint?

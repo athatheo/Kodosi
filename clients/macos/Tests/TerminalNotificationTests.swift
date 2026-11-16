@@ -75,7 +75,6 @@ private final class NotificationDriver: DesktopNotificationDriving, @unchecked S
     }
 }
 
-@MainActor
 private func awaitNotification(_ condition: () -> Bool) async {
     for _ in 0 ..< 200 where !condition() {
         await Task.yield()
@@ -83,7 +82,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(condition())
 }
 
-@Test @MainActor func `a notification opens its terminal in front of sheets and Settings, and the terminal list once it is gone`() async throws {
+@Test func `a notification opens its terminal in front of sheets and Settings, and the terminal list once it is gone`() async throws {
     let driver = NotificationDriver()
     let defaults = try #require(EphemeralUserDefaults(prefix: "TerminalNotification"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
@@ -129,7 +128,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(app.errorMessage == nil)
 }
 
-@Test @MainActor func `a notification from before Quit opens the terminal that comes back in its place`() throws {
+@Test func `a notification from before Quit opens the terminal that comes back in its place`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "TerminalNotificationRestart"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap, notificationDriver: NotificationDriver())
@@ -150,7 +149,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(app.workbench.stagedSessionIds == [again])
 }
 
-@Test @MainActor func `the runtime's call posts its terminal also while Kodosi is in front, as loud as its cue says`() async throws {
+@Test func `the runtime's call posts its terminal also while Kodosi is in front, as loud as its cue says`() async throws {
     let driver = NotificationDriver()
     let defaults = try #require(EphemeralUserDefaults(prefix: "TerminalAlert"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
@@ -215,7 +214,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(again.content.interruptionLevel == .active)
 }
 
-@Test @MainActor func `a program's own notification sounds only when its cue says so`() async throws {
+@Test func `a program's own notification sounds only when its cue says so`() async throws {
     let driver = NotificationDriver()
     let defaults = try #require(EphemeralUserDefaults(prefix: "ProgramNotification"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
@@ -247,7 +246,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(driver.posted.last?.identifier == driver.posted.first?.identifier)
 }
 
-@Test @MainActor func `kodosi show opens the window that the person closed`() throws {
+@Test func `kodosi show opens the window that the person closed`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "ShowTerminal"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap, notificationDriver: NotificationDriver())
@@ -271,7 +270,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(app.workbench.section == .projects)
 }
 
-@Test @MainActor func `terminal notification late delivery cannot outlive its session`() async throws {
+@Test func `terminal notification late delivery cannot outlive its session`() async throws {
     let driver = NotificationDriver(delaysDelivery: true)
     let notifications = TerminalNotifications(driver: driver)
     let session = try runtimeSession(kind: "local", connection: "local")
@@ -285,7 +284,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     await awaitNotification { driver.withdrawn.count == 2 }
 }
 
-@Test @MainActor func `terminal notification pending authorization cannot cross restart or account`() async throws {
+@Test func `terminal notification pending authorization cannot cross restart or account`() async throws {
     let driver = NotificationDriver(delaysAuthorization: true)
     let notifications = TerminalNotifications(driver: driver)
     let session = try runtimeSession(kind: "local", connection: "local")
@@ -307,7 +306,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(driver.posted.isEmpty)
 }
 
-@Test @MainActor func `terminal notification coalesces and bounds inflight work`() async throws {
+@Test func `terminal notification coalesces and bounds inflight work`() async throws {
     let driver = NotificationDriver(delaysDelivery: true)
     let notifications = TerminalNotifications(driver: driver)
     let sessions = try (0 ..< 40).map { _ in try runtimeSession(UUIDv7.generate(), kind: "local", connection: "local") }
@@ -323,7 +322,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     driver.finishDelivery()
 }
 
-@Test @MainActor func `terminal notification withdraws on replacement and on another account`() async throws {
+@Test func `terminal notification withdraws on replacement and on another account`() async throws {
     let driver = NotificationDriver()
     let notifications = TerminalNotifications(driver: driver)
     let session = try runtimeSession(kind: "local", connection: "local")
@@ -346,7 +345,7 @@ private func awaitNotification(_ condition: () -> Bool) async {
     #expect(driver.withdrawn.contains(current))
 }
 
-@Test @MainActor func `terminal notification startup removes only older terminal notifications`() async {
+@Test func `terminal notification startup removes only older terminal notifications`() async {
     let driver = NotificationDriver(existingIdentifiers: ["terminal-old-runtime", "unrelated-feature"])
     let notifications = TerminalNotifications(driver: driver)
     notifications.activate()

@@ -132,7 +132,7 @@ func runtimeSession(_ id: String = "01992e43-53db-7040-8e02-f6ebf4149b28", kind:
     inbox.close()
 }
 
-@Test @MainActor func `folder groups and navigation follow the working session`() throws {
+@Test func `folder groups and navigation follow the working session`() throws {
     let first = try runtimeSession(kind: "local", connection: "local")
     let second = try runtimeSession("01992e43-53db-7040-8e02-f6ebf4149b30", kind: "local", connection: "local")
     let remote = try runtimeSession("01992e43-53db-7040-8e02-f6ebf4149b31")

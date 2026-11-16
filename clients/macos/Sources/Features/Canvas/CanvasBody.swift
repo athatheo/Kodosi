@@ -62,7 +62,7 @@ struct CanvasBody: View, Animatable {
     }
 }
 
-private struct Outline: Shape {
+private nonisolated struct Outline: Shape {
     let lobes: Lobes
     let tab: CGRect?
 
@@ -75,7 +75,7 @@ private struct Outline: Shape {
     }
 }
 
-struct Lobes: Shape {
+nonisolated struct Lobes: Shape {
     var seam: CGFloat
     var depth: CGFloat
     var radius: CGFloat
@@ -142,7 +142,7 @@ struct Lobes: Shape {
 
 /// The neck meets the body only where the body's edge is straight, between the rounded corners of
 /// `radius`.
-struct Neck: Shape {
+nonisolated struct Neck: Shape {
     var tab: CGRect
     var radius: CGFloat
 

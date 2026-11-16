@@ -3,7 +3,7 @@ import KodosiBridge
 import KodosiDesign
 import SwiftUI
 
-enum DosiShelfFit {
+nonisolated enum DosiShelfFit {
     static let spacing: CGFloat = 4
     static let nameWidth: CGFloat = 112
 

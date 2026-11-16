@@ -4,7 +4,6 @@ import KodosiDesign
 import os
 @preconcurrency import UserNotifications
 
-@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     static let minimumWindowSize = NSSize(width: 760, height: 540)
 

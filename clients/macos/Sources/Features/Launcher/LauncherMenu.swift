@@ -25,7 +25,6 @@ enum LauncherMenu: String, Equatable {
         }
     }
 
-    @MainActor
     func rows(_ plan: LaunchPlan, recents: [String], directory: String?, loading: Bool) -> [PickerRow] {
         switch self {
         case .computer:
@@ -99,7 +98,6 @@ enum LauncherMenu: String, Equatable {
     }
 }
 
-@MainActor
 func recentFolders(_ deps: AppDependencies, chosen: String?, saved: [String]) -> [String] {
     let home = deps.storageBootstrap.defaultWorkingDirectory?.path
     var seen = Set([home].compactMap(\.self))

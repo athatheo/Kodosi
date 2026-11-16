@@ -2,7 +2,6 @@ import Foundation
 import KodosiBridge
 import Observation
 
-@MainActor
 @Observable
 final class DesktopSettings {
     private let defaults: UserDefaults

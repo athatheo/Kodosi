@@ -5,7 +5,6 @@ import KodosiDesign
 import KodosiTerminalSessions
 import Observation
 
-@MainActor
 @Observable
 final class AppDependencies {
     enum AppState: Equatable { case launching, ready, error(String), hostOutdated(RuntimeStartFailure) }
