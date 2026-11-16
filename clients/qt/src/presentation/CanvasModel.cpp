@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <utility>
 
 namespace kodosi {
@@ -821,14 +822,18 @@ void CanvasModel::wake(const QString& sessionId)
     act(sessionId, { { QStringLiteral("do"), QStringLiteral("wake") } });
 }
 
-std::optional<QPointF> CanvasModel::browserPoint(QPointF point, QSizeF view, QSizeF browser)
+std::optional<QPointF> CanvasModel::browserPoint(QPointF point, QSizeF view, QSizeF browser, bool clamped)
 {
     if (browser.width() <= 0 || browser.height() <= 0 || view.width() <= 0 || view.height() <= 0)
         return std::nullopt;
     const auto fit = std::min(view.width() / browser.width(), view.height() / browser.height());
     const QPointF origin((view.width() - browser.width() * fit) / 2, (view.height() - browser.height() * fit) / 2);
-    const auto x = (point.x() - origin.x()) / fit;
-    const auto y = (point.y() - origin.y()) / fit;
+    auto x = (point.x() - origin.x()) / fit;
+    auto y = (point.y() - origin.y()) / fit;
+    if (clamped) {
+        x = std::clamp(x, 0.0, std::nextafter(browser.width(), 0.0));
+        y = std::clamp(y, 0.0, std::nextafter(browser.height(), 0.0));
+    }
     if (x < 0 || y < 0 || x >= browser.width() || y >= browser.height())
         return std::nullopt;
     return QPointF(x, y);

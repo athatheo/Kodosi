@@ -14,6 +14,7 @@ Item {
     required property var browser
     property real pressedAt: 0
     property point pressedPoint: Qt.point(0, 0)
+    property int pressedButton: Qt.NoButton
     property int clicks: 0
     readonly property string browserState: browser.state || ""
     readonly property var activeTab: (browser.tabs || []).find(tab => tab.active) || null
@@ -64,6 +65,7 @@ Item {
         clicks = now - pressedAt < 450 && near ? Math.min(3, clicks + 1) : 1;
         pressedAt = now;
         pressedPoint = Qt.point(mouse.x, mouse.y);
+        pressedButton = mouse.button;
         video.pointer("press", mouse.x, mouse.y, mouse.button, clicks, mouse.modifiers);
     }
 
@@ -219,6 +221,7 @@ Item {
                     root.press(mouse);
                 }
                 onReleased: mouse => video.pointer("release", mouse.x, mouse.y, mouse.button, root.clicks, mouse.modifiers)
+                onCanceled: video.pointer("release", root.pressedPoint.x, root.pressedPoint.y, root.pressedButton, root.clicks, 0)
                 onPositionChanged: mouse => {
                     const held = mouse.buttons & Qt.LeftButton ? Qt.LeftButton : mouse.buttons & Qt.RightButton ? Qt.RightButton
                         : mouse.buttons & Qt.MiddleButton ? Qt.MiddleButton : Qt.NoButton;

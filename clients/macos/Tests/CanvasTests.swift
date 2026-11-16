@@ -251,6 +251,14 @@ private func marked(_ name: String?, _ at: UInt64) -> JSONValue? {
     #expect(BrowserFeed.point(CGPoint(x: 75.8, y: 103.3), in: narrow, browser: narrow) == .init(x: 75.8, y: 103.3))
 }
 
+@Test func `a held button keeps its point at the edge of the page`() {
+    let wide = CGSize(width: 1000, height: 500)
+    let browser = CGSize(width: 1280, height: 720)
+    #expect(BrowserFeed.point(CGPoint(x: 10, y: 250), in: wide, browser: browser, clamped: true) == .init(x: 0, y: 360))
+    let below = BrowserFeed.point(CGPoint(x: 1200, y: 900), in: wide, browser: browser, clamped: true)
+    #expect(below.map { $0.x < 1280 && $0.y < 720 && $0.x > 1279 && $0.y > 719 } == true)
+}
+
 @Test func `the agent's point of the browser lands where the person sees it`() {
     let wide = CGSize(width: 1000, height: 500)
     let browser = CGSize(width: 1280, height: 720)

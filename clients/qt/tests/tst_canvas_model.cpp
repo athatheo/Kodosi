@@ -167,6 +167,7 @@ private slots:
         const QSizeF browser(1280, 720);
         QCOMPARE(kodosi::CanvasModel::browserPoint(QPointF(500, 250), wide, browser), QPointF(640, 360));
         QVERIFY(!kodosi::CanvasModel::browserPoint(QPointF(10, 250), wide, browser));
+        QCOMPARE(kodosi::CanvasModel::browserPoint(QPointF(10, 250), wide, browser, true), QPointF(0, 360));
         QCOMPARE(kodosi::CanvasModel::pointInView(QPointF(0, 0), wide, browser), QPointF(55.55555555555554, 0));
     }
 

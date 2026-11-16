@@ -158,6 +158,7 @@ void BrowserVideo::opened(const QString& pipe)
         return;
     m_wait = 1000;
     m_behind = true;
+    m_holding = false;
     m_sentSize = sizeMessage();
     post({ { QStringLiteral("type"), QStringLiteral("watch") }, { QStringLiteral("size"), m_sentSize } });
 }
@@ -272,9 +273,11 @@ QSizeF BrowserVideo::browserSize() const
     return QSizeF(m_window.value(QStringLiteral("width")).toReal(), m_window.value(QStringLiteral("height")).toReal());
 }
 
+// While a button is held, a point beyond the page goes to its nearest edge, so that the page also
+// gets the rest of the drag and its release.
 void BrowserVideo::pointer(const QString& action, qreal x, qreal y, int button, int clicks, int modifiers)
 {
-    const auto at = CanvasModel::browserPoint(QPointF(x, y), size(), browserSize());
+    const auto at = CanvasModel::browserPoint(QPointF(x, y), size(), browserSize(), m_holding);
     if (!at)
         return;
     const bool moving = action == QStringLiteral("move");
