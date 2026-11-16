@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -112,7 +114,7 @@ fun TerminalScreen(model: AppModel, sessionId: String, online: Boolean, back: ()
     val preferences by model.preferences.state.collectAsStateWithLifecycle()
     val news by model.canvas.news.collectAsStateWithLifecycle()
     var composing by rememberSaveable(sessionId) { mutableStateOf(false) }
-    var draft by rememberSaveable(sessionId) { mutableStateOf("") }
+    val draft = rememberSaveable(sessionId, saver = TextFieldState.Saver) { TextFieldState() }
     var renaming by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
     var clipboardAnswer by remember { mutableStateOf<((String) -> Boolean)?>(null) }
@@ -266,10 +268,9 @@ fun TerminalScreen(model: AppModel, sessionId: String, online: Boolean, back: ()
             MessageComposer(
                 draft,
                 false,
-                change = { draft = it },
                 send = {
-                    if (view?.paste(draft, enter = true) == true) {
-                        draft = ""
+                    if (view?.paste(draft.text.toString(), enter = true) == true) {
+                        draft.clearText()
                         composing = false
                         focus.clearFocus()
                         keyboard?.hide()

@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -235,7 +238,12 @@ private fun Conversation(
     val account by model.account.state.collectAsStateWithLifecycle()
     var blocking by remember { mutableStateOf<Person?>(null) }
     var reporting by remember { mutableStateOf<Person?>(null) }
-    var draft by rememberSaveable(projectId) { mutableStateOf(model.projects.drafts[projectId].orEmpty()) }
+    val draft = rememberSaveable(projectId, saver = TextFieldState.Saver) {
+        TextFieldState(model.projects.drafts[projectId].orEmpty())
+    }
+    LaunchedEffect(draft) {
+        snapshotFlow { draft.text.toString() }.collect { model.projects.drafts[projectId] = it }
+    }
     var sending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var earlier by remember { mutableStateOf(false) }
@@ -312,18 +320,14 @@ private fun Conversation(
         MessageComposer(
             draft,
             sending,
-            change = {
-                draft = it
-                model.projects.drafts[projectId] = it
-            },
             send = {
-                val sent = draft
+                val sent = draft.text.toString()
                 sending = true
                 error = null
                 scope.launch {
                     try {
                         model.projects.post(projectId, sent)
-                        if (draft == sent) draft = ""
+                        if (draft.text.toString() == sent) draft.clearText()
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (failure: Exception) {

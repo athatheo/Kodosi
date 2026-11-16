@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -83,7 +86,8 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
         ?: computers.firstOrNull { it.device == state.snapshot?.last?.device } ?: computers.firstOrNull()
     var choosing by remember { mutableStateOf(false) }
     var renewing by remember { mutableStateOf(false) }
-    var draft by rememberSaveable { mutableStateOf(model.dosi.draft) }
+    val draft = rememberTextFieldState(model.dosi.draft)
+    LaunchedEffect(draft) { snapshotFlow { draft.text.toString() }.collect { model.dosi.draft = it } }
     var sending by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -194,18 +198,15 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
             }
         }
         failure?.let { ErrorNote(it, Modifier.padding(horizontal = 12.dp)) }
-        MessageComposer(draft, sending, {
-            draft = it
-            model.dosi.draft = it
-        }, enabled = computer != null && state.connected, send = {
+        MessageComposer(draft, sending, enabled = computer != null && state.connected, send = {
             val chosen = computer ?: return@MessageComposer
-            val sent = draft
+            val sent = draft.text.toString()
             sending = true
             failure = null
             scope.launch {
                 try {
                     model.dosi.send(sent, chosen)
-                    if (draft == sent) draft = ""
+                    if (draft.text.toString() == sent) draft.clearText()
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
