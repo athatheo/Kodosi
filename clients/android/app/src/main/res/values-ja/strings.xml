@@ -293,6 +293,8 @@
     <string name="browser_dialog">ページからの確認</string>
     <string name="choose_file">ファイルを選択</string>
     <string name="browser_menu">ページメニュー</string>
+    <string name="browser_shared">共有中</string>
+    <string name="browser_shared_explained">このターミナルは共有されているため、ブラウザにはあなたとは別のサインイン情報があります。ターミナルの全員がそれを使います。</string>
     <string name="terminal_actions">ターミナルの操作</string>
     <string name="interrupt">中断</string>
     <string name="close_terminal">ターミナルを閉じる</string>

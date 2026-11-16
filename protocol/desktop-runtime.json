@@ -8046,6 +8046,9 @@
                                     }
                                   ]
                                 },
+                                "ownSignIns": {
+                                  "type": "boolean"
+                                },
                                 "problem": {
                                   "anyOf": [
                                     {

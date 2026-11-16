@@ -123,6 +123,22 @@ Item {
                     smooth: true
                 }
             }
+            Tag {
+                readonly property string explanation: qsTr("This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.")
+
+                visible: root.browser.ownSignIns === true
+                text: qsTr("Shared")
+                iconName: "people"
+                objectName: "canvas.browser.shared"
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
+                Accessible.description: explanation
+                ToolTip.visible: sharedHover.hovered
+                ToolTip.text: explanation
+                ToolTip.delay: Tip.delay
+
+                HoverHandler { id: sharedHover }
+            }
             KButton {
                 id: tabsButton
 

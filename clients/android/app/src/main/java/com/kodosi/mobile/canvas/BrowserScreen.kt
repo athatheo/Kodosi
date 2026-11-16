@@ -25,6 +25,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
@@ -116,6 +118,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
     var addressFocused by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<BrowserSurface?>(null) }
     var dialogText by remember { mutableStateOf("") }
+    var explaining by remember { mutableStateOf(false) }
     val feedTabs = window.objects("tabs")
     val tabs = remember(feedTabs, browser.tabs) {
         feedTabs.map {
@@ -222,7 +225,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
             ActionIcon(AppSymbol.REFRESH, R.string.browser_reload, {
                 feed.input(fields("kind" to "reload"))
             }, enabled = awake)
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 Box(Modifier.widthIn(max = 620.dp).fillMaxWidth()) {
                     val addressLabel = stringResource(R.string.browser_address)
                     BasicTextField(
@@ -307,6 +310,18 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                     }
                 }
             }
+            if (browser.ownSignIns) {
+                Row(
+                    Modifier.clip(CircleShape).background(colors.ink.copy(alpha = 0.06f))
+                        .clickable(role = Role.Button) { explaining = true }
+                        .heightIn(min = 36.dp).padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppIcon(AppSymbol.FRIENDS, Modifier.size(11.dp), tint = colors.inkMuted)
+                    Text(stringResource(R.string.browser_shared), style = KodosiType.footnote, color = colors.inkMuted)
+                }
+            }
             ActionIcon(AppSymbol.KEYBOARD, R.string.keyboard, { view?.keyboard() }, enabled = awake)
         }
         window.objects("downloads").firstOrNull { !it.flag("done") }?.let {
@@ -359,6 +374,16 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                 KodosiTextButton(onClick = {
                     feed.input(fields("kind" to "dialog", "accept" to false))
                 }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+    if (explaining) {
+        KodosiDialog(
+            onDismissRequest = { explaining = false },
+            title = { Text(stringResource(R.string.browser_shared)) },
+            text = { Text(stringResource(R.string.browser_shared_explained)) },
+            confirmButton = {
+                KodosiTextButton(onClick = { explaining = false }) { Text(stringResource(R.string.ok)) }
             }
         )
     }

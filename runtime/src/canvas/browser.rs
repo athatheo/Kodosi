@@ -177,6 +177,7 @@ impl Browser {
         stamp: Stamp,
     ) -> Arc<Self> {
         let (width, height) = FIRST_SIZE;
+        let own_sign_ins = *terminal.shared.borrow();
         Arc::new(Self {
             terminal,
             places,
@@ -191,6 +192,7 @@ impl Browser {
                 doing: None,
                 last: None,
                 problem: None,
+                own_sign_ins,
             }),
             stamp,
             commands: tokio::sync::Mutex::new(()),
@@ -509,6 +511,14 @@ impl Browser {
             state.problem = Some(shown);
         });
         problem
+    }
+
+    /// A terminal that becomes shared or private changes the profile of its browser, so the
+    /// browser sleeps and wakes with the other one.
+    pub(super) async fn change_profile(&self) {
+        let shared = *self.terminal.shared.borrow();
+        self.change(|state| state.own_sign_ins = shared);
+        self.sleep().await;
     }
 
     pub(super) async fn sleep(&self) {

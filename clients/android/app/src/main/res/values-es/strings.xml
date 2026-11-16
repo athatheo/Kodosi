@@ -293,6 +293,8 @@
     <string name="browser_dialog">La página pregunta</string>
     <string name="choose_file">Elegir archivo</string>
     <string name="browser_menu">Menú de la página</string>
+    <string name="browser_shared">Compartido</string>
+    <string name="browser_shared_explained">Este terminal está compartido, así que su navegador tiene sus propios inicios de sesión, aparte de los tuyos. Todos en el terminal los usan.</string>
     <string name="terminal_actions">Acciones del terminal</string>
     <string name="interrupt">Interrumpir</string>
     <string name="close_terminal">Cerrar terminal</string>

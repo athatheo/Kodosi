@@ -152,6 +152,8 @@ public struct CanvasBrowser: Decodable, Equatable, Sendable {
     public let doing: BrowserDoing?
     public let last: BrowserAction?
     public let problem: String?
+    /// The terminal is shared, so its browser keeps sign-ins of its own.
+    public let ownSignIns: Bool
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -164,9 +166,10 @@ public struct CanvasBrowser: Decodable, Equatable, Sendable {
         doing = try container.decodeIfPresent(BrowserDoing.self, forKey: .doing)
         last = try container.decodeIfPresent(BrowserAction.self, forKey: .last)
         problem = try container.decodeIfPresent(String.self, forKey: .problem)
+        ownSignIns = try container.decodeIfPresent(Bool.self, forKey: .ownSignIns) ?? false
     }
 
-    private enum CodingKeys: String, CodingKey { case state, changed, tabs, width, height, getting, doing, last, problem }
+    private enum CodingKeys: String, CodingKey { case state, changed, tabs, width, height, getting, doing, last, problem, ownSignIns }
 
     public var activeTab: BrowserTab? {
         tabs.first(where: \.active)

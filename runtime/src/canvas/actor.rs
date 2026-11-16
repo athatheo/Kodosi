@@ -373,7 +373,7 @@ impl Actor {
                 },
                 changed = self.sharing.changed() => {
                     if changed.is_ok() && let Some(browser) = self.existing() {
-                        tokio::spawn(async move { browser.sleep().await });
+                        tokio::spawn(async move { browser.change_profile().await });
                     }
                 }
                 _ = check.tick(), if !self.files.is_empty() => {

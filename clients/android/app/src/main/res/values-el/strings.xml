@@ -293,6 +293,8 @@
     <string name="browser_dialog">Η σελίδα ρωτά</string>
     <string name="choose_file">Επιλογή αρχείου</string>
     <string name="browser_menu">Μενού σελίδας</string>
+    <string name="browser_shared">Κοινόχρηστο</string>
+    <string name="browser_shared_explained">Αυτό το τερματικό είναι κοινόχρηστο, οπότε ο browser του έχει δικές του συνδέσεις, χωριστά από τις δικές σας. Όλοι στο τερματικό τις χρησιμοποιούν.</string>
     <string name="terminal_actions">Ενέργειες τερματικού</string>
     <string name="interrupt">Διακοπή</string>
     <string name="close_terminal">Κλείσιμο τερματικού</string>

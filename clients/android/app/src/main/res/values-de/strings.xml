@@ -293,6 +293,8 @@
     <string name="browser_dialog">Die Seite fragt</string>
     <string name="choose_file">Datei auswählen</string>
     <string name="browser_menu">Seitenmenü</string>
+    <string name="browser_shared">Geteilt</string>
+    <string name="browser_shared_explained">Dieses Terminal ist geteilt, daher hat sein Browser eigene Anmeldungen, getrennt von deinen. Alle im Terminal nutzen sie.</string>
     <string name="terminal_actions">Terminal-Aktionen</string>
     <string name="interrupt">Unterbrechen</string>
     <string name="close_terminal">Terminal schließen</string>

@@ -228,6 +228,9 @@ public struct CanvasBrowserView: View {
                 addressField
             }
             .disabled(browser.state != .awake)
+            if browser.ownSignIns {
+                SharedBrowserKey(height: control - 6)
+            }
             if let failure = feed.failure ?? browser.problem {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.colors.caution).help(failure)
@@ -427,6 +430,40 @@ public struct CanvasBrowserView: View {
         editing = false
         address = target
         feed.send(.open(target))
+    }
+}
+
+private struct SharedBrowserKey: View {
+    @Environment(\.theme) private var theme
+    let height: CGFloat
+    @State private var explaining = false
+
+    private var explanation: String {
+        String(localized: "This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.",
+               bundle: .module)
+    }
+
+    var body: some View {
+        Button { explaining.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.2.fill").font(.system(size: 9, weight: .semibold))
+                Text("Shared", bundle: .module)
+            }
+            .appTextStyle(.footnote).fontWeight(.medium).foregroundStyle(theme.colors.inkMuted)
+            .padding(.horizontal, 9).frame(height: height)
+            .background(Capsule().fill(theme.colors.ink.opacity(0.06)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle())
+        .help(explanation)
+        .popover(isPresented: $explaining) {
+            Text(explanation).appTextStyle(.footnote).foregroundStyle(theme.colors.ink)
+                .fixedSize(horizontal: false, vertical: true).frame(width: 260).padding(14)
+                .presentationCompactAdaptation(.popover)
+        }
+        .accessibilityLabel(Text("Shared", bundle: .module))
+        .accessibilityHint(Text(explanation))
+        .accessibilityIdentifier("canvas.browser.shared")
     }
 }
 
