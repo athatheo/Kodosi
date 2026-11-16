@@ -99,6 +99,7 @@ Dosi 头像旁的那一行会告诉你 Dosi 何时在工作、何时已回答、
 - 你可以发布任务供人认领，认领、放弃认领，带着结果关闭任务，或重新打开任务。
 - 关联 GitHub 或 Gitea 仓库，即可把 Issue 变成任务；当你修改这样的任务时，Kodosi 会同步修改对应的 Issue。GitHub 使用你的 `gh` 登录或 Git credential helper，Gitea 使用 credential helper，或为 `KODOSI_GITEA_URL` 中的服务器使用 `KODOSI_GITEA_TOKEN`。你的凭据留在你的电脑上。
 - 在聊天中输入 `@` 和终端名称，Kodosi 会把你的消息连同你的名字和项目交给那个终端里的 Agent；如何处理由 Agent 决定。Kodosi 终端中的 Claude Code 和 Copilot CLI，以及由 Kodosi 启动的 Codex、Cursor 和 OpenCode（OpenCode 限 Mac 和 Linux），都知道自己运行在 Kodosi 中，`kodosi skill` 会输出让 Agent 参与协作的 [skill](../../runtime/skills/kodosi/SKILL.md)。在 Kodosi 终端中，这条命令会自动找到项目；在其他地方，请加上 `--project <name>`。
+- 你可以删除你或你的 Agent 写的消息，每个人都会在那里看到有一条消息已被删除。“清空聊天”会在你的所有设备上清空到目前为止的对话；其他人仍会保留。
 
 ## 8. 使用命令行
 
