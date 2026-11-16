@@ -69,7 +69,7 @@ version.workspace = true
 
 [features]
 default = ["host"]
-host = ["dep:clap", "dep:documents", "dep:documents-cli", "dep:if-addrs", "dep:kodosi-pty", "dep:pulldown-cmark", "dep:shared-browser", "dep:tar", "shared-browser/host", "tokio/process", "tokio/signal"]
+host = ["dep:clap", "dep:documents", "dep:documents-cli", "dep:if-addrs", "dep:kodosi-pty", "dep:pulldown-cmark", "dep:rusqlite", "dep:shared-browser", "dep:tar", "shared-browser/host", "tokio/process", "tokio/signal"]
 
 [dependencies]
 ghostty-vt = { path = "crates/ghostty-vt" }
@@ -88,7 +88,7 @@ flate2 = { version = "1.1.10", default-features = false, features = ["rust_backe
 futures-util = { workspace = true }
 qrcodegen = "1.8.0"
 reqwest = { workspace = true }
-rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"], optional = true }
 rustls = { version = "0.23.46", default-features = false, features = ["aws-lc-rs", "std"] }
 rustls-platform-verifier = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
