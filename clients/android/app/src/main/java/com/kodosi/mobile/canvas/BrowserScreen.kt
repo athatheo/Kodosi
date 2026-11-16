@@ -41,6 +41,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -111,7 +113,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
     var edited by remember { mutableStateOf(false) }
     var addressFocused by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<BrowserSurface?>(null) }
-    var dialogText by remember { mutableStateOf("") }
+    val dialogText = rememberTextFieldState()
     var explaining by remember { mutableStateOf(false) }
     val feedTabs = window.objects("tabs")
     val tabs = remember(feedTabs, browser.tabs) {
@@ -149,7 +151,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
             model.preferences.browsed(it.string("title").orEmpty(), it.string("address").orEmpty())
         }
     }
-    LaunchedEffect(dialog) { dialogText = dialog?.string("text").orEmpty() }
+    LaunchedEffect(dialog) { dialogText.setTextAndPlaceCursorAtEnd(dialog?.string("text").orEmpty()) }
     LaunchedEffect(feed) {
         feed.copies.collect {
             context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("", it))
@@ -350,7 +352,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
             text = {
                 Column {
                     Text(dialog.string("message").orEmpty())
-                    if (dialog.string("kind") == "prompt") KodosiField(dialogText, { dialogText = it })
+                    if (dialog.string("kind") == "prompt") KodosiField(dialogText)
                 }
             },
             confirmButton = {
@@ -359,7 +361,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                         fields(
                             "kind" to "dialog",
                             "accept" to true,
-                            "text" to dialogText
+                            "text" to dialogText.text.toString()
                         )
                     )
                 }) { Text(stringResource(R.string.ok)) }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -330,7 +332,7 @@ private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String)
 private fun DosiQuestion(model: AppModel, item: DosiItem) {
     val body = item.body
     var choices by rememberSaveable(item.id) { mutableStateOf<Set<String>>(emptySet()) }
-    var own by rememberSaveable(item.id) { mutableStateOf("") }
+    val own = rememberSaveable(item.id, saver = TextFieldState.Saver) { TextFieldState() }
     var sending by remember { mutableStateOf(false) }
     val answered = body["answer"]?.toString()?.takeIf { it != "null" } != null
     val scope = rememberCoroutineScope()
@@ -382,17 +384,16 @@ private fun DosiQuestion(model: AppModel, item: DosiItem) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             KodosiField(
                 own,
-                { own = it },
                 modifier = Modifier.weight(1f),
                 placeholder = stringResource(R.string.your_answer),
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 enabled = !sending,
                 compact = true,
                 textStyle = KodosiType.footnote
             )
-            if (body.flag("multiple") || own.isNotBlank()) {
+            if (body.flag("multiple") || own.text.isNotBlank()) {
                 val values = body.strings("options").filter(choices::contains) +
-                    listOfNotNull(own.trim().takeIf(String::isNotEmpty))
+                    listOfNotNull(own.text.toString().trim().takeIf(String::isNotEmpty))
                 KodosiButton(
                     stringResource(R.string.send),
                     { answer(values) },
