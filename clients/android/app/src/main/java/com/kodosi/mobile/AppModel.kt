@@ -75,10 +75,10 @@ class AppModel(
     val canvas = CanvasStore(commands, words)
     internal val documents = DocumentPages(application, canvas, scope, ::notify)
     val lock = AppLock(preferences)
-    private val mutablePhase = MutableStateFlow<Phase>(Phase.Launching)
-    val phase: StateFlow<Phase> = mutablePhase
-    private val mutableNotices = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    val notices: SharedFlow<String> = mutableNotices
+    val phase: StateFlow<Phase>
+        field = MutableStateFlow<Phase>(Phase.Launching)
+    val notices: SharedFlow<String>
+        field = MutableSharedFlow<String>(extraBufferCapacity = 8)
     private var runtime: RuntimeHandle? = null
     private var consuming: Job? = null
     private var stopping: Job? = null
@@ -128,7 +128,7 @@ class AppModel(
 
     fun retry() {
         stop()
-        mutablePhase.value = Phase.Launching
+        phase.value = Phase.Launching
         accountKnown = false
         accountEpoch = 0
         commands.setAccount(null, 0)
@@ -270,7 +270,7 @@ class AppModel(
         }
         when (event.type.substringBefore('.')) {
             "system" -> if (event.type == "system.ready") {
-                mutablePhase.value = Phase.Ready
+                phase.value = Phase.Ready
                 reportPresence()
                 refresh()
             }
@@ -315,7 +315,7 @@ class AppModel(
     private fun fail(message: String) {
         if (phase.value == Phase.Failed(message)) return
         stop()
-        mutablePhase.value = Phase.Failed(message)
+        phase.value = Phase.Failed(message)
     }
 
     /** Runs away from the main thread; the next start waits for it. */
@@ -336,7 +336,7 @@ class AppModel(
     }
 
     fun notify(message: String) {
-        if (message.isNotEmpty()) mutableNotices.tryEmit(message)
+        if (message.isNotEmpty()) notices.tryEmit(message)
     }
 
     suspend fun runAction(work: suspend () -> Unit) {

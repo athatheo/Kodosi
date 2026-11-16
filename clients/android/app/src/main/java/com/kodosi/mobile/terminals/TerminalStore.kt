@@ -20,20 +20,20 @@ data class TerminalsState(
 )
 
 class TerminalStore(private val commands: CommandSink) {
-    private val mutableState = MutableStateFlow(TerminalsState())
-    val state: StateFlow<TerminalsState> = mutableState
+    val state: StateFlow<TerminalsState>
+        field = MutableStateFlow(TerminalsState())
     private var listing: String? = null
     private var watching: String? = null
 
-    fun session(id: String): RuntimeSession? = mutableState.value.sessions.firstOrNull { it.id == id }
+    fun session(id: String): RuntimeSession? = state.value.sessions.firstOrNull { it.id == id }
 
     fun notificationTarget(id: String): RuntimeSession? {
-        val listed = mutableState.value.sessions.filterNot { it.hidden }
+        val listed = state.value.sessions.filterNot { it.hidden }
         return listed.firstOrNull { it.id == id } ?: listed.firstOrNull { it.restoredFrom == id && it.isOwner }
     }
 
     fun reset() {
-        mutableState.value = TerminalsState()
+        state.value = TerminalsState()
         listing = null
         watching = null
     }
@@ -94,12 +94,12 @@ class TerminalStore(private val commands: CommandSink) {
         ) {
             throw InvalidEvent("a terminal list repeats a terminal")
         }
-        mutableState.update { it.copy(sessions = received, loaded = true) }
+        state.update { it.copy(sessions = received, loaded = true) }
     }
 
     private fun settleList(event: RuntimeEvent) {
         if (listing == null || event.string("requestId") != listing) return
         listing = null
-        mutableState.update { it.copy(listed = true) }
+        state.update { it.copy(listed = true) }
     }
 }

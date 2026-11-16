@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.json.JsonObject
 
 class ProjectStore(private val commands: CommandSink) {
-    private val mutableState = MutableStateFlow(ProjectsState())
-    val state: StateFlow<ProjectsState> = mutableState
+    val state: StateFlow<ProjectsState>
+        field = MutableStateFlow(ProjectsState())
     val drafts = mutableMapOf<String, String>()
     private val seen = mutableMapOf<String, Long>()
     private var userId: String? = null
@@ -23,7 +23,7 @@ class ProjectStore(private val commands: CommandSink) {
     fun reset(userId: String?) {
         generation++
         this.userId = userId
-        mutableState.value = ProjectsState()
+        state.value = ProjectsState()
         drafts.clear()
         seen.clear()
         reading = null
@@ -38,7 +38,7 @@ class ProjectStore(private val commands: CommandSink) {
                 val projects = event.value<List<Project>>("projects")
                 val truncated = event.bool("projectsTruncated") == true
                 val present = projects.map { it.id }.toSet()
-                mutableState.update {
+                state.update {
                     it.copy(
                         projects = projects,
                         invitations = event.value("invitations"),
@@ -56,7 +56,7 @@ class ProjectStore(private val commands: CommandSink) {
     }
 
     private fun apply(next: ProjectSnapshot) {
-        mutableState.update { current ->
+        state.update { current ->
             val previous = current.snapshots[next.projectId]
             val fresh = previous != null && next.messages.any {
                 it.position > (previous.messages.maxOfOrNull { message -> message.position } ?: 0) &&
@@ -80,7 +80,7 @@ class ProjectStore(private val commands: CommandSink) {
         val epoch = generation
         val reply = commands.request("project.open", fields("projectId" to id))
         if (generation != epoch) return
-        mutableState.update {
+        state.update {
             it.copy(
                 details =
                     it.details + (id to ProjectDetail(reply.value("project"), reply.value("members")))
@@ -98,7 +98,7 @@ class ProjectStore(private val commands: CommandSink) {
             seen[id] = position
             commands.perform("project.seen", fields("projectId" to id, "position" to position))
         }
-        mutableState.update {
+        state.update {
             it.copy(
                 unread = it.unread - id,
                 projects = it.projects.map { project ->

@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 class AppLock(private val preferences: AppPreferences) {
-    private val mutableLocked = MutableStateFlow(preferences.state.value.lock)
-    val locked: StateFlow<Boolean> = mutableLocked
+    val locked: StateFlow<Boolean>
+        field = MutableStateFlow(preferences.state.value.lock)
     private var left: Long? = null
     private var asking = false
     private var asked = false
@@ -28,7 +28,7 @@ class AppLock(private val preferences: AppPreferences) {
 
     fun foreground() {
         val now = SystemClock.elapsedRealtime()
-        if (preferences.state.value.lock && left?.let { now - it >= AWAY_MS } == true) mutableLocked.value = true
+        if (preferences.state.value.lock && left?.let { now - it >= AWAY_MS } == true) locked.value = true
         left = null
     }
 
@@ -39,9 +39,9 @@ class AppLock(private val preferences: AppPreferences) {
         try {
             if (!canLock(activity)) {
                 preferences.update { it.copy(lock = false) }
-                mutableLocked.value = false
+                locked.value = false
             } else if (prove(activity)) {
-                mutableLocked.value = false
+                locked.value = false
             }
         } finally {
             asking = false
@@ -51,7 +51,7 @@ class AppLock(private val preferences: AppPreferences) {
     suspend fun enable(activity: Activity, on: Boolean) {
         if (on && (!canLock(activity) || !prove(activity))) return
         preferences.update { it.copy(lock = on) }
-        mutableLocked.value = false
+        locked.value = false
     }
 
     companion object {
