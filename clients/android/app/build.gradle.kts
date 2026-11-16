@@ -451,14 +451,21 @@ dependencies {
     }
 }
 
-val ktlintSources = listOf("src/**/*.kt", "*.kts", "../*.kts")
+// Given globs, ktlint walks their common folder, build output included, while other tasks write there.
+val ktlintSources = files(
+    fileTree("src") { include("**/*.kt") },
+    "build.gradle.kts",
+    "../build.gradle.kts",
+    "../settings.gradle.kts"
+)
 
 tasks.register<JavaExec>("ktlintCheck") {
     description = "Checks the Kotlin style."
     group = "verification"
     classpath = ktlint
     mainClass = "com.pinterest.ktlint.Main"
-    args(ktlintSources)
+    val sources = ktlintSources
+    argumentProviders.add(CommandLineArgumentProvider { sources.map { it.path } })
 }
 
 tasks.register<JavaExec>("ktlintFormat") {
@@ -466,5 +473,6 @@ tasks.register<JavaExec>("ktlintFormat") {
     group = "formatting"
     classpath = ktlint
     mainClass = "com.pinterest.ktlint.Main"
-    args(listOf("-F") + ktlintSources)
+    val sources = ktlintSources
+    argumentProviders.add(CommandLineArgumentProvider { listOf("-F") + sources.map { it.path } })
 }
