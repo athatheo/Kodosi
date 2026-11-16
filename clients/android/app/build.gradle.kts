@@ -382,7 +382,7 @@ androidComponents {
         val jvmNotices = tasks.register<CollectJvmNotices>(
             "collect${variant.name.replaceFirstChar(Char::titlecase)}JvmNotices"
         ) {
-            val runtime = configurations.getByName("${variant.name}RuntimeClasspath")
+            val runtime = variant.runtimeConfiguration
             val components = runtime.incoming.resolutionResult.allComponents
                 .map { it.id }.filterIsInstance<ModuleComponentIdentifier>()
             val metadata = dependencies.createArtifactResolutionQuery().forComponents(components)
