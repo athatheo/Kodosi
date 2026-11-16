@@ -132,14 +132,11 @@ extension BrowserKeys {
                     feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copyLink))
                 })
             }
-            let pasteboard = NSPasteboard.general
-            let pastes = pasteboard.string(forType: .string)?.isEmpty == false
-            native.addItem(MenuAction.item(String(localized: "Paste", bundle: .module), enabled: pastes) {
-                feed.send(.choose(menu: menu.id, choice: nil))
-                if let words = pasteboard.string(forType: .string), !words.isEmpty {
-                    feed.send(.text(words))
-                }
-            })
+            let paste = NSMenuItem(title: String(localized: "Paste", bundle: .module), action: #selector(paste(_:)), keyEquivalent: "")
+            paste.target = self
+            paste.representedObject = menu.id
+            paste.isEnabled = NSPasteboard.general.availableType(from: [.string]) != nil
+            native.addItem(paste)
             if let ask {
                 native.addItem(.separator())
                 native.addItem(MenuAction.item(ask.title) {
@@ -255,7 +252,12 @@ extension BrowserKeys {
             key(event, down: false)
         }
 
-        @objc func paste(_: Any?) {
+        /// macOS asks the person before an app reads the pasteboard, unless one of their pastes
+        /// reads it, so a menu looks only at the type and its Paste is the paste action.
+        @objc func paste(_ sender: Any?) {
+            if let menu = (sender as? NSMenuItem)?.representedObject as? Int {
+                feed.send(.choose(menu: menu, choice: nil))
+            }
             if let text = NSPasteboard.general.string(forType: .string), !text.isEmpty {
                 feed.send(.text(text))
             }
