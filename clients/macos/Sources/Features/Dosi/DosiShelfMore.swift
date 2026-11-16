@@ -13,7 +13,7 @@ private struct DosiMoreChip<List: View>: View {
     let identifier: String
     let glints: Int
     let glintDelay: Double
-    @ViewBuilder let list: () -> List
+    @ContentBuilder let list: () -> List
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
@@ -47,7 +47,7 @@ private struct DosiMoreChip<List: View>: View {
 
 private struct DosiMoreList<Content: View>: View {
     let count: Int
-    @ViewBuilder let content: Content
+    @ContentBuilder let content: Content
 
     var body: some View {
         ScrollView {
@@ -64,8 +64,8 @@ private struct DosiMoreRow<Mark: View, Sign: View>: View {
     let name: String
     let detail: String?
     let selected: Bool
-    @ViewBuilder let mark: () -> Mark
-    @ViewBuilder let sign: () -> Sign
+    @ContentBuilder let mark: () -> Mark
+    @ContentBuilder let sign: () -> Sign
     let action: () -> Void
 
     var body: some View {

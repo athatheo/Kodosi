@@ -16,11 +16,11 @@ struct PanelMenuRow<Trailing: View>: View {
     let identifier: String
     var destructive = false
     let action: () -> Void
-    @ViewBuilder let trailing: () -> Trailing
+    @ContentBuilder let trailing: () -> Trailing
 
     init(
         _ title: Text, icon: PanelMenuIcon, identifier: String, destructive: Bool = false, action: @escaping () -> Void,
-        @ViewBuilder trailing: @escaping () -> Trailing,
+        @ContentBuilder trailing: @escaping () -> Trailing,
     ) {
         self.title = title
         self.icon = icon

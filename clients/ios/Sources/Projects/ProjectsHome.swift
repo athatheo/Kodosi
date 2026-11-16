@@ -73,7 +73,7 @@ struct ProjectsHome: View {
         .navigationDestination(item: $opened) { ProjectScreen(projectId: $0.projectId) }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var invitationsSection: some View {
         if query.isEmpty, !projects.invitations.isEmpty {
             ForEach(projects.invitations) { invitation in
@@ -83,7 +83,7 @@ struct ProjectsHome: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func projectsSection(_ shown: [ProjectEntry]) -> some View {
         ForEach(shown) { project in
             projectCard(project)
@@ -141,7 +141,7 @@ struct ProjectsHome: View {
             .accessibilityIdentifier("projects.row.\(AccessibilityIdentifier.token(project.id))")
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var placeholder: some View {
         if !projects.listed {
             ProjectListSkeleton()

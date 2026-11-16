@@ -118,7 +118,7 @@ struct SessionTileView: View {
         .offlineChoice($choosingOffline, for: [session])
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var terminal: some View {
         if !session.isConnected, deps.unreachable(session) {
             TerminalStateCard(

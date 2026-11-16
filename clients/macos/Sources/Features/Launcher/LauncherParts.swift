@@ -9,8 +9,8 @@ struct LauncherCommandLine<Folder: View, Choices: View>: View {
     let hint: String
     let focus: Int
     let submit: () -> Void
-    @ViewBuilder let folder: () -> Folder
-    @ViewBuilder let choices: () -> Choices
+    @ContentBuilder let folder: () -> Folder
+    @ContentBuilder let choices: () -> Choices
 
     var body: some View {
         FlowLayout(spacing: 6) {

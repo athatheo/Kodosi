@@ -81,7 +81,7 @@ struct DosiSettingsView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var details: some View {
         if let agent {
             picks(agent)

@@ -63,7 +63,7 @@ struct DropSlot: View {
 }
 
 extension View {
-    @ViewBuilder
+    @ContentBuilder
     func terminalDrag(_ session: RuntimeSession, when enabled: Bool = true) -> some View {
         if enabled {
             draggable(TerminalDrag(sessionId: session.id)) { TerminalDragPreview(session: session) }

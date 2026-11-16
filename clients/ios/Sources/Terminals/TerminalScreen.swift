@@ -278,7 +278,7 @@ private struct TerminalScreenContent: View {
             .animation(theme.motion.spring, value: arrival)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func stageContent(_ session: RuntimeSession?) -> some View {
         if let session {
             if session.isConnected, let surface = controller.surface {

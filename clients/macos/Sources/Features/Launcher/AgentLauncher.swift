@@ -213,7 +213,7 @@ struct AgentLauncher: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var folderKey: some View {
         if let computer {
             let places = launcher.places

@@ -192,7 +192,7 @@ struct IssuePicker: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func section(_ repository: ProjectRepository) -> some View {
         let words = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let issues = (deps.projects.issues[repository.id] ?? []).filter {

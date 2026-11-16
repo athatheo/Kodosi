@@ -73,7 +73,7 @@ struct SessionTileHeader: View {
         .padding(.leading, 11).padding(.trailing, canvasOpen ? 6 + CanvasBody.clearance : 6).frame(height: Self.height)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var status: some View {
         if deps.unreachable(session), session.isConnected {
             Text("Offline").appTextStyle(.caption).foregroundStyle(theme.colors.caution).lineLimit(1)

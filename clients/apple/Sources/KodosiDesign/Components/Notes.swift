@@ -158,14 +158,14 @@ public struct EmptyState<Art: View, Actions: View>: View {
     public let title: LocalizedStringKey
     public var message: LocalizedStringKey?
 
-    @ViewBuilder public let art: () -> Art
-    @ViewBuilder public let actions: () -> Actions
+    @ContentBuilder public let art: () -> Art
+    @ContentBuilder public let actions: () -> Actions
 
     public init(
         title: LocalizedStringKey,
         message: LocalizedStringKey? = nil,
-        @ViewBuilder art: @escaping () -> Art,
-        @ViewBuilder actions: @escaping () -> Actions,
+        @ContentBuilder art: @escaping () -> Art,
+        @ContentBuilder actions: @escaping () -> Actions,
     ) {
         self.title = title
         self.message = message
@@ -244,9 +244,9 @@ public struct DashedSlot<Content: View>: View {
     @State private var hovered = false
     public var radius: CGFloat = Radius.xl
 
-    @ViewBuilder public let content: () -> Content
+    @ContentBuilder public let content: () -> Content
 
-    public init(radius: CGFloat = Radius.xl, @ViewBuilder content: @escaping () -> Content) {
+    public init(radius: CGFloat = Radius.xl, @ContentBuilder content: @escaping () -> Content) {
         self.radius = radius
         self.content = content
     }
@@ -276,9 +276,9 @@ public struct TerminalStateCard<Actions: View>: View {
     let title: String
     let message: String?
     let working: Bool
-    @ViewBuilder let actions: () -> Actions
+    @ContentBuilder let actions: () -> Actions
 
-    public init(symbol: String?, title: String, message: String?, working: Bool, @ViewBuilder actions: @escaping () -> Actions) {
+    public init(symbol: String?, title: String, message: String?, working: Bool, @ContentBuilder actions: @escaping () -> Actions) {
         self.symbol = symbol
         self.title = title
         self.message = message

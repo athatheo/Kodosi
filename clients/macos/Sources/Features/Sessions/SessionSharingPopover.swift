@@ -88,7 +88,7 @@ struct SessionSharingPopover: View {
         .onChange(of: deps.accountEpoch) { _, _ in dismiss() }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var choices: some View {
         if !deps.projects.entries.isEmpty {
             VStack(alignment: .leading, spacing: 8) {

@@ -104,7 +104,7 @@ struct FolderPage: View {
         .task { await browser.open(path) }
     }
 
-    private func group(title: String, @ViewBuilder rows: @escaping () -> some View) -> some View {
+    private func group(title: String, @ContentBuilder rows: @escaping () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: title).appTextStyle(.subhead).foregroundStyle(theme.colors.inkMuted)
                 .lineLimit(2).truncationMode(.middle)

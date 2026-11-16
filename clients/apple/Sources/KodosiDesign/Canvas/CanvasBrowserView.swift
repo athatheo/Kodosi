@@ -389,7 +389,7 @@ public struct CanvasBrowserView: View {
         return .handled
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var sleeping: some View {
         switch browser.state {
         case .starting:

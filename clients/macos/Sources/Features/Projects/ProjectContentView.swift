@@ -126,7 +126,7 @@ private struct ProjectTerminals: View {
         .coordinateSpace(.named(Self.space))
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func pair(_ current: RuntimeSession) -> some View {
         let open = workspace.showsCanvas && deps.canvas.showsSomething(current)
         CanvasStage(canvas: open ? current : nil, front: current.id, wide: $workspace.canvasWide,
@@ -212,7 +212,7 @@ private struct ProjectTerminals: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func removeButton(_ session: RuntimeSession) -> some View {
         if session.isOwner {
             Button("Remove from project") { remove(session) }

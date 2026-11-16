@@ -62,7 +62,7 @@ struct BrowserPartsLayer: View {
             .accessibilityIdentifier("canvas.browser.menu")
         }
 
-        @ViewBuilder
+        @ContentBuilder
         private func contextRows(_ menu: BrowserWindow.Menu, _ context: BrowserWindow.MenuContext) -> some View {
             row(MenuRow(title: String(localized: "Copy", bundle: .module), symbol: "doc.on.doc"), enabled: !context.selection.isEmpty) {
                 feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copySelection))

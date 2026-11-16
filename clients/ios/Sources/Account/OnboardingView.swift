@@ -93,7 +93,7 @@ struct OnboardingView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var stageContent: some View {
         switch account.stage {
         case .idle, .signedIn:
@@ -116,8 +116,8 @@ struct OnboardingView: View {
 struct StageColumns<Lead: View, Trail: View>: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     var spacing: CGFloat = 24
-    @ViewBuilder let lead: () -> Lead
-    @ViewBuilder let trail: () -> Trail
+    @ContentBuilder let lead: () -> Lead
+    @ContentBuilder let trail: () -> Trail
 
     var body: some View {
         let layout = verticalSizeClass == .compact
@@ -232,7 +232,7 @@ private struct FeatureRow<Mark: View>: View {
     @Environment(\.theme) private var theme
     let title: LocalizedStringKey
     let detail: LocalizedStringKey
-    @ViewBuilder let mark: () -> Mark
+    @ContentBuilder let mark: () -> Mark
 
     var body: some View {
         HStack(spacing: 14) {

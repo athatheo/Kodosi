@@ -136,7 +136,7 @@ struct ProjectInfoSheet: View {
         .animation(theme.motion.spring, value: failure)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var inviteSection: some View {
         let candidates = projects.invitable(model.people.friends, to: projectId)
         ListGroup(title: "Invite friends") {

@@ -55,7 +55,7 @@ struct EffortMeter: View {
         .accessibilityIdentifier(identifier)
     }
 
-    private func segment(_ effort: String?, label: String, @ViewBuilder content: () -> some View) -> some View {
+    private func segment(_ effort: String?, label: String, @ContentBuilder content: () -> some View) -> some View {
         let selected = effort == current
         return Button { pick(effort) } label: {
             content()

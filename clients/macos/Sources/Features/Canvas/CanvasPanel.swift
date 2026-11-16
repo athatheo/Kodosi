@@ -56,7 +56,7 @@ struct CanvasStage<Terminal: View>: View {
     @State private var shownFront: String?
 
     init(canvas: RuntimeSession?, front: String?, wide: Binding<Bool>, width: Binding<CGFloat?>, tab: CGRect? = nil,
-         always: Bool = false, hide: @escaping () -> Void, @ViewBuilder terminal: () -> Terminal)
+         always: Bool = false, hide: @escaping () -> Void, @ContentBuilder terminal: () -> Terminal)
     {
         self.canvas = canvas
         self.front = front
@@ -232,7 +232,7 @@ struct CanvasPanel: View {
         .padding(.leading, wide ? 7 : 7 + CanvasBody.clearance).padding(.trailing, 6).frame(height: CanvasBody.band)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func actions(_ item: CanvasItem) -> some View {
         if !item.missing {
             Button("Save a Copy…", systemImage: "square.and.arrow.down") { save(item) }
@@ -244,7 +244,7 @@ struct CanvasPanel: View {
         Button("Remove from Canvas", systemImage: "xmark") { remove([item.key]) }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func progress(_ current: CanvasShown?) -> some View {
         if let current, let part = deps.canvas.read(current.key, in: session.id) {
             GeometryReader { geometry in

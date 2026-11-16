@@ -6,7 +6,7 @@ public struct ScanCodeCard<Content: View>: View {
     @Environment(\.theme) private var theme
     private let content: Content
 
-    public init(@ViewBuilder content: () -> Content) {
+    public init(@ContentBuilder content: () -> Content) {
         self.content = content()
     }
 

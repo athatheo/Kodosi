@@ -111,9 +111,9 @@ private struct DosiShelfRow<Item: Identifiable, Chip: View, More: View, Trailing
     let items: [Item]
     let widths: [CGFloat]
     let estimate: CGFloat
-    @ViewBuilder let chip: (Item, Int, CGFloat) -> Chip
-    @ViewBuilder let more: ([Item], Int) -> More
-    @ViewBuilder let trailing: () -> Trailing
+    @ContentBuilder let chip: (Item, Int, CGFloat) -> Chip
+    @ContentBuilder let more: ([Item], Int) -> More
+    @ContentBuilder let trailing: () -> Trailing
     @State private var room: CGFloat = 0
 
     var body: some View {

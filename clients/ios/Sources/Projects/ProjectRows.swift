@@ -32,7 +32,7 @@ struct ProjectListCard: View {
         .animation(theme.motion.snappy, value: project.unread)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func preview(_ last: ProjectMessage?) -> some View {
         if let last {
             let author = model.projects.isOwn(last) ? String(localized: "You") : last.agent ?? last.authorName

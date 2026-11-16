@@ -73,7 +73,7 @@ struct AppShell: View {
         .onChange(of: terminalsInteractive, initial: true) { _, open in workbench.stageTakesKeys = open }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var destination: some View {
         let workbench = deps.workbench
         switch workbench.section {
@@ -140,7 +140,7 @@ struct AppShell: View {
         return workbench.launcher == nil ? nil : .launcher
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func sheetLayer(_ sheet: Sheet) -> some View {
         let workbench = deps.workbench
         switch sheet {

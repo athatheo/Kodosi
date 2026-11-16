@@ -392,7 +392,7 @@ struct ConversationKey: View {
         .accessibilityIdentifier("project.conversation.toggle")
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var face: some View {
         if let last, let terminal = last.terminalId.flatMap(deps.session) {
             AgentMark(session: terminal, size: 20, activity: terminal.mark(rested: .awake))

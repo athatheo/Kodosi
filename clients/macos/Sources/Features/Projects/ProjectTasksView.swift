@@ -48,7 +48,7 @@ struct ProjectTasksView: View {
         .showsProjectPart(.tasks, of: state)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func lane(_ lane: ProjectTaskLaneTitle.Lane, tasks: [ProjectTask]) -> some View {
         if !tasks.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
@@ -223,7 +223,7 @@ private struct ProjectTaskCard: View {
         .animation(theme.motion.hover, value: hovered)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var trailing: some View {
         if let person = task.assignedName {
             PersonAvatar(name: person, key: task.assignedTo, size: 24, isSelf: mine).help(person)
