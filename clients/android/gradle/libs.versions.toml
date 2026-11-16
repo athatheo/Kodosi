@@ -2,7 +2,7 @@
 agp = "9.5.1"
 kotlin = "2.4.21"
 composeBom = "2026.09.00"
-coreKtx = "1.19.1"
+core = "1.19.1"
 activityCompose = "1.13.0"
 lifecycle = "2.11.0"
 browser = "1.10.0"
@@ -28,7 +28,7 @@ zxing = "3.5.4"
 work = "2.12.0"
 
 [libraries]
-androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-core = { module = "androidx.core:core", version.ref = "core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
