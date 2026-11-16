@@ -284,8 +284,7 @@ abstract class CollectJvmNotices @Inject constructor(private val files: FileSyst
         checkNotNull(verifier) { "Package the Android certificate verifier's MIT license." }
         verifier.copyTo(directory.resolve("rustls-platform-verifier-MIT.txt"), overwrite = true)
         archives.files.sortedBy { it.name }.forEach { archive ->
-            val digest = MessageDigest.getInstance("SHA-256").digest(archive.readBytes())
-                .take(6).joinToString("") { "%02x".format(it) }
+            val digest = MessageDigest.getInstance("SHA-256").digest(archive.readBytes()).toHexString(endIndex = 6)
             val prefix = "${archive.name}-$digest"
             ZipFile(archive).use { zip ->
                 zip.entries().asSequence().filterNot { it.isDirectory }.forEach { entry ->

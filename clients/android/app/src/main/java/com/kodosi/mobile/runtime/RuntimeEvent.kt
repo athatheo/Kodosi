@@ -1,6 +1,7 @@
 package com.kodosi.mobile.runtime
 
 import java.security.SecureRandom
+import kotlin.uuid.Uuid
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -65,9 +66,7 @@ object UuidV7 {
         }
         bytes[6] = ((bytes[6].toInt() and 0x0F) or 0x70).toByte()
         bytes[8] = ((bytes[8].toInt() and 0x3F) or 0x80).toByte()
-        val hex = bytes.joinToString("") { "%02x".format(it) }
-        return "${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-" +
-            "${hex.substring(16, 20)}-${hex.substring(20)}"
+        return Uuid.fromByteArray(bytes).toHexDashString()
     }
 }
 
