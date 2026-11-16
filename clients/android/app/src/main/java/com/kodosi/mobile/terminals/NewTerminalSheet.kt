@@ -25,8 +25,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
@@ -49,6 +52,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -109,7 +117,7 @@ fun NewTerminalSheet(model: AppModel, request: NewTerminalRequest, dismiss: () -
     val chosen = account.computers.firstOrNull { it.deviceId == computer } ?: account.computers.firstOrNull()
     val launcher = remember(chosen?.deviceId) { chosen?.let { Launcher(model.commands, it.deviceId) } }
     val state = launcher?.state?.collectAsStateWithLifecycle()?.value
-    var prompt by rememberSaveable { mutableStateOf("") }
+    val prompt = rememberTextFieldState()
     var folder by rememberSaveable(chosen?.deviceId) {
         mutableStateOf(request.folder ?: chosen?.deviceId?.let(model.preferences::launchFolder))
     }
@@ -228,7 +236,7 @@ fun NewTerminalSheet(model: AppModel, request: NewTerminalRequest, dismiss: () -
                     }
                     if (agent != null) {
                         item {
-                            FirstPrompt(agent, prompt, { prompt = it }, !busy)
+                            FirstPrompt(agent, prompt, !busy)
                         }
                     }
                     failure?.let { error ->
@@ -254,7 +262,7 @@ fun NewTerminalSheet(model: AppModel, request: NewTerminalRequest, dismiss: () -
                         failure = null
                         scope.launch {
                             try {
-                                launcher.start(unnamed, folder, prompt, request.project)?.let { id ->
+                                launcher.start(unnamed, folder, prompt.text.toString(), request.project)?.let { id ->
                                     model.preferences.launched(launcher.computer, folder)
                                     dismiss()
                                     started(id)
@@ -315,7 +323,7 @@ private fun ProgramChoice(kind: AgentKind, selected: Boolean, enabled: Boolean, 
 }
 
 @Composable
-private fun FirstPrompt(agent: AgentInfo, prompt: String, change: (String) -> Unit, enabled: Boolean) {
+internal fun FirstPrompt(agent: AgentInfo, prompt: TextFieldState, enabled: Boolean) {
     KodosiTheme(dark = true) {
         val colors = KodosiTheme.colors
         val focus = LocalFocusManager.current
@@ -335,20 +343,24 @@ private fun FirstPrompt(agent: AgentInfo, prompt: String, change: (String) -> Un
                 )
             }
             BasicTextField(
-                prompt, { words ->
-                    change(words.replace('\n', ' ').replace('\r', ' '))
-                    if ('\n' in words || '\r' in words) focus.clearFocus()
-                },
-                enabled = enabled, maxLines = 6,
+                prompt,
+                enabled = enabled,
+                inputTransformation = LineBreaksAsSpaces,
+                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 6),
                 textStyle = KodosiType.mono.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.accent),
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+                onKeyboardAction = { focus.clearFocus() },
                 modifier = (if (stacked) Modifier.fillMaxWidth() else Modifier.weight(1f))
+                    .onPreviewKeyEvent { event ->
+                        val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                        if (enter && event.type == KeyEventType.KeyDown) focus.clearFocus()
+                        enter
+                    }
                     .semantics { contentDescription = label },
-                decorationBox = { input ->
+                decorator = { input ->
                     Box {
-                        if (prompt.isEmpty()) {
+                        if (prompt.text.isEmpty()) {
                             Text(
                                 stringResource(R.string.type_task),
                                 style = KodosiType.mono,
@@ -360,6 +372,12 @@ private fun FirstPrompt(agent: AgentInfo, prompt: String, change: (String) -> Un
                 }
             )
         }
+    }
+}
+
+private val LineBreaksAsSpaces = InputTransformation {
+    for (index in 0 until length) {
+        if (charAt(index) == '\n' || charAt(index) == '\r') replace(index, index + 1, " ")
     }
 }
 
