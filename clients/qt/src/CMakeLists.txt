@@ -435,7 +435,6 @@ target_link_libraries(kodosi-qt
         Qt6::Gui
         Qt6::Qml
         Qt6::Quick
-        Qt6::QuickControls2
         Qt6::WebChannelQuick
         Qt6::Widgets
         kodosi-desktop-integration

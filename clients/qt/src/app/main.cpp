@@ -31,7 +31,6 @@
 #include <QApplication>
 #include <QProcess>
 #include <QQmlApplicationEngine>
-#include <QQuickStyle>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSystemTrayIcon>
@@ -91,7 +90,6 @@ int main(int argc, char* argv[])
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "windows:altgr");
 #endif
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
     kodosi::CanvasWeb::registerScheme();
     QtWebEngineQuick::initialize();
     QApplication app(argc, argv);

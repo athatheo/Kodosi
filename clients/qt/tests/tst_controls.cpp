@@ -166,7 +166,7 @@ void ControlsTest::keyboardFocusTracksButtonState()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             width: 640; height: 240; visible: true
@@ -211,7 +211,7 @@ void ControlsTest::modalControlsSuppressNativeTerminalAccessibility()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         import Kodosi.Models 1.0 as Models
         ApplicationWindow {
@@ -264,7 +264,7 @@ void ControlsTest::clipboardReadAnswersOnceTheTerminalTakesInputAgain()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         import Kodosi.Models 1.0 as Models
         ApplicationWindow {
@@ -318,7 +318,7 @@ void ControlsTest::terminalLinkDialogAsksOrTellsWhyAndCopiesTheLink()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             id: window
@@ -421,7 +421,7 @@ void ControlsTest::terminalTilesAskBeforeAClipboardReadOnlyInAnotherPersonsTermi
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             width: 720; height: 480; visible: true
@@ -501,7 +501,7 @@ void ControlsTest::agentMenuShowsChoicesThatNeverChanged()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             width: 720; height: 480; visible: true
@@ -576,7 +576,7 @@ void ControlsTest::terminalCloseConfirmsAndMinimizeOnlyHidesView()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             width: 720; height: 480; visible: true
@@ -690,7 +690,7 @@ void ControlsTest::leavingTerminalsLeavesNoDeferredWork()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         import Kodosi.Models 1.0 as Models
         ApplicationWindow {
@@ -763,7 +763,7 @@ void ControlsTest::projectCreationHasOneNameField()
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi 1.0
         ApplicationWindow {
             width: 720; height: 480; visible: true
