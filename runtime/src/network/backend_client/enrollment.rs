@@ -110,7 +110,7 @@ impl BackendClient {
 
     pub(super) async fn device_events(&self) -> Result<Vec<Value>> {
         let credentials = self.credentials()?;
-        let offered = self.settle_offer(&credentials).await;
+        self.settle_offer(&credentials).await;
         let devices = if self.pinned(&credentials.user_id).await? {
             match self
                 .fetch_identity_with(&credentials, &credentials.user_id)
@@ -146,8 +146,14 @@ impl BackendClient {
                 .collect::<Vec<_>>();
             result.push(json!({"type":"devices.link.snapshot","requests":requests}));
         }
-        result.extend(offered);
         Ok(result)
+    }
+
+    pub(super) async fn device_events_after_change(&self) -> Vec<Value> {
+        self.device_events().await.unwrap_or_else(|error| {
+            tracing::warn!(%error, "the devices were not read after a change; the next notice of a change reads them");
+            Vec::new()
+        })
     }
 
     async fn reapproval_credentials(&self) -> Result<Credentials> {
@@ -669,9 +675,9 @@ impl BackendClient {
         Ok(())
     }
 
-    async fn settle_offer(&self, credentials: &Credentials) -> Vec<Value> {
+    async fn settle_offer(&self, credentials: &Credentials) {
         let Some(offer) = self.inner.state.lock().await.offer.clone() else {
-            return Vec::new();
+            return;
         };
         let asked = self.link_requests(credentials).await.and_then(|requests| {
             let unseen = requests
@@ -694,28 +700,28 @@ impl BackendClient {
                 {
                     current.refused = requests.into_iter().map(|request| request.proof).collect();
                 }
-                return Vec::new();
+                return;
             }
             Err(error) => {
                 tracing::warn!(%error, "the devices that ask for approval were not read for the shown code");
-                return Vec::new();
+                return;
             }
         };
-        match self.approve(credentials, pending).await {
+        let outcome = match self.approve(credentials, pending).await {
             Ok(label) => {
-                self.end_offer(&offer).await;
-                vec![
-                    json!({"type":"devices.link.offerResolved","outcome":"approved","deviceLabel":label}),
-                ]
+                json!({"type":"devices.link.offerResolved","outcome":"approved","deviceLabel":label})
             }
-            Err(error) if error.unanswered() || !error.user_facing() => Vec::new(),
+            Err(error) if error.unanswered() || !error.user_facing() => return,
             Err(error) => {
-                self.end_offer(&offer).await;
-                vec![
-                    json!({"type":"devices.link.offerResolved","outcome":"cancelled","message":error.text()}),
-                ]
+                json!({"type":"devices.link.offerResolved","outcome":"cancelled","message":error.text()})
             }
-        }
+        };
+        self.end_offer(&offer).await;
+        self.emit_for(
+            credentials.generation,
+            Some(credentials.user_id.clone()),
+            outcome,
+        );
     }
 
     async fn approve(&self, credentials: &Credentials, pending: LinkedDevice) -> Result<String> {
@@ -750,7 +756,9 @@ impl BackendClient {
                 Some(body),
             )
             .await?;
-        self.fetch_identity(&credentials.user_id).await?;
+        if let Err(error) = self.fetch_identity(&credentials.user_id).await {
+            tracing::warn!(%error, "the devices were not read after an approval; they will be read again");
+        }
         #[cfg(feature = "host")]
         self.review_access().await?;
         Ok(pending.label)
