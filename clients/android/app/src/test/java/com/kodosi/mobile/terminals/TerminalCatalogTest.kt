@@ -39,6 +39,18 @@ class TerminalCatalogTest {
     )
 
     @Test
+    fun keepsTheNameAsTitleWhileTheSecondLineSaysAState() {
+        val agent = session("Dusk Viper").copy(program = "claude", activity = "Fix the sign-in")
+
+        assertEquals("Fix the sign-in" to "Dusk Viper", agent.cardLines(online = true, summaryFirst = true))
+        assertEquals(
+            "Dusk Viper" to "Fix the sign-in",
+            agent.copy(status = RuntimeSession.Status.OFFLINE).cardLines(online = true, summaryFirst = true)
+        )
+        assertEquals("Dusk Viper" to "Fix the sign-in", agent.cardLines(online = false, summaryFirst = true))
+    }
+
+    @Test
     fun keepsAgentIdentityInHumanReadableMessageAndBrowserNames() {
         assertEquals(AgentKind.COPILOT, AgentKind.named("Copilot CLI"))
         assertEquals(AgentKind.CLAUDE, AgentKind.named("Claude Code"))

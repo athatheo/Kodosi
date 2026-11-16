@@ -253,12 +253,7 @@ fun TerminalCard(
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                val summary = session.activity
-                val (title, detail) = if (summaryFirst && summary != null && session.agent.isAgent) {
-                    summary to session.name
-                } else {
-                    session.name to summary
-                }
+                val (title, detail) = session.cardLines(online, summaryFirst)
                 Text(
                     title,
                     style = KodosiType.subhead,
@@ -277,26 +272,43 @@ fun TerminalCard(
     }
 }
 
+internal enum class CaptionState { OFFLINE, TROUBLED, RECONNECTING, CLOSING, NOTICE }
+
+internal fun RuntimeSession.captionState(online: Boolean): CaptionState? {
+    val troubled = isTroubled || connectionState == RuntimeSession.Connection.CONNECTING
+    val reconnecting = status == RuntimeSession.Status.RECONNECTING
+    val closing = status == RuntimeSession.Status.CLOSING
+    return when {
+        unreachable(online) && (isConnected || troubled || reconnecting || closing) -> CaptionState.OFFLINE
+        troubled -> CaptionState.TROUBLED
+        reconnecting -> CaptionState.RECONNECTING
+        closing -> CaptionState.CLOSING
+        message != null && isConnected -> CaptionState.NOTICE
+        else -> null
+    }
+}
+
+/** While the second line says a state, the name stays the title, so that the card still names its terminal. */
+internal fun RuntimeSession.cardLines(online: Boolean, summaryFirst: Boolean): Pair<String, String?> {
+    val summary = activity?.takeIf { summaryFirst && agent.isAgent && captionState(online) == null }
+    return if (summary != null) summary to name else name to activity
+}
+
 @Composable
 fun TerminalCaption(session: RuntimeSession, online: Boolean, detail: String? = session.activity) {
     val colors = KodosiTheme.colors
-    val troubled = session.isTroubled || session.connectionState == RuntimeSession.Connection.CONNECTING
-    val reconnecting = session.status == RuntimeSession.Status.RECONNECTING
-    val closing = session.status == RuntimeSession.Status.CLOSING
-    val notice = session.message?.takeIf { session.isConnected }
-    val (words, color) = when {
-        session.unreachable(online) && (session.isConnected || troubled || reconnecting || closing) ->
-            stringResource(R.string.offline) to colors.caution
+    val (words, color) = when (session.captionState(online)) {
+        CaptionState.OFFLINE -> stringResource(R.string.offline) to colors.caution
 
-        troubled -> statusLabel(session) to if (session.isTroubled) colors.caution else colors.inkFaint
+        CaptionState.TROUBLED -> statusLabel(session) to if (session.isTroubled) colors.caution else colors.inkFaint
 
-        reconnecting -> stringResource(R.string.reconnecting) to colors.caution
+        CaptionState.RECONNECTING -> stringResource(R.string.reconnecting) to colors.caution
 
-        closing -> statusLabel(session) to colors.inkFaint
+        CaptionState.CLOSING -> statusLabel(session) to colors.inkFaint
 
-        notice != null -> notice to colors.caution
+        CaptionState.NOTICE -> session.message.orEmpty() to colors.caution
 
-        else -> (detail ?: session.folderName ?: agentLabel(session.agent)) to
+        null -> (detail ?: session.folderName ?: agentLabel(session.agent)) to
             if (detail == null) colors.inkFaint else colors.inkMuted
     }
     Text(words, style = KodosiType.footnote, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
