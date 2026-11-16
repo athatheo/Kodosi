@@ -280,8 +280,7 @@ fn rename(name: &str, rule: Option<&str>, variant: bool) -> Result<String> {
             let mut chars = name.chars();
             let mut result = chars
                 .next()
-                .map(|first| first.to_ascii_lowercase().to_string())
-                .unwrap_or_default();
+                .map_or_default(|first| first.to_ascii_lowercase().to_string());
             result.extend(chars);
             Ok(result)
         }

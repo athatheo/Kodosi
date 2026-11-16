@@ -1,3 +1,8 @@
+#![expect(
+    clippy::empty_enums,
+    reason = "serde derives an enum without variants for a variant without fields that denies unknown fields, and Clippy lints derived code"
+)]
+
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;

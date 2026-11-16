@@ -572,16 +572,13 @@ impl Engine {
         let to_tab = |tab: i64, event: Event| {
             self.routes()
                 .sender_of_tab(tab)
-                .map(|sender| vec![(sender, event)])
-                .unwrap_or_default()
+                .map_or_default(|sender| vec![(sender, event)])
         };
         match said {
             FromEngine::Failed { window, problem } => {
                 tracing::warn!(%problem, "the capture stopped");
                 let sender = self.routes().windows.get(&window).cloned();
-                sender
-                    .map(|sender| vec![(sender, Event::CaptureFailed)])
-                    .unwrap_or_default()
+                sender.map_or_default(|sender| vec![(sender, Event::CaptureFailed)])
             }
             FromEngine::Shape { tab, shape } => to_tab(tab, Event::Shape(shape)),
             FromEngine::Menu {
@@ -673,7 +670,7 @@ async fn follow(
                 if let Some(Report::Said(FromEngine::Tabs { tabs, .. })) = &report {
                     engine.attach_new(tabs);
                 }
-                report.map(|report| engine.report(report)).unwrap_or_default()
+                report.map_or_default(|report| engine.report(report))
             }
         };
         for (sender, event) in deliveries {

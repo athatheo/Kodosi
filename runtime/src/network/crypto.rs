@@ -116,9 +116,7 @@ pub(crate) fn terminal_project_preimage(
     sequence: u64,
     device_id: &str,
 ) -> Result<Vec<u8>> {
-    let project = project
-        .map(|project| project.to_string())
-        .unwrap_or_default();
+    let project = project.map_or_default(|project| project.to_string());
     signed_fields(
         b"kodosi-terminal-room-v2",
         &[

@@ -918,8 +918,7 @@ pub(crate) async fn runner(
         }
         (Some((_, variable)), _) => facts
             .variable(variable)
-            .map(|value| vec![(variable.to_owned(), value.to_owned())])
-            .unwrap_or_default(),
+            .map_or_default(|value| vec![(variable.to_owned(), value.to_owned())]),
         (None, _) => Vec::new(),
     };
     Some(Runner {

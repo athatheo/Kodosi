@@ -163,20 +163,16 @@ fn cells_of(op: &Op) -> Vec<(String, u32, u32)> {
             .map(|(row, column)| (sheet.clone(), row, column))
             .into_iter()
             .collect(),
-        Op::SetRange { sheet, start, rows } => parse_cell(start)
-            .map(|(top, left)| {
-                let width = rows.iter().map(Vec::len).max().unwrap_or(1).max(1);
-                let bottom = top + u32::try_from(rows.len().max(1) - 1).unwrap_or(0);
-                let right = left + u32::try_from(width - 1).unwrap_or(0);
-                range(sheet, [top, left, bottom, right])
-            })
-            .unwrap_or_default(),
+        Op::SetRange { sheet, start, rows } => parse_cell(start).map_or_default(|(top, left)| {
+            let width = rows.iter().map(Vec::len).max().unwrap_or(1).max(1);
+            let bottom = top + u32::try_from(rows.len().max(1) - 1).unwrap_or(0);
+            let right = left + u32::try_from(width - 1).unwrap_or(0);
+            range(sheet, [top, left, bottom, right])
+        }),
         Op::ClearRange { sheet, range: name }
         | Op::FormatRange {
             sheet, range: name, ..
-        } => parse_range(name)
-            .map(|bounds| range(sheet, bounds))
-            .unwrap_or_default(),
+        } => parse_range(name).map_or_default(|bounds| range(sheet, bounds)),
         _ => Vec::new(),
     }
 }

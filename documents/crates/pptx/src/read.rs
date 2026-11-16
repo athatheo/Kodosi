@@ -606,10 +606,10 @@ fn last_shape(root: Xml<'_, '_>) -> u64 {
 }
 
 fn inherited(master: Option<&str>, layout: Option<&str>) -> Inherited {
-    let [title, body, other] = master.map(text_styles).unwrap_or_default();
+    let [title, body, other] = master.map_or_default(text_styles);
     Inherited {
-        master: master.map(placeholders).unwrap_or_default(),
-        layout: layout.map(placeholders).unwrap_or_default(),
+        master: master.map_or_default(placeholders),
+        layout: layout.map_or_default(placeholders),
         title,
         body,
         other,
@@ -657,8 +657,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
         let layout_xml = layout.as_ref().and_then(|name| package.text(name));
         let layout_relations = layout
             .as_ref()
-            .map(|name| package.relations(name))
-            .unwrap_or_default();
+            .map_or_default(|name| package.relations(name));
         let master = linked_part(&layout_relations, MASTER_KIND);
         let master_xml = master.as_ref().and_then(|name| package.text(name));
         if first_master.is_none() {

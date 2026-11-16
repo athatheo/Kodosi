@@ -127,8 +127,7 @@ fn folder_name(path: &Path, usual: &str, program: &str) -> String {
     let short = |path: &Path| {
         let name = path
             .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+            .map_or_default(|name| name.to_string_lossy().into_owned());
         name.strip_prefix(usual)
             .and_then(|rest| rest.strip_prefix(['-', '_']))
             .filter(|rest| !rest.is_empty())

@@ -151,24 +151,21 @@ pub(super) fn listed_values(help: &str, flag: &str) -> Vec<String> {
                 .and_then(|(_, rest)| rest.split_once(')'))
                 .map(|(inner, _)| inner)
         });
-    inner
-        .map(|inner| {
-            inner
-                .split(',')
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default()
+    inner.map_or_default(|inner| {
+        inner
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .collect()
+    })
 }
 
 fn efforts(help: Option<&str>, agent: Agent) -> Vec<AgentOption> {
     let Some((flag, _)) = agent.effort_flag() else {
         return Vec::new();
     };
-    help.map(|help| listed_values(help, flag))
-        .unwrap_or_default()
+    help.map_or_default(|help| listed_values(help, flag))
         .iter()
         .filter_map(|id| effort(agent, id))
         .collect()

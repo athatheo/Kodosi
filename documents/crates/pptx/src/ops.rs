@@ -289,8 +289,7 @@ fn replace_in_tree(tree: &Node, find: &str, with: &str) -> Result<Vec<Value>, St
             .node_at(from)
             .ok()
             .flatten()
-            .map(|node| node.marks().to_vec())
-            .unwrap_or_default();
+            .map_or_default(|node| node.marks().to_vec());
         let slice = if with.is_empty() {
             Slice::empty()
         } else {

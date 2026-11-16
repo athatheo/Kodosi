@@ -36,7 +36,7 @@ impl ProjectCache {
             .get(&project)
             .and_then(|cached| cached.states.last_key_value())
             .and_then(|(_, state)| state.identities.get(&credentials.user_id))
-            .map(|identity| {
+            .map_or_default(|identity| {
                 identity
                     .devices
                     .keys()
@@ -44,7 +44,6 @@ impl ProjectCache {
                     .cloned()
                     .collect()
             })
-            .unwrap_or_default()
     }
 
     fn dosi_records(

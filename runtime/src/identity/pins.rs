@@ -122,8 +122,7 @@ impl Pins {
     pub(crate) fn revoked(&self, user_id: &str) -> BTreeSet<String> {
         self.pins
             .get(user_id)
-            .map(|pin| pin.revoked.clone())
-            .unwrap_or_default()
+            .map_or_default(|pin| pin.revoked.clone())
     }
 
     pub(crate) fn is_revoked(&self, user_id: &str, device_id: &str) -> bool {
@@ -424,7 +423,7 @@ impl Pins {
             )?;
             validate_bootstrap_chain(device_id, &bodies)?;
         }
-        let mut revoked = existing.map(|p| p.revoked.clone()).unwrap_or_default();
+        let mut revoked = existing.map_or_default(|p| p.revoked.clone());
         revoked.extend(bodies.keys().filter(|id| !entries.contains(*id)).cloned());
         if let Some(pin) = existing {
             revoked.extend(

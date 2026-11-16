@@ -279,8 +279,7 @@ async fn review(
     }
     let connected = viewers
         .lock()
-        .map(|viewers| viewers.values().cloned().collect::<Vec<_>>())
-        .unwrap_or_default();
+        .map_or_default(|viewers| viewers.values().cloned().collect::<Vec<_>>());
     let mut identities = BTreeMap::new();
     for viewer in connected {
         if !allowed(publication, credentials, &viewer.user).await {

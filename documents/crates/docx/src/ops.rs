@@ -404,8 +404,7 @@ fn marks_at(doc: &Node, position: usize) -> Vec<Mark> {
     doc.node_at(position)
         .ok()
         .flatten()
-        .map(|node| node.marks().to_vec())
-        .unwrap_or_default()
+        .map_or_default(|node| node.marks().to_vec())
 }
 
 fn replace_text_steps(

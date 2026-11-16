@@ -285,15 +285,14 @@ wrap_download_image_callback! {
 
     impl DownloadImageCallback {
         fn on_download_image_finished(&self, image_url: Option<&CefString>, _http_status_code: c_int, image: Option<&mut Image>) {
-            let address = image_url.map(CefString::to_string).unwrap_or_default();
+            let address = image_url.map_or_default(CefString::to_string);
             let png = image
                 .and_then(|image| image.as_png(1.0, 1, None, None))
-                .map(|png| {
+                .map_or_default(|png| {
                     let mut bytes = vec![0; png.size()];
                     png.data(Some(&mut bytes), 0);
                     bytes
-                })
-                .unwrap_or_default();
+                });
             engine::with(|engine| engine.icon(self.tab, &address, &png));
         }
     }
@@ -361,7 +360,7 @@ fn take_dialog(
     let (Some(tab), Some(callback)) = (id_of(browser), callback) else {
         return false;
     };
-    let words = |text: Option<&CefString>| text.map(CefString::to_string).unwrap_or_default();
+    let words = |text: Option<&CefString>| text.map_or_default(CefString::to_string);
     let dialog = Dialog {
         kind,
         message: words(message),

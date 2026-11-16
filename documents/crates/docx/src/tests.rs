@@ -101,15 +101,12 @@ fn attrs_of(model: &Model, name: &str) -> Vec<Value> {
 }
 
 fn mark_names(node: &Value) -> Vec<&str> {
-    node["marks"]
-        .as_array()
-        .map(|marks| {
-            marks
-                .iter()
-                .map(|mark| mark["type"].as_str().unwrap())
-                .collect()
-        })
-        .unwrap_or_default()
+    node["marks"].as_array().map_or_default(|marks| {
+        marks
+            .iter()
+            .map(|mark| mark["type"].as_str().unwrap())
+            .collect()
+    })
 }
 
 const THREE: &str = r#"<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p><w:p w:rsidR="00AB"><w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:lang w:val="el-GR"/></w:rPr><w:t xml:space="preserve">bold words </w:t></w:r><w:r><w:t>and plain</w:t></w:r><w:bookmarkStart w:id="1" w:name="x"/></w:p><w:p><w:r><w:t>Last</w:t></w:r></w:p>"#;

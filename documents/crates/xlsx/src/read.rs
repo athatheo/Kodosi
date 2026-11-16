@@ -304,24 +304,20 @@ fn color_of(color: Option<Xml<'_, '_>>) -> Option<String> {
 fn read_looks(text: &str) -> Result<Vec<Look>, Unreadable> {
     let parsed = Document::parse(text).map_err(broken)?;
     let root = parsed.root_element();
-    let fonts: Vec<Xml<'_, '_>> = local(root, "fonts")
-        .map(|fonts| locals(fonts, "font").collect())
-        .unwrap_or_default();
-    let fills: Vec<Xml<'_, '_>> = local(root, "fills")
-        .map(|fills| locals(fills, "fill").collect())
-        .unwrap_or_default();
-    let number_formats: BTreeMap<&str, &str> = local(root, "numFmts")
-        .map(|formats| {
-            locals(formats, "numFmt")
-                .filter_map(|format| {
-                    Some((
-                        format.attribute("numFmtId")?,
-                        format.attribute("formatCode")?,
-                    ))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let fonts: Vec<Xml<'_, '_>> =
+        local(root, "fonts").map_or_default(|fonts| locals(fonts, "font").collect());
+    let fills: Vec<Xml<'_, '_>> =
+        local(root, "fills").map_or_default(|fills| locals(fills, "fill").collect());
+    let number_formats: BTreeMap<&str, &str> = local(root, "numFmts").map_or_default(|formats| {
+        locals(formats, "numFmt")
+            .filter_map(|format| {
+                Some((
+                    format.attribute("numFmtId")?,
+                    format.attribute("formatCode")?,
+                ))
+            })
+            .collect()
+    });
     let Some(formats) = local(root, "cellXfs") else {
         return Ok(Vec::new());
     };

@@ -33,7 +33,7 @@ edition = "2024"
 license = "Apache-2.0"
 name = "documents-app"
 publish = false
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 version = "0.1.0"
 
 [[bin]]

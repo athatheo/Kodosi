@@ -179,7 +179,7 @@ fn simple(
         action,
         target: Some(DosiTarget {
             kind,
-            value: value.map(short).unwrap_or_default(),
+            value: value.map_or_default(short),
         }),
         text: text.map(|text| short(&text)),
     })

@@ -344,7 +344,7 @@ impl<'input> Reader<'_, 'input> {
         id: Option<&str>,
     ) -> Result<Node, text::Failed> {
         let properties = word_child(element, "pPr");
-        let look = properties.map(paragraph_look).unwrap_or_default();
+        let look = properties.map_or_default(paragraph_look);
         let props = properties
             .and_then(|node| own_properties(node, self.xml_of(node)))
             .filter(|own| *own != look_properties(&look))
