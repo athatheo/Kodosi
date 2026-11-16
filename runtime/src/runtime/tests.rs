@@ -2417,6 +2417,7 @@ async fn hosted(runtime: &mut Runtime, folder: &Path) -> (Uuid, TerminalSession)
             wanted: None,
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            account_folder: None,
             marked: watch::channel(None).0,
         },
     );
@@ -3687,6 +3688,7 @@ async fn a_restored_terminal_rejoins_its_project_for_its_account_and_leaves_a_re
             wanted: restore::Sharing::of(Some(&"owner".to_owned()), Some(&chosen), &[]),
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            account_folder: None,
             marked: watch::channel(None).0,
         },
     );
@@ -3933,6 +3935,7 @@ async fn a_working_agent_gets_the_project_message_that_names_its_terminal_unless
             wanted: None,
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            account_folder: None,
             marked: watch::channel(None).0,
         },
     );
@@ -4418,6 +4421,7 @@ async fn a_change_of_the_agent_waits_for_its_next_prompt_and_types_its_own_comma
             wanted: None,
             conversation: restore::Conversation::default(),
             changed: crate::agents::AgentSettings::default(),
+            account_folder: None,
             marked: watch::channel(None).0,
         },
     );
@@ -4650,17 +4654,17 @@ async fn one_more_terminal_like_another_starts_its_agent_with_its_account_and_ch
         permissions: Some(permissions),
         output: None,
     };
-    let runs = |runtime: &mut Runtime, account_place, pending: AgentSettings| {
+    let runs = |runtime: &mut Runtime, account: &str, pending: AgentSettings| {
+        runtime.local.get_mut(&agent).unwrap().account_folder = Some(home.join(account));
         let entry = &mut runtime.local.get_mut(&agent).unwrap().entry;
         entry.program = Some("claude".to_owned());
-        entry.program_account = Some(account_place);
         entry.program_settings = Some(settings("opus", Some("low"), Permissions::Unrestricted));
         entry.program_pending = Some(pending);
     };
 
     runs(
         &mut runtime,
-        1,
+        ".claude-work",
         AgentSettings {
             effort: Some("max".to_owned()),
             ..AgentSettings::default()
@@ -4679,7 +4683,7 @@ async fn one_more_terminal_like_another_starts_its_agent_with_its_account_and_ch
 
     runs(
         &mut runtime,
-        0,
+        ".claude",
         AgentSettings {
             model: Some("sonnet".to_owned()),
             ..AgentSettings::default()
@@ -4691,6 +4695,17 @@ async fn one_more_terminal_like_another_starts_its_agent_with_its_account_and_ch
         typed(&default).await,
         "claude --model sonnet --dangerously-skip-permissions\n",
         "a new model that waits runs at its own effort"
+    );
+
+    let entry = &mut runtime.local.get_mut(&agent).unwrap().entry;
+    entry.program_settings = Some(settings("opus[1m]", None, Permissions::Unrestricted));
+    entry.program_pending = None;
+    let by_hand = folder("by-hand");
+    started(&mut runtime, &by_hand, Some(agent)).await;
+    assert_eq!(
+        typed(&by_hand).await,
+        "claude --model sonnet --dangerously-skip-permissions\n",
+        "a model that Kodosi cannot start stays the last choice"
     );
 
     let shell_only = folder("shell");
@@ -4732,7 +4747,7 @@ async fn one_more_terminal_like_another_starts_its_agent_with_its_account_and_ch
             "{field}"
         );
     }
-    assert_eq!(runtime.local.len(), 5, "a refused terminal does not start");
+    assert_eq!(runtime.local.len(), 6, "a refused terminal does not start");
     for local in runtime.local.values() {
         drop(local.terminal.close().await);
     }

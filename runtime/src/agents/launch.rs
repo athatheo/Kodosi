@@ -41,14 +41,14 @@ pub(crate) struct Launch {
 
 pub(crate) struct RunningAgent {
     pub(crate) agent: Agent,
-    pub(crate) account_place: Option<u8>,
+    pub(crate) account_folder: Option<PathBuf>,
     pub(crate) settings: Option<AgentSettings>,
     pub(crate) pending: Option<AgentSettings>,
 }
 
 impl RunningAgent {
     /// What Kodosi does not know of the running agent stays the launcher's last choice.
-    pub(super) fn start(self, accounts: &[AgentAccount]) -> AgentStart {
+    pub(super) fn start(self, accounts: &[AgentAccount], home: &Path) -> AgentStart {
         let pending = self.pending.unwrap_or_default();
         let known = self.settings.is_some();
         let settings = self.settings.unwrap_or_default();
@@ -61,8 +61,8 @@ impl RunningAgent {
         AgentStart {
             agent: self.agent,
             account: self
-                .account_place
-                .and_then(|place| accounts.get(usize::from(place)))
+                .account_folder
+                .and_then(|folder| accounts.get(super::accounts::place(accounts, home, &folder)))
                 .map(|account| account.name.clone()),
             model: pending.model.or_else(|| known_or_own(settings.model)),
             effort,
@@ -204,13 +204,41 @@ impl Launcher {
         }
     }
 
+    /// A model or effort that Kodosi cannot start, such as one that a person typed, stays the
+    /// launcher's last choice.
     pub(crate) async fn start_like(&self, running: RunningAgent) -> AgentStart {
         let catalog = self.known_catalog(false).await.ok();
         let accounts = catalog
             .as_ref()
             .and_then(|catalog| agent_info(catalog, running.agent))
             .map_or(&[][..], |info| info.accounts.as_slice());
-        running.start(accounts)
+        let mut start = running.start(accounts, &self.home);
+        let models = self.known_models(start.agent, start.model.as_deref()).await;
+        let listed = |id: &str| models.models.iter().find(|model| model.id == id);
+        if start
+            .model
+            .as_deref()
+            .is_some_and(|id| !id.is_empty() && listed(id).is_none())
+        {
+            start.model = None;
+        }
+        let model = match start.model.as_deref() {
+            Some(id) => listed(id),
+            None => self
+                .state()
+                .saved
+                .choice
+                .pick(start.agent)
+                .model
+                .as_deref()
+                .and_then(listed),
+        };
+        if start.effort.as_deref().is_some_and(|id| {
+            !id.is_empty() && !efforts(&models, model).any(|effort| effort.id == id)
+        }) {
+            start.effort = None;
+        }
+        start
     }
 
     pub(crate) async fn line(self: &Arc<Self>, start: &AgentStart) -> Result<Launch, String> {
