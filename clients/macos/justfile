@@ -17,12 +17,12 @@ apple-test:
 
 # Lint the Swift sources of the Mac app and of the shared Swift package.
 lint:
-    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift --lint --swiftversion 6.3
+    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift --lint
     swiftlint lint --quiet Sources Tests ../apple/Sources ../apple/Tests
 
 # Format the Swift sources of the Mac app and of the shared Swift package.
 format:
-    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift --swiftversion 6.3
+    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift
 
 # Test the shared Swift package and the Mac app.
 test: xcode-gen apple-test

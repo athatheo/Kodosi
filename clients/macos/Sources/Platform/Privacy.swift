@@ -79,7 +79,7 @@ final class PrivacyGuide {
     static let shared = PrivacyGuide()
 
     private var panel: GuidePanel?
-    private var activation: (any NSObjectProtocol)?
+    private var activation: any NSObjectProtocol?
 
     var isShowing: Bool {
         panel != nil
