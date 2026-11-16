@@ -213,6 +213,29 @@ fn a_formula_uses_the_names_of_the_workbook_and_keeps_what_it_cannot_work_out() 
 }
 
 #[test]
+fn a_workbook_that_counts_days_from_1904_gets_a_date_in_its_count() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="C1"><f>DATE(2020,1,1)</f><v>0</v></c>"#,
+    );
+    let workbook = WORKBOOK.replace("<sheets>", r#"<workbookPr date1904="1"/><sheets>"#);
+    let mut model = read(&xlsx_file_with(&sheet, &workbook, STYLES));
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert_eq!(cell_value(&model, "C1"), 42369.0);
+}
+
+#[test]
+fn formulas_in_a_loop_keep_their_values() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="C1"><f>D1</f><v>7</v></c><c r="D1"><f>C1</f><v>7</v></c>"#,
+    );
+    let mut model = read(&xlsx_file_with(&sheet, WORKBOOK, STYLES));
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert_eq!(cell_value(&model, "C1"), 7.0);
+}
+
+#[test]
 fn new_text_keeps_the_shared_strings_as_they_are() {
     let file = xlsx_file();
     let mut model = read(&file);

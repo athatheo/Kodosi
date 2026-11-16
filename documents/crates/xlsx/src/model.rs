@@ -109,6 +109,8 @@ pub struct Model {
     pub(crate) names: Vec<DefinedName>,
     /// The highest sheet number so far, so that a new sheet never takes a removed one's.
     pub(crate) last_number: u32,
+    /// Whether the file counts days from 1904, as Excel for Mac once did, rather than from 1900.
+    pub(crate) dates_from_1904: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

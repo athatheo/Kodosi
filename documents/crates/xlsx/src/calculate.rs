@@ -1,5 +1,9 @@
+use std::time::Duration;
+
 use formualizer::{
+    DateSystem,
     common::{ExcelError, ExcelErrorKind, LiteralValue, RangeAddress},
+    eval::engine::{EvaluationProgress, EvaluationStop},
     workbook::{NamedRangeScope, Workbook, WorkbookConfig},
 };
 
@@ -8,8 +12,11 @@ use crate::{
     model::{Model, Value},
 };
 
-/// A formula that the engine cannot work out, such as one with a function that it does not know,
-/// keeps its value.
+const CALCULATION_TIME: Duration = Duration::from_secs(5);
+
+/// A formula that the engine cannot work out, such as one with a function that it does not know
+/// or one in a loop, keeps its value. So does each formula of a workbook that the engine cannot
+/// work out in time, so that a heavy or a hostile file does not hold up its document.
 pub(crate) fn calculated(model: &Model) -> Model {
     let mut current = model.clone();
     let formulas = model
@@ -22,12 +29,13 @@ pub(crate) fn calculated(model: &Model) -> Model {
     let Some(book) = workbook(model) else {
         return current;
     };
+    let dates = date_system(model);
     for sheet in &mut current.sheets {
         for (&(row, column), cell) in &mut sheet.cells {
             if cell.formula.is_some()
                 && let Some(value) = book
                     .get_value(&sheet.name, row + 1, column + 1)
-                    .and_then(value_of)
+                    .and_then(|value| value_of(value, dates))
             {
                 cell.value = Some(value);
             }
@@ -36,8 +44,18 @@ pub(crate) fn calculated(model: &Model) -> Model {
     current
 }
 
+const fn date_system(model: &Model) -> DateSystem {
+    if model.dates_from_1904 {
+        DateSystem::Excel1904
+    } else {
+        DateSystem::Excel1900
+    }
+}
+
 fn workbook(model: &Model) -> Option<Workbook> {
-    let mut book = Workbook::new_with_config(WorkbookConfig::ephemeral());
+    let mut config = WorkbookConfig::ephemeral();
+    config.eval = config.eval.with_date_system(date_system(model));
+    let mut book = Workbook::new_with_config(config);
     for sheet in &model.sheets {
         book.add_sheet(&sheet.name).ok()?;
     }
@@ -63,8 +81,10 @@ fn workbook(model: &Model) -> Option<Workbook> {
             }
         }
     }
-    book.evaluate_all().ok()?;
-    Some(book)
+    let progress = book
+        .evaluate_all_until(EvaluationStop::after(CALCULATION_TIME))
+        .ok()?;
+    matches!(progress, EvaluationProgress::Complete(_)).then_some(book)
 }
 
 fn address(text: &str) -> Option<RangeAddress> {
@@ -89,13 +109,10 @@ fn literal(value: &Value) -> LiteralValue {
     clippy::cast_precision_loss,
     reason = "a sheet keeps each number as a double"
 )]
-fn value_of(value: LiteralValue) -> Option<Value> {
-    Some(match value {
+fn value_of(value: LiteralValue, dates: DateSystem) -> Option<Value> {
+    Some(match value.finite_or_num_error() {
         LiteralValue::Int(number) => Value::Number(number as f64),
-        LiteralValue::Number(number) if number.is_finite() => Value::Number(number),
-        LiteralValue::Number(_) => Value::Error {
-            error: ExcelErrorKind::Num.to_string(),
-        },
+        LiteralValue::Number(number) => Value::Number(number),
         LiteralValue::Text(text) => Value::Text(text),
         LiteralValue::Boolean(on) => Value::Bool(on),
         LiteralValue::Empty => Value::Number(0.0),
@@ -105,10 +122,13 @@ fn value_of(value: LiteralValue) -> Option<Value> {
                 .next()?
                 .into_iter()
                 .next()
-                .and_then(value_of);
+                .and_then(|value| value_of(value, dates));
         }
         LiteralValue::Error(error)
-            if matches!(error.kind, ExcelErrorKind::Name | ExcelErrorKind::NImpl) =>
+            if matches!(
+                error.kind,
+                ExcelErrorKind::Name | ExcelErrorKind::NImpl | ExcelErrorKind::Circ
+            ) =>
         {
             return None;
         }
@@ -116,6 +136,6 @@ fn value_of(value: LiteralValue) -> Option<Value> {
             error: error.kind.to_string(),
         },
         LiteralValue::Pending => return None,
-        temporal => Value::Number(temporal.as_serial_number()?),
+        temporal => Value::Number(temporal.as_serial_number_for(dates)?),
     })
 }

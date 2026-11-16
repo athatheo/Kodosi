@@ -95,11 +95,15 @@ pub(crate) fn read(file: &[u8]) -> Result<Model, Unreadable> {
         .map(|text| read_looks(&text))
         .transpose()?
         .unwrap_or_default();
+    let dates_from_1904 = local(workbook.root_element(), "workbookPr")
+        .and_then(|properties| properties.attribute("date1904"))
+        .is_some_and(|value| matches!(value, "1" | "true"));
     Ok(Model {
         sheets,
         looks,
         names,
         last_number,
+        dates_from_1904,
     })
 }
 
