@@ -58,18 +58,18 @@ void ControlsTest::theSharedBrowserPictureStopsWhileTheWindowIsAway()
     kodosi::CanvasModel canvas(commands, sessions);
     kodosi::CanvasDocuments documents(commands, sessions);
     kodosi::DesktopFileIntegration files;
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::CanvasModelForeign::instance = &canvas;
-    kodosi::qml::CanvasDocumentsForeign::instance = &documents;
-    kodosi::qml::DesktopFileIntegrationForeign::instance = &files;
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::CanvasModelForeign>(engine, canvas);
+    kodosi::qml::provide<kodosi::qml::CanvasDocumentsForeign>(engine, documents);
+    kodosi::qml::provide<kodosi::qml::DesktopFileIntegrationForeign>(engine, files);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -112,14 +112,14 @@ void ControlsTest::messageTextKeepsSpacesEscapesMarkupAndSkipsYourself()
         std::make_unique<QSettings>(directory.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat));
     kodosi::SessionCatalogModel sessions;
     kodosi::Workspace workspace(commands, sessions, desktop, settings);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -161,8 +161,8 @@ void ControlsTest::keyboardFocusTracksButtonState()
     kodosi::AppearanceModel appearance(
         std::make_unique<QSettings>(directory.filePath(QStringLiteral("appearance.ini")), QSettings::IniFormat),
         { [] { return Qt::ColorScheme::Dark; }, [](Qt::ColorScheme) {}, [] {} });
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -204,10 +204,10 @@ void ControlsTest::modalControlsSuppressNativeTerminalAccessibility()
         { [] { return Qt::ColorScheme::Dark; }, [](Qt::ColorScheme) {}, [] {} });
     kodosi::DesktopStateModel desktop(
         std::make_unique<QSettings>(directory.filePath(QStringLiteral("desktop.ini")), QSettings::IniFormat));
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
     kodosi::installTerminalAccessibility();
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -258,9 +258,9 @@ void ControlsTest::clipboardReadAnswersOnceTheTerminalTakesInputAgain()
         { [] { return Qt::ColorScheme::Dark; }, [](Qt::ColorScheme) {}, [] {} });
     kodosi::DesktopStateModel desktop(
         std::make_unique<QSettings>(directory.filePath(QStringLiteral("desktop.ini")), QSettings::IniFormat));
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -312,9 +312,9 @@ void ControlsTest::terminalLinkDialogAsksOrTellsWhyAndCopiesTheLink()
         { [] { return Qt::ColorScheme::Dark; }, [](Qt::ColorScheme) {}, [] {} });
     kodosi::DesktopStateModel desktop(
         std::make_unique<QSettings>(directory.filePath(QStringLiteral("desktop.ini")), QSettings::IniFormat));
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -402,22 +402,22 @@ void ControlsTest::terminalTilesAskBeforeAClipboardReadOnlyInAnotherPersonsTermi
     kodosi::TerminalSessionRegistry registry;
     kodosi::RuntimeBridge runtime;
     kodosi::TerminalSurfaceController surfaces(registry, runtime, sessions);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
-    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
-    kodosi::qml::TerminalSurfaceControllerForeign::instance = &surfaces;
     kodosi::CanvasModel canvas(commands, sessions);
-    kodosi::qml::CanvasModelForeign::instance = &canvas;
     workspace.apply(test::snapshot({test::session(1), test::session(2, true, false)}), 0);
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::DevicesModelForeign>(engine, workspace.devices());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::DosiModelForeign>(engine, workspace.dosi());
+    kodosi::qml::provide<kodosi::qml::SessionActionsModelForeign>(engine, workspace.sessionActions());
+    kodosi::qml::provide<kodosi::qml::TerminalSurfaceControllerForeign>(engine, surfaces);
+    kodosi::qml::provide<kodosi::qml::CanvasModelForeign>(engine, canvas);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -470,21 +470,7 @@ void ControlsTest::agentMenuShowsChoicesThatNeverChanged()
     kodosi::TerminalSessionRegistry registry;
     kodosi::RuntimeBridge runtime;
     kodosi::TerminalSurfaceController surfaces(registry, runtime, sessions);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
-    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
-    kodosi::qml::AgentLauncherModelForeign::instance = &launcher;
-    kodosi::qml::TerminalSurfaceControllerForeign::instance = &surfaces;
     kodosi::CanvasModel canvas(commands, sessions);
-    kodosi::qml::CanvasModelForeign::instance = &canvas;
     const auto running = [](const QString& program, QJsonArray livePermissions, QJsonObject chosen) {
         auto entry = test::session(1);
         entry.insert(QStringLiteral("program"), program);
@@ -498,6 +484,20 @@ void ControlsTest::agentMenuShowsChoicesThatNeverChanged()
                         { { QStringLiteral("output"), QStringLiteral("standard") } }) }),
         0);
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::DevicesModelForeign>(engine, workspace.devices());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::DosiModelForeign>(engine, workspace.dosi());
+    kodosi::qml::provide<kodosi::qml::SessionActionsModelForeign>(engine, workspace.sessionActions());
+    kodosi::qml::provide<kodosi::qml::AgentLauncherModelForeign>(engine, launcher);
+    kodosi::qml::provide<kodosi::qml::TerminalSurfaceControllerForeign>(engine, surfaces);
+    kodosi::qml::provide<kodosi::qml::CanvasModelForeign>(engine, canvas);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -556,23 +556,23 @@ void ControlsTest::terminalCloseConfirmsAndMinimizeOnlyHidesView()
     kodosi::TerminalSessionRegistry registry;
     kodosi::RuntimeBridge runtime;
     kodosi::TerminalSurfaceController surfaces(registry, runtime, sessions);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
-    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
-    kodosi::qml::TerminalSurfaceControllerForeign::instance = &surfaces;
     kodosi::CanvasModel canvas(commands, sessions);
-    kodosi::qml::CanvasModelForeign::instance = &canvas;
     workspace.apply(test::snapshot({test::session(1)}), 0);
     QVERIFY(workspace.sessionActions().activate(test::id(1)));
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::DevicesModelForeign>(engine, workspace.devices());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::DosiModelForeign>(engine, workspace.dosi());
+    kodosi::qml::provide<kodosi::qml::SessionActionsModelForeign>(engine, workspace.sessionActions());
+    kodosi::qml::provide<kodosi::qml::TerminalSurfaceControllerForeign>(engine, surfaces);
+    kodosi::qml::provide<kodosi::qml::CanvasModelForeign>(engine, canvas);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -667,26 +667,26 @@ void ControlsTest::leavingTerminalsLeavesNoDeferredWork()
     kodosi::TerminalSessionRegistry registry;
     kodosi::RuntimeBridge runtime;
     kodosi::TerminalSurfaceController surfaces(registry, runtime, sessions);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
-    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
-    kodosi::qml::AgentLauncherModelForeign::instance = &launcher;
-    kodosi::qml::DesktopFileIntegrationForeign::instance = &files;
-    kodosi::qml::TerminalTilingLayoutModelForeign::instance = &tiling;
-    kodosi::qml::TerminalSurfaceControllerForeign::instance = &surfaces;
     kodosi::CanvasModel canvas(commands, sessions);
-    kodosi::qml::CanvasModelForeign::instance = &canvas;
     workspace.apply(test::snapshot({test::session(1)}), 0);
     QVERIFY(workspace.sessionActions().activate(test::id(1)));
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::DevicesModelForeign>(engine, workspace.devices());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::DosiModelForeign>(engine, workspace.dosi());
+    kodosi::qml::provide<kodosi::qml::SessionActionsModelForeign>(engine, workspace.sessionActions());
+    kodosi::qml::provide<kodosi::qml::AgentLauncherModelForeign>(engine, launcher);
+    kodosi::qml::provide<kodosi::qml::DesktopFileIntegrationForeign>(engine, files);
+    kodosi::qml::provide<kodosi::qml::TerminalTilingLayoutModelForeign>(engine, tiling);
+    kodosi::qml::provide<kodosi::qml::TerminalSurfaceControllerForeign>(engine, surfaces);
+    kodosi::qml::provide<kodosi::qml::CanvasModelForeign>(engine, canvas);
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
@@ -745,21 +745,21 @@ void ControlsTest::projectCreationHasOneNameField()
     kodosi::SessionCatalogModel sessions;
     desktop.attachSessionCatalog(&sessions);
     kodosi::Workspace workspace(commands, sessions, desktop, settings);
-    kodosi::qml::AppearanceModelForeign::instance = &appearance;
-    kodosi::qml::DesktopStateModelForeign::instance = &desktop;
-    kodosi::qml::DesktopSettingsForeign::instance = &settings;
-    kodosi::qml::SessionCatalogModelForeign::instance = &sessions;
-    kodosi::qml::AppStateForeign::instance = &workspace;
-    kodosi::qml::AccountModelForeign::instance = &workspace.account();
-    kodosi::qml::PeopleModelForeign::instance = &workspace.people();
-    kodosi::qml::DevicesModelForeign::instance = &workspace.devices();
-    kodosi::qml::ProjectsModelForeign::instance = &workspace.projects();
-    kodosi::qml::DosiModelForeign::instance = &workspace.dosi();
-    kodosi::qml::SessionActionsModelForeign::instance = &workspace.sessionActions();
     workspace.apply({ {QStringLiteral("type"), QStringLiteral("auth.ready")},
         {QStringLiteral("userId"), test::id(50)} }, 1);
     commands.values.clear();
     QQmlEngine engine;
+    kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
+    kodosi::qml::provide<kodosi::qml::DesktopStateModelForeign>(engine, desktop);
+    kodosi::qml::provide<kodosi::qml::DesktopSettingsForeign>(engine, settings);
+    kodosi::qml::provide<kodosi::qml::SessionCatalogModelForeign>(engine, sessions);
+    kodosi::qml::provide<kodosi::qml::AppStateForeign>(engine, workspace);
+    kodosi::qml::provide<kodosi::qml::AccountModelForeign>(engine, workspace.account());
+    kodosi::qml::provide<kodosi::qml::PeopleModelForeign>(engine, workspace.people());
+    kodosi::qml::provide<kodosi::qml::DevicesModelForeign>(engine, workspace.devices());
+    kodosi::qml::provide<kodosi::qml::ProjectsModelForeign>(engine, workspace.projects());
+    kodosi::qml::provide<kodosi::qml::DosiModelForeign>(engine, workspace.dosi());
+    kodosi::qml::provide<kodosi::qml::SessionActionsModelForeign>(engine, workspace.sessionActions());
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
