@@ -52,7 +52,10 @@ set(KODOSI_MSIX_PUBLISHER "CN=Kodosi Development, OID.2.25.311729368913984317654
     CACHE STRING "MSIX publisher, equal to the signing certificate subject")
 
 function(kodosi_install app)
-    set_target_properties(${app} PROPERTIES WIN32_EXECUTABLE ON)
+    set_target_properties(${app} PROPERTIES
+        WIN32_EXECUTABLE ON
+        QT_WINDOWS_APP_PROJECT_IDENTIFIER com.kodosi.Kodosi
+    )
     configure_file(
         "${PROJECT_SOURCE_DIR}/packaging/windows/Kodosi.rc.in"
         "${PROJECT_BINARY_DIR}/Kodosi.rc"
