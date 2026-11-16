@@ -127,7 +127,7 @@ final class AppDependencies {
         guard eventTask == nil else { return }
         startShortcuts()
         let currentInbox = inbox
-        eventTask = Task { @MainActor [weak self] in
+        eventTask = Task(name: "Runtime events") { @MainActor [weak self] in
             while !Task.isCancelled, self?.runtimeHandle.isRunning == false {
                 try? await Task.sleep(for: .milliseconds(10))
             }

@@ -9,7 +9,7 @@ extension TerminalSessionManager {
         let renderer = managed.renderer
         let resizeDelivery = managed.resizeDelivery
         let controls = managed.controls
-        managed.controlTask = Task { @MainActor [weak self, token] in
+        managed.controlTask = Task(name: "Terminal controls \(sessionId)") { @MainActor [weak self, token] in
             while let data = await controls.next() {
                 guard !Task.isCancelled, token.isActive, self?.sessions[sessionId]?.token === token else { return }
                 self?.handleControlFrame(data, sessionId: sessionId, token: token, resizeDelivery: resizeDelivery)
