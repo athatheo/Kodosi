@@ -480,7 +480,7 @@ fn slide_list(
     let entries: HashMap<&str, Xml<'_, '_>> = list
         .children()
         .filter(Xml::is_element)
-        .filter_map(|entry| Some((entry.attribute("id")?, entry)))
+        .filter_map(|entry| Some((read::slide_id(entry)?, entry)))
         .collect();
     let relations_xml = package
         .text(PRESENTATION_RELATIONS)

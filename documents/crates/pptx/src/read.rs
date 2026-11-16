@@ -25,6 +25,15 @@ pub(crate) fn local<'a, 'input>(node: Xml<'a, 'input>, name: &str) -> Option<Xml
         .find(|child| child.is_element() && child.tag_name().name() == name)
 }
 
+/// The id of a slide in the slide list. roxmltree matches a plain name in any namespace, so
+/// `attribute("id")` can give the `r:id` of the slide's part.
+pub(crate) fn slide_id<'a>(entry: Xml<'a, '_>) -> Option<&'a str> {
+    entry
+        .attributes()
+        .find(|attribute| attribute.namespace().is_none() && attribute.name() == "id")
+        .map(|attribute| attribute.value())
+}
+
 fn descendant<'a, 'input>(node: Xml<'a, 'input>, name: &str) -> Option<Xml<'a, 'input>> {
     node.descendants()
         .find(|child| child.is_element() && child.tag_name().name() == name)
@@ -592,7 +601,7 @@ fn slide_ids(
         .iter()
         .filter_map(|entry| {
             let relation = relations.get(relation_id(*entry, "id")?)?;
-            Some((relation.target.clone(), entry.attribute("id")?.to_owned()))
+            Some((relation.target.clone(), slide_id(*entry)?.to_owned()))
         })
         .collect()
 }
@@ -704,7 +713,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
             );
         }
         model.slides.push(Slide {
-            id: entry.attribute("id").unwrap_or_default().to_owned(),
+            id: slide_id(entry).unwrap_or_default().to_owned(),
             part: Some(part),
             position: f64::from(u32::try_from(index).unwrap_or(0)),
             shapes,
