@@ -5,8 +5,9 @@ Rust runtime and Ghostty's terminal view, and shares code with the Mac app throu
 [shared Swift package](../apple/Package.swift).
 
 You need Xcode 27.2 or later with its iOS simulator, the pinned Rust toolchain with the iOS
-targets (`just ios-rust-targets-install`), and `just`, Python 3, `xcodegen`,
-`swiftformat` and `swiftlint`.
+targets (`just ios-rust-targets-install`), `just` and Python 3. The first build puts the
+SwiftLint, SwiftFormat and XcodeGen that [Tools.env](../apple/Tools.env) pins in
+`clients/apple/.tools/`.
 
 ```sh
 just ios-build

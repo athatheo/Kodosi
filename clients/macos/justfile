@@ -1,14 +1,22 @@
 ghostty_dir := env('KODOSI_GHOSTTY_DIR', justfile_directory() + "/../../terminal/ghostty")
 version := trim(`cat ../../VERSION`)
+tools_dir := justfile_directory() + "/../apple/.tools"
+swiftlint := tools_dir + "/swiftlint/swiftlint"
+swiftformat := tools_dir + "/swiftformat/swiftformat"
+xcodegen := tools_dir + "/xcodegen/bin/xcodegen"
 
 export KODOSI_GHOSTTY_DIR := ghostty_dir
 
 [private]
 default: check
 
+# Install the pinned SwiftLint, SwiftFormat and XcodeGen in clients/apple/.tools.
+tools-install:
+    ../apple/scripts/install-tools.sh
+
 # Generate the Xcode project from project.yml.
-xcode-gen:
-    KODOSI_VERSION="{{ version }}" KODOSI_MACOS_DEPLOYMENT_TARGET="$(cat Config/macOSDeploymentTarget)" xcodegen generate --quiet
+xcode-gen: tools-install
+    KODOSI_VERSION="{{ version }}" KODOSI_MACOS_DEPLOYMENT_TARGET="$(cat Config/macOSDeploymentTarget)" "{{ xcodegen }}" generate --quiet
 
 # Test the shared Swift package in clients/apple.
 apple-test:
@@ -16,13 +24,13 @@ apple-test:
         --package-path ../apple
 
 # Lint the Swift sources of the Mac app and of the shared Swift package.
-lint:
-    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift --lint
-    swiftlint lint --quiet Sources Tests ../apple/Sources ../apple/Tests
+lint: tools-install
+    "{{ swiftformat }}" Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift --lint
+    "{{ swiftlint }}" lint --quiet Sources Tests ../apple/Sources ../apple/Tests
 
 # Format the Swift sources of the Mac app and of the shared Swift package.
-format:
-    swiftformat Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift
+format: tools-install
+    "{{ swiftformat }}" Sources Tests ../apple/Sources ../apple/Tests ../apple/Package.swift
 
 # Test the shared Swift package and the Mac app.
 test: xcode-gen apple-test
