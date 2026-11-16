@@ -82,7 +82,7 @@ struct HistoryView: View {
                     if browser.canReadNewer {
                         Button("Latest") { browser.latest() }.buttonStyle(.kodosi(.ghost, size: .small)).disabled(browser.reading)
                     }
-                    Text(ByteCountFormatter.string(fromByteCount: Int64(clamping: browser.sourceFileBytes), countStyle: .file))
+                    Text(Int64(clamping: browser.sourceFileBytes).formatted(.byteCount(style: .file)))
                         .appTextStyle(.caption).foregroundStyle(theme.colors.inkFaint)
                 }
                 Spacer()
