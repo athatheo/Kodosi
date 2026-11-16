@@ -116,9 +116,7 @@ android {
             firebaseFields("com.kodosi.mobile").forEach { (name, value) ->
                 buildConfigField("String", name, quoted(value))
             }
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            optimization { enable = true }
             buildConfigField("String", "DEBUG_BACKEND_API", "\"\"")
             buildConfigField("String", "DEBUG_AUTH_ISSUER", "\"\"")
             externalNativeBuild {
