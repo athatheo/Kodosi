@@ -18,7 +18,7 @@ public final class LauncherState {
     public private(set) var readingUsage = false
     private var refreshing = false
     private var refreshesAgain = false
-    private var refreshedAt: Date?
+    private var refreshedAt: ContinuousClock.Instant?
     private var changes = 0
 
     private struct Chosen: Decodable {
@@ -43,7 +43,7 @@ public final class LauncherState {
             refreshesAgain = refreshesAgain || force
             return
         }
-        guard force || refreshedAt.map({ Date().timeIntervalSince($0) > 8 }) ?? true else { return }
+        guard force || refreshedAt.map({ $0.duration(to: .now) > .seconds(8) }) ?? true else { return }
         refreshing = true
         defer { refreshing = false }
         repeat {
@@ -59,7 +59,7 @@ public final class LauncherState {
                     self.catalog = catalog
                 }
                 try adopt(reply.value("result", as: Chosen.self).choice, asOf: asOf)
-                refreshedAt = Date()
+                refreshedAt = .now
             } catch {
                 if !(error is CancellationError) {
                     failure = error.localizedDescription

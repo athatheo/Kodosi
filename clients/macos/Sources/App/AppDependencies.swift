@@ -21,7 +21,7 @@ final class AppDependencies {
     let projects: ProjectStore
     let documentPages = CanvasDocumentPages()
     var sessions: [RuntimeSession] = []
-    var inviteRequested: Date?
+    var inviteRequested: ContinuousClock.Instant?
     var inviteCopies = 0
     @ObservationIgnored var projectWorkspaces: [String: ProjectWorkspace] = [:]
     var reportedVisible: VisibleReport?

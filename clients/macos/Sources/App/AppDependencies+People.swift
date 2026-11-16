@@ -4,7 +4,7 @@ import KodosiDesign
 
 extension AppDependencies {
     func copyInvite() {
-        inviteRequested = Date()
+        inviteRequested = .now
         people.requestInvite()
     }
 

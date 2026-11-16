@@ -87,7 +87,7 @@ extension AppDependencies {
         try people.receive(event)
         guard event.type == "friends.result", event.string("operation") == "friends.invite",
               let text = event.string("text"), let requested = inviteRequested,
-              Date().timeIntervalSince(requested) < 15 else { return }
+              requested.duration(to: .now) < .seconds(15) else { return }
         inviteRequested = nil
         copyText(text)
         inviteCopies += 1
