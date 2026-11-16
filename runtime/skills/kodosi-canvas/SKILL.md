@@ -32,7 +32,8 @@ same place at the same time.
 - `kodosi skill page` prints a page with the look of Kodosi, in light and dark. Start from
   it for a plan with choices, a comparison or a report, and mark your recommendation.
 - `kodosi canvas` lists what the canvas has. `kodosi canvas remove <name>` takes one item
-  off, and `kodosi canvas remove --all` all files.
+  off, and `kodosi canvas remove --all` all files. The canvas keeps no copy of a file, and
+  taking it off deletes nothing: deleting the file is a separate step.
 - The user can select words on the canvas and send them to you, with the file or the
   address that they come from.
 
