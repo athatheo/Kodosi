@@ -27,7 +27,7 @@ import Testing
         try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
             "requestId": .string(request), "sessionId": .string(UUIDv7.generate()), "operation": .string("session.create"),
         ]))
-        try await creating.value
+        _ = try await creating.value
     }
 
     try await create(branch: "fix/login")

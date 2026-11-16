@@ -104,7 +104,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
         "requestId": .string(request), "sessionId": .string(created), "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     #expect(app.freshTerminals.contains(created))
 }
 
@@ -282,7 +282,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
         "requestId": .string(#require(fields["requestId"]?.stringValue)), "sessionId": .string(UUIDv7.generate()),
         "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     #expect(app.settings.lastWorkingDir == "/Users/maya/here")
 }
 

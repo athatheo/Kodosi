@@ -23,8 +23,9 @@ struct TerminalLinkTests {
             .refuse(.missingFile),
         ])
 
+        let local = try #require(URL(string: "http://localhost:5173/"))
         proxy.terminalDidRequestOpenURL("http://localhost:5173/", kind: .unknown)
-        #expect(try opened.last == #require(URL(string: "http://localhost:5173/")))
+        #expect(opened.last == local)
         proxy.otherComputer = "studio"
         proxy.terminalDidRequestOpenURL("http://localhost:5173/", kind: .unknown)
         #expect(reviewed.last?.decision == .refuse(.addressElsewhere("studio")))

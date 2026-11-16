@@ -29,46 +29,30 @@ import Testing
     #expect(completed)
 }
 
-@Test func `account change cancels pending mutation`() async throws {
+@Test func `account change cancels pending mutation`() async {
     var sent = false
     let commands = CommandSink { _ in sent = true; return 0 }
     commands.setAccount(userId: "owner", epoch: 1)
     let request = Task { try await commands.request("session.rename") }
     await settle { !sent }
     commands.setAccount(userId: nil, epoch: 2)
-    do {
-        _ = try await request.value
-        Issue.record("A pending action must not survive an account change")
-    } catch {
-        #expect(error as? RuntimeError == .accountChanged)
-    }
+    await #expect(throws: RuntimeError.accountChanged) { try await request.value }
 }
 
-@Test func `duplicate request cannot replace continuation`() async throws {
+@Test func `duplicate request cannot replace continuation`() async {
     var sent = false
     let commands = CommandSink { _ in sent = true; return 0 }
     let fields: [String: JSONValue] = ["requestId": .string("duplicate")]
     let first = Task { try await commands.request("project.create", fields) }
     await settle { !sent }
-    do {
-        _ = try await commands.request("project.create", fields)
-        Issue.record("A duplicate request replaced its original continuation")
-    } catch { #expect(error is RuntimeError) }
+    await #expect(throws: RuntimeError.self) { try await commands.request("project.create", fields) }
     commands.cancelPending()
-    do {
-        _ = try await first.value
-        Issue.record("Expected cancellation")
-    } catch {
-        #expect(error as? RuntimeError == .unavailable)
-    }
+    await #expect(throws: RuntimeError.unavailable) { try await first.value }
 }
 
 @Test func `synchronous rejection does not report success`() async {
     let commands = CommandSink { _ in 5 }
-    do {
-        _ = try await commands.request("session.create")
-        Issue.record("Rejected admission was treated as success")
-    } catch { #expect(error as? RuntimeError == .rejected(5)) }
+    await #expect(throws: RuntimeError.rejected(5)) { try await commands.request("session.create") }
 }
 
 @Test func `an error shows once and only for a request of the app`() async throws {
@@ -89,10 +73,8 @@ import Testing
     try app.receive(runtimeEvent("project.error", fields: [
         "requestId": .string("create"), "operation": .string("project.create"), "message": .string("Use another name."),
     ]))
-    do {
-        _ = try await creating.value
-        Issue.record("The waiting caller must get the error")
-    } catch { #expect(error.localizedDescription == "Use another name.") }
+    let error = await #expect(throws: (any Error).self) { try await creating.value }
+    #expect(error?.localizedDescription == "Use another name.")
     #expect(app.errorMessage == nil)
 
     try app.receive(runtimeEvent("friends.error", fields: ["operation": .string("friends.remove"), "message": .string("Try again.")]))
@@ -115,10 +97,7 @@ import Testing
     let listing = Task { try await app.commandSink.request("folders.list", ["requestId": .string("folders")]) }
     await settle { !sent.contains { $0["type"] == .string("folders.list") } }
     listing.cancel()
-    do {
-        _ = try await listing.value
-        Issue.record("A caller that left must not wait for the answer")
-    } catch { #expect(error is CancellationError) }
+    await #expect(throws: CancellationError.self) { try await listing.value }
     try app.receive(runtimeEvent("folders.error", fields: [
         "requestId": .string("folders"), "operation": .string("folders.list"), "message": .string("Studio is away."),
     ]))

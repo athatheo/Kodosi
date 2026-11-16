@@ -44,7 +44,7 @@ import Testing
     try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
         "requestId": .string(request), "sessionId": .string(id), "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     let managed = try #require(renderer)
     #expect(managed.runtimeIncarnationId == incarnation)
     #expect(managed.token.isActive)
