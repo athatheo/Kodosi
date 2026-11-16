@@ -1,6 +1,5 @@
 package com.kodosi.mobile.ui
 
-import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.animateBounds
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.snap
@@ -159,7 +158,6 @@ fun SegmentedPill(options: List<SegmentOption>, selection: Int, select: (Int) ->
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PillTrack(faceHeight: Dp = 34.dp, content: @Composable RowScope.(@Composable (Modifier) -> Unit) -> Unit) {
     val colors = KodosiTheme.colors

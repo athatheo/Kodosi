@@ -631,7 +631,6 @@ private fun StateCard(title: String, message: String?, working: Boolean, action:
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun KeyRow(view: TerminalView?, control: Boolean, actions: @Composable () -> Unit) {
     FlowRow(
