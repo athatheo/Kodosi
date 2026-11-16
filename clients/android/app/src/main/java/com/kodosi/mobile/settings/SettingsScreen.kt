@@ -316,8 +316,7 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                         stringResource(R.string.keep_screen_on),
                         preferences.keepScreenOn,
                         { on -> model.preferences.update { it.copy(keepScreenOn = on) } },
-                        AppSymbol.SUN,
-                        TileTint.amber,
+                        leading = { IconTile(AppSymbol.SUN, TileTint.amber) },
                         subtitle = stringResource(R.string.while_terminal_open)
                     )
                 }
@@ -329,8 +328,7 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                         stringResource(R.string.app_lock),
                         preferences.lock,
                         { on -> scope.launch { model.lock.enable(activity, on) } },
-                        AppSymbol.LOCK,
-                        TileTint.green,
+                        leading = { IconTile(AppSymbol.LOCK, TileTint.green) },
                         subtitle = stringResource(if (canLock) R.string.app_lock_message else R.string.set_device_lock),
                         enabled = canLock
                     )
@@ -360,22 +358,26 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                                     )
                                 }
                             },
-                            symbol,
-                            listOf(
-                                TileTint.blue,
-                                TileTint.green,
-                                TileTint.orange,
-                                TileTint.red,
-                                TileTint.graphite
-                            )[index]
+                            leading = {
+                                IconTile(
+                                    symbol,
+                                    listOf(
+                                        TileTint.blue,
+                                        TileTint.green,
+                                        TileTint.orange,
+                                        TileTint.red,
+                                        TileTint.graphite
+                                    )[index]
+                                )
+                            }
                         )
                     }
                     SwitchRow(stringResource(R.string.document_pages), preferences.documentPages, { on ->
                         model.preferences.update { it.copy(documentPages = on) }
-                    }, AppSymbol.FILE, TileTint.teal)
+                    }, leading = { IconTile(AppSymbol.FILE, TileTint.teal) })
                     SwitchRow(stringResource(R.string.document_dark), preferences.documentDark, { on ->
                         model.preferences.update { it.copy(documentDark = on) }
-                    }, AppSymbol.APPEARANCE, TileTint.graphite)
+                    }, leading = { IconTile(AppSymbol.APPEARANCE, TileTint.graphite) })
                 }
             }
             item {
@@ -407,8 +409,7 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                             model.preferences.update { it.copy(notifications = on) }
                             model.updatePush()
                         },
-                        AppSymbol.NOTIFICATIONS,
-                        TileTint.red,
+                        leading = { IconTile(AppSymbol.NOTIFICATIONS, TileTint.red) },
                         subtitle = notificationIssue ?: stringResource(R.string.notifications_description)
                     )
                     val permitted = context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
