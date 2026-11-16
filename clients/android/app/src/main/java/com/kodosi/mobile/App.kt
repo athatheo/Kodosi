@@ -171,6 +171,7 @@ private fun Home(model: AppModel) {
     val account by model.account.state.collectAsStateWithLifecycle()
     val people by model.people.state.collectAsStateWithLifecycle()
     val dosi by model.dosi.state.collectAsStateWithLifecycle()
+    val preferences by model.preferences.state.collectAsStateWithLifecycle()
     val target by model.terminalTarget.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -268,6 +269,7 @@ private fun Home(model: AppModel) {
                                 it.deviceId
                             }.toSet(),
                             account.online,
+                            summaryFirst = preferences.summaryFirst,
                             open = terminal,
                             start = {
                                 starting = it

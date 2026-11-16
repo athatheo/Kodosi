@@ -66,6 +66,7 @@ fun TerminalsScreen(
     store: TerminalStore,
     onlineHosts: Set<String>,
     online: Boolean,
+    summaryFirst: Boolean,
     open: (String) -> Unit,
     start: (NewTerminalRequest) -> Unit
 ) {
@@ -152,7 +153,7 @@ fun TerminalsScreen(
                     }
                     if (key !in folded || query.isNotBlank()) {
                         items(entries, key = { it.id }) { session ->
-                            TerminalCard(session, online, onClick = {
+                            TerminalCard(session, online, summaryFirst = summaryFirst, onClick = {
                                 open(session.id)
                             }, modifier = Modifier.padding(vertical = 5.dp))
                         }
@@ -226,7 +227,13 @@ private fun GroupHeader(group: TerminalGroup, start: (() -> Unit)?) {
 }
 
 @Composable
-fun TerminalCard(session: RuntimeSession, online: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun TerminalCard(
+    session: RuntimeSession,
+    online: Boolean,
+    summaryFirst: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val colors = KodosiTheme.colors
     val sign = session.sign()
     KodosiCard(modifier.fillMaxWidth(), onClick = onClick) {
@@ -246,14 +253,20 @@ fun TerminalCard(session: RuntimeSession, online: Boolean, onClick: () -> Unit, 
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                val summary = session.activity
+                val (title, detail) = if (summaryFirst && summary != null && session.agent.isAgent) {
+                    summary to session.name
+                } else {
+                    session.name to summary
+                }
                 Text(
-                    session.name,
+                    title,
                     style = KodosiType.subhead,
                     color = if (session.canOpen) colors.ink else colors.inkMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                TerminalCaption(session, online)
+                TerminalCaption(session, online, detail)
             }
             Spacer(Modifier.width(8.dp))
             when {
@@ -265,7 +278,7 @@ fun TerminalCard(session: RuntimeSession, online: Boolean, onClick: () -> Unit, 
 }
 
 @Composable
-fun TerminalCaption(session: RuntimeSession, online: Boolean) {
+fun TerminalCaption(session: RuntimeSession, online: Boolean, detail: String? = session.activity) {
     val colors = KodosiTheme.colors
     val troubled = session.isTroubled || session.connectionState == RuntimeSession.Connection.CONNECTING
     val reconnecting = session.status == RuntimeSession.Status.RECONNECTING
@@ -283,8 +296,8 @@ fun TerminalCaption(session: RuntimeSession, online: Boolean) {
 
         notice != null -> notice to colors.caution
 
-        else -> (session.activity ?: session.folderName ?: agentLabel(session.agent)) to
-            if (session.activity == null) colors.inkFaint else colors.inkMuted
+        else -> (detail ?: session.folderName ?: agentLabel(session.agent)) to
+            if (detail == null) colors.inkFaint else colors.inkMuted
     }
     Text(words, style = KodosiType.footnote, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }

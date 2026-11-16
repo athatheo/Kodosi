@@ -339,6 +339,8 @@
     <string name="local_network_message">Allow direct connections to computers on your local network.</string>
     <string name="open_settings">Open settings</string>
     <string name="size">Size</string>
+    <string name="title">Title</string>
+    <string name="summary">Summary</string>
     <string name="folder">Folder</string>
     <string name="yours">Yours</string>
     <string name="nothing_shared">Nothing shared with you yet</string>

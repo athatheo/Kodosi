@@ -331,6 +331,8 @@
     <string name="local_network_message">Permite conexiones directas con ordenadores de tu red local.</string>
     <string name="open_settings">Abrir Ajustes</string>
     <string name="size">Tamaño</string>
+    <string name="title">Título</string>
+    <string name="summary">Resumen</string>
     <string name="folder">Carpeta</string>
     <string name="yours">Tuyas</string>
     <string name="nothing_shared">Aún no ha compartido nada contigo</string>

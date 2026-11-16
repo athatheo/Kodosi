@@ -331,6 +331,8 @@
     <string name="local_network_message">Consenti connessioni dirette ai computer sulla tua rete locale.</string>
     <string name="open_settings">Apri Impostazioni</string>
     <string name="size">Dimensione</string>
+    <string name="title">Titolo</string>
+    <string name="summary">Riepilogo</string>
     <string name="folder">Cartella</string>
     <string name="yours">Tue</string>
     <string name="nothing_shared">Non ha ancora condiviso nulla con te</string>

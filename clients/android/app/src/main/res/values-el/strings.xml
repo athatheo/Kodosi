@@ -331,6 +331,8 @@
     <string name="local_network_message">Επιτρέψτε άμεσες συνδέσεις με υπολογιστές στο τοπικό σας δίκτυο.</string>
     <string name="open_settings">Άνοιγμα Ρυθμίσεων</string>
     <string name="size">Μέγεθος</string>
+    <string name="title">Τίτλος</string>
+    <string name="summary">Σύνοψη</string>
     <string name="folder">Φάκελος</string>
     <string name="yours">Δικά σας</string>
     <string name="nothing_shared">Δεν έχει μοιραστεί κάτι μαζί σας ακόμα</string>

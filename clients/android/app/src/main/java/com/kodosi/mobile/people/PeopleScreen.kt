@@ -451,6 +451,7 @@ fun FriendScreen(model: AppModel, id: String, back: () -> Unit, terminal: (Strin
     val people by model.people.state.collectAsStateWithLifecycle()
     val terminals by model.terminals.state.collectAsStateWithLifecycle()
     val account by model.account.state.collectAsStateWithLifecycle()
+    val preferences by model.preferences.state.collectAsStateWithLifecycle()
     val person = people.friends.firstOrNull { it.userId == id }
     var verifying by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf<String?>(null) }
@@ -486,7 +487,13 @@ fun FriendScreen(model: AppModel, id: String, back: () -> Unit, terminal: (Strin
             }
             item { SectionTitle(stringResource(R.string.terminals)) }
             items(terminals.sessions.filter { it.ownerUserId == id && !it.hidden }, key = { it.id }) { session ->
-                TerminalCard(session, account.online, { terminal(session.id) }, Modifier.padding(vertical = 5.dp))
+                TerminalCard(
+                    session,
+                    account.online,
+                    summaryFirst = preferences.summaryFirst,
+                    onClick = { terminal(session.id) },
+                    modifier = Modifier.padding(vertical = 5.dp)
+                )
             }
             item {
                 KodosiTextButton(onClick = {
