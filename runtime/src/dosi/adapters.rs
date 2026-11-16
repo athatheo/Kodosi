@@ -288,7 +288,7 @@ impl Claude {
                 Some("tool_use") => events.push(Event::ToolStart {
                     id: field("id"),
                     name: field("name"),
-                    input: content.get("input").cloned().unwrap_or(Value::Null),
+                    input: content.get("input").cloned().unwrap_or_default(),
                 }),
                 _ => {}
             }
@@ -348,7 +348,7 @@ fn plain(content: Option<&Value>) -> String {
 }
 
 fn answer(request: &Value) -> String {
-    let id = request.get("request_id").cloned().unwrap_or(Value::Null);
+    let id = request.get("request_id").cloned().unwrap_or_default();
     let body = request.get("request").unwrap_or(&Value::Null);
     let response = if body.get("subtype").and_then(Value::as_str) == Some("can_use_tool") {
         json!({"subtype":"success","request_id":id,"response":{"behavior":"allow","updatedInput":body.get("input").cloned().unwrap_or_else(|| json!({}))}})
@@ -465,7 +465,7 @@ impl Codex {
             Some("web_search") => ("web_search".to_owned(), json!({"query":text("query")})),
             Some("mcp_tool_call") => (
                 format!("mcp__{}__{}", text("server"), text("tool")),
-                item.get("arguments").cloned().unwrap_or(Value::Null),
+                item.get("arguments").cloned().unwrap_or_default(),
             ),
             Some("todo_list") => ("plan".to_owned(), Value::Null),
             Some("error") if completed => {

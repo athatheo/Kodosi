@@ -375,7 +375,7 @@ impl Out<'_> {
             None => String::new(),
         };
         let wanted = |name: &str| text_attr(node, name).map(str::to_owned);
-        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or(Value::Null);
+        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or_default();
         let wanted = ParagraphLook {
             style: wanted("style"),
             align: wanted("align"),

@@ -908,7 +908,7 @@ pub(crate) fn merge_steps(doc: &Node, ops: &[Op]) -> Result<Vec<Value>, String> 
 
 fn block_json(node: &Node) -> Value {
     let kind = schema().node_name(node.kind());
-    let id = node.attrs().get("id").cloned().unwrap_or(Value::Null);
+    let id = node.attrs().get("id").cloned().unwrap_or_default();
     match kind {
         "table" => {
             let rows: Vec<Vec<String>> = node
