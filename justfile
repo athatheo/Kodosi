@@ -21,8 +21,8 @@ default:
 # Install the Rust check tools in .tools/rust.
 [group('tools')]
 rust-tools-install:
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-deny --version {{ cargo_deny_version }}
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-machete --version {{ cargo_machete_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-deny --version {{ cargo_deny_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-machete --version {{ cargo_machete_version }}
 
 [private]
 rust-tool-check tool:
@@ -259,7 +259,7 @@ ios-rust-lint:
 [group('android')]
 android-tools-install:
     rustup target add aarch64-linux-android
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-ndk --version {{ cargo_ndk_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-ndk --version {{ cargo_ndk_version }}
 
 # Build the viewer runtime for Android as a shared library, for the dev or release profile.
 [group('android')]
