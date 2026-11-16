@@ -2753,6 +2753,14 @@
         <translation>Kopiere die Anweisungen. Füge sie in deinen Agent ein.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>Chatoptionen</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>Chat leeren…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>Die Unterhaltung wurde nicht geladen</translation>
     </message>
@@ -2789,6 +2797,10 @@
         <translation>Kodosi hat die ältesten Nachrichten entfernt, um Platz für neue zu schaffen.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>Nachricht gelöscht</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>für %1</translation>
     </message>
@@ -2816,6 +2828,14 @@
         <source>Report…</source>
         <translation>Melden…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>Nachrichtenoptionen</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>Nachricht löschen…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2838,6 +2858,30 @@
     <message>
         <source>Send message</source>
         <translation>Nachricht senden</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>Diese Nachricht löschen?</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>Nachricht löschen</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>Alle im Projekt sehen, dass eine Nachricht gelöscht wurde.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>Chat für dich leeren?</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>Chat leeren</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>Die bisherigen Nachrichten verschwinden von allen deinen Geräten. Alle anderen behalten sie.</translation>
     </message>
 </context>
 <context>

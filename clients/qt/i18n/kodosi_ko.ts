@@ -2746,6 +2746,14 @@
         <translation>지침을 복사해서 에이전트에 붙여넣으세요.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>채팅 옵션</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>채팅 지우기…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>대화를 불러오지 못했어요</translation>
     </message>
@@ -2782,6 +2790,10 @@
         <translation>새 메시지를 위해 Kodosi가 가장 오래된 메시지를 지웠어요.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>삭제된 메시지</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>%1에게</translation>
     </message>
@@ -2809,6 +2821,14 @@
         <source>Report…</source>
         <translation>신고…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>메시지 옵션</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>메시지 삭제…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2830,6 +2850,30 @@
     <message>
         <source>Send message</source>
         <translation>메시지 보내기</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>이 메시지를 삭제할까요?</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>메시지 삭제</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>프로젝트의 모든 사람에게 메시지가 삭제되었다고 표시돼요.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>내 채팅을 지울까요?</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>채팅 지우기</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>지금까지의 메시지가 내 모든 기기에서 사라져요. 다른 사람에게는 남아 있어요.</translation>
     </message>
 </context>
 <context>
