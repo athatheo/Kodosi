@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use bytes::{BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 
@@ -144,6 +146,10 @@ pub struct State {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copied: Option<String>,
     pub downloads: Vec<Download>,
+    /// The icons of tabs, as PNG in base64, that this viewer has not had yet. An empty one
+    /// takes a tab's icon away.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub icons: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

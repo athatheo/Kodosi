@@ -314,6 +314,8 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
     public var dialog: Dialog?
     public var chooser: Chooser?
     public var copied: String?
+    /// The icons that changed, as PNG in base64; an empty one takes a tab's icon away.
+    public var icons: [String: String] = [:]
 
     public var size: CGSize {
         CGSize(width: width, height: height)
@@ -332,9 +334,10 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
         dialog = try container.decodeIfPresent(Dialog.self, forKey: .dialog)
         chooser = try container.decodeIfPresent(Chooser.self, forKey: .chooser)
         copied = try container.decodeIfPresent(String.self, forKey: .copied)
+        icons = try container.decodeIfPresent([String: String].self, forKey: .icons) ?? [:]
     }
 
-    private enum CodingKeys: String, CodingKey { case tabs, width, height, shape, pointers, menu, dialog, chooser, copied }
+    private enum CodingKeys: String, CodingKey { case tabs, width, height, shape, pointers, menu, dialog, chooser, copied, icons }
 }
 
 /// Positions are in the CSS pixels of the page.

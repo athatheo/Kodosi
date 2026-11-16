@@ -1,13 +1,18 @@
 package com.kodosi.mobile.canvas
 
+import android.graphics.BitmapFactory
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Base64
 import android.view.Surface
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import com.kodosi.mobile.runtime.RuntimeJson
 import com.kodosi.mobile.runtime.fields
 import com.kodosi.mobile.runtime.number
+import com.kodosi.mobile.runtime.objects
 import com.kodosi.mobile.runtime.string
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -22,11 +27,15 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class BrowserFeed(private val store: CanvasStore, private val session: String, private val scope: CoroutineScope) :
     AutoCloseable {
     private val mutableWindow = MutableStateFlow(fields())
     val window: StateFlow<JsonObject> = mutableWindow
+    private val mutableIcons = MutableStateFlow(emptyMap<String, ImageBitmap>())
+    val icons: StateFlow<Map<String, ImageBitmap>> = mutableIcons
     private val mutablePicture = MutableStateFlow(false)
     val picture: StateFlow<Boolean> = mutablePicture
     private val mutableTouches = MutableStateFlow(0L)
@@ -144,6 +153,19 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
         }
     }
 
+    private fun keepIcons(state: JsonObject) {
+        val kept = mutableIcons.value.toMutableMap()
+        (state["icons"] as? JsonObject)?.forEach { (tab, png) ->
+            val bytes = runCatching { Base64.decode((png as? JsonPrimitive)?.contentOrNull.orEmpty(), Base64.DEFAULT) }
+                .getOrNull()
+            val icon = bytes?.takeIf { it.isNotEmpty() }?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            if (icon == null) kept.remove(tab) else kept[tab] = icon.asImageBitmap()
+        }
+        val open = state.objects("tabs").mapNotNull { it.string("id") }.toSet()
+        kept.keys.retainAll(open)
+        if (kept != mutableIcons.value) mutableIcons.value = kept
+    }
+
     private fun receive(bytes: ByteArray) {
         if (!active || bytes.isEmpty()) return
         if (bytes[0] == 0.toByte()) {
@@ -151,6 +173,7 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
                 RuntimeJson.parseToJsonElement(bytes.copyOfRange(1, bytes.size).decodeToString()) as? JsonObject
             }.getOrNull()?.let {
                 mutableWindow.value = it
+                keepIcons(it)
                 it.string("copied")?.let(mutableCopies::tryEmit)
             }
             return

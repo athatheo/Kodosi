@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex, PoisonError,
@@ -41,6 +41,7 @@ const MOST_LINE: usize = 1024;
 const MOST_ADDRESS: usize = 8 * 1024;
 const MOST_MESSAGE: usize = 16 * 1024;
 const MOST_ITEMS: usize = 1000;
+const MOST_ICON: usize = 12 * 1024;
 /// The menu that a right-click opens, which the page does not know about.
 const CONTEXT_MENU: u32 = u32::MAX;
 const COPY_SELECTION: u32 = 0;
@@ -92,6 +93,10 @@ pub(crate) enum Event {
         link: Option<String>,
     },
     Copied(String),
+    Icon {
+        tab: i64,
+        png: String,
+    },
     Dialog {
         tab: i64,
         dialog: Dialog,
@@ -207,8 +212,13 @@ pub(crate) struct Mailbox {
 impl Mailbox {
     fn put(&self, mut state: State) {
         let mut waiting = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        if state.copied.is_none() {
-            state.copied = waiting.take().and_then(|waiting| waiting.copied);
+        if let Some(earlier) = waiting.take() {
+            if state.copied.is_none() {
+                state.copied = earlier.copied;
+            }
+            for (tab, icon) in earlier.icons {
+                state.icons.entry(tab).or_insert(icon);
+            }
         }
         *waiting = Some(state);
         drop(waiting);
@@ -397,6 +407,10 @@ struct Live {
     /// A copy goes once, with the next state, so that each copy reaches the pasteboard, also
     /// the same words again, and an old copy never comes back.
     copied: Option<Copied>,
+    /// The icon of each tab, and those that changed since the last state, which go to every
+    /// viewer once.
+    icons: BTreeMap<String, String>,
+    new_icons: BTreeMap<String, String>,
     open_menu: Option<OpenMenu>,
     context: Option<Context>,
     /// The dialogs of the window's tabs, one for each tab, oldest first. The window shows the
@@ -447,6 +461,8 @@ impl Live {
             answering: false,
             events,
             copied: None,
+            icons: BTreeMap::new(),
+            new_icons: BTreeMap::new(),
             open_menu: None,
             context: None,
             dialogs: Vec::new(),
@@ -526,8 +542,11 @@ impl Live {
             })
             .collect();
         self.published.send_replace(self.state.clone());
+        let icons = std::mem::take(&mut self.new_icons);
         for seat in self.seats.values() {
-            seat.mailbox.put(self.state_for(&seat.viewer.id));
+            let mut state = self.state_for(&seat.viewer.id);
+            state.icons.clone_from(&icons);
+            seat.mailbox.put(state);
         }
         self.copied = None;
     }
@@ -558,7 +577,9 @@ impl Live {
                 outgoing,
                 mailbox,
             } => {
-                mailbox.put(self.state_for(&viewer.id));
+                let mut state = self.state_for(&viewer.id);
+                state.icons.clone_from(&self.icons);
+                mailbox.put(state);
                 self.seats.insert(
                     viewer.id.clone(),
                     Seat {
@@ -605,6 +626,7 @@ impl Live {
             } => self.open_list(tab, frame, menu, items),
             Event::Context { selection, link } => self.context_menu(&selection, link),
             Event::Copied(text) => self.copy(&text),
+            Event::Icon { tab, png } => self.icon(tab, png),
             Event::Dialog { tab, mut dialog } => {
                 dialog.message = cut(&dialog.message, MOST_MESSAGE);
                 dialog.text = cut(&dialog.text, MOST_MESSAGE);
@@ -722,9 +744,35 @@ impl Live {
             })
             .collect();
         self.reported = tabs;
+        let open: HashSet<&str> = self.state.tabs.iter().map(|tab| tab.id.as_str()).collect();
+        self.icons.retain(|tab, _| open.contains(tab.as_str()));
+        self.new_icons.retain(|tab, _| open.contains(tab.as_str()));
         self.dirty = true;
         self.send_waiting();
         self.update_capture();
+    }
+
+    fn icon(&mut self, tab: i64, png: String) {
+        let tab = tab.to_string();
+        let png = if png.len() <= MOST_ICON {
+            png
+        } else {
+            String::new()
+        };
+        if self
+            .icons
+            .get(&tab)
+            .map_or(png.is_empty(), |icon| *icon == png)
+        {
+            return;
+        }
+        if png.is_empty() {
+            self.icons.remove(&tab);
+        } else {
+            self.icons.insert(tab.clone(), png.clone());
+        }
+        self.new_icons.insert(tab, png);
+        self.dirty = true;
     }
 
     fn update_capture(&mut self) {
@@ -1529,6 +1577,27 @@ mod tests {
         say(&mut live, "ana", link).await;
         live.publish();
         assert_eq!(copied(&ana).as_deref(), Some("https://kodosi.com/"));
+    }
+
+    #[tokio::test]
+    async fn each_viewer_gets_a_tab_icon_once_also_through_a_newer_state_and_after_joining_late() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        live.handle(Event::Icon {
+            tab: 5,
+            png: "aWNvbg==".to_owned(),
+        })
+        .await;
+        live.publish();
+        live.handle(Event::Shape("text".to_owned())).await;
+        let icon = |state: Option<State>| state.and_then(|state| state.icons.get("5").cloned());
+        assert_eq!(icon(newest(&ana)).as_deref(), Some("aWNvbg=="));
+
+        live.handle(Event::Shape("pointer".to_owned())).await;
+        assert_eq!(icon(newest(&ana)), None);
+
+        let bob = join(&mut live, "bob").await;
+        assert_eq!(icon(newest(&bob)).as_deref(), Some("aWNvbg=="));
     }
 
     #[tokio::test]

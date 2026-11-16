@@ -167,12 +167,16 @@ public struct CanvasBrowserView: View {
                 Group {
                     if tab.loading {
                         Spinner(size: 10)
+                    } else if let icon = feed.icons[tab.id] {
+                        Image(decorative: icon, scale: 2).resizable().interpolation(.high)
+                            .frame(width: 14, height: 14)
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                     } else {
                         Image(systemName: "globe").font(.system(size: 10, weight: .semibold))
                     }
                 }
                 .foregroundStyle(tab.active ? theme.colors.accentStrong : theme.colors.inkFaint)
-                .frame(width: 12)
+                .frame(width: 14)
                 Text(title).lineLimit(1).truncationMode(.tail)
             }
             .appTextStyle(.footnote).fontWeight(.medium)

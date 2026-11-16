@@ -22,6 +22,7 @@ import android.widget.FrameLayout
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +39,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -52,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -106,6 +109,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
     val history by model.preferences.browserHistory.collectAsStateWithLifecycle()
     val feed = remember(session) { BrowserFeed(model.canvas, session, scope) }
     val window by feed.window.collectAsStateWithLifecycle()
+    val icons by feed.icons.collectAsStateWithLifecycle()
     val picture by feed.picture.collectAsStateWithLifecycle()
     var address by remember { mutableStateOf(browser.tabs.firstOrNull { it.active }?.url.orEmpty()) }
     var edited by remember { mutableStateOf(false) }
@@ -186,8 +190,11 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                         tab.active,
                         choose = { feed.input(fields("kind" to "tab", "id" to tab.id)) },
                         icon = {
+                            val icon = icons[tab.id]
                             if (feedTabs.any { it.string("id") == tab.id && it.flag("loading") }) {
                                 KodosiSpinner(Modifier.size(12.dp))
+                            } else if (icon != null) {
+                                Image(icon, null, Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)))
                             } else {
                                 AppIcon(AppSymbol.BROWSER, Modifier.size(12.dp), tint = colors.accent)
                             }

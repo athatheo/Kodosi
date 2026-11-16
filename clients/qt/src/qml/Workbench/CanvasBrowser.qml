@@ -90,9 +90,12 @@ Item {
             KTextField {
                 id: address
 
+                readonly property string icon: root.activeTab && !activeFocus ? video.icons[root.activeTab.id] || "" : ""
+
                 Layout.fillWidth: true
                 Layout.maximumWidth: 560
                 compact: true
+                leftPadding: icon.length > 0 ? 30 : 10
                 placeholderText: qsTr("Address")
                 objectName: "canvas.browser.address"
                 Accessible.id: objectName
@@ -106,6 +109,18 @@ Item {
                 onActiveFocusChanged: {
                     if (!activeFocus)
                         text = Qt.binding(() => root.activeTab ? root.activeTab.url : "");
+                }
+
+                Image {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 9
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 16
+                    height: 16
+                    visible: address.icon.length > 0
+                    source: address.icon
+                    sourceSize: Qt.size(32, 32)
+                    smooth: true
                 }
             }
             KButton {
@@ -130,6 +145,7 @@ Item {
 
                             text: modelData.title || modelData.url
                             iconName: modelData.active ? "check" : "globe"
+                            image: !modelData.active ? video.icons[modelData.id] || "" : ""
                             onTriggered: video.step({ kind: "tab", id: modelData.id })
                         }
                     }

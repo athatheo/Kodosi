@@ -150,6 +150,11 @@ pub enum FromEngine {
         tab: i64,
         text: String,
     },
+    /// The icon that a tab's page names, as PNG in base64, or nothing.
+    Icon {
+        tab: i64,
+        png: String,
+    },
     Failed {
         window: i64,
         problem: String,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QImage>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -20,6 +21,7 @@ class BrowserVideo : public QQuickItem {
     Q_PROPERTY(bool active READ active WRITE setActive)
     Q_PROPERTY(bool shows READ shows NOTIFY showsChanged)
     Q_PROPERTY(QVariantMap window READ window NOTIFY windowChanged)
+    Q_PROPERTY(QVariantMap icons READ icons NOTIFY iconsChanged)
 
 public:
     explicit BrowserVideo(QQuickItem* parent = nullptr);
@@ -33,6 +35,7 @@ public:
     void setActive(bool active);
     [[nodiscard]] bool shows() const { return !m_image.isNull(); }
     [[nodiscard]] QVariantMap window() const { return m_window; }
+    [[nodiscard]] QVariantMap icons() const { return m_icons; }
 
     Q_INVOKABLE void pointer(const QString& action, qreal x, qreal y, int button, int clicks, int modifiers);
     Q_INVOKABLE void wheel(qreal x, qreal y, QPoint pixels, QPoint angle, int modifiers);
@@ -44,6 +47,7 @@ public:
 signals:
     void showsChanged();
     void windowChanged();
+    void iconsChanged();
     void decodeRequested(quint32 frame, const QByteArray& data);
 
 protected:
@@ -59,6 +63,7 @@ private:
     void lost(const QString& pipe);
     void reachable(const QString& sessionId);
     void frame(const QByteArray& message);
+    void keepIcons(const QJsonObject& changed, const QJsonArray& tabs);
     void decoded(quint32 frame, const QImage& image);
     void post(const QJsonObject& message);
     void input(const QJsonObject& event);
@@ -74,6 +79,7 @@ private:
     QString m_pipe;
     bool m_active = false;
     QVariantMap m_window;
+    QVariantMap m_icons;
     QImage m_image;
     bool m_fresh = false;
     quint32 m_lastFrame = 0;
