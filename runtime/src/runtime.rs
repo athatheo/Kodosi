@@ -1032,6 +1032,14 @@ fn reachable(entry: &SessionEntry) -> bool {
     )
 }
 
+/// While the host is offline its program is unknown, so the title stays until the host says.
+fn forget_stale_title(entry: &mut SessionEntry, shared: Option<&TerminalStatus>) {
+    if shared.is_some_and(|status| status.program != entry.title_program) {
+        entry.title = None;
+        entry.title_program = None;
+    }
+}
+
 fn show_program(entry: &mut SessionEntry) {
     use crate::terminal::ProgramState;
     let closing = entry.status == SessionStatus::Closing;
@@ -3256,6 +3264,7 @@ impl Runtime {
             let status = shared
                 .filter(|(incarnation, _)| *incarnation == entry.incarnation_id)
                 .and_then(|(_, status)| status);
+            forget_stale_title(entry, status.as_ref());
             entry.program = status.as_ref().and_then(|status| status.program.clone());
             entry.program_account = status.as_ref().and_then(|status| status.account);
             entry.program_status = status.as_ref().and_then(TerminalStatus::program_status);
@@ -3343,7 +3352,7 @@ impl Runtime {
         } else {
             shared.and_then(|status| status.program.clone())
         };
-        SessionEntry {
+        let mut entry = SessionEntry {
             attention: false,
             connected_users: if streaming {
                 previous.map_or_else(Vec::new, |entry| entry.connected_users.clone())
@@ -3367,6 +3376,7 @@ impl Runtime {
             prompt: false,
             repository: false,
             title: previous.and_then(|entry| entry.title.clone()),
+            title_program: previous.and_then(|entry| entry.title_program.clone()),
             program_status: if streaming {
                 previous
                     .filter(|_| remote.online)
@@ -3408,7 +3418,11 @@ impl Runtime {
             project_name: remote.project_name,
             shared_with: remote.shared_with,
             restored_from: remote.restored_from.map(|id| id.to_string()),
+        };
+        if !streaming {
+            forget_stale_title(&mut entry, shared);
         }
+        entry
     }
 
     #[cfg(feature = "host")]
@@ -3629,6 +3643,7 @@ impl Runtime {
                     entry.connected_users = metadata.connected_users;
                     entry.working_dir = metadata.directory;
                     entry.title = metadata.title;
+                    entry.title_program.clone_from(&metadata.program);
                     entry.program_live = crate::agents::live_of(metadata.program.as_deref());
                     entry.program = metadata.program;
                     entry.program_account = metadata.account;

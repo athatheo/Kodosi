@@ -3738,6 +3738,18 @@
         <translation>深色</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>标题</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>摘要</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>减弱动态效果</translation>
     </message>
@@ -4206,6 +4218,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>无法写入动态效果设置。之前的选择仍然有效。</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>无法写入标题设置。之前的选择仍然有效。</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>

@@ -3738,6 +3738,18 @@
         <translation>다크</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>제목</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>이름</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>요약</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>동작 줄이기</translation>
     </message>
@@ -4206,6 +4218,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>동작 설정을 저장하지 못했어요. 이전 선택이 그대로 적용돼요.</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>제목 설정을 저장하지 못했어요. 이전 선택이 그대로 적용돼요.</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>

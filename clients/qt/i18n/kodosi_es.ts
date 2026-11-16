@@ -3750,6 +3750,18 @@
         <translation>Oscuro</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>Título</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nombre</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>Resumen</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>Reducir movimiento</translation>
     </message>
@@ -4221,6 +4233,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>No se han podido guardar los ajustes de movimiento. La opción anterior sigue activa.</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>No se ha podido guardar el ajuste del título. La opción anterior sigue activa.</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>

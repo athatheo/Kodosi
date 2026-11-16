@@ -81,6 +81,22 @@ ColumnLayout {
             }
         }
         ListRow {
+            iconName: "text"
+            tint: "#607fcc"
+            title: qsTr("Title")
+
+            SegmentedPill {
+                compact: true
+                identifier: "settings.terminal.title"
+                options: [
+                    { value: false, label: qsTr("Name") },
+                    { value: true, label: qsTr("Summary") }
+                ]
+                currentValue: Models.Appearance.summaryFirst
+                onActivated: value => Models.Appearance.setSummaryFirst(value)
+            }
+        }
+        ListRow {
             iconName: "wind"
             tint: "#4f9bb0"
             title: qsTr("Reduce motion")

@@ -945,6 +945,10 @@ pub struct SessionEntry {
     pub repository: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    /// This device learns a remote terminal's title only while it streams the terminal, so the
+    /// title belongs to the program that ran then.
+    #[serde(skip)]
+    pub title_program: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub program_status: Option<crate::terminal::ProgramStatus>,
     pub working: bool,

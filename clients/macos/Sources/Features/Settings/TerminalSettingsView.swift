@@ -9,6 +9,7 @@ struct TerminalSettingsView: View {
     @State private var families: [String] = []
     @AppStorage(ThemePreference.storageKey) private var themePreference = ThemePreference.system.rawValue
     @AppStorage(MotionPreference.storageKey) private var reducesMotion = false
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     @Environment(\.accessibilityReduceMotion) private var systemReducesMotion
 
     private var changed: Bool {
@@ -32,6 +33,12 @@ struct TerminalSettingsView: View {
                         SegmentOption(value: ThemePreference.light.rawValue, title: String(localized: "Light"), symbol: "sun.max"),
                         SegmentOption(value: ThemePreference.dark.rawValue, title: String(localized: "Dark"), symbol: "moon"),
                     ], compact: true, identifier: "settings.appearance")
+                }
+                ListRow(String(localized: "Title"), symbol: "text.alignleft", tint: TileTint.blue) {
+                    SegmentedPill(selection: $summaryFirst, options: [
+                        SegmentOption(value: false, title: String(localized: "Name")),
+                        SegmentOption(value: true, title: String(localized: "Summary")),
+                    ], compact: true, identifier: "settings.terminal.title")
                 }
                 Toggle(isOn: systemReducesMotion ? .constant(true) : $reducesMotion) {
                     HStack(spacing: 12) {

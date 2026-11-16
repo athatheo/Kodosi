@@ -58,6 +58,7 @@ public extension RuntimeSession {
 
 public struct TerminalCard<Detail: View, Accessory: View>: View {
     @Environment(\.theme) private var theme
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     let session: RuntimeSession
     let rested: AgentMark.Activity
     let badged: Bool
@@ -89,7 +90,8 @@ public struct TerminalCard<Detail: View, Accessory: View>: View {
                         }
                     }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(session.name).appTextStyle(.subhead).foregroundStyle(muted ? theme.colors.inkMuted : theme.colors.ink).lineLimit(1)
+                    Text(session.leadingSummary(summaryFirst) ?? session.name).appTextStyle(.subhead)
+                        .foregroundStyle(muted ? theme.colors.inkMuted : theme.colors.ink).lineLimit(1)
                     detail.appTextStyle(.footnote).foregroundStyle(theme.colors.inkMuted)
                 }
                 Spacer(minLength: 0)
@@ -124,6 +126,7 @@ private struct CardShareBadge: View {
 
 public struct TerminalCaption: View {
     @Environment(\.theme) private var theme
+    @AppStorage(SummaryFirst.storageKey) private var summaryFirst = false
     let session: RuntimeSession
     let fallback: String?
 
@@ -143,7 +146,8 @@ public struct TerminalCaption: View {
             } else if session.status == .closing {
                 Text(session.statusLabel).foregroundStyle(theme.colors.inkFaint)
             } else {
-                SessionActivityText(session: session, fallback: fallback, showsPlace: true)
+                SessionActivityText(session: session, fallback: fallback, showsPlace: true,
+                                    naming: session.leadingSummary(summaryFirst) != nil)
                     .foregroundStyle(session.activity == nil ? theme.colors.inkFaint : theme.colors.inkMuted)
             }
         }

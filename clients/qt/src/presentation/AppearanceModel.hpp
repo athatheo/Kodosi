@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QSettings>
 #include <QString>
+#include <QVariantMap>
 
 #include <functional>
 #include <memory>
@@ -15,6 +16,7 @@ class AppearanceModel final : public QObject {
     Q_PROPERTY(bool dark READ dark NOTIFY darkChanged)
     Q_PROPERTY(bool reduceMotion READ reduceMotion NOTIFY reduceMotionChanged)
     Q_PROPERTY(bool systemReducesMotion READ systemReducesMotion NOTIFY reduceMotionChanged)
+    Q_PROPERTY(bool summaryFirst READ summaryFirst NOTIFY summaryFirstChanged)
     Q_PROPERTY(QString settingsError READ settingsError NOTIFY settingsErrorChanged)
 
 public:
@@ -41,12 +43,17 @@ public:
     [[nodiscard]] bool dark() const noexcept;
     [[nodiscard]] bool reduceMotion() const noexcept;
     [[nodiscard]] bool systemReducesMotion() const noexcept;
+    [[nodiscard]] bool summaryFirst() const noexcept;
     [[nodiscard]] QString settingsError() const;
 
     Q_INVOKABLE [[nodiscard]] bool setPreference(int preference);
     Q_INVOKABLE [[nodiscard]] bool setReducesMotion(bool enabled);
+    Q_INVOKABLE [[nodiscard]] bool setSummaryFirst(bool enabled);
     Q_INVOKABLE [[nodiscard]] static int stableIndex(const QString& key, int count);
     Q_INVOKABLE [[nodiscard]] static int stableBits(const QString& key);
+    /// A list puts an agent's summary before the terminal's name only while the line below can
+    /// still name the terminal, rather than say its state.
+    Q_INVOKABLE [[nodiscard]] static QString leadingSummary(const QVariantMap& session, bool summaryFirst);
 
     void injectSystemColorSchemeForTesting(Qt::ColorScheme scheme);
     void injectSystemReducedMotionForTesting(bool enabled);
@@ -55,6 +62,7 @@ signals:
     void preferenceChanged();
     void darkChanged();
     void reduceMotionChanged();
+    void summaryFirstChanged();
     void settingsErrorChanged();
 
 private:
@@ -64,6 +72,7 @@ private:
     bool m_dark = false;
     bool m_systemReducesMotion = false;
     bool m_reducesMotion = false;
+    bool m_summaryFirst = false;
     QString m_settingsError;
 
     [[nodiscard]] bool store(const QString& key, const QVariant& value);

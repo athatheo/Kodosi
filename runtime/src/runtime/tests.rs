@@ -2863,6 +2863,67 @@ async fn a_terminal_shows_the_status_of_its_host_while_nobody_here_has_it_open()
     assert_eq!(runtime.remotes[&id].status, SessionStatus::Offline);
 }
 
+#[tokio::test]
+async fn a_closed_terminal_keeps_its_title_only_while_the_same_agent_runs_there() {
+    use crate::terminal::TerminalMetadata;
+    let (mut runtime, _root) = registry_fixture();
+    let (id, incarnation) = (Uuid::now_v7(), Uuid::now_v7());
+    let running = |program: &str| RemoteSession {
+        status: Some(TerminalStatus {
+            program: Some(program.to_owned()),
+            ..TerminalStatus::default()
+        }),
+        ..remote_session(id, incarnation)
+    };
+    runtime.replace_remotes(vec![running("claude")]);
+    let (connection, _requests, _updates) =
+        crate::network::test_remote_connection(running("claude"));
+    runtime.connections.insert(
+        id,
+        RemoteTerminal::spawn(connection, runtime.changes.clone()),
+    );
+    let instance_id = runtime.connections[&id].instance_id;
+    runtime.change(SessionChange::Metadata {
+        id,
+        incarnation,
+        instance_id,
+        metadata: TerminalMetadata {
+            connected_users: vec![],
+            directory: None,
+            title: Some("Fix the sign-in".to_owned()),
+            program: Some("claude".to_owned()),
+            account: None,
+            settings: None,
+            pending: None,
+            status: None,
+            context: None,
+            canvas: None,
+        },
+    });
+    runtime.change(SessionChange::RemoteClosed {
+        id,
+        incarnation,
+        instance_id,
+        reason: crate::text::Text::plain("Closed here."),
+    });
+    let title = |runtime: &Runtime| runtime.remotes[&id].title.clone();
+    let remembered = Some("Fix the sign-in".to_owned());
+    let generation = runtime.network.generation();
+    let notice = |online: bool| BackendEvent {
+        generation,
+        user_id: None,
+        event: json!({"type":"network.terminal","sessionId":id,"incarnationId":incarnation,
+            "online":online,"status":{"program":"claude","state":"idle"}}),
+    };
+
+    runtime.network_event(notice(false));
+    assert_eq!(title(&runtime), remembered);
+    runtime.network_event(notice(true));
+    assert_eq!(title(&runtime), remembered);
+    runtime.replace_remotes(vec![running("codex")]);
+    assert_eq!(title(&runtime), None);
+}
+
 fn sign_in(runtime: &mut Runtime, enrolled: bool) {
     runtime.network.assume_identity(crate::network::Identity {
         user_id: "owner".to_owned(),

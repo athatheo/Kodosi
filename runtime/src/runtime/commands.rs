@@ -1796,6 +1796,7 @@ impl Runtime {
                     prompt: false,
                     repository: started.repository,
                     title: None,
+                    title_program: None,
                     program_status: None,
                     working: false,
                     waiting: None,

@@ -31,6 +31,13 @@ public extension RuntimeSession {
         AgentKind(program: program)
     }
 
+    /// A list puts an agent's summary before the terminal's name only while the line below can
+    /// still name the terminal, rather than say its state.
+    func leadingSummary(_ summaryFirst: Bool) -> String? {
+        guard summaryFirst, agent.isAgent, !isTroubled, connectionState != .connecting, status == .running else { return nil }
+        return activity
+    }
+
     var placeLabel: String? {
         guard let place else { return nil }
         return switch place.kind {

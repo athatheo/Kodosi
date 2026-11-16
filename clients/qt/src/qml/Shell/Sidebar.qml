@@ -1046,6 +1046,7 @@ Item {
                                     : session.activity || (session.kind === "remote" && session.connectionState !== "connected"
                                         ? (unreachable ? qsTr("Offline") : session.message || qsTr("Not connected")) : "")
                                 readonly property bool connected: session.connectionState === "local" || session.connectionState === "connected"
+                                readonly property string summary: Models.Appearance.leadingSummary(session, Models.Appearance.summaryFirst)
                                 readonly property bool troubled: session.connectionState === "blocked" || session.status === "offline"
                                     || (session.connectionState === "offline" && !!session.message)
                                 readonly property bool signed: sign.form.length > 0
@@ -1103,7 +1104,7 @@ Item {
 
                                         PlainLabel {
                                             Layout.fillWidth: true
-                                            text: row.session.name || ""
+                                            text: row.summary || row.session.name || ""
                                             color: row.selected || row.staged ? KodosiTheme.ink : KodosiTheme.inkMuted
                                             font.weight: row.selected ? Font.DemiBold : Font.Medium
                                             elide: Text.ElideRight
@@ -1139,7 +1140,7 @@ Item {
                                                 width: Math.max(0, caption.width - x)
                                                 height: caption.height
                                                 session: row.session
-                                                words: row.detail
+                                                words: row.summary.length > 0 ? row.session.name || "" : row.detail
                                                 color: KodosiTheme.inkFaint
                                                 pixelSize: KodosiTheme.fontCaption
                                             }

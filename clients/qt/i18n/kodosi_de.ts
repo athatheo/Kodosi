@@ -3750,6 +3750,18 @@
         <translation>Dunkel</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>Titel</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>Zusammenfassung</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>Bewegung reduzieren</translation>
     </message>
@@ -4221,6 +4233,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>Die Bewegungseinstellungen konnten nicht gespeichert werden. Die vorherige Wahl bleibt aktiv.</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>Die Titeleinstellung konnte nicht gespeichert werden. Die vorherige Wahl bleibt aktiv.</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>
