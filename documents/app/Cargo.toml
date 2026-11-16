@@ -48,7 +48,7 @@ documents = { path = "../crates/documents" }
 documents-cli = { path = "../crates/cli" }
 tauri = "2.12.5"
 tauri-plugin-dialog = "2.8.4"
-tauri-plugin-opener = "2.7.2"
+tauri-plugin-opener = "2.7.3"
 tauri-plugin-single-instance = "2.5.5"
 tokio = { version = "1.54.1", features = ["macros", "sync"] }
 
