@@ -394,13 +394,13 @@ private slots:
             f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("project.snapshot") },
                 { QStringLiteral("content"), QJsonObject { { QStringLiteral("projectId"), test::id(10) }, { QStringLiteral("tasks"), QJsonArray {} },
                     { QStringLiteral("messages"), QJsonArray { QJsonObject { { QStringLiteral("id"), test::id(100 + sequence) },
-                        { QStringLiteral("sequence"), sequence }, { QStringLiteral("authorId"), test::id(51) } } } } } } }, 1);
+                        { QStringLiteral("position"), sequence }, { QStringLiteral("authorId"), test::id(51) } } } } } } }, 1);
         };
         const auto seen = [&] {
             QList<qint64> sequences;
             for (const auto& command : std::as_const(f.commands.values)) {
                 if (command.value(QStringLiteral("type")).toString() == QStringLiteral("project.seen"))
-                    sequences.append(command.value(QStringLiteral("sequence")).toInteger());
+                    sequences.append(command.value(QStringLiteral("position")).toInteger());
             }
             return sequences;
         };
@@ -440,7 +440,7 @@ private slots:
             QJsonArray list;
             for (int index = 0; index < messages; ++index) {
                 ++sequence;
-                list.append(QJsonObject { { QStringLiteral("id"), test::id(100 + sequence) }, { QStringLiteral("sequence"), sequence },
+                list.append(QJsonObject { { QStringLiteral("id"), test::id(100 + sequence) }, { QStringLiteral("position"), sequence },
                     { QStringLiteral("authorId"), test::id(51) } });
             }
             f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("project.snapshot") },
@@ -477,6 +477,43 @@ private slots:
         QCOMPARE(unread(), 1);
         projects.setPresentation(QStringLiteral("followLatest"), true);
         QCOMPARE(unread(), 0);
+    }
+
+    void aDeletionReplacesOnlyAKeptMessageAndAClearDropsTheMessagesUpToItsPosition()
+    {
+        Fixture f;
+        f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("auth.ready") },
+            { QStringLiteral("userId"), test::id(50) }, { QStringLiteral("accountEpoch"), 1 } }, 1);
+        auto& projects = f.workspace.projects();
+        f.desktop.setActiveView(kodosi::DesktopStateModel::Projects);
+        projects.open(test::id(10));
+        projects.setPresentation(QStringLiteral("conversation"), false);
+        const auto message = [](int position, bool deleted = false) {
+            return QJsonObject { { QStringLiteral("id"), test::id(100 + position) }, { QStringLiteral("position"), position },
+                { QStringLiteral("authorId"), test::id(51) }, { QStringLiteral("deleted"), deleted } };
+        };
+        const auto project = [&](const QJsonArray& messages, const QJsonArray& replacements = {}, int cleared = 0) {
+            f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("project.snapshot") },
+                { QStringLiteral("content"), QJsonObject { { QStringLiteral("projectId"), test::id(10) }, { QStringLiteral("tasks"), QJsonArray {} },
+                    { QStringLiteral("messages"), messages }, { QStringLiteral("replacements"), replacements },
+                    { QStringLiteral("clearedPosition"), cleared } } } }, 1);
+        };
+        const auto shown = [&] {
+            QList<QPair<int, bool>> messages;
+            for (const auto& value : projects.content().value(QStringLiteral("messages")).toList()) {
+                const auto entry = value.toMap();
+                messages.append({ entry.value(QStringLiteral("position")).toInt(), entry.value(QStringLiteral("deleted")).toBool() });
+            }
+            return messages;
+        };
+        const auto unread = [&] { return projects.presentation().value(QStringLiteral("unread")).toInt(); };
+        project({ message(5), message(6) });
+        project({ message(7), message(8, true) }, { message(5, true), message(2, true) });
+        QCOMPARE(shown(), (QList<QPair<int, bool>> { { 5, true }, { 6, false }, { 7, false }, { 8, true } }));
+        QCOMPARE(unread(), 1);
+        project({ message(9) }, {}, 7);
+        QCOMPARE(shown(), (QList<QPair<int, bool>> { { 8, true }, { 9, false } }));
+        QCOMPARE(unread(), 1);
     }
 
     void aListThatSaysTheSameKeepsTheViews()
@@ -2304,8 +2341,8 @@ private slots:
         Fixture f;
         auto& projects = f.workspace.projects();
         projects.open(test::id(10));
-        const auto message = [](int sequence) {
-            return QJsonObject { { QStringLiteral("id"), test::id(100 + sequence) }, { QStringLiteral("sequence"), sequence },
+        const auto message = [](int position) {
+            return QJsonObject { { QStringLiteral("id"), test::id(100 + position) }, { QStringLiteral("position"), position },
                 { QStringLiteral("authorId"), test::id(51) } };
         };
         f.workspace.apply({ { QStringLiteral("type"), QStringLiteral("project.snapshot") },
@@ -2327,7 +2364,7 @@ private slots:
                 { QStringLiteral("messages"), QJsonArray { message(3), message(4) } } } } }, 0);
         const auto messages = projects.content().value(QStringLiteral("messages")).toList();
         QCOMPARE(messages.size(), 3);
-        QCOMPARE(messages.first().toMap().value(QStringLiteral("sequence")).toInt(), 3);
+        QCOMPARE(messages.first().toMap().value(QStringLiteral("position")).toInt(), 3);
         QVERIFY(!projects.content().value(QStringLiteral("hasOlder")).toBool());
     }
 

@@ -39,12 +39,12 @@ void ProjectsModel::see(const QString& projectId)
         return;
     quint64 latest = 0;
     for (const auto& value : m_contents.value(projectId).value(QStringLiteral("messages")).toList())
-        latest = std::max(latest, value.toMap().value(QStringLiteral("sequence")).toULongLong());
+        latest = std::max(latest, value.toMap().value(QStringLiteral("position")).toULongLong());
     if (latest == 0 || (latest <= m_seen.value(projectId) && !unreadProjects().contains(projectId)))
         return;
     m_seen.insert(projectId, latest);
     m_workspace.sendUntracked(QStringLiteral("project.seen"),
-        { { QStringLiteral("projectId"), projectId }, { QStringLiteral("sequence"), static_cast<qint64>(latest) } });
+        { { QStringLiteral("projectId"), projectId }, { QStringLiteral("position"), static_cast<qint64>(latest) } });
 }
 
 QStringList ProjectsModel::unreadProjects() const
@@ -256,20 +256,25 @@ void ProjectsModel::applyContent(const QJsonObject& content)
     auto& view = m_presentations[projectId];
     const auto before = view;
     const bool shown = projectId == m_selectedId && m_workspace.m_desktop.activeView() == DesktopStateModel::Projects;
+    const auto cleared = std::max(previous.value(QStringLiteral("clearedPosition")).toULongLong(),
+        next.value(QStringLiteral("clearedPosition")).toULongLong());
     if (!previous.isEmpty()) {
         quint64 latest = 0;
         for (const auto& value : previous.value(QStringLiteral("messages")).toList())
-            latest = std::max(latest, value.toMap().value(QStringLiteral("sequence")).toULongLong());
+            latest = std::max(latest, value.toMap().value(QStringLiteral("position")).toULongLong());
         const auto userId = m_workspace.account().userId();
         const auto messages = content.value(QStringLiteral("messages")).toArray();
         const auto added = std::count_if(messages.cbegin(), messages.cend(), [&](const QJsonValue& value) {
             const auto message = value.toObject();
             const bool own = message.value(QStringLiteral("agent")).toString().isEmpty()
                 && message.value(QStringLiteral("authorId")).toString() == userId;
-            return message.value(QStringLiteral("sequence")).toInteger() > static_cast<qint64>(latest) && !own;
+            return message.value(QStringLiteral("position")).toInteger() > static_cast<qint64>(latest) && !own
+                && !message.value(QStringLiteral("deleted")).toBool();
         });
         const bool following = view.value(QStringLiteral("conversation"), true).toBool()
             && view.value(QStringLiteral("followLatest"), true).toBool();
+        if (cleared > previous.value(QStringLiteral("clearedPosition")).toULongLong())
+            view.remove(QStringLiteral("unread"));
         if (added > 0 && !(shown && following))
             view.insert(QStringLiteral("unread"), view.value(QStringLiteral("unread")).toInt() + static_cast<int>(added));
     }
@@ -282,11 +287,21 @@ void ProjectsModel::applyContent(const QJsonObject& content)
         messages.insert(value.toMap().value(QStringLiteral("id")).toString(), value);
     for (const auto& value : next.value(QStringLiteral("messages")).toList())
         messages.insert(value.toMap().value(QStringLiteral("id")).toString(), value);
-    auto ordered = messages.values();
+    for (const auto& value : next.take(QStringLiteral("replacements")).toList()) {
+        const auto id = value.toMap().value(QStringLiteral("id")).toString();
+        if (messages.contains(id))
+            messages.insert(id, value);
+    }
+    QVariantList ordered;
+    for (const auto& value : std::as_const(messages)) {
+        if (value.toMap().value(QStringLiteral("position")).toULongLong() > cleared)
+            ordered.append(value);
+    }
     std::sort(ordered.begin(), ordered.end(), [](const QVariant& a, const QVariant& b) {
-        return a.toMap().value(QStringLiteral("sequence")).toULongLong() < b.toMap().value(QStringLiteral("sequence")).toULongLong();
+        return a.toMap().value(QStringLiteral("position")).toULongLong() < b.toMap().value(QStringLiteral("position")).toULongLong();
     });
     next.insert(QStringLiteral("messages"), ordered);
+    next.insert(QStringLiteral("clearedPosition"), cleared);
     auto tasks = next.value(QStringLiteral("tasks")).toList();
     std::sort(tasks.begin(), tasks.end(), [](const QVariant& a, const QVariant& b) {
         return a.toMap().value(QStringLiteral("id")).toString() < b.toMap().value(QStringLiteral("id")).toString();
