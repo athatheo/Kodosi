@@ -229,6 +229,7 @@ public struct CanvasBrowserView: View {
                     .foregroundStyle(theme.colors.caution).help(failure)
                     .accessibilityLabel(Text(failure))
             }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 6).frame(height: control + 8)
     }
@@ -293,15 +294,28 @@ public struct CanvasBrowserView: View {
         return VStack(alignment: .leading, spacing: 1) {
             ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
                 Button { open(suggestion) } label: {
-                    suggestionRow(suggestion).hoverRow(radius: Radius.sm, selected: index == choice)
+                    suggestionRow(suggestion).background {
+                        if index == choice {
+                            RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                                .fill(theme.colors.ink.opacity(0.08))
+                                .matchedGeometryEffect(id: "suggestion", in: thumb)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside {
+                        choice = index
+                    }
+                }
+                .accessibilityAddTraits(index == choice ? .isSelected : [])
                 .accessibilityIdentifier("canvas.browser.suggestion.\(index)")
             }
         }
         .padding(4)
         .fixedSize(horizontal: false, vertical: true)
         .background { RaisedBackground(shape: shape, fill: theme.colors.raised, elevation: .lifted) }
+        .animation(theme.motion.snappy, value: choice)
     }
 
     private func suggestionRow(_ suggestion: Suggestion) -> some View {
