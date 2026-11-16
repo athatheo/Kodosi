@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex, PoisonError,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -126,6 +126,7 @@ pub struct Window {
     state: watch::Receiver<State>,
     open: watch::Receiver<bool>,
     used: watch::Receiver<Option<Instant>>,
+    emptied: Arc<AtomicBool>,
 }
 
 impl Window {
@@ -168,6 +169,11 @@ impl Window {
     pub async fn closed(&self) {
         let mut open = self.open.clone();
         drop(open.wait_for(|open| !open).await);
+    }
+
+    /// Whether the window ended because its last tab closed, as a browser's window does.
+    pub fn emptied(&self) -> bool {
+        self.emptied.load(Ordering::Acquire)
     }
 
     pub fn used_at(&self) -> Option<Instant> {
@@ -297,7 +303,9 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
         state,
         open,
         used,
+        emptied: Arc::default(),
     };
+    let emptied = Arc::clone(&window.emptied);
     let stopped = engine.stopped();
     let live = Live::new(
         engine,
@@ -308,7 +316,7 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
         window.events.downgrade(),
     );
     tokio::spawn(async move {
-        live.run(events, stopped).await;
+        emptied.store(live.run(events, stopped).await, Ordering::Release);
         open_in.send_replace(false);
     });
     Ok(window)
@@ -474,9 +482,15 @@ impl Live {
         }
     }
 
-    async fn run(mut self, mut events: mpsc::Receiver<Event>, mut stopped: watch::Receiver<bool>) {
+    /// Returns whether the window ended because its last tab closed.
+    async fn run(
+        mut self,
+        mut events: mpsc::Receiver<Event>,
+        mut stopped: watch::Receiver<bool>,
+    ) -> bool {
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut emptied = false;
         loop {
             tokio::select! {
                 event = events.recv() => {
@@ -484,7 +498,10 @@ impl Live {
                     if matches!(event, Event::Close) {
                         break;
                     }
-                    self.handle(event).await;
+                    emptied = self.handle(event).await;
+                    if emptied {
+                        break;
+                    }
                 }
                 _ = tick.tick() => {
                     if self.tick() {
@@ -498,6 +515,7 @@ impl Live {
         self.engine
             .command(ToEngine::CloseWindow { window: self.id });
         self.engine.window_closed(self.id).await;
+        emptied
     }
 
     fn tick(&mut self) -> bool {
@@ -569,7 +587,8 @@ impl Live {
         state
     }
 
-    async fn handle(&mut self, event: Event) {
+    /// Returns whether the window ends.
+    async fn handle(&mut self, event: Event) -> bool {
         match event {
             Event::Join {
                 viewer,
@@ -612,7 +631,7 @@ impl Live {
                 self.capturing = None;
                 self.capture_failed_at = Some(Instant::now());
             }
-            Event::Tabs { tabs, active } => self.tabs(tabs, active),
+            Event::Tabs { tabs, active } => return self.tabs(tabs, active),
             // The person's own pointer takes this shape, so it cannot wait for the tick.
             Event::Shape(shape) => {
                 self.state.shape = shape;
@@ -647,28 +666,29 @@ impl Live {
                 self.state.chooser = Some(Chooser { several });
                 self.dirty = true;
             }
-            Event::DownloadBegan { guid, name } => {
-                if !std::mem::take(&mut self.may_download) {
-                    self.engine.devtools().send(
-                        "Browser.cancelDownload",
-                        &json!({ "guid": guid }),
-                        None,
-                    );
-                    self.refused.insert(guid);
-                    return;
-                }
-                self.state.downloads.push(Download {
-                    name: name.clone(),
-                    path: String::new(),
-                    done: false,
-                });
-                let extra = self.state.downloads.len().saturating_sub(MOST_DOWNLOADS);
-                self.state.downloads.drain(..extra);
-                self.downloads.insert(guid, name);
-                self.dirty = true;
-            }
+            Event::DownloadBegan { guid, name } => self.download_began(guid, name),
             Event::DownloadEnded { guid, done } => self.download_ended(&guid, done).await,
         }
+        false
+    }
+
+    fn download_began(&mut self, guid: String, name: String) {
+        if !std::mem::take(&mut self.may_download) {
+            self.engine
+                .devtools()
+                .send("Browser.cancelDownload", &json!({ "guid": guid }), None);
+            self.refused.insert(guid);
+            return;
+        }
+        self.state.downloads.push(Download {
+            name: name.clone(),
+            path: String::new(),
+            done: false,
+        });
+        let extra = self.state.downloads.len().saturating_sub(MOST_DOWNLOADS);
+        self.state.downloads.drain(..extra);
+        self.downloads.insert(guid, name);
+        self.dirty = true;
     }
 
     fn message(&mut self, viewer: &str, message: ToWindow) {
@@ -731,7 +751,9 @@ impl Live {
         }
     }
 
-    fn tabs(&mut self, tabs: Vec<EngineTab>, active: Option<i64>) {
+    /// Returns whether the last tab closed.
+    fn tabs(&mut self, tabs: Vec<EngineTab>, active: Option<i64>) -> bool {
+        let emptied = !self.state.tabs.is_empty() && tabs.is_empty();
         self.active = active;
         self.state.tabs = tabs
             .iter()
@@ -750,6 +772,7 @@ impl Live {
         self.dirty = true;
         self.send_waiting();
         self.update_capture();
+        emptied
     }
 
     fn icon(&mut self, tab: i64, png: String) {
@@ -1598,6 +1621,36 @@ mod tests {
 
         let bob = join(&mut live, "bob").await;
         assert_eq!(icon(newest(&bob)).as_deref(), Some("aWNvbg=="));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_window_ends_when_its_last_tab_closes_but_not_while_it_waits_for_its_first() {
+        let (events_in, events) = mpsc::channel(8);
+        let (_stop, stopped) = watch::channel(false);
+        let running = tokio::spawn(live().run(events, stopped));
+        let tabs = |ids: &[i64]| Event::Tabs {
+            tabs: ids
+                .iter()
+                .map(|id| EngineTab {
+                    id: *id,
+                    window: 1,
+                    target: None,
+                    title: String::new(),
+                    address: String::new(),
+                    active: true,
+                    loading: false,
+                })
+                .collect(),
+            active: ids.first().copied(),
+        };
+        events_in.send(tabs(&[])).await.unwrap();
+        tokio::time::sleep(Duration::from_mins(1)).await;
+        assert!(!running.is_finished());
+
+        events_in.send(tabs(&[5])).await.unwrap();
+        events_in.send(tabs(&[])).await.unwrap();
+        let ended = tokio::time::timeout(Duration::from_mins(1), running).await;
+        assert!(ended.unwrap().unwrap());
     }
 
     #[tokio::test]

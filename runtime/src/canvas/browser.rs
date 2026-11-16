@@ -154,6 +154,7 @@ pub(super) struct Terminal {
     pub(super) folder: watch::Receiver<PathBuf>,
     pub(super) shared: watch::Receiver<bool>,
     pub(super) show: Box<dyn Fn(PathBuf) + Send + Sync>,
+    pub(super) last_tab_closed: Box<dyn Fn(Weak<Browser>) + Send + Sync>,
 }
 
 pub(super) struct Browser {
@@ -599,7 +600,12 @@ async fn follow(browser: Weak<Browser>, window: Window, closed: CancellationToke
             }
         }
     }
-    if let Some(browser) = browser.upgrade() {
+    let Some(browser) = browser.upgrade() else {
+        return;
+    };
+    if window.emptied() {
+        (browser.terminal.last_tab_closed)(Arc::downgrade(&browser));
+    } else {
         browser.change(|state| {
             state.state = BrowserState::Asleep;
             state.doing = None;

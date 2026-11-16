@@ -199,15 +199,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                                 AppIcon(AppSymbol.BROWSER, Modifier.size(12.dp), tint = colors.accent)
                             }
                         },
-                        close = if (tabs.size > 1) {
-                            (
-                                {
-                                    feed.input(fields("kind" to "closeTab", "id" to tab.id))
-                                }
-                                )
-                        } else {
-                            null
-                        }
+                        close = { feed.input(fields("kind" to "closeTab", "id" to tab.id)) }
                     )
                 }
             }

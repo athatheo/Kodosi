@@ -151,7 +151,7 @@ public struct CanvasBrowserView: View {
     private func tabKeys(_ tabs: [BrowserWindow.Tab]) -> some View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
-                tabKey(tab, closes: tabs.count > 1)
+                tabKey(tab)
                     .id(tab.id)
                     .transition(.scale(scale: 0.9).combined(with: .opacity))
             }
@@ -159,7 +159,7 @@ public struct CanvasBrowserView: View {
         .padding(.vertical, 1)
     }
 
-    private func tabKey(_ tab: BrowserWindow.Tab, closes: Bool) -> some View {
+    private func tabKey(_ tab: BrowserWindow.Tab) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.xs, style: .continuous)
         let title = Self.title(of: tab)
         return Button { feed.send(.tab(tab.id)) } label: {
@@ -181,7 +181,7 @@ public struct CanvasBrowserView: View {
             }
             .appTextStyle(.footnote).fontWeight(.medium)
             .foregroundStyle(tab.active ? theme.colors.ink : theme.colors.inkMuted)
-            .padding(.leading, 8).padding(.trailing, closes ? closeKey + 10 : 10)
+            .padding(.leading, 8).padding(.trailing, closeKey + 10)
             .frame(height: control - 2).frame(minWidth: 80, maxWidth: 200, alignment: .leading)
             .background {
                 if tab.active {
@@ -197,11 +197,9 @@ public struct CanvasBrowserView: View {
         .accessibilityAddTraits(tab.active ? .isSelected : [])
         .accessibilityIdentifier("canvas.browser.tab.\(AccessibilityIdentifier.token(tab.id))")
         .overlay(alignment: .trailing) {
-            if closes {
-                RemoveKey(size: closeKey, title: String(localized: "Close tab", bundle: .module),
-                          identifier: "canvas.browser.close.\(AccessibilityIdentifier.token(tab.id))") { feed.send(.closeTab(tab.id)) }
-                    .padding(.trailing, 5)
-            }
+            RemoveKey(size: closeKey, title: String(localized: "Close tab", bundle: .module),
+                      identifier: "canvas.browser.close.\(AccessibilityIdentifier.token(tab.id))") { feed.send(.closeTab(tab.id)) }
+                .padding(.trailing, 5)
         }
     }
 
