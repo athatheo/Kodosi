@@ -47,7 +47,7 @@ struct BrowserPartsLayer: View {
                     if let context = menu.context {
                         contextRows(menu, context)
                     } else {
-                        ForEach(Array(menu.items.enumerated()), id: \.offset) { index, item in
+                        ForEach(menu.items.enumerated(), id: \.offset) { index, item in
                             row(MenuRow(title: item.label, selected: item.chosen), enabled: item.enabled) {
                                 feed.send(.choose(menu: menu.id, choice: index))
                             }

@@ -299,7 +299,7 @@ public struct CanvasBrowserView: View {
     private func suggestionList(_ suggestions: [Suggestion]) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
         return VStack(alignment: .leading, spacing: 1) {
-            ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
+            ForEach(suggestions.enumerated(), id: \.element.id) { index, suggestion in
                 Button { open(suggestion) } label: {
                     suggestionRow(suggestion).background {
                         if index == choice {

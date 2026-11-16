@@ -240,7 +240,7 @@ struct DosiWelcome: View {
             Text("Your agent for your agents", bundle: .module).appTextStyle(.subhead).foregroundStyle(theme.colors.inkMuted)
                 .multilineTextAlignment(.center)
             VStack(spacing: 6) {
-                ForEach(Array(Self.asks.enumerated()), id: \.offset) { index, ask in
+                ForEach(Self.asks.enumerated(), id: \.offset) { index, ask in
                     Button { place.send(ask) } label: {
                         Text(ask)
                         #if os(iOS)

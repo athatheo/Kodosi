@@ -120,7 +120,7 @@ private struct DosiShelfRow<Item: Identifiable, Chip: View, More: View, Trailing
         let shown = DosiShelfFit.shown(widths, in: room > 0 ? room : estimate)
         HStack(spacing: 4) {
             HStack(spacing: DosiShelfFit.spacing) {
-                ForEach(Array(items.prefix(shown).enumerated()), id: \.element.id) { order, item in
+                ForEach(items.prefix(shown).enumerated(), id: \.element.id) { order, item in
                     chip(item, order, widths[order])
                 }
                 if shown < items.count {

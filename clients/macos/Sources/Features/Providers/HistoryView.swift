@@ -163,7 +163,7 @@ struct HistoryView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
                             Color.clear.frame(height: 1).id("pageTop")
-                            ForEach(Array(browser.entries.enumerated()), id: \.offset) { _, entry in
+                            ForEach(browser.entries.enumerated(), id: \.offset) { _, entry in
                                 HistoryMessageView(entry: entry, agent: browser.provider.agent)
                             }
                             if browser.reading {

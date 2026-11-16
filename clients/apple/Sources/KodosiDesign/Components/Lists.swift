@@ -24,7 +24,7 @@ public struct ListGroup<Content: View>: View {
             }
             VStack(spacing: 0) {
                 Group(subviews: content()) { subviews in
-                    ForEach(Array(subviews.enumerated()), id: \.element.id) { index, subview in
+                    ForEach(subviews.enumerated(), id: \.element.id) { index, subview in
                         subview
                         if index < subviews.count - 1 {
                             Rectangle().fill(theme.colors.hairline.opacity(0.55)).frame(height: 0.5).padding(.leading, 54)

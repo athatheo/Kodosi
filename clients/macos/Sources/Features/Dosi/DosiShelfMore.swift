@@ -112,7 +112,7 @@ struct DosiMoreTerminals: View {
             label: Text("\(sessions.count) more terminals"), identifier: "dosi.marks.more", glints: glints, glintDelay: glintDelay,
         ) {
             DosiMoreList(count: sessions.count) {
-                ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                ForEach(sessions.enumerated(), id: \.element.id) { index, session in
                     DosiMoreRow(name: session.name, detail: session.kind == .remote ? session.hostLabel : nil, selected: selected(session)) {
                         AgentMark(session: session, size: 18, activity: deps.activity(of: session))
                     } sign: {
@@ -167,7 +167,7 @@ struct DosiMoreProjects: View {
             label: Text("\(projects.count) more projects"), identifier: "dosi.marks.project.more", glints: glints, glintDelay: glintDelay,
         ) {
             DosiMoreList(count: projects.count) {
-                ForEach(Array(projects.enumerated()), id: \.element.id) { index, project in
+                ForEach(projects.enumerated(), id: \.element.id) { index, project in
                     DosiMoreRow(name: project.name, detail: nil, selected: selected(project)) {
                         ProjectSigil(key: project.id, size: 18)
                     } sign: {

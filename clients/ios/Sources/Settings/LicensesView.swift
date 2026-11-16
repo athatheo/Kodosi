@@ -60,7 +60,7 @@ struct LicenseTextView: View {
             Group {
                 if let blocks {
                     LazyVStack(alignment: .leading, spacing: 14) {
-                        ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                        ForEach(blocks.enumerated(), id: \.offset) { _, block in
                             switch block {
                             case let .heading(title):
                                 Text(verbatim: title)

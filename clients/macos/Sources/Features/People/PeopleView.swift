@@ -60,7 +60,7 @@ struct PeopleView: View {
                             .frame(height: 260)
                     } else {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 360), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
-                            ForEach(Array(deps.people.friends.enumerated()), id: \.element.id) { index, friend in
+                            ForEach(deps.people.friends.enumerated(), id: \.element.id) { index, friend in
                                 FriendItem(friend: friend) { pendingRemoval = friend } block: {
                                     deps.workbench.blocking = BlockTarget(handle: friend.handle, name: friend.personName)
                                 }

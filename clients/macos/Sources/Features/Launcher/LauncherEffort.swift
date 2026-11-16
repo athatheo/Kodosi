@@ -36,7 +36,7 @@ struct EffortMeter: View {
                         Text("Auto").appTextStyle(.caption).padding(.horizontal, 6)
                     }
                 }
-                ForEach(Array(levels.enumerated()), id: \.element.id) { index, option in
+                ForEach(levels.enumerated(), id: \.element.id) { index, option in
                     segment(option.id, label: option.label) {
                         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                             .fill(level.map { index <= $0 } == true ? theme.colors.accent : theme.colors.ink.opacity(0.22))
