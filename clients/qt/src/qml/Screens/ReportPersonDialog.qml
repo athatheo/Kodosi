@@ -38,6 +38,7 @@ KDialog {
         }
         function onReportFailed(message) {
             root.failure = message;
+            failureNote.Accessible.announce(message);
         }
     }
     Timer { id: receivedTimer; interval: 6000; onTriggered: root.received = false }
@@ -126,6 +127,7 @@ KDialog {
             }
         }
         PlainLabel {
+            id: failureNote
             Layout.fillWidth: true
             visible: root.failure.length > 0
             color: KodosiTheme.danger
