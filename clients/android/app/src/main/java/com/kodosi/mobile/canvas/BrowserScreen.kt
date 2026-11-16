@@ -39,8 +39,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Text
@@ -109,8 +109,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
     val window by feed.window.collectAsStateWithLifecycle()
     val icons by feed.icons.collectAsStateWithLifecycle()
     val picture by feed.picture.collectAsStateWithLifecycle()
-    var address by remember { mutableStateOf(browser.tabs.firstOrNull { it.active }?.url.orEmpty()) }
-    var edited by remember { mutableStateOf(false) }
+    val address = remember { BrowserAddress(browser.tabs.firstOrNull { it.active }?.url.orEmpty()) }
     var addressFocused by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<BrowserSurface?>(null) }
     val dialogText = rememberTextFieldState()
@@ -146,7 +145,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
         }
     }
     LaunchedEffect(tabs, feedTabs) {
-        if (!edited) address = tabs.firstOrNull { it.active }?.url ?: address
+        tabs.firstOrNull { it.active }?.url?.let(address::follow)
         feedTabs.firstOrNull { it.flag("active") && !it.flag("loading") }?.let {
             model.preferences.browsed(it.string("title").orEmpty(), it.string("address").orEmpty())
         }
@@ -164,13 +163,12 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
     }
     val colors = KodosiTheme.colors
     val suggestions = history.filter {
-        val query = if (edited) address.trim() else ""
+        val query = if (address.edited) address.state.text.toString().trim() else ""
         query.isEmpty() || it.address.contains(query, ignoreCase = true) || it.title.contains(query, ignoreCase = true)
     }.take(6)
     val open: (String) -> Unit = {
-        address = it
+        address.place(it)
         feed.input(fields("kind" to "open", "address" to it))
-        edited = false
         addressFocused = false
         focus.clearFocus()
         keyboard?.hide()
@@ -225,12 +223,8 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                 Box(Modifier.widthIn(max = 620.dp).fillMaxWidth()) {
                     val addressLabel = stringResource(R.string.browser_address)
                     BasicTextField(
-                        address,
-                        {
-                            address = it
-                            edited = true
-                        },
-                        singleLine = true,
+                        address.state,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         enabled = awake,
                         textStyle = KodosiType.footnote.copy(color = colors.ink),
                         cursorBrush = SolidColor(colors.accent),
@@ -248,8 +242,8 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                             autoCorrectEnabled = false,
                             imeAction = ImeAction.Go
                         ),
-                        keyboardActions = KeyboardActions(onGo = { open(address) }),
-                        decorationBox = { input ->
+                        onKeyboardAction = { open(address.state.text.toString()) },
+                        decorator = { input ->
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -257,7 +251,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                                 AppIcon(
                                     if (addressFocused) {
                                         AppSymbol.SEARCH
-                                    } else if (address.startsWith(
+                                    } else if (address.state.text.startsWith(
                                             "https://",
                                             true
                                         )
@@ -270,7 +264,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask:
                                     tint = colors.inkFaint
                                 )
                                 Box(Modifier.weight(1f)) {
-                                    if (address.isEmpty()) {
+                                    if (address.state.text.isEmpty()) {
                                         Text(
                                             addressLabel,
                                             style = KodosiType.footnote,
