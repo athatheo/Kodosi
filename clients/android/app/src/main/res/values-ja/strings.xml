@@ -331,6 +331,8 @@
     <string name="local_network_message">ローカルネットワーク上のコンピューターへの直接接続を許可します。</string>
     <string name="open_settings">設定を開く</string>
     <string name="size">サイズ</string>
+    <string name="title">タイトル</string>
+    <string name="summary">概要</string>
     <string name="folder">フォルダ</string>
     <string name="yours">自分の</string>
     <string name="nothing_shared">まだ共有されていません</string>

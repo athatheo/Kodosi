@@ -331,6 +331,8 @@
     <string name="local_network_message">Autorisez les connexions directes aux ordinateurs de votre réseau local.</string>
     <string name="open_settings">Ouvrir les Réglages</string>
     <string name="size">Taille</string>
+    <string name="title">Titre</string>
+    <string name="summary">Résumé</string>
     <string name="folder">Dossier</string>
     <string name="yours">Les vôtres</string>
     <string name="nothing_shared">Rien de partagé avec vous pour le moment</string>

@@ -299,6 +299,19 @@ fun SettingsScreen(model: AppModel, friends: () -> Unit, licenses: () -> Unit) {
                             model.preferences.update { it.copy(textSize = listOf(-2, 0, 2)[index]) }
                         }
                     }
+                    ListLine(stringResource(R.string.title), leading = {
+                        IconTile(AppSymbol.TEXT, TileTint.blue)
+                    }) {
+                        SegmentedPill(
+                            listOf(
+                                SegmentOption(stringResource(R.string.name)),
+                                SegmentOption(stringResource(R.string.summary))
+                            ),
+                            if (preferences.summaryFirst) 1 else 0
+                        ) { index ->
+                            model.preferences.update { it.copy(summaryFirst = index == 1) }
+                        }
+                    }
                     SwitchRow(
                         stringResource(R.string.keep_screen_on),
                         preferences.keepScreenOn,

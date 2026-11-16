@@ -18,7 +18,8 @@ data class Preferences(
     val documentPages: Boolean = true,
     val documentDark: Boolean = true,
     val closedCanvas: Set<String> = emptySet(),
-    val notifications: Boolean = true
+    val notifications: Boolean = true,
+    val summaryFirst: Boolean = false
 ) {
     fun closedCanvasParts(session: String, canvas: Canvas?): Set<String> =
         canvas?.partChanges().orEmpty().filter { (part, changed) -> "$session/$part/$changed" in closedCanvas }.keys
@@ -36,7 +37,8 @@ class AppPreferences(context: Context) {
             saved.getBoolean("documentPages", true),
             saved.getBoolean("documentDark", true),
             saved.getStringSet("canvas/closed", emptySet()).orEmpty().toSet(),
-            saved.getBoolean("notifications", true)
+            saved.getBoolean("notifications", true),
+            saved.getBoolean("summaryFirst", false)
         )
     )
     val state: StateFlow<Preferences> = mutableState
@@ -106,6 +108,7 @@ class AppPreferences(context: Context) {
             putBoolean("documentDark", next.documentDark)
             putStringSet("canvas/closed", next.closedCanvas)
             putBoolean("notifications", next.notifications)
+            putBoolean("summaryFirst", next.summaryFirst)
         }
         mutableState.value = next
     }

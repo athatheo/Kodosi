@@ -331,6 +331,8 @@
     <string name="local_network_message">Erlaube direkte Verbindungen zu Computern in deinem lokalen Netzwerk.</string>
     <string name="open_settings">Einstellungen öffnen</string>
     <string name="size">Größe</string>
+    <string name="title">Titel</string>
+    <string name="summary">Zusammenfassung</string>
     <string name="folder">Ordner</string>
     <string name="yours">Deine</string>
     <string name="nothing_shared">Noch nichts mit dir geteilt</string>

@@ -52,9 +52,10 @@ reading provider conversations stay on the computer. The app needs Android 15 or
 - Dosi has its shared conversation, questions and the computer that answers. Choose
   a computer that is online or the one that answered last. A message for a computer
   that is away waits for it; stop a turn, take back a queued message or start a new chat.
-- Settings holds devices, the recovery key, appearance, terminal text size, whether the
-  screen stays on, document viewers, notifications, app lock, language, licenses, links
-  to the privacy policy, terms of use and support, sign-out and account deletion.
+- Settings holds devices, the recovery key, appearance, terminal text size, whether
+  terminal lists put an agent's summary before its name, whether the screen stays on,
+  document viewers, notifications, app lock, language, licenses, links to the privacy
+  policy, terms of use and support, sign-out and account deletion.
 - Notifications come from the server while you use none of your devices. They
   name your terminal and computer from this device's cache, with generic words when
   they are unknown. Waiting has its own urgent channel, a finish or a failure a quiet

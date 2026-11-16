@@ -331,6 +331,8 @@
     <string name="local_network_message">允许直接连接到本地网络中的电脑。</string>
     <string name="open_settings">打开设置</string>
     <string name="size">大小</string>
+    <string name="title">标题</string>
+    <string name="summary">摘要</string>
     <string name="folder">文件夹</string>
     <string name="yours">我的</string>
     <string name="nothing_shared">尚未与你共享任何内容</string>

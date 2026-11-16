@@ -462,11 +462,18 @@ private fun ProjectWork(
 private fun ProjectTerminals(model: AppModel, projectId: String, terminal: (String) -> Unit, start: (String) -> Unit) {
     val terminals by model.terminals.state.collectAsStateWithLifecycle()
     val account by model.account.state.collectAsStateWithLifecycle()
+    val preferences by model.preferences.state.collectAsStateWithLifecycle()
     val sessions = terminals.sessions.filter { it.projectId == projectId }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         item { KodosiTextButton(onClick = { start(projectId) }) { Text(stringResource(R.string.new_terminal)) } }
         items(sessions, key = { it.id }) { session ->
-            TerminalCard(session, account.online, { terminal(session.id) }, Modifier.padding(vertical = 5.dp))
+            TerminalCard(
+                session,
+                account.online,
+                summaryFirst = preferences.summaryFirst,
+                onClick = { terminal(session.id) },
+                modifier = Modifier.padding(vertical = 5.dp)
+            )
         }
         if (sessions.isEmpty()) {
             item {
