@@ -98,7 +98,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 @Composable
-fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
+fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask: ((String?) -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -364,28 +364,47 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
         )
     }
     if (menu != null) {
+        val choose = { choice: Int? ->
+            feed.input(fields("kind" to "choose", "menu" to menu.number("id"), "choice" to choice))
+        }
+        val pointed = menu["context"] as? JsonObject
         KodosiDialog(
-            onDismissRequest = { feed.input(fields("kind" to "choose", "menu" to menu.number("id"))) },
+            onDismissRequest = { choose(null) },
             title = { Text(stringResource(R.string.browser_menu)) },
             text = {
                 Column {
-                    menu.objects("items").forEachIndexed { index, item ->
+                    if (pointed == null) {
+                        menu.objects("items").forEachIndexed { index, item ->
+                            KodosiTextButton(onClick = { choose(index) }, enabled = item.flag("enabled")) {
+                                Text(item.string("label").orEmpty())
+                            }
+                        }
+                    } else {
+                        val selection = pointed.string("selection").orEmpty()
+                        val link = pointed.string("link")
+                        KodosiTextButton(onClick = { choose(0) }, enabled = selection.isNotEmpty()) {
+                            Text(stringResource(R.string.copy))
+                        }
+                        if (link != null) {
+                            KodosiTextButton(onClick = { choose(1) }) { Text(stringResource(R.string.copy_link)) }
+                        }
                         KodosiTextButton(onClick = {
-                            feed.input(
-                                fields(
-                                    "kind" to "choose",
-                                    "menu" to menu.number("id"),
-                                    "choice" to index
-                                )
-                            )
-                        }, enabled = item.flag("enabled")) { Text(item.string("label").orEmpty()) }
+                            choose(null)
+                            val clip = context.getSystemService(ClipboardManager::class.java).primaryClip
+                            val words = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)
+                            if (!words.isNullOrEmpty()) feed.input(fields("kind" to "text", "text" to words.toString()))
+                        }) { Text(stringResource(R.string.paste)) }
+                        if (ask != null) {
+                            KodosiTextButton(onClick = {
+                                choose(null)
+                                ask(selection.ifEmpty { link })
+                            }) { Text(stringResource(R.string.ask_about_this)) }
+                        }
                     }
                 }
             },
             confirmButton = {
-                KodosiTextButton(onClick = {
-                    feed.input(fields("kind" to "choose", "menu" to menu.number("id")))
-                }) { Text(stringResource(R.string.cancel)) }
+                KodosiTextButton(onClick = { choose(null) }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

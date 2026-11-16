@@ -166,12 +166,29 @@ pub struct Pointer {
     pub y: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A page's list or the menu of a right-click, which opens where the viewer last pointed, in the
+/// CSS pixels of the page.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Menu {
     pub id: u32,
     pub viewer: String,
+    pub x: f64,
+    pub y: f64,
     pub items: Vec<MenuItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<MenuContext>,
+}
+
+/// What a right-click was on. The apps give its menu their own items in their own words: choice
+/// 0 copies the selection and choice 1 the link.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuContext {
+    /// The start of the selection, enough to ask about it.
+    pub selection: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

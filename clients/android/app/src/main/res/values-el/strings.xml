@@ -102,6 +102,7 @@
     <string name="close">Κλείσιμο</string>
     <string name="remove">Αφαίρεση</string>
     <string name="copy">Αντιγραφή</string>
+    <string name="copy_link">Αντιγραφή συνδέσμου</string>
     <string name="rename">Μετονομασία</string>
     <string name="delete">Διαγραφή</string>
     <string name="working">Δουλεύει</string>

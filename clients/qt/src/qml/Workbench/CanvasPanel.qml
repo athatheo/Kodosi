@@ -75,10 +75,7 @@ Item {
             DocumentViews.show(sessionId, key, documentView, documentPlace);
     }
     function ask(key) {
-        const send = words => {
-            if (Models.SessionActions.input(root.sessionId, Models.Canvas.question(root.sessionId, key, words)))
-                root.asked();
-        };
+        const send = words => root.askAbout(key, words);
         const page = body.item as CanvasPage;
         if (key === root.placedKey)
             DocumentViews.selection(root.sessionId, key, send);
@@ -86,6 +83,10 @@ Item {
             page.selection(send);
         else
             send("");
+    }
+    function askAbout(key, words) {
+        if (Models.SessionActions.input(root.sessionId, Models.Canvas.question(root.sessionId, key, words)))
+            root.asked();
     }
     function size(bytes) {
         return bytes >= 1048576 ? qsTr("%1 MB").arg((bytes / 1048576).toFixed(1))
@@ -580,6 +581,9 @@ Item {
         CanvasBrowser {
             sessionId: root.sessionId
             browser: root.current.browser
+            askTitle: root.agent && root.session.canControl === true
+                ? qsTr("Ask %1 about this").arg(Models.DesktopSettings.agentLabel(root.session.program)) : ""
+            onAsking: words => root.askAbout("browser", words)
         }
     }
     Component {

@@ -19,8 +19,8 @@ use crate::{
     input,
     link::{EncodedFrame, EngineTab, ToEngine},
     message::{
-        Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuItem, MouseAction,
-        MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
+        Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuContext, MenuItem,
+        MouseAction, MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
     },
 };
 
@@ -43,6 +43,8 @@ const MOST_MESSAGE: usize = 16 * 1024;
 const MOST_ITEMS: usize = 1000;
 /// The menu that a right-click opens, which the page does not know about.
 const CONTEXT_MENU: u32 = u32::MAX;
+const COPY_SELECTION: u32 = 0;
+const COPY_LINK: u32 = 1;
 const BLANK: &str = "about:blank";
 /// Numbers each join, so that a pipe that goes frees only the seat that it took.
 static SEATS: AtomicU64 = AtomicU64::new(1);
@@ -334,7 +336,8 @@ struct Waiting {
 }
 
 struct Context {
-    copies: Vec<String>,
+    selection: String,
+    link: Option<String>,
 }
 
 /// The viewer whose press, key or scroll came last, or the first viewer while nobody acted: the
@@ -1047,11 +1050,7 @@ impl Live {
                 ..item
             })
             .collect();
-        self.state.menu = Some(Menu {
-            id: menu,
-            viewer,
-            items,
-        });
+        self.state.menu = Some(self.menu_of(viewer, menu, items, None));
         self.dirty = true;
     }
 
@@ -1059,25 +1058,45 @@ impl Live {
         let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) else {
             return;
         };
-        let item = |label: &str, enabled: bool| MenuItem {
-            label: label.to_owned(),
-            enabled,
-            chosen: false,
+        let context = MenuContext {
+            selection: cut(selection, MOST_LINE),
+            link: link.as_deref().map(|link| cut(link, MOST_ADDRESS)),
         };
-        let mut items = vec![item("Copy", !selection.is_empty())];
-        let mut copies = vec![cut(selection, MOST_TEXT)];
-        if let Some(link) = link {
-            items.push(item("Copy Link", true));
-            copies.push(link);
-        }
         self.open_menu = None;
-        self.context = Some(Context { copies });
-        self.state.menu = Some(Menu {
-            id: CONTEXT_MENU,
-            viewer,
-            items,
+        self.context = Some(Context {
+            selection: cut(selection, MOST_TEXT),
+            link,
         });
+        self.state.menu = Some(self.menu_of(viewer, CONTEXT_MENU, Vec::new(), Some(context)));
         self.dirty = true;
+    }
+
+    /// A menu opens where its viewer last pointed, which is where a press opened it.
+    fn menu_of(
+        &self,
+        viewer: String,
+        id: u32,
+        items: Vec<MenuItem>,
+        context: Option<MenuContext>,
+    ) -> Menu {
+        let (x, y) = self
+            .seats
+            .get(&viewer)
+            .and_then(|seat| seat.pointer)
+            .unwrap_or_else(|| {
+                (
+                    f64::from(self.state.width) / 2.0,
+                    f64::from(self.state.height) / 2.0,
+                )
+            });
+        Menu {
+            id,
+            viewer,
+            x,
+            y,
+            items,
+            context,
+        }
     }
 
     fn copy(&mut self, text: &str) {
@@ -1094,17 +1113,25 @@ impl Live {
     }
 
     fn choose(&mut self, viewer: &str, menu: u32, choice: Option<u32>) {
-        self.state.menu = None;
+        if self
+            .state
+            .menu
+            .take_if(|open| open.id == menu && open.viewer == viewer)
+            .is_none()
+        {
+            return;
+        }
         self.dirty = true;
         if menu == CONTEXT_MENU {
-            let context = self.context.take();
-            if let (Some(mut context), Some(choice)) = (context, choice)
-                && let Ok(choice) = usize::try_from(choice)
-                && choice < context.copies.len()
-            {
+            let copy = self.context.take().and_then(|context| match choice {
+                Some(COPY_SELECTION) => Some(context.selection).filter(|words| !words.is_empty()),
+                Some(COPY_LINK) => context.link,
+                _ => None,
+            });
+            if let Some(text) = copy {
                 self.copied = Some(Copied {
                     viewer: viewer.to_owned(),
-                    text: context.copies.swap_remove(choice),
+                    text,
                 });
             }
             return;
@@ -1471,6 +1498,37 @@ mod tests {
         );
         live.handle(Event::Shape("pointer".to_owned())).await;
         assert_eq!(copied(&ana), None);
+    }
+
+    #[tokio::test]
+    async fn a_right_click_menu_opens_where_its_viewer_pressed_and_copies_its_link_for_that_viewer()
+    {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
+        let right = json!({ "kind": "mouse", "action": "press", "x": 40, "y": 30, "button": "right", "clicks": 1 });
+        say(&mut live, "ana", right).await;
+        live.handle(Event::Context {
+            selection: String::new(),
+            link: Some("https://kodosi.com/".to_owned()),
+        })
+        .await;
+        live.publish();
+        let menu = newest(&ana).and_then(|state| state.menu).unwrap();
+        assert_eq!((menu.x, menu.y), (40.0, 30.0));
+        assert_eq!(newest(&bob).and_then(|state| state.menu), None);
+
+        say(&mut live, "ana", json!({ "kind": "choose", "menu": 7 })).await;
+        live.publish();
+        assert_eq!(
+            newest(&ana).and_then(|state| state.menu),
+            Some(menu.clone())
+        );
+
+        let link = json!({ "kind": "choose", "menu": menu.id, "choice": COPY_LINK });
+        say(&mut live, "ana", link).await;
+        live.publish();
+        assert_eq!(copied(&ana).as_deref(), Some("https://kodosi.com/"));
     }
 
     #[tokio::test]

@@ -102,6 +102,7 @@
     <string name="close">닫기</string>
     <string name="remove">제거</string>
     <string name="copy">복사</string>
+    <string name="copy_link">링크 복사</string>
     <string name="rename">이름 변경</string>
     <string name="delete">삭제</string>
     <string name="working">작업 중</string>

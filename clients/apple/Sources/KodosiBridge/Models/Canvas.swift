@@ -257,7 +257,24 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
 
     public struct Menu: Decodable, Equatable, Sendable {
         public let id: Int
+        /// Where the menu opens, in the CSS pixels of the page.
+        public let x: Double
+        public let y: Double
         public let items: [MenuItem]
+        public let context: MenuContext?
+    }
+
+    /// What a right-click was on; the app gives its menu the items.
+    public struct MenuContext: Decodable, Equatable, Sendable {
+        public static let copySelection = 0
+        public static let copyLink = 1
+
+        public let selection: String
+        public let link: String?
+
+        public var words: String? {
+            selection.isEmpty ? link : selection
+        }
     }
 
     public enum DialogKind: String, Decodable, Sendable { case alert, confirm, prompt, beforeunload }

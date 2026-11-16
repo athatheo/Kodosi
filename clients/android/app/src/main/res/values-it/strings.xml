@@ -102,6 +102,7 @@
     <string name="close">Chiudi</string>
     <string name="remove">Rimuovi</string>
     <string name="copy">Copia</string>
+    <string name="copy_link">Copia link</string>
     <string name="rename">Rinomina</string>
     <string name="delete">Elimina</string>
     <string name="working">Al lavoro</string>

@@ -110,6 +110,7 @@
     <string name="close">Close</string>
     <string name="remove">Remove</string>
     <string name="copy">Copy</string>
+    <string name="copy_link">Copy link</string>
     <string name="rename">Rename</string>
     <string name="delete">Delete</string>
     <string name="working">Working</string>

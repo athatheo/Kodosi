@@ -12,6 +12,7 @@ Item {
 
     required property string sessionId
     required property var browser
+    property string askTitle: ""
     property real pressedAt: 0
     property point pressedPoint: Qt.point(0, 0)
     property int pressedButton: Qt.NoButton
@@ -21,6 +22,8 @@ Item {
     readonly property string failure: browser.problem || ""
     readonly property var parts: video.window
     readonly property bool choosing: !!parts.chooser
+
+    signal asking(string words)
 
     onChoosingChanged: {
         if (choosing && !Models.DesktopFiles.requestPageFiles(sessionId, parts.chooser.several === true))
@@ -365,11 +368,24 @@ Item {
                 id: pageMenu
 
                 readonly property var list: root.parts.menu || null
+                readonly property var context: list ? list.context || null : null
+                readonly property string shown: list ? JSON.stringify(list) : ""
 
-                onListChanged: list ? popup(video, video.width / 2 - 100, video.height / 3) : close()
+                function choose(choice) {
+                    video.step(choice === undefined ? { kind: "choose", menu: list.id } : { kind: "choose", menu: list.id, choice: choice });
+                }
+
+                onShownChanged: {
+                    if (!list) {
+                        close();
+                        return;
+                    }
+                    const at = video.viewPoint(list.x, list.y);
+                    popup(video, at ? at.x : video.width / 2, at ? at.y : video.height / 3);
+                }
                 onClosed: {
                     if (list)
-                        video.step({ kind: "choose", menu: list.id });
+                        choose();
                 }
 
                 Instantiator {
@@ -383,7 +399,46 @@ Item {
                         text: modelData.label
                         enabled: modelData.enabled
                         iconName: modelData.chosen ? "check" : ""
-                        onTriggered: video.step({ kind: "choose", menu: pageMenu.list.id, choice: index })
+                        onTriggered: pageMenu.choose(index)
+                    }
+                }
+                KMenuItem {
+                    text: qsTr("Copy")
+                    iconName: "copy"
+                    visible: !!pageMenu.context
+                    enabled: !!pageMenu.context && pageMenu.context.selection.length > 0
+                    onTriggered: pageMenu.choose(0)
+                }
+                KMenuItem {
+                    text: qsTr("Copy link")
+                    iconName: "link"
+                    visible: !!pageMenu.context && !!pageMenu.context.link
+                    onTriggered: pageMenu.choose(1)
+                }
+                KMenuItem {
+                    text: qsTr("Paste")
+                    iconName: "document"
+                    visible: !!pageMenu.context
+                    onTriggered: {
+                        pageMenu.choose();
+                        video.paste();
+                    }
+                }
+                MenuSeparator {
+                    visible: ask.visible
+                    height: visible ? implicitHeight : 0
+                    contentItem: Rectangle { implicitHeight: 1; color: KodosiTheme.hairline }
+                }
+                KMenuItem {
+                    id: ask
+
+                    text: root.askTitle
+                    iconName: "chat"
+                    visible: !!pageMenu.context && root.askTitle.length > 0
+                    onTriggered: {
+                        const words = pageMenu.context.selection || pageMenu.context.link || "";
+                        pageMenu.choose();
+                        root.asking(words);
                     }
                 }
             }

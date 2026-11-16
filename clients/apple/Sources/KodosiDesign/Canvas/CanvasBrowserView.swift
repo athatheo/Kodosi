@@ -17,16 +17,18 @@ public struct CanvasBrowserView: View {
     let browser: CanvasBrowser
     let feed: BrowserFeed
     var typing = false
+    var ask: CanvasAsk?
     @Environment(\.displayScale) private var displayScale
     @State private var address = ""
     @State private var choice = 0
     @State private var picking = false
     @FocusState private var editing: Bool
 
-    public init(browser: CanvasBrowser, feed: BrowserFeed, typing: Bool = false) {
+    public init(browser: CanvasBrowser, feed: BrowserFeed, typing: Bool = false, ask: CanvasAsk? = nil) {
         self.browser = browser
         self.feed = feed
         self.typing = typing
+        self.ask = ask
     }
 
     private var blank: Bool {
@@ -53,10 +55,10 @@ public struct CanvasBrowserView: View {
                         .transition(.opacity)
                 }
                 if browser.state == .awake {
-                    BrowserInputArea(feed: feed, typing: typing)
+                    BrowserInputArea(feed: feed, typing: typing, ask: ask)
                     BrowserPointersLayer(feed: feed)
                     AgentPointerLayer(browser: browser, feed: feed)
-                    BrowserPartsLayer(feed: feed)
+                    BrowserPartsLayer(feed: feed, ask: ask)
                 } else {
                     sleeping.transition(.opacity)
                 }

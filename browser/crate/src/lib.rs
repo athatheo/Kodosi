@@ -5,7 +5,8 @@ pub mod link;
 mod message;
 
 pub use message::{
-    Chooser, Dialog, DialogKind, Download, Menu, MenuItem, Pointer, Size, State, Tab, Viewer,
+    Chooser, Dialog, DialogKind, Download, Menu, MenuContext, MenuItem, Pointer, Size, State, Tab,
+    Viewer,
 };
 
 #[cfg(feature = "host")]
