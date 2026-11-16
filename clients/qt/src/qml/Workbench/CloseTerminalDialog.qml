@@ -9,7 +9,7 @@ KDialog {
     property string sessionId: ""
     property string sessionName: ""
 
-    function ask(id, name) {
+    function ask(id: string, name: string): void {
         const session = Models.Sessions.presentationForSession(id);
         if (session.kind === "remote" && session.status === "offline") {
             offline.ask([id], session.hostLabel || "");
@@ -19,7 +19,7 @@ KDialog {
         sessionName = name;
         open();
     }
-    function askOffline(ids, host) {
+    function askOffline(ids: var, host: string): void {
         offline.ask(ids, host);
     }
 

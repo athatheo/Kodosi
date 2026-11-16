@@ -16,7 +16,7 @@ Item {
     readonly property var choices: (row.options || []).filter(option => picked.indexOf(option) >= 0)
         .concat(words.length > 0 ? [words] : [])
 
-    function choose(option) {
+    function choose(option: string): void {
         if (!row.multiple) {
             Models.Dosi.answer(row.id, [option])
             return
@@ -29,7 +29,7 @@ Item {
             next.push(option)
         picked = next
     }
-    function send() {
+    function send(): void {
         if (choices.length > 0 && (row.multiple || choices.length === 1))
             Models.Dosi.answer(row.id, choices)
     }

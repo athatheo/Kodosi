@@ -7,8 +7,8 @@ KPopover {
 
     signal resumeRequested
 
-    function openFor(projectId) {
-        launcher.projectId = projectId || ""
+    function openFor(projectId: string): void {
+        launcher.projectId = projectId
         open()
     }
 

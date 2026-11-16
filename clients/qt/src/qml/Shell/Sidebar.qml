@@ -63,11 +63,11 @@ Item {
     property var collapsedFolders: ({})
     property var collapsedComputers: ({})
 
-    function computerSessions(computer) {
+    function computerSessions(computer: string): var {
         return root.groups.filter(group => !group.pinned && group.computer === computer)
             .reduce((all, group) => all.concat(group.sessions || []), [])
     }
-    function toggled(folds, key) {
+    function toggled(folds: var, key: string): var {
         const next = Object.assign({}, folds)
         next[key] = next[key] !== true
         return next
@@ -83,23 +83,23 @@ Item {
     signal accountSettingsRequested
     signal aboutRequested
 
-    function signIn() {
+    function signIn(): void {
         Models.DesktopState.activeView = Models.DesktopState.Settings
         if (!Models.Account.signedIn)
             Models.Account.login()
     }
-    function showProjects() {
+    function showProjects(): void {
         Models.DesktopState.activeView = Models.DesktopState.Projects
         Models.Projects.open("")
     }
-    function openProject(id) {
+    function openProject(id: string): void {
         Models.DesktopState.activeView = Models.DesktopState.Projects
         Models.Projects.open(id)
     }
-    function openTerminal(id) {
+    function openTerminal(id: string): void {
         Models.SessionActions.activate(id)
     }
-    function syncPill() {
+    function syncPill(): void {
         if (!pillTarget || collapsed) {
             pill.visible = false
             return
@@ -111,7 +111,7 @@ Item {
         pill.height = pillTarget.height
         pill.visible = true
     }
-    function claimPill(item, selected) {
+    function claimPill(item: Item, selected: bool): void {
         if (selected)
             pillTarget = item
         else if (pillTarget === item)
@@ -1437,7 +1437,7 @@ Item {
 
         property string directory: ""
 
-        function openAt(item, folder) {
+        function openAt(item: Item, folder: string): void {
             const point = item.mapToItem(root, item.width + 8, -14)
             x = point.x
             y = point.y
@@ -1445,7 +1445,7 @@ Item {
             branchName.text = Models.SessionActions.suggestedBranch()
             open()
         }
-        function start() {
+        function start(): void {
             if (Models.SessionActions.createOnBranch(directory, branchName.text))
                 close()
         }

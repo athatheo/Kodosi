@@ -13,10 +13,10 @@ WebEngineView {
     property var place: null
     property string shown: ""
 
-    function selection(done) {
+    function selection(done: var): void {
         runJavaScript("getSelection().toString()", WebEngineScript.ApplicationWorld, result => done(String(result || "")));
     }
-    function show() {
+    function show(): void {
         if (root.address.length === 0 || root.address === root.shown)
             return;
         if (root.shown.length === 0) {

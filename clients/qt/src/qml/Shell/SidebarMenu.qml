@@ -17,7 +17,7 @@ AbstractButton {
     signal resumeRequested(string provider)
     signal startRequested
 
-    function start(agent, account) {
+    function start(agent: string, account: string): void {
         menu.dismiss()
         Models.DesktopSettings.lastComputer = ""
         Models.Launcher.chooseAgent(agent)

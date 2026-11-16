@@ -9,7 +9,7 @@ KDialog {
     property bool restart: false
     property int terminals: 0
 
-    function request(restarting) {
+    function request(restarting: bool): void {
         restart = restarting;
         terminals = Models.Sessions.sessions.filter(session => session.kind === "local").length;
         if (terminals === 0 || Models.ApplicationLifecycle.hostForeground)
@@ -17,7 +17,7 @@ KDialog {
         else
             open();
     }
-    function finish() {
+    function finish(): void {
         if (restart)
             Models.ApplicationLifecycle.restart();
         else

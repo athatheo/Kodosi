@@ -14,7 +14,7 @@ Column {
     readonly property bool running: group ? row.running === true : !!row.tool && row.tool.running === true
     readonly property bool shown: group && (open || running)
 
-    function reveal(tool) {
+    function reveal(tool: var): void {
         if (tool.targetKind === "url")
             Models.DesktopFiles.openWebUrl(tool.targetValue)
         else

@@ -14,7 +14,7 @@ Item {
     readonly property bool focused: field.activeFocus
     readonly property var queued: Models.Dosi.details.queued || []
 
-    function focusField() {
+    function focusField(): void {
         field.forceActiveFocus()
     }
 

@@ -13,7 +13,7 @@ KDialog {
 
     signal copyRequested(string target)
 
-    function ask(asked, shown) {
+    function ask(asked: url, shown: string): void {
         if (visible)
             return;
         link = asked;
@@ -22,7 +22,7 @@ KDialog {
         open();
     }
 
-    function refuse(shown, why) {
+    function refuse(shown: string, why: string): void {
         if (visible)
             return;
         target = shown;

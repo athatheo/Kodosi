@@ -14,10 +14,10 @@ KDialog {
 
     signal shared(string projectId)
 
-    function nameOf(id) {
+    function nameOf(id: string): string {
         return (Models.Projects.projects.find(entry => entry.id === id) || {}).name || qsTr("the project")
     }
-    function ask(id, target) {
+    function ask(id: string, target: string): bool {
         const entry = Models.Sessions.presentationForSession(id)
         if (entry.isOwner !== true || entry.projectId === target)
             return false

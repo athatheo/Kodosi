@@ -9,31 +9,31 @@ QtObject {
     property point pointer: Qt.point(0, 0)
     property bool pointing: false
 
-    function enroll(spot) {
+    function enroll(spot: Item): void {
         spots.push(spot)
     }
-    function leave(spot) {
+    function leave(spot: Item): void {
         const index = spots.indexOf(spot)
         if (index >= 0)
             spots.splice(index, 1)
     }
-    function hides(key, place) {
+    function hides(key: string, place: string): bool {
         return flying[key + "@" + place] === true
     }
-    function launch(keys) {
+    function launch(keys: var): void {
         const next = Object.assign({}, flying)
         for (const key of keys)
             next[key] = true
         flying = next
     }
-    function land(key) {
+    function land(key: string): void {
         if (flying[key] !== true)
             return
         const next = Object.assign({}, flying)
         delete next[key]
         flying = next
     }
-    function look(item, follows) {
+    function look(item: Item, follows: bool): point {
         if (!follows || !pointing || !stage || !item)
             return Qt.point(0, 0)
         const center = item.mapToItem(stage, item.width / 2, item.height / 2)

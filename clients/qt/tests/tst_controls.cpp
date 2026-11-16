@@ -352,8 +352,8 @@ void ControlsTest::terminalLinkDialogAsksOrTellsWhyAndCopiesTheLink()
     QVERIFY(QMetaObject::invokeMethod(
         dialog,
         "refuse",
-        Q_ARG(QVariant, QStringLiteral("/home/ana/build")),
-        Q_ARG(QVariant, QStringLiteral("Opening it could run a program."))));
+        Q_ARG(QString, QStringLiteral("/home/ana/build")),
+        Q_ARG(QString, QStringLiteral("Opening it could run a program."))));
     QTRY_VERIFY(dialog->property("opened").toBool());
     QCOMPARE(dialog->property("title").toString(), QStringLiteral("Kodosi does not open this link"));
     QCOMPARE(buttons(), (QStringList {QStringLiteral("OK"), QStringLiteral("Copy Link")}));
@@ -365,16 +365,16 @@ void ControlsTest::terminalLinkDialogAsksOrTellsWhyAndCopiesTheLink()
     QVERIFY(QMetaObject::invokeMethod(
         dialog,
         "ask",
-        Q_ARG(QVariant, meeting),
-        Q_ARG(QVariant, meeting.toString())));
+        Q_ARG(QUrl, meeting),
+        Q_ARG(QString, meeting.toString())));
     QTRY_VERIFY(dialog->property("opened").toBool());
     QCOMPARE(dialog->property("title").toString(), QStringLiteral("Open this link in another app?"));
     QCOMPARE(buttons(), (QStringList {QStringLiteral("Open"), QStringLiteral("Cancel")}));
     QVERIFY(QMetaObject::invokeMethod(
         dialog,
         "refuse",
-        Q_ARG(QVariant, QStringLiteral("/home/ana/build")),
-        Q_ARG(QVariant, QStringLiteral("Opening it could run a program."))));
+        Q_ARG(QString, QStringLiteral("/home/ana/build")),
+        Q_ARG(QString, QStringLiteral("Opening it could run a program."))));
     QCOMPARE(dialog->property("link").toUrl(), meeting);
     QCOMPARE(dialog->property("title").toString(), QStringLiteral("Open this link in another app?"));
     QVERIFY(QMetaObject::invokeMethod(dialog, "reject"));

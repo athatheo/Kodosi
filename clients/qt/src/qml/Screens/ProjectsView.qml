@@ -26,7 +26,7 @@ Item {
     signal shareSessionRequested(string sessionId)
     signal newTerminalRequested(string projectId)
 
-    function openCreate() {
+    function openCreate(): void {
         create.open();
     }
 

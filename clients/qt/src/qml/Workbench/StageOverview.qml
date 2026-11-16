@@ -11,7 +11,7 @@ Item {
 
     signal resumeRequested
 
-    function focusLauncher() {
+    function focusLauncher(): bool {
         if (!launcher.visible)
             return false
         launcher.focusPrompt()

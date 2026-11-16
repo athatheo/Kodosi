@@ -36,10 +36,10 @@ Item {
     signal shareSessionRequested(string sessionId)
     signal newTerminalRequested(string projectId)
 
-    function newTerminal() {
+    function newTerminal(): void {
         root.newTerminalRequested(Models.Projects.selectedProjectId);
     }
-    function placeTab() {
+    function placeTab(): void {
         if (!selectedTab || !projectStage.visible) {
             tabRect = Qt.rect(0, 0, 0, 0);
             return;
@@ -47,7 +47,7 @@ Item {
         const place = selectedTab.mapToItem(projectStage, 0, 0, selectedTab.width, selectedTab.height);
         tabRect = Qt.rect(place.x, place.y, place.width, place.height);
     }
-    function openTerminalMenu(sessionId) {
+    function openTerminalMenu(sessionId: string): void {
         terminalMenu.sessionId = sessionId
         terminalMenu.popup()
     }

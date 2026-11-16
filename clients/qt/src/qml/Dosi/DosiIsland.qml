@@ -16,7 +16,7 @@ AbstractButton {
     property bool cuedAsking: false
     property int reacts: 0
 
-    function cueUp() {
+    function cueUp(): void {
         if (asking && !cuedAsking)
             faceCue.rings += 1
         else if (unseen && !cuedUnseen && !asking)

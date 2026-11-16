@@ -10,7 +10,7 @@ KDialog {
     property string username: ""
     property string fullName: ""
 
-    function ask(handle, name) {
+    function ask(handle: string, name: string): void {
         username = handle;
         fullName = name;
         open();

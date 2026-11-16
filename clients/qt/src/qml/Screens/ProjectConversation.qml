@@ -23,7 +23,7 @@ Item {
     signal blockAsked(string handle, string name)
     signal reportAsked(string handle, string name)
 
-    function rememberPosition() {
+    function rememberPosition(): void {
         Models.Projects.setPresentation("followLatest", transcript.atYEnd);
         let index = transcript.indexAt(1, transcript.contentY + transcript.spacing + 1);
         if (index < 0) index = 0;
@@ -33,16 +33,16 @@ Item {
             Models.Projects.setPresentation("chatOffset", transcript.contentY - item.y);
         }
     }
-    function send() {
+    function send(): void {
         dismissed = "";
         Models.Projects.act({ type: "post", text: editor.text.trim() });
     }
-    function pick(target) {
+    function pick(target: var): void {
         Models.Projects.setPresentation("message", Mentions.complete(editor.text, target));
         editor.cursorPosition = editor.text.length;
         highlighted = 0;
     }
-    function dayLabel(date) {
+    function dayLabel(date: var): string {
         const today = new Date();
         const start = value => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
         const days = Math.round((start(today) - start(date)) / 86400000);
@@ -671,7 +671,7 @@ Item {
 
         property string messageId: ""
 
-        function ask(id) {
+        function ask(id: string): void {
             messageId = id;
             open();
         }

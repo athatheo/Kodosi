@@ -30,11 +30,11 @@ WebEngineView {
           page.started();
         });`
 
-    function selection(done) {
+    function selection(done: var): void {
         runJavaScript("window.documentHost ? window.documentHost.selection() : ''", WebEngineScript.MainWorld,
             words => done(typeof words === "string" ? words : ""));
     }
-    function join() {
+    function join(): void {
         root.pipe = Models.CanvasDocuments.open(root.sessionId, root.key);
         if (root.pipe.length === 0)
             again.restart();
@@ -126,13 +126,13 @@ WebEngineView {
         signal attached()
         signal detached()
 
-        function sent(frame) {
+        function sent(frame: string): void {
             Models.CanvasDocuments.send(root.pipe, frame);
         }
-        function ready() {
+        function ready(): void {
             root.shown = true;
         }
-        function started() {
+        function started(): void {
             root.join();
         }
 

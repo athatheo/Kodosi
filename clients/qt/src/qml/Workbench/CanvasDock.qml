@@ -35,7 +35,7 @@ Row {
     function title(section: string): string {
         return section === "browser" ? qsTr("Browser") : qsTr("Files");
     }
-    function tell(section: string, words: string) {
+    function tell(section: string, words: string): void {
         toldSection = section;
         toldWords = words;
         telling.restart();

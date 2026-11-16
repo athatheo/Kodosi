@@ -19,12 +19,12 @@ KPopover {
 
     signal shareRequested(string sessionId)
 
-    function openSession(id) {
+    function openSession(id: string): void {
         sessionId = id;
         refresh();
         open();
     }
-    function refresh() {
+    function refresh(): void {
         session = Models.Sessions.presentationForSession(sessionId);
     }
 

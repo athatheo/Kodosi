@@ -62,10 +62,10 @@ ColumnLayout {
     signal resumeRequested
     signal started
 
-    function tilde(path) {
+    function tilde(path: string): string {
         return path === home ? "~" : path.startsWith(home + "/") ? "~" + path.slice(home.length) : path
     }
-    function shown(path) {
+    function shown(path: string): string {
         if (computer.length === 0)
             return tilde(path)
         const base = places.home || ""
@@ -73,24 +73,24 @@ ColumnLayout {
         const prefix = base.endsWith(separator) ? base : base + separator
         return !path || path === base ? "~" : base.length > 0 && path.startsWith(prefix) ? "~" + separator + path.slice(prefix.length) : path
     }
-    function child(listing, name) {
+    function child(listing: var, name: string): string {
         const separator = (listing.home || "").indexOf("\\") >= 0 ? "\\" : "/"
         return listing.path.endsWith(separator) ? listing.path + name : listing.path + separator + name
     }
-    function folderName(path) {
+    function folderName(path: string): string {
         return shown(path) === "~" ? "~" : Models.Sessions.folderName(path)
     }
-    function focusPrompt() {
+    function focusPrompt(): void {
         promptInput.forceActiveFocus()
     }
-    function showDraft() {
+    function showDraft(): void {
         const prompt = Models.DesktopState.launcherPrompt
         if (promptInput.text !== prompt) {
             promptInput.text = prompt
             promptInput.cursorPosition = promptInput.length
         }
     }
-    function start() {
+    function start(): void {
         if (!ready)
             return
         const words = promptInput.text.trim()
@@ -101,18 +101,18 @@ ColumnLayout {
             root.started()
         }
     }
-    function accountTitle(entry) {
+    function accountTitle(entry: var): string {
         return info && entry ? root.launcher.accountTitle(entry.name, info.program) : ""
     }
-    function usageOf(entry) {
+    function usageOf(entry: var): var {
         const usage = entry.identity ? root.launcher.usage[info.agent + "/" + entry.name] : null
         return usage ? usage.headline : null
     }
-    function loadsUsage(entry) {
+    function loadsUsage(entry: var): bool {
         return !!entry && !!entry.identity && !!info && info.reportsUsage === true && root.launcher.loadingUsage
             && !root.launcher.usage[info.agent + "/" + entry.name]
     }
-    function accountRows() {
+    function accountRows(): var {
         if (!info)
             return []
         const rows = info.accounts.map((entry, place) => {
@@ -128,7 +128,7 @@ ColumnLayout {
                 subtitle: qsTr("Another subscription with its own sign-in"), icon: "slot", glyph: "plus" })
         return rows
     }
-    function modelRows() {
+    function modelRows(): var {
         const rows = [{ id: "menu.default", kind: "choice", title: qsTr("Default"), current: modelId.length === 0 }]
         if (!modelSet)
             rows.push({ id: "menu.models", kind: "note", working: loadingModels,
@@ -138,10 +138,10 @@ ColumnLayout {
                 detail: entry.label.toLowerCase() === entry.id.toLowerCase() ? "" : entry.id })
         return rows
     }
-    function permissionLabel(id) {
+    function permissionLabel(id: string): string {
         return id === "unrestricted" ? qsTr("Unrestricted") : id === "auto" ? qsTr("Auto") : qsTr("Ask")
     }
-    function permissionDetail(id) {
+    function permissionDetail(id: string): string {
         if (id === "unrestricted")
             return qsTr("Never asks, and runs every command as you.")
         if (id !== "auto")
@@ -154,24 +154,24 @@ ColumnLayout {
             return qsTr("Edits files on its own and asks before it runs commands.")
         return qsTr("Accepts its own actions, except what you denied.")
     }
-    function outputLabel(id) {
+    function outputLabel(id: string): string {
         return id === "quiet" ? qsTr("Quiet") : id === "detailed" ? qsTr("Detailed") : qsTr("Standard")
     }
-    function outputDetail(id) {
+    function outputDetail(id: string): string {
         return id === "quiet" ? qsTr("Shows less of its work.") : id === "detailed" ? qsTr("Shows each step of its work in full.")
             : qsTr("Shows its work as the agent is set up.")
     }
-    function permissionOptions() {
+    function permissionOptions(): var {
         return (info ? info.permissions || [] : []).map(id => ({ id: id, label: permissionLabel(id), detail: permissionDetail(id),
             caution: id === "unrestricted" }))
     }
-    function outputOptions() {
+    function outputOptions(): var {
         return outputs.map(id => ({ id: id, label: outputLabel(id), detail: outputDetail(id), caution: false }))
     }
-    function effortLevels() {
+    function effortLevels(): var {
         return efforts.map(entry => ({ id: entry.id, label: Models.DesktopSettings.effortLabel(entry.id) }))
     }
-    function folderRows() {
+    function folderRows(): var {
         if (computer.length > 0)
             return remoteRows()
         const seen = []
@@ -186,7 +186,7 @@ ColumnLayout {
             title: tilde(path) === "~" ? "~" : Models.Sessions.folderName(path) }))
             .concat([{ id: "menu.choose", kind: "action", title: qsTr("Choose a folder…"), icon: "slot", glyph: "folder" }])
     }
-    function remoteRows() {
+    function remoteRows(): var {
         const listing = launcher.listing
         if (listing.path) {
             const rows = [{ id: "menu.use", kind: "action", title: qsTr("Use %1").arg(folderName(listing.path)), icon: "slot", glyph: "check" }]
@@ -203,16 +203,16 @@ ColumnLayout {
                 title: launcher.folderError.length > 0 ? launcher.folderError : qsTr("Asking %1 for its folders").arg(computerName) })
         return rows.concat([{ id: "menu.choose", kind: "action", title: qsTr("Choose a folder…"), icon: "slot", glyph: "folder" }])
     }
-    function computerRows() {
+    function computerRows(): var {
         return [{ id: "menu.here", kind: "choice", icon: "device", title: qsTr("This computer"), current: computer.length === 0 }]
             .concat(computers.map(entry => ({ id: entry.deviceId, kind: "choice", icon: "device", title: entry.label,
                 current: entry.deviceId === computer })))
     }
-    function popover(kind) {
+    function popover(kind: string): LauncherDropdown {
         return kind === "computer" ? computerPopover : kind === "folder" ? folderPopover : kind === "account" ? accountPopover
             : kind === "modes" ? modesPopover : modelPopover
     }
-    function toggleMenu(kind) {
+    function toggleMenu(kind: string): void {
         if (menuKind === kind) {
             closeMenu()
             return
@@ -223,7 +223,7 @@ ColumnLayout {
             root.launcher.refreshUsage()
         popover(kind).open()
     }
-    function closeMenu() {
+    function closeMenu(): void {
         menuKind = ""
         adding = false
         for (const item of [computerPopover, folderPopover, accountPopover, modelPopover, modesPopover]) {
@@ -234,7 +234,7 @@ ColumnLayout {
             launcher.closeFolders()
         promptInput.forceActiveFocus()
     }
-    function pick(kind, id) {
+    function pick(kind: string, id: string): void {
         if (kind === "computer") {
             Models.DesktopSettings.lastComputer = id === "menu.here" ? "" : id
         } else if (kind === "folder" && computer.length > 0) {
@@ -278,7 +278,7 @@ ColumnLayout {
         closeMenu()
     }
 
-    function askFolders() {
+    function askFolders(): void {
         if (computer.length === 0) {
             Models.Launcher.listFolders()
             return
@@ -994,7 +994,7 @@ ColumnLayout {
                 readonly property string base: root.info && root.info.accounts.length > 0 && root.info.accounts[0].folder
                     ? root.info.accounts[0].folder : "~/." + (root.info ? root.info.program : "")
 
-                function submit() {
+                function submit(): void {
                     if (slug.length > 0 && !root.launcher.addingAccount)
                         root.launcher.addAccount(root.info.agent, accountName.text)
                 }

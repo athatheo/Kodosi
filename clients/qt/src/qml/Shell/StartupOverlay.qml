@@ -10,7 +10,7 @@ KPopover {
     readonly property bool failed: Models.ApplicationLifecycle.state === Models.ApplicationLifecycle.Failed
     readonly property bool outdated: failed && Models.ApplicationLifecycle.hostOutdated
 
-    function restorePrimaryFocus() {
+    function restorePrimaryFocus(): void {
         if (!visible)
             return;
         if (failed)

@@ -34,22 +34,22 @@ Item {
     signal hide()
     signal asked()
 
-    function markSeen() {
+    function markSeen(): void {
         if (currentKey.length > 0)
             Models.Canvas.saw(sessionId, currentKey);
     }
-    function documentKind(kind) {
+    function documentKind(kind: string): bool {
         return kind === "document" || kind === "sheet" || kind === "presentation";
     }
-    function kindName(kind, view) {
+    function kindName(kind: string, view: string): string {
         return view === "text" ? qsTr("Text") : kind === "picture" ? qsTr("Picture") : kind === "pdf" ? qsTr("PDF")
             : kind === "document" ? qsTr("Document") : kind === "sheet" ? qsTr("Sheet")
             : kind === "presentation" ? qsTr("Presentation") : qsTr("Page");
     }
-    function glyph(kind) {
+    function glyph(kind: string): string {
         return kind === "picture" || root.documentKind(kind) ? kind : "page";
     }
-    function load() {
+    function load(): void {
         failure = "";
         if (!current || !current.item || current.missing || documentView.length > 0)
             return;
@@ -60,11 +60,11 @@ Item {
             ++readyCount;
         }
     }
-    function liveView(item) {
+    function liveView(item: var): string {
         return item && item.missing !== true && Models.CanvasWeb.available
             && Models.DesktopSettings.shownViews[item.view] === true ? item.view : "";
     }
-    function placeDocument() {
+    function placeDocument(): void {
         const key = !shelf && documentView.length > 0 ? currentKey : "";
         if (key === placedKey)
             return;
@@ -74,7 +74,7 @@ Item {
         if (key.length > 0)
             DocumentViews.show(sessionId, key, documentView, documentPlace);
     }
-    function ask(key) {
+    function ask(key: string): void {
         const send = words => root.askAbout(key, words);
         const page = body.item as CanvasPage;
         if (key === root.placedKey)
@@ -84,15 +84,15 @@ Item {
         else
             send("");
     }
-    function askAbout(key, words) {
+    function askAbout(key: string, words: string): void {
         if (Models.SessionActions.input(root.sessionId, Models.Canvas.question(root.sessionId, key, words)))
             root.asked();
     }
-    function size(bytes) {
+    function size(bytes: real): string {
         return bytes >= 1048576 ? qsTr("%1 MB").arg((bytes / 1048576).toFixed(1))
             : bytes >= 1024 ? qsTr("%1 KB").arg(Math.round(bytes / 1024)) : qsTr("%1 bytes").arg(bytes);
     }
-    function openFileMenu(item) {
+    function openFileMenu(item: var): void {
         fileMenu.item = item;
         fileMenu.popup();
     }
@@ -292,7 +292,7 @@ Item {
                     Flickable {
                         id: tabsArea
 
-                        function reveal(tab) {
+                        function reveal(tab: Item): void {
                             if (tab.x < contentX)
                                 contentX = tab.x;
                             else if (tab.x + tab.width > contentX + width)

@@ -12,7 +12,7 @@ Item {
     readonly property var friends: Models.People.friends
     property bool copied: false
 
-    function add() {
+    function add(): void {
         if (handle.text.trim().length === 0)
             return;
         trust.askToAdd(handle.text);

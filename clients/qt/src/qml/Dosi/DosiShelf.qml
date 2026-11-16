@@ -23,11 +23,11 @@ Item {
     signal newTerminalRequested
     signal newProjectRequested
 
-    function form(session) {
+    function form(session: var): string {
         const unseen = Models.Sessions.attention.indexOf(session.id) >= 0
         return session.sign ? (session.asks || unseen ? session.sign : "") : unseen ? "changed" : ""
     }
-    function need(session) {
+    function need(session: var): int {
         const sign = form(session)
         if (sign === "hand" || sign === "question" || sign === "key")
             return 0
@@ -37,16 +37,16 @@ Item {
             return 2
         return session.working === true ? 3 : 4
     }
-    function unread(project) {
+    function unread(project: var): bool {
         return Models.Projects.unreadProjects.indexOf(project.id) >= 0
     }
-    function chipWidth(name, sign) {
+    function chipWidth(name: var, sign: int): real {
         return 37 + Math.min(Math.ceil(metrics.advanceWidth(name || "")), 112) + (sign > 0 ? 6 + sign : 0)
     }
-    function moreWidth(hidden) {
+    function moreWidth(hidden: int): real {
         return 28 + Math.ceil(metrics.advanceWidth(String(hidden)))
     }
-    function shown(widths, room) {
+    function shown(widths: var, room: real): int {
         let total = 0
         for (let index = 0; index < widths.length; ++index)
             total += widths[index] + (index > 0 ? 4 : 0)

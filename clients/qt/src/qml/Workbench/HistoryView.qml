@@ -12,7 +12,7 @@ KPopover {
     readonly property bool hasList: history.busy || history.conversations.length > 0
     readonly property string selectedId: history.selectedConversation.nativeConversationId || ""
 
-    function openModal(provider) {
+    function openModal(provider: string): void {
         Models.ConversationHistory.open(provider || "claude", "");
         open();
     }

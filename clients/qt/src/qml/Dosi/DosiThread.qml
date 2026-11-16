@@ -17,7 +17,7 @@ Item {
 
     signal settingsRequested
 
-    function think() {
+    function think(): void {
         if (!Models.Dosi.pending) {
             thinkingDelay.stop()
             thinking = false
@@ -28,7 +28,7 @@ Item {
                 thinkingDelay.restart()
         }
     }
-    function prose(text) {
+    function prose(text: string): string {
         let html = Mentions.escaped(text)
         html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>")
         html = html.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
@@ -37,15 +37,15 @@ Item {
         html = html.replace(/(^|[\s(])(https:\/\/[^\s<)&]+)/g, "$1<a href=\"$2\">$2</a>")
         return "<span style=\"white-space:pre-wrap\">" + html + "</span>"
     }
-    function openLink(link) {
+    function openLink(link: string): void {
         if (link.startsWith("https://"))
             Models.DesktopFiles.openWebUrl(link)
     }
-    function toEnd() {
+    function toEnd(): void {
         if (root.following)
             list.positionViewAtEnd()
     }
-    function showLatest() {
+    function showLatest(): void {
         root.following = true
         latest.from = list.contentY
         latest.to = Math.max(list.originY - list.topMargin, list.originY + list.contentHeight + list.bottomMargin - list.height)

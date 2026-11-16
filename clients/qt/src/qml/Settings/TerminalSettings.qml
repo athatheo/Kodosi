@@ -13,7 +13,7 @@ ColumnLayout {
     readonly property int storedLineHeight: Math.round(Models.DesktopSettings.lineHeight * 100)
     property int cursorStyle: Models.DesktopSettings.cursorStyle
 
-    function revert() {
+    function revert(): void {
         family.text = Models.DesktopSettings.fontFamily;
         size.value = Models.DesktopSettings.fontSize;
         lineHeight.value = storedLineHeight;

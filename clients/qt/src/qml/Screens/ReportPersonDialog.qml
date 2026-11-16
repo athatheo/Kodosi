@@ -13,7 +13,7 @@ KDialog {
     property string failure: ""
     property bool received: false
 
-    function ask(handle, name) {
+    function ask(handle: string, name: string): void {
         username = handle;
         fullName = name;
         failure = "";

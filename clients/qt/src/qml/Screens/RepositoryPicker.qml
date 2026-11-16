@@ -17,14 +17,14 @@ ColumnLayout {
 
     signal done()
 
-    function add(url) {
+    function add(url: string): void {
         if (root.linked.indexOf(url.toLowerCase()) >= 0)
             return
         Models.Projects.act({ type: "addRepository", url: url })
         search.clear()
         root.done()
     }
-    function submit() {
+    function submit(): void {
         if (looksLikeAddress)
             add(words)
         else if (shown.length === 1)

@@ -15,11 +15,11 @@ ColumnLayout {
     property bool recovering: false
     property bool copied: false
 
-    function focusCode() {
+    function focusCode(): void {
         code.forceActiveFocus();
     }
 
-    function readyAt() {
+    function readyAt(): string {
         const ready = new Date(root.reset.readyAtMs);
         return Qt.locale().dayName(ready.getDay(), Locale.LongFormat) + " " + ready.toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
     }
@@ -359,7 +359,7 @@ ColumnLayout {
         readonly property string phase: Models.Devices.offerState
         readonly property bool showing: phase === "requesting" || phase === "shown"
 
-        function nameClose() {
+        function nameClose(): void {
             const close = standardButton(Dialog.Close);
             if (close)
                 close.text = phase === "approved" ? qsTr("Done")

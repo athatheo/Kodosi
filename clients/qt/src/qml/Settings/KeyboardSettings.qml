@@ -11,17 +11,17 @@ ColumnLayout {
     property string recordingKey: ""
     property string note: ""
 
-    function record(action, key) {
+    function record(action: string, key: string): void {
         recordingAction = action;
         recordingKey = key;
         note = key.length > 0 ? qsTr("Press a key. Delete removes this one.") : qsTr("Press a key.");
         recorder.forceActiveFocus();
     }
-    function stop() {
+    function stop(): void {
         recordingAction = "";
         recordingKey = "";
     }
-    function receive(key, sequence) {
+    function receive(key: int, sequence: string): void {
         if (key === Qt.Key_Escape) {
             note = "";
             stop();

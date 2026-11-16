@@ -9,7 +9,7 @@ KDialog {
     property var sessionIds: []
     property string host: ""
 
-    function ask(ids, hostName) {
+    function ask(ids: var, hostName: string): void {
         sessionIds = ids;
         host = hostName;
         open();

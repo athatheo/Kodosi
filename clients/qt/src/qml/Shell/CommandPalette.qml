@@ -20,23 +20,23 @@ KPopover {
     signal newProjectRequested
     signal resumeRequested
 
-    function terminals() {
+    function terminals(): var {
         return Models.Sessions.listedSessions.map(session => ({
             id: "terminal." + session.id, group: qsTr("Terminals"), title: session.name, kind: "terminal", key: session.id,
             program: session.program, working: session.working, sign: session.sign, asks: session.asks, progress: session.progress,
             detail: [session.folderName, session.kind === "remote" ? session.hostLabel : ""].filter(part => !!part).join(" · ")
         }))
     }
-    function projects() {
+    function projects(): var {
         return Models.Projects.projects.map(project => ({ id: "project." + project.id, group: qsTr("Projects"), title: project.name, kind: "project", key: project.id }))
     }
-    function people() {
+    function people(): var {
         return Models.People.friends.map(friend => ({
             id: "person." + friend.userId, group: qsTr("Friends"), title: friend.displayName || friend.handle,
             detail: "@" + friend.handle, kind: "person", key: friend.userId
         }))
     }
-    function actions() {
+    function actions(): var {
         const group = qsTr("Actions")
         const list = [
             { id: "action.terminal", group: group, title: qsTr("New terminal"), kind: "action", icon: "plus", tint: "#d98a5f" },
@@ -49,7 +49,7 @@ KPopover {
         list.push({ id: "action.settings", group: group, title: qsTr("Settings"), kind: "action", icon: "gear", tint: "#6b6560" })
         return list
     }
-    function run(item) {
+    function run(item: var): void {
         if (!item)
             return
         close()
@@ -73,7 +73,7 @@ KPopover {
             else Models.DesktopState.activeView = Models.DesktopState.Settings
         }
     }
-    function move(offset) {
+    function move(offset: int): void {
         if (results.length === 0)
             return
         index = (index + offset + results.length) % results.length
