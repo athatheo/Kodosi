@@ -1,10 +1,9 @@
-use std::{collections::HashMap, fmt::Write as _};
+use std::collections::HashMap;
 
-use document::{Assets, Unreadable};
+use document::{Assets, Unreadable, hex, short_hash};
 use package::{Package, Relation, relation_id};
 use roxmltree::{Document, Node as Xml};
 use serde_json::{Map, Value, json};
-use sha2::{Digest as _, Sha256};
 use text::{Fragment, Mark, Node};
 
 use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
@@ -12,7 +11,6 @@ use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
 pub(crate) const PRESENTATION: &str = "ppt/presentation.xml";
 const LAYOUT_KIND: &str = "slideLayout";
 const MASTER_KIND: &str = "slideMaster";
-const SHORT_HASH: usize = 16;
 const TEXT_LEVELS: usize = 9;
 const WHOLE_SCALE: f64 = 100_000.0;
 
@@ -37,22 +35,6 @@ pub(crate) fn slide_id<'a>(entry: Xml<'a, '_>) -> Option<&'a str> {
 fn descendant<'a, 'input>(node: Xml<'a, 'input>, name: &str) -> Option<Xml<'a, 'input>> {
     node.descendants()
         .find(|child| child.is_element() && child.tag_name().name() == name)
-}
-
-fn hash_of(text: &str) -> String {
-    let digest = Sha256::digest(text.as_bytes());
-    let mut hash = String::with_capacity(SHORT_HASH);
-    for byte in &digest[..SHORT_HASH / 2] {
-        let _ = write!(hash, "{byte:02x}");
-    }
-    hash
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -296,7 +278,7 @@ impl<'input> Reader<'_, '_, 'input> {
     }
 
     fn keep(&mut self, xml: &str) -> String {
-        let hash = hash_of(xml);
+        let hash = short_hash(xml);
         self.raws
             .entry(hash.clone())
             .or_insert_with(|| xml.to_owned());

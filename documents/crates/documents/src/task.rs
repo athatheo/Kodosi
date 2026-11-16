@@ -9,7 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer};
+use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer, hex};
 use sha2::{Digest as _, Sha256};
 use tokio::{
     sync::{mpsc, oneshot},
@@ -66,11 +66,6 @@ fn stamp_of(metadata: &std::fs::Metadata) -> Stamp {
 
 fn hash_of(bytes: &[u8]) -> Hash {
     Sha256::digest(bytes).into()
-}
-
-fn hex(hash: &Hash) -> String {
-    hash.iter()
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"))
 }
 
 fn new_epoch() -> io::Result<u64> {

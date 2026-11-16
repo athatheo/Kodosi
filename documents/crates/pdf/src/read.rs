@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Write as _, sync::Arc};
 
-use document::{Assets, Unreadable};
+use document::{Assets, Unreadable, hex};
 use lopdf::{Dictionary, Document, Object, ObjectId};
 
 use crate::model::{Model, Note, Page};
@@ -222,13 +222,6 @@ pub(crate) fn pages_of(document: &Document) -> Result<Vec<Page>, Unreadable> {
     Ok(pages)
 }
 
-pub(crate) fn hex_of(hash: &[u8]) -> String {
-    hash.iter().fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
-}
-
 pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable> {
     let document = Document::load_mem(file).map_err(broken)?;
     if document.is_encrypted() {
@@ -240,7 +233,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
         page_notes(&document, page, &mut notes).map_err(broken)?;
     }
     let fields = form_fields(&document);
-    let asset = hex_of(&assets.put(file));
+    let asset = hex(&assets.put(file));
     Ok(Model {
         file: Arc::new(file.to_vec()),
         asset,

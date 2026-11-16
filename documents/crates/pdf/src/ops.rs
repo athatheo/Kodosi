@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use document::{Assets, Guide, Ordered, Refused, guide_field as field, guide_op as op};
+use document::{
+    Assets, Guide, Ordered, Refused, guide_field as field, guide_op as op, hash_from_hex, hex,
+};
 use lopdf::{Document, Object};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
     model::{Change, Model, Note, PageWork, Query},
-    read::{hex_of, pages_of},
+    read::pages_of,
     redact, write,
 };
 
@@ -183,7 +185,7 @@ fn do_work(model: &Model, work: &PageWork) -> Result<Vec<u8>, Refused> {
 fn take_file(model: &mut Model, bytes: Vec<u8>, assets: &mut Assets) -> Result<(), Refused> {
     let document = Document::load_mem(&bytes).map_err(pdf_failed)?;
     model.pages = pages_of(&document).map_err(|error| Refused::Invalid(error.0))?;
-    model.asset = hex_of(&assets.put(&bytes));
+    model.asset = hex(&assets.put(&bytes));
     model.file = Arc::new(bytes);
     Ok(())
 }
@@ -251,17 +253,6 @@ fn apply_one(model: &mut Model, change: Change, assets: &mut Assets) -> Result<C
         },
         Change::Ops { .. } => return Err(Refused::Invalid("Ops cannot hold ops.".to_owned())),
     })
-}
-
-fn hash_from_hex(text: &str) -> Option<[u8; 32]> {
-    let mut hash = [0; 32];
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    for (index, pair) in text.as_bytes().chunks(2).enumerate() {
-        hash[index] = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
-    }
-    Some(hash)
 }
 
 fn page_at(model: &Model, number: u32) -> Result<String, Refused> {

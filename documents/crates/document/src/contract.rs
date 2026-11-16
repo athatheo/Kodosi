@@ -11,7 +11,7 @@ pub const CONTRACT: u32 = 2;
 const JSON_FRAME: u8 = 0;
 const GZIP_FRAME: u8 = 1;
 const ASSET_FRAME: u8 = 2;
-const HASH_BYTES: usize = 32;
+pub(crate) const HASH_BYTES: usize = 32;
 const GZIP_FROM: usize = 16 * 1024;
 const MOST_UNPACKED: u64 = 256 * 1024 * 1024;
 
@@ -153,6 +153,31 @@ pub enum ToClient {
 }
 
 pub type Hash = [u8; HASH_BYTES];
+
+/// The bytes in lowercase hexadecimal, as an asset or a short hash goes in a snapshot.
+pub fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut text = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        text.push(char::from(DIGITS[usize::from(byte & 0xf)]));
+    }
+    text
+}
+
+/// The hash that [`hex`] wrote.
+pub fn hash_from_hex(text: &str) -> Option<Hash> {
+    let (pairs, []) = text.as_bytes().as_chunks::<2>() else {
+        return None;
+    };
+    let pairs: &[[u8; 2]; HASH_BYTES] = pairs.try_into().ok()?;
+    let mut hash = [0; HASH_BYTES];
+    for (byte, [high, low]) in hash.iter_mut().zip(pairs) {
+        let digit = |digit: u8| char::from(digit).to_digit(16);
+        *byte = u8::try_from(digit(*high)? << 4 | digit(*low)?).ok()?;
+    }
+    Some(hash)
+}
 
 /// One frame of a pipe: JSON, gzip JSON when it is large, or the raw bytes of an asset.
 /// An asset frame with no bytes asks for that asset.
