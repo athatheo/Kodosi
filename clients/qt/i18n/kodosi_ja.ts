@@ -3738,6 +3738,18 @@
         <translation>ダーク</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>タイトル</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名前</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>概要</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>動きを減らす</translation>
     </message>
@@ -4206,6 +4218,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>動きの設定を保存できませんでした。以前の設定のままです。</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>タイトルの設定を保存できませんでした。以前の設定のままです。</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>

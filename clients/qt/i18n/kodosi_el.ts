@@ -3750,6 +3750,18 @@
         <translation>Σκουρόχρωμο</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>Τίτλος</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Όνομα</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>Σύνοψη</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>Μείωση κίνησης</translation>
     </message>
@@ -4221,6 +4233,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>Οι ρυθμίσεις κίνησης δεν αποθηκεύτηκαν. Η προηγούμενη επιλογή παραμένει ενεργή.</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>Η ρύθμιση τίτλου δεν αποθηκεύτηκε. Η προηγούμενη επιλογή παραμένει ενεργή.</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>

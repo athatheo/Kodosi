@@ -3750,6 +3750,18 @@
         <translation>Scuro</translation>
     </message>
     <message>
+        <source>Title</source>
+        <translation>Titolo</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nome</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>Riepilogo</translation>
+    </message>
+    <message>
         <source>Reduce motion</source>
         <translation>Riduci movimento</translation>
     </message>
@@ -4221,6 +4233,10 @@
     <message>
         <source>Motion settings could not be written. The previous choice remains active.</source>
         <translation>Non è stato possibile salvare le impostazioni del movimento. Resta attiva la scelta precedente.</translation>
+    </message>
+    <message>
+        <source>Title settings could not be written. The previous choice remains active.</source>
+        <translation>Non è stato possibile salvare l&apos;impostazione del titolo. Resta attiva la scelta precedente.</translation>
     </message>
     <message>
         <source>Appearance settings could not be written. The previous preference remains active.</source>
