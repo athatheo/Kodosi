@@ -297,6 +297,7 @@
     <string name="browser_shared_explained">Αυτό το τερματικό είναι κοινόχρηστο, οπότε ο browser του έχει δικές του συνδέσεις, χωριστά από τις δικές σας. Όλοι στο τερματικό τις χρησιμοποιούν.</string>
     <string name="terminal_actions">Ενέργειες τερματικού</string>
     <string name="interrupt">Διακοπή</string>
+    <string name="remove_from_project">Αφαίρεση από το έργο</string>
     <string name="close_terminal">Κλείσιμο τερματικού</string>
     <string name="close_terminal_message">Αυτό τερματίζει το τερματικό και τα προγράμματά του για όλους.</string>
     <string name="hide_terminal">Απόκρυψη μέχρι να συνδεθεί</string>

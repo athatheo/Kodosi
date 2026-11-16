@@ -97,6 +97,7 @@ struct TerminalTitle: View {
 }
 
 struct TerminalMenu: View {
+    @Environment(AppModel.self) private var model
     @Environment(\.theme) private var theme
     let session: RuntimeSession
     @Binding var prompt: TerminalPrompt?
@@ -134,8 +135,15 @@ struct TerminalMenu: View {
                         .accessibilityIdentifier("terminal.menu.interrupt")
                 }
             }
-            if session.canLeave || session.canClose {
+            let inProject = session.isOwner && session.projectId != nil
+            if inProject || session.canLeave || session.canClose {
                 Divider()
+            }
+            if inProject {
+                Button("Remove from project", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                    model.terminals.removeFromProject(session)
+                }
+                .accessibilityIdentifier("terminal.menu.removeFromProject")
             }
             if session.canLeave {
                 Button("Leave", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { prompt = .leave(session) }

@@ -297,6 +297,7 @@
     <string name="browser_shared_explained">Dieses Terminal ist geteilt, daher hat sein Browser eigene Anmeldungen, getrennt von deinen. Alle im Terminal nutzen sie.</string>
     <string name="terminal_actions">Terminal-Aktionen</string>
     <string name="interrupt">Unterbrechen</string>
+    <string name="remove_from_project">Aus dem Projekt entfernen</string>
     <string name="close_terminal">Terminal schließen</string>
     <string name="close_terminal_message">Dies beendet das Terminal und seine Programme für alle.</string>
     <string name="hide_terminal">Bis zur nächsten Verbindung ausblenden</string>

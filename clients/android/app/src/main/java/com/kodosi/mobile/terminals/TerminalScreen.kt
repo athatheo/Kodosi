@@ -98,6 +98,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonNull
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -412,6 +413,16 @@ private fun TerminalActions(
                     menu = false
                     scope.launch { model.runAction { model.terminals.act("session.interrupt", session) } }
                 })
+                if (session.projectId != null) {
+                    KodosiMenuItem(text = { Text(stringResource(R.string.remove_from_project)) }, onClick = {
+                        menu = false
+                        scope.launch {
+                            model.runAction {
+                                model.terminals.act("session.attachProject", session, mapOf("projectId" to JsonNull))
+                            }
+                        }
+                    })
+                }
                 KodosiMenuItem(text = { Text(stringResource(R.string.close_terminal)) }, onClick = {
                     menu = false
                     close()

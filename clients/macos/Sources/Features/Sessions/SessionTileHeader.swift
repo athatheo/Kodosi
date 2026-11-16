@@ -100,7 +100,7 @@ struct SessionTileHeader: View {
 
     private var actions: some View {
         HStack(spacing: 0) {
-            TerminalActions(session: session, projectEmbedded: projectEmbedded, stageId: stageId)
+            TerminalActions(session: session, stageId: stageId)
             if !canvasOpen {
                 IconButton(title: "Minimize", symbol: "minus", identifier: "\(stageId).minimize", size: 26) {
                     deps.dismissSession(session.id)
@@ -178,7 +178,6 @@ private struct TerminalActions: View {
     @Environment(\.theme) private var theme
     @Environment(\.canvasPlace) private var canvasPlace
     let session: RuntimeSession
-    let projectEmbedded: Bool
     let stageId: String
     @State private var open = false
     @State private var hovered = false
@@ -251,7 +250,7 @@ private struct TerminalActions: View {
                 deps.workbench.detailsSessionId = session.id
             }
             .closesFlyout($flyout)
-            if projectEmbedded, session.isOwner {
+            if session.isOwner, session.projectId != nil {
                 PanelMenuRow(Text("Remove from project"), icon: .symbol("rectangle.portrait.and.arrow.right"),
                              identifier: "\(stageId).removeFromProject", destructive: true)
                 {

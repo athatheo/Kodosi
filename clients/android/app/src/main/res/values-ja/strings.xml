@@ -297,6 +297,7 @@
     <string name="browser_shared_explained">このターミナルは共有されているため、ブラウザにはあなたとは別のサインイン情報があります。ターミナルの全員がそれを使います。</string>
     <string name="terminal_actions">ターミナルの操作</string>
     <string name="interrupt">中断</string>
+    <string name="remove_from_project">プロジェクトから削除</string>
     <string name="close_terminal">ターミナルを閉じる</string>
     <string name="close_terminal_message">全員に対してターミナルとそのプログラムを終了します。</string>
     <string name="hide_terminal">オンラインになるまで非表示</string>

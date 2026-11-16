@@ -297,6 +297,7 @@
     <string name="browser_shared_explained">Ce terminal est partagé : son navigateur a donc ses propres connexions, distinctes des vôtres. Tout le monde dans le terminal les utilise.</string>
     <string name="terminal_actions">Actions du terminal</string>
     <string name="interrupt">Interrompre</string>
+    <string name="remove_from_project">Retirer du projet</string>
     <string name="close_terminal">Fermer le terminal</string>
     <string name="close_terminal_message">Cela ferme le terminal et ses programmes pour tout le monde.</string>
     <string name="hide_terminal">Masquer jusqu\'à la reconnexion</string>

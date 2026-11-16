@@ -297,6 +297,7 @@
     <string name="browser_shared_explained">此终端已共享，因此它的浏览器有独立于你的登录信息。终端中的每个人都会使用这些登录信息。</string>
     <string name="terminal_actions">终端操作</string>
     <string name="interrupt">中断</string>
+    <string name="remove_from_project">从项目移除</string>
     <string name="close_terminal">关闭终端</string>
     <string name="close_terminal_message">这将为所有人结束此终端及其程序。</string>
     <string name="hide_terminal">隐藏至上线</string>
