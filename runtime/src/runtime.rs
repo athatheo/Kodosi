@@ -474,6 +474,7 @@ struct Local {
     wanted: Option<restore::Sharing>,
     conversation: restore::Conversation,
     changed: crate::agents::AgentSettings,
+    account_folder: Option<PathBuf>,
     marked: watch::Sender<Option<crate::terminal::Waiting>>,
 }
 
@@ -629,6 +630,7 @@ enum Completion {
         id: Uuid,
         group: Option<u32>,
         account: Option<u8>,
+        folder: Option<PathBuf>,
         agent: crate::agents::Agent,
         outside: bool,
         settings: crate::agents::AgentSettings,
@@ -1785,14 +1787,16 @@ impl Runtime {
                 &launcher.notes(),
             );
             let settings = agent.started_with(&foreground.arguments);
-            let account = match agent.account_folder(&home, foreground.variable) {
-                Some(folder) => launcher.account_of(agent, &folder).await,
+            let folder = agent.account_folder(&home, foreground.variable);
+            let account = match &folder {
+                Some(folder) => launcher.account_of(agent, folder).await,
                 None => None,
             };
             Completion::Account {
                 id,
                 group: foreground.group,
                 account,
+                folder,
                 agent,
                 outside,
                 settings,
@@ -3498,6 +3502,7 @@ impl Runtime {
                     }
                     local.entry.program.clone_from(&program);
                     local.entry.program_account = None;
+                    local.account_folder = None;
                     local.entry.program_outside = false;
                     local.entry.program_settings = None;
                     local.entry.program_live = crate::agents::live_of(program.as_deref());

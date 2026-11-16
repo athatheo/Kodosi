@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
             intent.data = null
         }
         opened?.let(DeviceCode::join)?.let { code ->
-            model.account.joinDevice(code)
+            model.deviceJoin.value = code
             intent.data = null
         }
         val terminal = intent.getStringExtra(TerminalNotifications.TERMINAL)

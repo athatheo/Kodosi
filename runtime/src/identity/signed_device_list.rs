@@ -164,10 +164,15 @@ impl SignedDeviceList {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SignedDeviceListEnvelope {
-    #[cfg(test)]
-    pub(crate) list: SignedDeviceList,
     pub(crate) body_bytes: Vec<u8>,
     pub(crate) signature: Vec<u8>,
+}
+
+#[cfg(test)]
+impl SignedDeviceListEnvelope {
+    pub(crate) fn list(&self) -> SignedDeviceList {
+        SignedDeviceList::parse_body(&self.body_bytes).expect("a signed list parses")
+    }
 }
 
 pub(crate) fn build_bootstrap_list(
@@ -274,9 +279,6 @@ pub(crate) fn verify_signed_device_list(
 
 fn sign_list(list: &SignedDeviceList, signer: &PqdsaKeyPair) -> Result<SignedDeviceListEnvelope> {
     let body_bytes = list.serialize_body()?;
-    #[cfg(test)]
-    let list = SignedDeviceList::parse_body(&body_bytes)?;
-    #[cfg(not(test))]
     SignedDeviceList::parse_body(&body_bytes)?;
     let mut payload = Vec::with_capacity(DEVICE_LIST_V1.len() + body_bytes.len());
     payload.extend_from_slice(DEVICE_LIST_V1);
@@ -291,8 +293,6 @@ fn sign_list(list: &SignedDeviceList, signer: &PqdsaKeyPair) -> Result<SignedDev
     signature.truncate(sig_len);
 
     Ok(SignedDeviceListEnvelope {
-        #[cfg(test)]
-        list,
         body_bytes,
         signature,
     })
@@ -325,19 +325,19 @@ mod tests {
         let keys = DeviceKeys::generate().unwrap();
         let signer = keys.signing_key().unwrap();
         let first = build_bootstrap_list(&user, &keys.device_id, &signer, 121_000, None).unwrap();
-        let mut entries = first.list.entries.clone();
+        let mut entries = first.list().entries;
         entries.push(DeviceListEntry {
             device_id: "new-device".into(),
             signer_device_id: keys.device_id.clone(),
         });
         let added = build_replacement_list(
             &user,
-            first.list.generation,
-            &first.list.entries,
+            first.list().generation,
+            &first.list().entries,
             entries,
             &keys.device_id,
             &signer,
-            first.list.successor_issued_at(1_000).unwrap(),
+            first.list().successor_issued_at(1_000).unwrap(),
             None,
         )
         .unwrap();
@@ -350,7 +350,7 @@ mod tests {
             &user,
             verified.generation,
             &verified.entries,
-            first.list.entries.clone(),
+            first.list().entries,
             &keys.device_id,
             &signer,
             verified.successor_issued_at(1_001).unwrap(),
@@ -365,7 +365,7 @@ mod tests {
         .unwrap();
         assert_eq!(verified.issued_at_ms, 121_002);
         assert_eq!(verified.generation, 3);
-        assert_eq!(verified.entries, first.list.entries);
+        assert_eq!(verified.entries, first.list().entries);
     }
 
     #[test]

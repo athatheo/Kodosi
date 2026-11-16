@@ -8,6 +8,7 @@ Row {
 
     visible: opacity > 0
     opacity: shown ? 1 : 0
+    onVisibleChanged: if (visible && shown) Accessible.announce(confirmation.text)
     scale: shown ? 1 : 0.9
     spacing: 4
 
@@ -22,6 +23,7 @@ Row {
         color: KodosiTheme.ready
     }
     PlainLabel {
+        id: confirmation
         anchors.verticalCenter: parent.verticalCenter
         text: qsTr("Kodosi got your report.")
         color: KodosiTheme.ready

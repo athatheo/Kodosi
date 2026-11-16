@@ -188,7 +188,6 @@ impl SessionTerminalHandle {
             .await
     }
 
-    /// Leaves the alternate screen, so ask only when the terminal stops.
     pub(super) async fn primary_history(&self) -> Result<Vec<u8>> {
         self.request(|reply_tx| TerminalCommand::PrimaryHistory { reply_tx })
             .await

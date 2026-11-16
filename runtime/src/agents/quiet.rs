@@ -61,12 +61,6 @@ struct Kept {
     written: Value,
 }
 
-impl Record {
-    fn join(&mut self, terminal: Uuid) -> Option<Self> {
-        self.terminals.insert(terminal).then(|| self.clone())
-    }
-}
-
 impl QuietSettings {
     /// The terminals of an earlier host ended with it, so none of them holds its settings now.
     pub(super) fn load(data_root: &Path) -> Self {
@@ -97,19 +91,46 @@ impl QuietSettings {
             .records()
             .entry(settings.to_owned())
             .or_default()
-            .join(terminal);
-        let Some(mut record) = joined else {
+            .terminals
+            .insert(terminal);
+        if !joined {
             return false;
-        };
-        if let Err(error) = apply(settings, &mut record) {
+        }
+        if let Err(error) = self.apply(settings) {
             tracing::warn!(%error, settings = %settings.display(), "Copilot CLI starts without its quiet settings");
         }
-        if let Some(held) = self.records().get_mut(settings) {
-            held.keys = record.keys;
-            held.created = record.created;
-        }
-        self.save();
         true
+    }
+
+    /// What Kodosi will change is saved before the settings change, so that a host that stops
+    /// in between still puts them back when it starts again.
+    fn apply(&self, settings: &Path) -> io::Result<()> {
+        let _lock = lock_settings(settings)?;
+        let (mut members, created) =
+            read(settings)?.map_or_else(|| (Members::default(), true), |members| (members, false));
+        let mut kept = BTreeMap::new();
+        for (key, quiet) in quiet_values() {
+            let current = members.get(key);
+            if current.as_ref() != Some(&quiet) {
+                members.set(key, &quiet)?;
+                kept.insert(
+                    key.to_owned(),
+                    Kept {
+                        original: current,
+                        written: quiet,
+                    },
+                );
+            }
+        }
+        if kept.is_empty() {
+            return Ok(());
+        }
+        if let Some(record) = self.records().get_mut(settings) {
+            record.keys.extend(kept);
+            record.created |= created;
+        }
+        self.save()?;
+        write(settings, &members)
     }
 
     pub(super) fn release(&self, terminal: Uuid) {
@@ -152,52 +173,23 @@ impl QuietSettings {
                 }
             }
         }
-        self.save();
+        if let Err(error) = self.save() {
+            tracing::warn!(%error, "what Kodosi put back in the settings of Copilot CLI was not saved");
+        }
     }
 
     fn records(&self) -> MutexGuard<'_, BTreeMap<PathBuf, Record>> {
         lock(&self.records)
     }
 
-    fn save(&self) {
-        let bytes = serde_json::to_vec(&*self.records());
-        let saved = bytes
-            .map_err(io::Error::from)
-            .and_then(|bytes| kodosi_os::fs::write_private(&self.file, &bytes));
-        if let Err(error) = saved {
-            tracing::warn!(%error, "what Kodosi changed in the settings of Copilot CLI was not saved");
-        }
+    fn save(&self) -> io::Result<()> {
+        let bytes = serde_json::to_vec(&*self.records())?;
+        kodosi_os::fs::write_private(&self.file, &bytes)
     }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-fn apply(settings: &Path, record: &mut Record) -> io::Result<()> {
-    let _lock = lock_settings(settings)?;
-    let (mut members, created) =
-        read(settings)?.map_or_else(|| (Members::default(), true), |members| (members, false));
-    let mut kept = BTreeMap::new();
-    for (key, quiet) in quiet_values() {
-        let current = members.get(key);
-        if current.as_ref() != Some(&quiet) {
-            members.set(key, &quiet)?;
-            kept.insert(
-                key.to_owned(),
-                Kept {
-                    original: current,
-                    written: quiet,
-                },
-            );
-        }
-    }
-    if !kept.is_empty() {
-        write(settings, &members)?;
-        record.keys.extend(kept);
-        record.created |= created;
-    }
-    Ok(())
 }
 
 /// A key that no longer has what Kodosi wrote was changed by the person, so it stays.
@@ -275,7 +267,7 @@ fn read(settings: &Path) -> io::Result<Option<Members>> {
 fn write(settings: &Path, members: &Members) -> io::Result<()> {
     let mut bytes = serde_json::to_vec_pretty(members)?;
     bytes.push(b'\n');
-    kodosi_os::fs::write_private(settings, &bytes)
+    kodosi_os::fs::replace_keeping_permissions(settings, &bytes)
 }
 
 fn invalid(message: impl Into<String>) -> io::Error {

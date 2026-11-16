@@ -44,7 +44,6 @@ data class ProjectTask(
     val assignedTo: String? = null,
     val assignedName: String? = null,
     val terminalId: String? = null,
-    val repositoryIds: List<String> = emptyList(),
     val note: String? = null,
     val issue: ProjectIssue? = null
 )
@@ -65,8 +64,7 @@ data class ProjectIssue(
     val number: Long,
     val title: String,
     val url: String,
-    val closed: Boolean = false,
-    val assignees: List<String> = emptyList()
+    val closed: Boolean = false
 )
 
 @Serializable

@@ -13,6 +13,8 @@ package = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
 zip = { workspace = true }
 
 [lints]

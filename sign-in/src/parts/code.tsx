@@ -105,6 +105,13 @@ export function CodeCells({
         value={written}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        onKeyDown={(event) => {
+          if (!send || event.key !== "Enter" || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          if (sent.current) return;
+          sent.current = true;
+          event.currentTarget.form?.requestSubmit();
+        }}
         onChange={(event) => {
           const next = event.target.value.replace(strip, "").slice(0, length).toUpperCase();
           setValue(next);

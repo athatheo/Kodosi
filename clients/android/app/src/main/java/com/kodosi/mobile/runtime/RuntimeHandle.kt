@@ -6,7 +6,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.channels.Channel
 
-/** The view of one terminal that the runtime streams to. */
 interface TerminalLink {
     val subscriptionId: String
     val generation: Long
@@ -34,7 +33,6 @@ interface TerminalRuntime {
     fun input(sessionId: String, incarnationId: String, link: TerminalLink, bytes: ByteArray): Int
 }
 
-/** The embedded runtime: its handle, its events and the terminals that it streams. */
 class RuntimeHandle :
     RuntimeCallbacks,
     TerminalRuntime {
@@ -56,7 +54,7 @@ class RuntimeHandle :
     private var handle = 0L
     private val links = ConcurrentHashMap<String, TerminalLink>()
 
-    /** Starts the runtime. It blocks, so call it away from the main thread. */
+    /** Blocks, so call it away from the main thread. */
     fun start(context: Context, language: String): Start {
         if (NativeRuntime.abiVersion() != Ffi.ABI_VERSION || NativeRuntime.protocolVersion() != Ffi.PROTOCOL_VERSION) {
             return Start.Incompatible
@@ -70,7 +68,7 @@ class RuntimeHandle :
         return Start.Started
     }
 
-    /** Stops the runtime and waits for its callbacks to end. */
+    /** Waits for the runtime's callbacks to end. */
     fun stop() {
         val current = handle
         handle = 0
@@ -85,11 +83,6 @@ class RuntimeHandle :
         links[sessionId] = link
         val current = handle.takeIf { it != 0L } ?: return Ffi.RUNTIME_STOPPED
         return NativeRuntime.terminalConnect(current, sessionId, link.subscriptionId, link.generation)
-    }
-
-    fun refresh(sessionId: String, link: TerminalLink) {
-        val current = handle.takeIf { it != 0L } ?: return
-        NativeRuntime.terminalRefresh(current, sessionId, link.subscriptionId, link.generation)
     }
 
     override fun disconnect(sessionId: String, link: TerminalLink) {
@@ -153,7 +146,6 @@ class RuntimeHandle :
     companion object {
         private const val EVENT_CAPACITY = 256
 
-        /** Gives the runtime's sentences for people in this language from now on. */
         fun setLanguage(language: String) = NativeRuntime.setLanguage(language)
     }
 }

@@ -61,7 +61,6 @@ import com.kodosi.mobile.ui.Radius
 import com.kodosi.mobile.ui.StatusSign
 import com.kodosi.mobile.ui.raised
 
-/** The Terminals tab: your terminals by computer, then the terminals that friends share. */
 @Composable
 fun TerminalsScreen(
     store: TerminalStore,
@@ -226,7 +225,6 @@ private fun GroupHeader(group: TerminalGroup, start: (() -> Unit)?) {
     }
 }
 
-/** A terminal in a list: its mark, its name, what it does, and its sign. */
 @Composable
 fun TerminalCard(session: RuntimeSession, online: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = KodosiTheme.colors

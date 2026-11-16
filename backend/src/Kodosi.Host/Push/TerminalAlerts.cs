@@ -10,8 +10,8 @@ internal sealed record PushNotice(Guid OwnerId, IReadOnlyList<PushedTerminal> Pu
 
 internal sealed partial class TerminalAlerts(ConnectionDirectory directory, TimeProvider clock, ILogger<TerminalAlerts> logger)
 {
-    // As long as the presence grace, the wait also keeps the server from pushing in the first graceSeconds after its start.
-    internal static readonly TimeSpan Delay = TimeSpan.FromSeconds(30);
+    // The wait also keeps a server that just started from pushing before the devices report again.
+    internal static readonly TimeSpan Delay = ConnectionDirectory.PresenceGrace;
     internal static readonly TimeSpan SoundSpacing = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan Hour = TimeSpan.FromHours(1);
     internal static readonly TimeSpan Remembered = TimeSpan.FromDays(1);

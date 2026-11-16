@@ -3,7 +3,6 @@ package com.kodosi.mobile.notifications
 import android.Manifest
 import android.app.Application
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.kodosi.mobile.AppPreferences
 import com.kodosi.mobile.R
@@ -91,9 +90,6 @@ class TerminalNotificationsTest {
 
     @Test
     fun aWaitAlertsWithItsSoundAndAFinishOrFailureStaysQuiet() {
-        manager.createNotificationChannel(
-            NotificationChannel("terminal-updates", "Terminals", NotificationManager.IMPORTANCE_DEFAULT)
-        )
         val receiver = signedIn()
         receiver.receive(
             PushedTerminal.list(
@@ -112,7 +108,6 @@ class TerminalNotificationsTest {
         val failed = terminal(unknown)!!
         assertEquals(finished.channelId, failed.channelId)
         assertEquals(NotificationManager.IMPORTANCE_LOW, manager.getNotificationChannel(failed.channelId).importance)
-        assertNull(manager.getNotificationChannel("terminal-updates"))
     }
 
     @Test

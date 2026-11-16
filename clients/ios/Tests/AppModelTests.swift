@@ -70,6 +70,15 @@ struct AppModelTests {
         #expect(model.account.signInPage == nil)
     }
 
+    @Test func `a join code that opens the app asks once this device needs trust`() throws {
+        model.open(join: "kodosi://device/join/user-1#secret")
+        try deliver("system.ready", ["protocolVersion": RuntimeHandle.expectedProtocolVersion, "awaySeconds": 180])
+        #expect(!sent.types.contains("devices.link.startSelf"))
+        try deliver("auth.ready", ["userId": "user-1", "enrolled": false])
+        #expect(sent.last("devices.link.startSelf")?["code"] as? String == "kodosi://device/join/user-1#secret")
+        #expect(model.account.stage == .trustingDevice(.joining))
+    }
+
     @Test func `untrusted device asks for trust until enrolled`() throws {
         try deliver("auth.ready", ["userId": "user-1", "enrolled": false])
         #expect(model.account.needsOnboarding)

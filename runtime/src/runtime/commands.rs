@@ -1141,7 +1141,7 @@ impl Runtime {
             .and_then(crate::agents::Agent::named)
             .map(|agent| RunningAgent {
                 agent,
-                account_place: local.entry.program_account,
+                account_folder: local.account_folder.clone(),
                 settings: local.entry.program_settings.clone(),
                 pending: local.entry.program_pending.clone(),
             }))
@@ -1514,12 +1514,16 @@ impl Runtime {
                 id,
                 group,
                 account,
+                folder,
                 agent,
                 outside,
                 settings,
             } => {
                 if let Some(local) = self.local.get_mut(&id) {
                     drop(local.terminal.set_account(group, account));
+                    if local.entry.program.as_deref() == Some(agent.name()) {
+                        local.account_folder = folder;
+                    }
                     let settings = settings.changed(&local.changed);
                     if !settings.is_empty() {
                         drop(local.terminal.set_settings(group, settings));
@@ -1848,6 +1852,7 @@ impl Runtime {
                         wanted,
                         conversation: super::restore::Conversation::default(),
                         changed: crate::agents::AgentSettings::default(),
+                        account_folder: None,
                         marked: tokio::sync::watch::channel(None).0,
                     },
                 );

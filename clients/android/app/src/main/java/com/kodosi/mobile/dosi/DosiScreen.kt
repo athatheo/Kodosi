@@ -310,8 +310,6 @@ private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String)
             }
         }
 
-        "tool" -> DosiStep(item, open)
-
         "question" -> {
             val answered = body["answer"]?.toString()?.takeIf { it != "null" } != null
             Column(

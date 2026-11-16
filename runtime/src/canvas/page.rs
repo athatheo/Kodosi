@@ -1,7 +1,5 @@
 use pulldown_cmark::{Options, Parser, html};
 
-const TEMPLATE: &str = include_str!("../../skills/kodosi-canvas/assets/page.html");
-
 pub(super) fn page(name: &str, source: &[u8]) -> Vec<u8> {
     let text = String::from_utf8_lossy(source);
     let markdown = std::path::Path::new(name)
@@ -26,10 +24,11 @@ pub(super) fn page(name: &str, source: &[u8]) -> Vec<u8> {
 }
 
 fn style() -> &'static str {
-    TEMPLATE
+    let template = crate::agents::PAGE;
+    template
         .find("<style>")
-        .zip(TEMPLATE.find("</style>"))
-        .map_or("", |(start, end)| &TEMPLATE[start..end + "</style>".len()])
+        .zip(template.find("</style>"))
+        .map_or("", |(start, end)| &template[start..end + "</style>".len()])
 }
 
 fn escape(text: &str) -> String {

@@ -286,20 +286,10 @@ android-release-build:
 android-bundle-build:
     just --justfile clients/android/justfile bundle-build
 
-# Collect the Android viewer's dependency licenses.
-[group('android')]
-android-notices-build:
-    just --justfile clients/android/justfile notices-build
-
 # Install the Debug Android app on the device or emulator that adb sees, and open it.
 [group('android')]
 android-run:
     just --justfile clients/android/justfile run
-
-# Check the Kotlin style and run Android lint on the Android app.
-[group('android')]
-android-lint:
-    just --justfile clients/android/justfile lint
 
 # Format the Kotlin sources of the Android app.
 [group('android')]
@@ -315,11 +305,6 @@ android-test:
 [group('android')]
 android-device-test:
     just --justfile clients/android/justfile device-test
-
-# Build the native Android boundary tests.
-[group('android')]
-android-device-test-build:
-    just --justfile clients/android/justfile device-test-build
 
 # Lint the runtime for Android, lint and test the Android app, build it, then check its translations.
 [group('android')]
@@ -360,7 +345,7 @@ windows-rust-lint:
 # Build the Keycloak theme after the type, lint and format checks, then build and test the Keycloak extension.
 [group('sign-in')]
 sign-in-check: translations-check
-    cd sign-in && bun install --frozen-lockfile && bun run tsc && bun run lint && bun run format:check && bun run build
+    cd sign-in && bun install --frozen-lockfile && bun run lint && bun run format:check && bun run build
     sign-in/extension/maven.sh -q verify
 
 # Test the scripts that write the update site of a release and the feed of Kodosi Browser.

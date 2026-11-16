@@ -657,7 +657,7 @@ const fn skill(action: &Action) -> Option<&'static str> {
         Action::Skill {
             topic: Some(SkillTopic::Page),
         } => Some(crate::agents::PAGE),
-        Action::Dosi(DosiAction::Skill) => Some(dosi::SKILL),
+        Action::Dosi(DosiAction::Skill) => Some(crate::dosi::SKILL),
         _ => None,
     }
 }

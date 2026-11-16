@@ -171,7 +171,7 @@ public sealed class SharingTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task ARoomTerminalGoesOnlyToTheFriendsOfItsOwnerInTheProject()
+    public async Task AProjectTerminalGoesOnlyToTheFriendsOfItsOwnerInTheProject()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var store = await TestStore.CreateAsync(postgres);

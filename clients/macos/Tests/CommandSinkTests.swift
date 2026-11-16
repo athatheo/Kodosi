@@ -146,6 +146,28 @@ import Testing
     #expect(app.errorMessage == "No such person.")
 }
 
+@Test @MainActor func `a failed code for a new device shows only in its sheet`() throws {
+    let defaults = try #require(EphemeralUserDefaults(prefix: "DeviceOfferError"))
+    let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
+    let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
+    defer { app.shutdownProcess() }
+    var sent: [[String: JSONValue]] = []
+    app.commandSink.transport = { data in
+        if let fields = try? JSONDecoder().decode([String: JSONValue].self, from: data) {
+            sent.append(fields)
+        }
+        return 0
+    }
+    try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner"), "enrolled": .bool(true)]))
+    app.account.offerDevice()
+    let request = try #require(sent.last { $0["type"] == .string("devices.link.offer") }?["requestId"])
+    try app.receive(runtimeEvent("devices.error", fields: [
+        "requestId": request, "operation": .string("devices.link.offer"), "message": .string("The server is away."),
+    ]))
+    #expect(app.account.offer == .failed("The server is away."))
+    #expect(app.errorMessage == nil)
+}
+
 @MainActor private func settle(_ pending: () -> Bool) async {
     for _ in 0 ..< 100 where pending() {
         await Task.yield()

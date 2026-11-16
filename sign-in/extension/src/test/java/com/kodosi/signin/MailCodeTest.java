@@ -34,7 +34,10 @@ class MailCodeTest {
     };
 
     private static MailCode.Notes signIn() {
-        Map<String, String> notes = new HashMap<>();
+        return notesOf(new HashMap<>());
+    }
+
+    private static MailCode.Notes notesOf(Map<String, String> notes) {
         return new MailCode.Notes() {
             @Override public String get(String name) { return notes.get(name); }
             @Override public void set(String name, String value) { notes.put(name, value); }
@@ -149,18 +152,22 @@ class MailCodeTest {
     }
 
     @Test
-    void anAddressTakesAtMostTwentyWrongCodesADayFromAllSignIns() {
+    void theWrongCodesOfOtherSignInsNeverStopThePersonsOwnCode() {
         for (int i = 0; i < 4; i++) {
             MailCode.Notes signIn = signIn();
             String code = code(signIn);
-            for (int j = 0; j < 5; j++) in(signIn).check(other(code), MAYA);
+            for (int j = 0; j < 25; j++) in(signIn).check(other(code), MAYA);
         }
-        MailCode.Notes fifth = signIn();
-        assertEquals(Check.WRONG, in(fifth).check(code(fifth), MAYA));
+        MailCode.Notes own = signIn();
+        assertEquals(Check.PASSED, in(own).check(code(own), MAYA));
+    }
 
-        now += 86400;
-        MailCode.Notes nextDay = signIn();
-        assertEquals(Check.PASSED, in(nextDay).check(code(nextDay), MAYA));
+    @Test
+    void aSignInComparesAtMostTenCodesAlsoWhenItsPostsComeAtOnce() {
+        Map<String, String> notes = new HashMap<>();
+        String code = code(notesOf(notes));
+        for (int i = 0; i < 10; i++) in(notesOf(new HashMap<>(notes))).check(other(code), MAYA);
+        assertEquals(Check.WRONG, in(notesOf(new HashMap<>(notes))).check(code, MAYA));
     }
 
     @Test

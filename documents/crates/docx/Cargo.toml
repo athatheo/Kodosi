@@ -14,6 +14,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 text = { workspace = true }
+
+[dev-dependencies]
 zip = { workspace = true }
 
 [lints]

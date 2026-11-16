@@ -1039,7 +1039,7 @@ Item {
             const label = Models.DesktopSettings.agentLabel(agent)
             const busy = root.session.working === true || root.session.asks === true
             return [busy ? qsTr("%1 changes when it finishes its turn.").arg(label) : "",
-                keeps ? qsTr("%1 also keeps the model and effort for its next sessions.").arg(label) : ""]
+                keeps ? qsTr("%1 also keeps the model and effort the next time it starts.").arg(label) : ""]
                 .filter(text => text.length > 0).join(" ")
         }
     }

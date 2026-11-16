@@ -130,13 +130,6 @@ public struct AccountUsage: Decodable, Equatable, Sendable {
     public var limits: [UsageLimit]
     public var readAtMs: UInt64
 
-    public init(agent: String, account: String, limits: [UsageLimit], readAtMs: UInt64) {
-        self.agent = agent
-        self.account = account
-        self.limits = limits
-        self.readAtMs = readAtMs
-    }
-
     public var headline: UsageLimit? {
         limits.first(where: \.headline) ?? limits.first
     }

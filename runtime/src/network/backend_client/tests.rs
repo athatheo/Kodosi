@@ -691,6 +691,82 @@ async fn an_offer_approves_the_device_that_scanned_its_code_after_it_showed_its_
 }
 
 #[tokio::test]
+async fn an_approval_by_scan_reaches_the_person_also_when_reading_the_devices_after_it_fails() {
+    use crate::identity::link_code::scanned_link;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let (_root, network, bundle) = approved_at(&address).await;
+    let offered = network
+        .execute("devices.link.offer", request())
+        .await
+        .unwrap();
+    let secret = scanned_link(offered.events[0]["text"].as_str().unwrap())
+        .unwrap()
+        .secret;
+    let phone = DeviceKeys::generate().unwrap();
+    let scanned = asked(&bundle.user_id, &phone, "Phone", &secret, 5);
+    let busy = || (503, json!({"error": "Busy."}));
+    let mut replies = vec![compatible_server()];
+    replies.extend(device_session_replies());
+    replies.extend([
+        (200, json!([scanned])),
+        (200, json!([scanned])),
+        (200, serde_json::to_value(&bundle).unwrap()),
+        (200, json!({})),
+        busy(),
+        busy(),
+    ]);
+    let server = scripted_backend(listener, replies);
+    let mut events = network.events();
+    let offer = network.inner.state.lock().await.offer.clone().unwrap();
+
+    assert!(network.poll_offer(&offer).await.is_err());
+
+    assert!(network.inner.state.lock().await.offer.is_none());
+    assert!(received(&mut events).contains(
+        &json!({"type": "devices.link.offerResolved", "outcome": "approved", "deviceLabel": "Phone"})
+    ));
+    let requests = server.await.unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.starts_with("POST /api/devices/link/approve "))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn a_new_recovery_key_reaches_the_person_also_when_reading_the_devices_after_it_fails() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let (_root, network, bundle) = approved_at(&address).await;
+    let mut replies = vec![
+        compatible_server(),
+        (200, serde_json::to_value(&bundle).unwrap()),
+    ];
+    replies.extend(device_session_replies());
+    replies.extend([(200, json!({})), (503, json!({"error": "Busy."}))]);
+    let server = scripted_backend(listener, replies);
+
+    let reply = network
+        .execute("devices.recovery.create", request())
+        .await
+        .unwrap();
+
+    assert!(
+        reply
+            .events
+            .iter()
+            .any(|event| event["type"] == "devices.result"
+                && event["operation"] == "devices.recovery.create"
+                && event["key"].as_str().is_some_and(|key| !key.is_empty()))
+    );
+    server.await.unwrap();
+}
+
+#[tokio::test]
 async fn a_code_that_is_shown_stays_the_same_until_it_ends() {
     let (_root, network, _user) = signed_in_at("http://127.0.0.1:1").await;
     let mut shown = Vec::new();

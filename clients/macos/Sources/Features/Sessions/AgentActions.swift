@@ -204,7 +204,7 @@ struct AgentActions: View {
         if busy || keeps {
             Text(verbatim: [
                 busy ? String(localized: "\(agent.label) changes when it finishes its turn.") : nil,
-                keeps ? String(localized: "\(agent.label) also keeps the model and effort for its next sessions.") : nil,
+                keeps ? String(localized: "\(agent.label) also keeps the model and effort the next time it starts.") : nil,
             ].compactMap(\.self).joined(separator: " "))
                 .appTextStyle(.footnote).foregroundStyle(theme.colors.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

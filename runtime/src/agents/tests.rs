@@ -706,7 +706,7 @@ fn cursor_and_opencode_get_the_note_only_in_the_line_that_kodosi_types_where_the
         );
     }
 
-    for (version, standalone) in [(1, false), (2, true)] {
+    for (version, standalone) in [(0, false), (1, false), (2, true), (3, true)] {
         let line = Agent::Opencode.with_context("opencode --auto", &notes(false, Some(version)));
         let (config, arguments) = run(&line);
         let expected: &[&str] = if standalone {
@@ -934,22 +934,30 @@ fn an_agent_start_takes_the_last_choice_and_explicit_values_win() {
 
 #[test]
 fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
-    let accounts = claude_with_accounts().accounts;
+    let home = Path::new("/home/ana");
+    let mut accounts = claude_with_accounts().accounts;
+    for account in &mut accounts {
+        account.folder = Some(match account.name.as_str() {
+            "default" => "~/.claude".to_owned(),
+            name => format!("~/.claude-{name}"),
+        });
+    }
     let settings = |model: Option<&str>, effort: Option<&str>, permissions| AgentSettings {
         model: model.map(str::to_owned),
         effort: effort.map(str::to_owned),
         permissions,
         output: None,
     };
-    let like = |account_place, settings, pending| {
+    let like_in = |accounts: &[AgentAccount], folder: Option<&str>, settings, pending| {
         RunningAgent {
             agent: Agent::Claude,
-            account_place,
+            account_folder: folder.map(|folder| home.join(folder)),
             settings,
             pending,
         }
-        .start(&accounts)
+        .start(accounts, home)
     };
+    let like = |folder, settings, pending| like_in(&accounts, folder, settings, pending);
     let start = |account: Option<&str>, model: Option<&str>, effort: Option<&str>, permissions| {
         AgentStart {
             agent: Agent::Claude,
@@ -964,7 +972,7 @@ fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
 
     assert_eq!(
         like(
-            Some(1),
+            Some(".claude-work"),
             running.clone(),
             Some(settings(None, Some("high"), Some(Permissions::Ask)))
         ),
@@ -977,7 +985,11 @@ fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
         "a change that waits for the end of the turn wins"
     );
     assert_eq!(
-        like(Some(0), running, Some(settings(Some("haiku"), None, None))),
+        like(
+            Some(".claude"),
+            running,
+            Some(settings(Some("haiku"), None, None))
+        ),
         start(
             Some("default"),
             Some("haiku"),
@@ -988,7 +1000,7 @@ fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
     );
     assert_eq!(
         like(
-            Some(0),
+            Some(".claude"),
             Some(settings(None, None, Some(Permissions::Unrestricted))),
             None
         ),
@@ -1001,9 +1013,24 @@ fn a_terminal_like_a_running_agent_takes_what_its_host_knows_of_it() {
         "a model and an effort that the agent started without are its own"
     );
     assert_eq!(
-        like(Some(2), None, None),
+        like(Some(".claude-gone"), None, None),
         start(None, None, None, None),
         "an account outside the list and unknown choices stay the last choice"
+    );
+    let mut added = accounts.clone();
+    added.insert(
+        0,
+        AgentAccount {
+            name: "alpha".to_owned(),
+            command: "CLAUDE_CONFIG_DIR=~/.claude-alpha claude".to_owned(),
+            identity: None,
+            folder: Some("~/.claude-alpha".to_owned()),
+        },
+    );
+    assert_eq!(
+        like_in(&added, Some(".claude-work"), None, None).account,
+        Some("work".to_owned()),
+        "an account that came before it in the list since it started changes nothing"
     );
 }
 

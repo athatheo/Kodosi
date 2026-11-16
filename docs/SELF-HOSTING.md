@@ -10,7 +10,7 @@ Create a public OIDC client `kodosi-app` with refresh tokens, the scopes
 `openid profile offline_access`, authorization code with PKCE (S256) for the apps, and
 device authorization for the command line. Allow the redirects
 `http://127.0.0.1/callback` on any port (Mac, Linux, Windows) and `com.kodosi:/auth`
-(iPhone and iPad).
+(iPhone, iPad and Android).
 
 The issuer's discovery document must give its authorization, device authorization and
 token endpoints on the issuer's origin, over HTTPS (loopback HTTP for development).

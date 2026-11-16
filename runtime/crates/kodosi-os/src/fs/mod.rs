@@ -47,6 +47,22 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> io::Result<()> {
     imp::sync_dir(parent)
 }
 
+pub fn replace_keeping_permissions(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| invalid("a replaced file has no parent"))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all(bytes)?;
+    if let Ok(metadata) = std::fs::metadata(path) {
+        temporary
+            .as_file()
+            .set_permissions(metadata.permissions())?;
+    }
+    temporary.as_file().sync_all()?;
+    temporary.persist(path).map_err(|error| error.error)?;
+    imp::sync_dir(parent)
+}
+
 pub fn open_private(path: &Path) -> io::Result<File> {
     imp::open_private(path)
 }

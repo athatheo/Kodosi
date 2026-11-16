@@ -48,10 +48,9 @@ enum {
     CELL_STRIKETHROUGH = 1 << 3,
     CELL_OVERLINE = 1 << 4,
     CELL_SELECTED = 1 << 5,
-    CELL_HYPERLINK = 1 << 6,
 };
 
-#define FRAME_HEADER_BYTES 36
+#define FRAME_HEADER_BYTES 24
 #define CELL_BYTES 12
 #define MAX_GRAPHEME_BYTES 255
 #define MAX_VISIBLE_CELLS 1048576
@@ -195,10 +194,6 @@ static void put16(uint8_t *at, uint16_t value) {
 static void put32(uint8_t *at, uint32_t value) {
     put16(at, (uint16_t)value);
     put16(at + 2, (uint16_t)(value >> 16));
-}
-
-static uint32_t clamp32(uint64_t value) {
-    return value > UINT32_MAX ? UINT32_MAX : (uint32_t)value;
 }
 
 // A snapshot may end before its history, after READY and the image pixels that follow it.
@@ -446,8 +441,6 @@ static jint frame(Kernel *kernel, Output *output) {
     uint16_t rows = 0;
     GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED(GhosttyRenderStateColors);
     GhosttyRenderStateCursor cursor = GHOSTTY_INIT_SIZED(GhosttyRenderStateCursor);
-    GhosttyTerminalScrollbar scrollbar;
-    memset(&scrollbar, 0, sizeof(scrollbar));
     bool mouse_tracking = false;
     if (result == GHOSTTY_SUCCESS) {
         result = ghostty_render_state_get(render, GHOSTTY_RENDER_STATE_DATA_COLS, &cols);
@@ -460,9 +453,6 @@ static jint frame(Kernel *kernel, Output *output) {
     }
     if (result == GHOSTTY_SUCCESS) {
         result = ghostty_render_state_get(render, GHOSTTY_RENDER_STATE_DATA_CURSOR, &cursor);
-    }
-    if (result == GHOSTTY_SUCCESS) {
-        result = ghostty_terminal_get(kernel->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &scrollbar);
     }
     if (result == GHOSTTY_SUCCESS) {
         result = ghostty_terminal_get(kernel->terminal, GHOSTTY_TERMINAL_DATA_MOUSE_TRACKING, &mouse_tracking);
@@ -484,9 +474,6 @@ static jint frame(Kernel *kernel, Output *output) {
         put32(header + 12, rgb(colors.foreground));
         put32(header + 16, rgb(colors.background));
         put32(header + 20, rgb(colors.cursor_has_value ? colors.cursor : colors.foreground));
-        put32(header + 24, clamp32(scrollbar.total));
-        put32(header + 28, clamp32(scrollbar.offset));
-        put32(header + 32, clamp32(scrollbar.len));
     }
 
     GhosttyRenderStateRowIterator row_iterator = NULL;
@@ -535,7 +522,6 @@ static jint frame(Kernel *kernel, Output *output) {
             GhosttyColorRgb background = colors.background;
             GhosttyCell raw = 0;
             GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
-            bool hyperlink = false;
             result = ghostty_render_state_row_cells_get(cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_STYLE, &style);
             bool has_foreground =
                 ghostty_render_state_row_cells_get(cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_FG_COLOR, &foreground) ==
@@ -548,9 +534,6 @@ static jint frame(Kernel *kernel, Output *output) {
             }
             if (result == GHOSTTY_SUCCESS) {
                 result = ghostty_cell_get(raw, GHOSTTY_CELL_DATA_WIDE, &wide);
-            }
-            if (result == GHOSTTY_SUCCESS) {
-                result = ghostty_cell_get(raw, GHOSTTY_CELL_DATA_HAS_HYPERLINK, &hyperlink);
             }
             uint8_t *cell = reserve(output, CELL_BYTES);
             uint8_t text_length = 0;
@@ -581,7 +564,7 @@ static jint frame(Kernel *kernel, Output *output) {
             uint16_t flags = (style.bold ? CELL_BOLD : 0) | (style.italic ? CELL_ITALIC : 0) |
                              (style.underline != 0 ? CELL_UNDERLINE : 0) |
                              (style.strikethrough ? CELL_STRIKETHROUGH : 0) | (style.overline ? CELL_OVERLINE : 0) |
-                             (hyperlink ? CELL_HYPERLINK : 0) | (in_selection ? CELL_SELECTED : 0);
+                             (in_selection ? CELL_SELECTED : 0);
             put32(cell, fg);
             put32(cell + 4, bg);
             put16(cell + 8, flags);

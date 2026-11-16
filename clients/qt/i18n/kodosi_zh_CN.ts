@@ -4054,8 +4054,8 @@
         <translation>%1 会在这一轮结束后更改。</translation>
     </message>
     <message>
-        <source>%1 also keeps the model and effort for its next sessions.</source>
-        <translation>%1 之后的会话也会沿用这个模型和推理强度。</translation>
+        <source>%1 also keeps the model and effort the next time it starts.</source>
+        <translation>%1 下次启动时也会沿用这个模型和推理强度。</translation>
     </message>
     <message>
         <source>Copy</source>

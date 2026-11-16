@@ -362,7 +362,7 @@
     <string name="agent_standard_detail">按 Agent 的设置显示工作过程。</string>
     <string name="agent_detailed_detail">完整显示每一步工作过程。</string>
     <string name="agent_after_turn">%1$s（本轮结束后）</string>
-    <string name="agent_keeps_settings">%1$s 之后的会话也会沿用这个模型和推理强度。</string>
+    <string name="agent_keeps_settings">%1$s 下次启动时也会沿用这个模型和推理强度。</string>
     <string name="agent_effort_none">无</string>
     <string name="agent_effort_minimal">最低</string>
     <string name="agent_effort_low">低</string>

@@ -28,8 +28,8 @@ class TerminalFrameTest {
 
     @Test
     fun readsTheNativeRowsBeforeTheirCells() {
-        val bytes = ByteBuffer.allocate(36 + 2 + 8 * 13).order(ByteOrder.LITTLE_ENDIAN)
-        bytes.putShort(4).putShort(2).position(36)
+        val bytes = ByteBuffer.allocate(24 + 2 + 8 * 13).order(ByteOrder.LITTLE_ENDIAN)
+        bytes.putShort(4).putShort(2).position(24)
         repeat(2) { row ->
             bytes.put(if (row == 0) 1 else 2)
             repeat(4) { column ->
@@ -53,7 +53,7 @@ class TerminalFrameTest {
         val text = lines.flatMap { it.padEnd(cols).map(Char::toString) }.toTypedArray<String?>()
         return TerminalFrame(
             cols, lines.size, TerminalFrame.Cursor(0, 0, false, TerminalFrame.CursorStyle.BLOCK, false),
-            -1, 0, -1, TerminalFrame.Scroll(lines.size, 0, lines.size), false,
+            -1, 0, -1, false,
             IntArray(text.size), IntArray(text.size),
             IntArray(text.size) { (widths[it] ?: 1) shl 16 }, text, flags
         )

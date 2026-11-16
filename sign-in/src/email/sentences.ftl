@@ -10,10 +10,6 @@
 <#return words>
 </#function>
 
-<#function eventText key>
-<#return msg(key, moment(), event.ipAddress)>
-</#function>
-
 <#function wayText withKind plain>
 <#local kind = wordsOf("kdsWay.", event.getDetail("credential_type")!"")>
 <#if kind?has_content><#return msg(withKind, kind, moment(), event.ipAddress)></#if>
@@ -28,10 +24,4 @@
 </#list>
 <#if steps?size gt 0><#return msg("kdsSetupText", realmName, steps?join(msg("kdsAnd")))></#if>
 <#return msg("kdsSetupPlainText", realmName)>
-</#function>
-
-<#function linkText>
-<#local who = (identityProviderContext.username)!"">
-<#if who?has_content><#return msg("kdsLinkText", identityProviderDisplayName, realmName, who)></#if>
-<#return msg("kdsLinkPlainText", identityProviderDisplayName, realmName)>
 </#function>

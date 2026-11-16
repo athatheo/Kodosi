@@ -104,12 +104,6 @@ pub struct HostDescription {
     pub kind: HostKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostStatus {
-    pub host: HostDescription,
-    pub local_sessions: usize,
-}
-
 pub(crate) fn local_sessions(events: &[Event]) -> usize {
     events
         .iter()
@@ -156,9 +150,7 @@ mod server;
 pub use app::{
     AppClaim, Forwarded, MAX_ACTIVATION_BYTES, claim_app, forward_activation, serve_activations,
 };
-pub use client::{
-    Client, Commands, Events, TerminalClient, connect_or_start, host_status, stop_other_host,
-};
+pub use client::{Client, Commands, Events, TerminalClient, connect_or_start, stop_other_host};
 use framing::{
     CONTROL, DATA, INPUT, REFRESH, RESIZE, TERMINAL_FRAME_MAX, checkpoint_frame, control_frame,
     read_frame, read_json, resize_frame, write_frame, write_json,

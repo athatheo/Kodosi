@@ -334,8 +334,8 @@ impl Agent {
                 .map(|plugin| format!("{command} --plugin-dir {}", as_shell_word(shell, &plugin))),
             Self::Opencode if !cfg!(windows) => {
                 let standalone = match notes.installed.opencode_version {
-                    Some(1) => "",
-                    Some(_) => " --standalone",
+                    Some(version) if version >= 2 => " --standalone",
+                    Some(_) => "",
                     None => return command.to_owned(),
                 };
                 opencode_config(&notes.folder).map(|config| {

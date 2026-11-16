@@ -304,14 +304,6 @@ JNIEXPORT jint JNICALL Java_com_kodosi_mobile_runtime_NativeRuntime_terminalConn
     return call_terminal(env, kodosi_terminal_connect, handle, session, subscription, generation);
 }
 
-JNIEXPORT jint JNICALL Java_com_kodosi_mobile_runtime_NativeRuntime_terminalRefresh(JNIEnv *env, jclass type,
-                                                                                    jlong handle, jstring session,
-                                                                                    jstring subscription,
-                                                                                    jlong generation) {
-    (void)type;
-    return call_terminal(env, kodosi_terminal_refresh, handle, session, subscription, generation);
-}
-
 JNIEXPORT jint JNICALL Java_com_kodosi_mobile_runtime_NativeRuntime_terminalDisconnect(JNIEnv *env, jclass type,
                                                                                        jlong handle, jstring session,
                                                                                        jstring subscription,

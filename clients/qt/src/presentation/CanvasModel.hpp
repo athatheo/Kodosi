@@ -104,7 +104,8 @@ public:
     void apply(const QJsonObject& event);
     void reset();
 
-    [[nodiscard]] static std::optional<QPointF> browserPoint(QPointF point, QSizeF view, QSizeF browser);
+    [[nodiscard]] static std::optional<QPointF> browserPoint(
+        QPointF point, QSizeF view, QSizeF browser, bool clamped = false);
     [[nodiscard]] static std::optional<QPointF> pointInView(QPointF point, QSizeF view, QSizeF browser);
     [[nodiscard]] static std::optional<BrowserKey> browserKey(int key);
     [[nodiscard]] static QString about(const QString& place, const QString& words);

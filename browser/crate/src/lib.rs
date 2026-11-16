@@ -1,4 +1,5 @@
-//! A viewer needs only the messages, so a build without the `host` feature starts nothing.
+//! The engine needs only the link and the messages, so a build without the `host` feature starts
+//! nothing.
 
 pub mod link;
 mod message;

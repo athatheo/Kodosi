@@ -37,7 +37,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Draws a terminal from Ghostty's state and types into it with the keyboard. */
 @SuppressLint("ViewConstructor")
 class TerminalView(context: Context, private val connection: TerminalConnection, scope: CoroutineScope) :
     View(context) {
@@ -288,7 +287,6 @@ class TerminalView(context: Context, private val connection: TerminalConnection,
         )
     }
 
-    /** Presses `key`, with control when the key row holds it for the next key. */
     fun press(key: TerminalKernel.Key) {
         val modifiers = if (control) TerminalKernel.Modifier.CONTROL else 0
         control = false

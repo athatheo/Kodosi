@@ -29,11 +29,4 @@ public struct AgentLive: Decodable, Equatable, Sendable {
     public let permissions: [AgentPermissions]
     /// The agent also keeps a model or effort that it changes to for its next sessions.
     public let keeps: Bool
-
-    public init(model: Bool = false, effort: Bool = false, permissions: [AgentPermissions] = [], keeps: Bool = false) {
-        self.model = model
-        self.effort = effort
-        self.permissions = permissions
-        self.keeps = keeps
-    }
 }

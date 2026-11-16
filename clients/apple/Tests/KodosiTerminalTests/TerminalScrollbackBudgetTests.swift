@@ -40,19 +40,6 @@
         }
     }
 
-    @Test func `host managed renderer allows the clipboard and stores images as the host does`() {
-        #expect(TerminalRendererSession.hostManagedPolicyOverrides.map(\.key) == [
-            "clipboard-read",
-            "clipboard-write",
-            "image-storage-limit",
-        ])
-        #expect(TerminalRendererSession.hostManagedPolicyOverrides.map(\.value) == [
-            "allow",
-            "allow",
-            "67108864",
-        ])
-    }
-
     @MainActor
     @Test func `accessibility subscribers remain independent`() async {
         let session = TerminalRendererSession(

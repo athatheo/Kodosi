@@ -22,6 +22,8 @@ mod viewer;
 pub(crate) use chat::{Failure, Message, Output};
 #[cfg(feature = "host")]
 pub(crate) use engine::{Engine, Installed};
+#[cfg(feature = "host")]
+pub(crate) use folder::SKILL;
 #[cfg(any(test, not(feature = "host")))]
 pub(crate) use viewer::Viewer;
 
@@ -208,10 +210,7 @@ pub struct DosiTarget {
 pub enum DosiTargetKind {
     Terminal,
     Terminals,
-    /// The conversations that Dosi saved before this name say `room` and `rooms`.
-    #[serde(alias = "room")]
     Project,
-    #[serde(alias = "rooms")]
     Projects,
     Agent,
     File,

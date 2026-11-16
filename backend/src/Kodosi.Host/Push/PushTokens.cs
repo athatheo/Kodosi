@@ -22,7 +22,7 @@ internal static class PushEndpoints
     }
 }
 
-public sealed class PushTokens(KodosiDbContext db, PushSettings settings, TimeProvider clock)
+public sealed class PushTokens(KodosiDbContext db, PushSettings settings)
 {
     public async Task RegisterAsync(Guid userId, string deviceId, Registration registration, CancellationToken ct)
     {
@@ -35,7 +35,6 @@ public sealed class PushTokens(KodosiDbContext db, PushSettings settings, TimePr
         kept.Platform = platform;
         kept.Token = token;
         kept.Environment = environment;
-        kept.UpdatedAt = clock.GetUtcNow();
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }

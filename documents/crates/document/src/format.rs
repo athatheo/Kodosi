@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 
@@ -36,8 +36,7 @@ impl Assets {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ordered<C> {
     pub rev: Rev,
     pub author: String,
@@ -46,10 +45,10 @@ pub struct Ordered<C> {
     pub change: C,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot(pub Value);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer(pub Value);
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -68,16 +67,14 @@ pub struct Unreadable(pub String);
 #[error("The file cannot be written: {0}")]
 pub struct Unwritable(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GuideOp {
     pub name: String,
     pub does: String,
     pub fields: Vec<GuideField>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GuideField {
     pub name: String,
     pub kind: String,
@@ -104,8 +101,7 @@ pub fn guide_field(name: &str, kind: &str, required: bool, does: &str) -> GuideF
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Guide {
     pub format: String,
     pub ops: Vec<GuideOp>,

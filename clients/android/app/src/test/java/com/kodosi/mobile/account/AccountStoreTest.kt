@@ -88,7 +88,7 @@ class AccountStoreTest {
         )
         assertEquals(SignInStage.SignedIn, stage)
         assertTrue(store.state.value.isReady)
-        assertEquals(listOf(Device("phone", "Pixel", certIssuedAtMs = 1)), store.state.value.devices)
+        assertEquals(listOf(Device("phone", "Pixel")), store.state.value.devices)
     }
 
     @Test

@@ -172,7 +172,7 @@ public sealed class PlanTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task ARoomKeepsItsNewestMessagesInItsSpaceAndRefusesTasksThatFillIt()
+    public async Task AProjectKeepsItsNewestMessagesInItsSpaceAndRefusesTasksThatFillIt()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var store = await TestStore.CreateAsync(postgres);

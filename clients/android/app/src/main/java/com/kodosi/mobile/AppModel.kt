@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
 import com.kodosi.mobile.account.AccountStore
 import com.kodosi.mobile.account.AppLock
+import com.kodosi.mobile.account.SignInStage
 import com.kodosi.mobile.canvas.CanvasStore
 import com.kodosi.mobile.canvas.DocumentPages
 import com.kodosi.mobile.dosi.DosiStore
@@ -40,7 +41,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 
-/** The app's state: the runtime, its events and the stores that they fill. */
 class AppModel(
     private val application: Application,
     val preferences: AppPreferences = AppPreferences(application),
@@ -68,6 +68,7 @@ class AppModel(
     data class TerminalTarget(val id: String, val account: String)
     val terminalTarget = MutableStateFlow<TerminalTarget?>(null)
     val friendInvite = MutableStateFlow<String?>(null)
+    val deviceJoin = MutableStateFlow<String?>(null)
     val projects = ProjectStore(commands)
     val people = PeopleStore(commands)
     val dosi = DosiStore(commands)
@@ -88,6 +89,13 @@ class AppModel(
     init {
         commands.onFailure = ::notify
         account.notify = ::notify
+        scope.launch {
+            combine(deviceJoin, account.state) { code, state -> code?.let { it to state.stage } }
+                .filterNotNull()
+                .collect { (code, stage) ->
+                    if (account.joinDevice(code) || stage == SignInStage.SignedIn) deviceJoin.value = null
+                }
+        }
     }
 
     fun start() {
@@ -151,7 +159,6 @@ class AppModel(
         if (runtime != null) RuntimeHandle.setLanguage(AppLanguage.tag(application))
     }
 
-    /** Asks again for what may have changed while the app was away. */
     fun refresh() {
         if (phase.value != Phase.Ready) return
         terminals.list()
@@ -311,7 +318,7 @@ class AppModel(
         mutablePhase.value = Phase.Failed(message)
     }
 
-    /** Stops the runtime away from the main thread; the next start waits for it. */
+    /** Runs away from the main thread; the next start waits for it. */
     private fun stop() {
         commands.cancelPending()
         commands.transport = null

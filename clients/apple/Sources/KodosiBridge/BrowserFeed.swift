@@ -122,8 +122,10 @@ public final class BrowserFeed {
         post(.keyframe)
     }
 
+    /// While a button is held, a point beyond the page goes to its nearest edge, so that the page
+    /// also gets the rest of the drag and its release.
     public func browserPoint(_ point: CGPoint, in size: CGSize) -> BrowserInput.Point? {
-        Self.point(point, in: size, browser: window.size)
+        Self.point(point, in: size, browser: window.size, clamped: holding)
     }
 
     public func viewPoint(x: Double, y: Double, in size: CGSize) -> CGPoint? {
@@ -137,12 +139,18 @@ public final class BrowserFeed {
         return CGPoint(x: origin.x + point.x * fit, y: origin.y + point.y * fit)
     }
 
-    public nonisolated static func point(_ point: CGPoint, in size: CGSize, browser: CGSize) -> BrowserInput.Point? {
+    public nonisolated static func point(_ point: CGPoint, in size: CGSize, browser: CGSize,
+                                         clamped: Bool = false) -> BrowserInput.Point?
+    {
         guard browser.width > 0, browser.height > 0, size.width > 0, size.height > 0 else { return nil }
         let fit = min(size.width / browser.width, size.height / browser.height)
         let origin = CGPoint(x: (size.width - browser.width * fit) / 2, y: (size.height - browser.height * fit) / 2)
-        let x = (point.x - origin.x) / fit
-        let y = (point.y - origin.y) / fit
+        var x = (point.x - origin.x) / fit
+        var y = (point.y - origin.y) / fit
+        if clamped {
+            x = min(max(x, 0), browser.width.nextDown)
+            y = min(max(y, 0), browser.height.nextDown)
+        }
         guard x >= 0, y >= 0, x < browser.width, y < browser.height else { return nil }
         return BrowserInput.Point(x: Double(x), y: Double(y))
     }

@@ -19,12 +19,10 @@ data class DosiComputer(val device: String, val name: String)
 @Serializable
 data class DosiItem(val id: String, val turn: String, val at: Long, val body: JsonObject)
 
-/** One item of the conversation, or the tool steps that follow one another. */
 data class DosiRow(val items: List<DosiItem>) {
     val key: String get() = items.first().id
     val steps: Boolean get() = items.first().step
 
-    /** The first two steps by name, and how many more there are. */
     val line: String
         get() = items.take(2).joinToString(", ") { it.stepName } + if (items.size > 2) " +${items.size - 2}" else ""
 }
@@ -54,8 +52,7 @@ data class DosiSnapshot(
     val queued: List<JsonObject> = emptyList(),
     val asks: List<JsonObject> = emptyList(),
     val last: DosiComputer? = null,
-    val conversation: JsonObject? = null,
-    val remote: JsonObject? = null
+    val conversation: JsonObject? = null
 )
 
 data class DosiState(

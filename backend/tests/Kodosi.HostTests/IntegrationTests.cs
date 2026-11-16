@@ -116,7 +116,7 @@ public sealed class IntegrationTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task FriendsInARoomHearTheStatusOfATerminalAndWhenItsHostGoesOffline()
+    public async Task FriendsInAProjectHearTheStatusOfATerminalAndWhenItsHostGoesOffline()
     {
         var ct = TestContext.Current.CancellationToken;
         var connection = await postgres.CreateDatabaseAsync(ct);

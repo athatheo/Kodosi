@@ -51,21 +51,6 @@ impl Commands {
     }
 }
 
-pub async fn host_status(root: &Path) -> Result<HostStatus> {
-    let (_, welcome) = handshake(root, None).await?;
-    let host = welcome.host.ok_or_else(|| {
-        Error::Other(
-            welcome
-                .error
-                .unwrap_or_else(|| "the running host did not identify itself".into()),
-        )
-    })?;
-    Ok(HostStatus {
-        host,
-        local_sessions: welcome.terminals,
-    })
-}
-
 pub async fn stop_other_host(root: &Path, force: bool) -> Result<()> {
     let (mut stream, welcome) = handshake(root, None).await?;
     if welcome.version == VERSION

@@ -61,7 +61,6 @@ import kotlinx.coroutines.awaitCancellation
 
 fun canScanCodes(context: Context): Boolean = context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
 
-/** What a scanner says for the kind of code that it reads. */
 data class CodeScanWords(val title: String, val hint: String, val other: String, val unavailable: String)
 
 @Composable

@@ -561,7 +561,7 @@ impl BackendClient {
             }
             "devices.reset.cancel" => {
                 self.cancel_reset(wire::text(&args, "resetId")?).await?;
-                events.extend(self.device_events().await?);
+                events.extend(self.device_events_after_change().await);
             }
             "devices.link.startSelf" => {
                 let scanned = args.get("code").and_then(Value::as_str);
@@ -596,16 +596,16 @@ impl BackendClient {
                 events.push(
                     json!({"type":"devices.link.resolved","deviceLabel":label,"outcome":"approved"}),
                 );
-                events.extend(self.device_events().await?);
+                events.extend(self.device_events_after_change().await);
             }
             "devices.revoke" => {
                 self.revoke_device(wire::text(&args, "deviceId")?).await?;
-                events.extend(self.device_events().await?);
+                events.extend(self.device_events_after_change().await);
             }
             "devices.recovery.create" => {
                 let key = self.create_recovery_key().await?;
-                events.extend(self.device_events().await?);
                 events.push(json!({"type":"devices.result","requestId":request,"operation":operation,"key":key}));
+                events.extend(self.device_events_after_change().await);
             }
             "devices.recovery.use" => {
                 events.extend(self.use_recovery_key(wire::text(&args, "key")?).await?);

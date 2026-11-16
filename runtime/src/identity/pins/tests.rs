@@ -68,7 +68,7 @@ impl Fixture {
             Some(20_000),
         )
         .unwrap();
-        let mut entries = initial.list.entries.clone();
+        let mut entries = initial.list().entries;
         entries.push(DeviceListEntry {
             device_id: b.device_id.clone(),
             signer_device_id: a.device_id.clone(),
@@ -76,7 +76,7 @@ impl Fixture {
         let both = build_replacement_list(
             &user,
             1,
-            &initial.list.entries,
+            &initial.list().entries,
             entries,
             &a.device_id,
             &a.signing_key().unwrap(),
@@ -144,8 +144,8 @@ impl Fixture {
         let signed = build_replacement_list(
             &self.user,
             2,
-            &self.both.list.entries,
-            vec![self.both.list.entries[1].clone()],
+            &self.both.list().entries,
+            vec![self.both.list().entries[1].clone()],
             &self.b.device_id,
             &self.b.signing_key().unwrap(),
             1200,
@@ -200,7 +200,7 @@ fn revocation_and_generation_survive_reload() {
         &fixture.user,
         previous.generation,
         &previous.entries,
-        fixture.both.list.entries.clone(),
+        fixture.both.list().entries,
         &fixture.b.device_id,
         &fixture.b.signing_key().unwrap(),
         1300,
@@ -294,7 +294,7 @@ fn expired_pin_is_renewal_only_and_first_use_is_explicit() {
             .generation,
         1
     );
-    assert_eq!(fixture.initial.list.generation, 1);
+    assert_eq!(fixture.initial.list().generation, 1);
 }
 
 #[test]

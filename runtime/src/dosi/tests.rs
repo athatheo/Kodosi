@@ -230,16 +230,3 @@ fn marks_keep_old_turns_settled_after_they_let_their_ids_go() {
     assert!(turns.iter().all(|turn| marks.settled(turn)));
     assert!(!marks.settled(&Uuid::now_v7().to_string()));
 }
-
-#[test]
-fn a_saved_conversation_reads_the_first_names_of_a_project_target() {
-    for (saved, kind) in [
-        ("room", DosiTargetKind::Project),
-        ("rooms", DosiTargetKind::Projects),
-    ] {
-        assert_eq!(
-            serde_json::from_value::<DosiTargetKind>(json!(saved)).unwrap(),
-            kind
-        );
-    }
-}

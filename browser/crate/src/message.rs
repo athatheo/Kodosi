@@ -22,7 +22,7 @@ pub struct Size {
     pub scale: f32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -37,7 +37,7 @@ pub(crate) enum ToWindow {
 }
 
 /// Positions are in the CSS pixels of the page.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
@@ -63,7 +63,7 @@ pub(crate) enum Input {
         action: KeyAction,
         key: String,
         code: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         text: Option<String>,
         #[serde(default)]
         key_code: u32,
@@ -88,12 +88,12 @@ pub(crate) enum Input {
     },
     Choose {
         menu: u32,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         choice: Option<u32>,
     },
     Dialog {
         accept: bool,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         text: Option<String>,
     },
     Files {
@@ -101,7 +101,7 @@ pub(crate) enum Input {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum MouseAction {
     Press,
@@ -110,7 +110,7 @@ pub(crate) enum MouseAction {
     Wheel,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum MouseButton {
     #[default]
@@ -120,14 +120,14 @@ pub(crate) enum MouseButton {
     Right,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum KeyAction {
     Down,
     Up,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub tabs: Vec<Tab>,
@@ -135,18 +135,18 @@ pub struct State {
     pub height: u32,
     pub shape: String,
     pub pointers: Vec<Pointer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub menu: Option<Menu>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dialog: Option<Dialog>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub chooser: Option<Chooser>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub copied: Option<String>,
     pub downloads: Vec<Download>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tab {
     pub id: String,
@@ -156,7 +156,7 @@ pub struct Tab {
     pub loading: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pointer {
     pub viewer: String,
@@ -166,7 +166,7 @@ pub struct Pointer {
     pub y: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Menu {
     pub id: u32,
@@ -199,13 +199,13 @@ pub struct Dialog {
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Chooser {
     pub several: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
     pub name: String,
@@ -232,20 +232,7 @@ pub(crate) enum ToViewer {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Malformed;
 
-impl std::fmt::Display for Malformed {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("The message of the browser is not valid.")
-    }
-}
-
-impl std::error::Error for Malformed {}
-
 impl ToWindow {
-    #[cfg(test)]
-    pub(crate) fn encode(&self) -> Bytes {
-        json_message(self)
-    }
-
     pub(crate) fn decode(message: &[u8]) -> Result<Self, Malformed> {
         match message.split_first() {
             Some((&JSON, body)) => serde_json::from_slice(body).map_err(|_| Malformed),
@@ -261,17 +248,6 @@ impl ToViewer {
             Self::State(state) => json_message(state),
         }
     }
-
-    #[cfg(test)]
-    pub(crate) fn decode(message: &[u8]) -> Result<Self, Malformed> {
-        match message.split_first() {
-            Some((&JSON, body)) => serde_json::from_slice(body)
-                .map(Self::State)
-                .map_err(|_| Malformed),
-            Some((&FRAME, _)) => Frame::decode(message).map(Self::Frame),
-            _ => Err(Malformed),
-        }
-    }
 }
 
 impl Frame {
@@ -283,25 +259,6 @@ impl Frame {
         message.put_u64(self.timestamp);
         message.put_slice(&self.data);
         message.freeze()
-    }
-
-    #[cfg(test)]
-    fn decode(mut message: &[u8]) -> Result<Self, Malformed> {
-        use bytes::Buf as _;
-
-        if message.len() < FRAME_HEADER {
-            return Err(Malformed);
-        }
-        message.advance(1);
-        let id = message.get_u32();
-        let key = message.get_u8() != 0;
-        let timestamp = message.get_u64();
-        Ok(Self {
-            id,
-            key,
-            timestamp,
-            data: Bytes::copy_from_slice(message),
-        })
     }
 }
 
@@ -318,40 +275,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_frame_keeps_its_bytes() {
+    fn a_frame_has_the_header_that_viewers_read() {
         let frame = Frame {
             id: 7,
             key: true,
             timestamp: 90_000,
             data: Bytes::from_static(&[0, 0, 0, 1, 0x65]),
         };
-        let message = ToViewer::Frame(frame.clone()).encode();
-        assert_eq!(ToViewer::decode(&message), Ok(ToViewer::Frame(frame)));
-    }
-
-    #[test]
-    fn a_short_frame_is_refused() {
-        assert_eq!(ToViewer::decode(&[FRAME, 0, 1]), Err(Malformed));
+        assert_eq!(
+            &ToViewer::Frame(frame).encode()[..],
+            &[
+                FRAME, 0, 0, 0, 7, 1, 0, 0, 0, 0, 0, 1, 0x5f, 0x90, 0, 0, 0, 1, 0x65
+            ][..]
+        );
     }
 
     #[test]
     fn input_uses_the_contract_names() {
-        let message = ToWindow::Input {
-            input: Input::Mouse {
-                action: MouseAction::Press,
-                x: 4.0,
-                y: 8.0,
-                button: MouseButton::Left,
-                clicks: 1,
-                delta_x: 0.0,
-                delta_y: 0.0,
-                modifiers: 0,
-            },
-        };
-        let encoded = message.encode();
-        let text = std::str::from_utf8(&encoded[1..]).unwrap_or_default();
-        assert!(text.contains(r#""type":"input""#));
-        assert!(text.contains(r#""kind":"mouse""#));
-        assert_eq!(ToWindow::decode(&encoded), Ok(message));
+        let mut message = vec![JSON];
+        message.extend_from_slice(
+            br#"{"type":"input","input":{"kind":"mouse","action":"press","x":4,"y":8,"button":"left","clicks":1}}"#,
+        );
+        assert_eq!(
+            ToWindow::decode(&message),
+            Ok(ToWindow::Input {
+                input: Input::Mouse {
+                    action: MouseAction::Press,
+                    x: 4.0,
+                    y: 8.0,
+                    button: MouseButton::Left,
+                    clicks: 1,
+                    delta_x: 0.0,
+                    delta_y: 0.0,
+                    modifiers: 0,
+                },
+            })
+        );
     }
 }

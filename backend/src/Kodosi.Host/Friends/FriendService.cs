@@ -149,7 +149,7 @@ public sealed class FriendService(KodosiDbContext db, ConnectionDirectory connec
                     shared = await EndSharingAsync(userId, other.Id, ct);
                 }
                 if (action == "block" && !await db.Blocks.AnyAsync(x => x.BlockerId == userId && x.BlockedId == other.Id, ct))
-                    db.Blocks.Add(new Block { BlockerId = userId, BlockedId = other.Id, CreatedAt = clock.GetUtcNow() });
+                    db.Blocks.Add(new Block { BlockerId = userId, BlockedId = other.Id });
                 break;
             case "unblock":
                 var blocks = await db.Blocks.Where(x => x.BlockerId == userId && x.BlockedId == other.Id).ToListAsync(ct);

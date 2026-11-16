@@ -7,10 +7,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
 
-/**
- * Ghostty's terminal state for one view: it takes the runtime's checkpoints and data in order and
- * gives the visible screen to draw. Its calls are safe from any thread, also after it closes.
- */
+/** Its calls are safe from any thread, also after it closes. */
 class TerminalKernel : AutoCloseable {
     enum class Key {
         ENTER,
@@ -55,7 +52,7 @@ class TerminalKernel : AutoCloseable {
         if (handle == 0L) CLOSED else nativeResize(handle, atSequence, rows, cols, cellWidth, cellHeight)
     }
 
-    /** The visible screen, or null before the first checkpoint. */
+    /** Null before the first checkpoint. */
     fun frame(): TerminalFrame? = synchronized(this) {
         if (handle == 0L) return null
         animationDelay = nativeTick(handle, SystemClock.uptimeMillis())
@@ -156,7 +153,7 @@ class TerminalKernel : AutoCloseable {
         }
     }
 
-    /** Moves the view through the history; zero returns to the bottom. Tells whether it moved. */
+    /** Zero returns to the bottom. Tells whether the view moved. */
     fun scroll(rows: Int): Boolean = synchronized(this) { handle != 0L && nativeScroll(handle, rows) }
 
     override fun close() = synchronized(this) {

@@ -1,7 +1,6 @@
-use std::{fmt::Write as _, io::Write as _};
+use std::fmt::Write as _;
 
 use package::{PACKAGE_RELATIONSHIPS, RELATIONSHIPS, escape, spans};
-use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 const DRAWING: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const MAIN: &str = "http://schemas.openxmlformats.org/presentationml/2006/main";
@@ -191,7 +190,6 @@ fn slides_of(markdown: &str) -> Vec<(String, Vec<String>)> {
     slides
 }
 
-#[expect(clippy::too_many_lines, reason = "the list of parts of a deck")]
 pub fn new_file(markdown: Option<&str>) -> Result<Vec<u8>, String> {
     let slides = slides_of(markdown.unwrap_or_default());
     let mut list = String::new();
@@ -284,14 +282,5 @@ pub fn new_file(markdown: Option<&str>) -> Result<Vec<u8>, String> {
             relations(&[("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml")]),
         ));
     }
-    let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    let error = |error: zip::result::ZipError| error.to_string();
-    for (name, bytes) in parts {
-        writer.start_file(name, options).map_err(error)?;
-        writer
-            .write_all(bytes.as_bytes())
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(writer.finish().map_err(error)?.into_inner())
+    package::create(parts).map_err(|error| error.to_string())
 }

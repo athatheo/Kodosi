@@ -82,14 +82,12 @@ final class CodeStep {
         }, Time.currentTimeSeconds(), realm.getActionTokenGeneratedByUserLifespan());
     }
 
-    /** The first page, which for a reset and for an account sends the first code. */
     Response start() {
         if (kind == Kind.SIGN_UP) return show();
         if (kind == Kind.ACCOUNT) authSession.setAuthNote(ADDRESS, normal(account.getEmail()));
         return send(false);
     }
 
-    /** The page as it is now, as after a reload. */
     Response show() {
         if (kind != Kind.RESET && (address() == null || authSession.getAuthNote(EDITING) != null)) {
             return emailPage(address(), null);

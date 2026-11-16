@@ -3,7 +3,6 @@ package com.kodosi.mobile.terminals
 import com.kodosi.mobile.ui.LinkPolicy
 import java.nio.ByteBuffer
 
-/** The visible screen of a terminal, cell by cell, as the kernel wrote it. */
 class TerminalFrame(
     val cols: Int,
     val rows: Int,
@@ -11,7 +10,6 @@ class TerminalFrame(
     val foreground: Int,
     val background: Int,
     val cursorColor: Int,
-    val scroll: Scroll,
     val mouseTracking: Boolean,
     private val foregrounds: IntArray,
     private val backgrounds: IntArray,
@@ -29,8 +27,6 @@ class TerminalFrame(
         val wideTail: Boolean
     )
 
-    data class Scroll(val total: Int, val offset: Int, val length: Int)
-
     object Style {
         const val BOLD = 1 shl 0
         const val ITALIC = 1 shl 1
@@ -38,14 +34,13 @@ class TerminalFrame(
         const val STRIKETHROUGH = 1 shl 3
         const val OVERLINE = 1 shl 4
         const val SELECTED = 1 shl 5
-        const val HYPERLINK = 1 shl 6
     }
 
     private fun index(column: Int, row: Int) = row * cols + column
 
     fun foreground(column: Int, row: Int): Int = foregrounds[index(column, row)]
 
-    /** The background of a cell, or zero for the terminal's own. */
+    /** Zero is the terminal's own background. */
     fun background(column: Int, row: Int): Int = backgrounds[index(column, row)]
 
     fun style(column: Int, row: Int): Int = styles[index(column, row)] and 0xFFFF
@@ -131,7 +126,6 @@ class TerminalFrame(
                 foreground = buffer.getInt(12),
                 background = buffer.getInt(16),
                 cursorColor = buffer.getInt(20),
-                scroll = Scroll(buffer.getInt(24), buffer.getInt(28), buffer.getInt(32)),
                 mouseTracking = buffer.get(10).toInt() != 0,
                 foregrounds = foregrounds,
                 backgrounds = backgrounds,
@@ -141,7 +135,7 @@ class TerminalFrame(
             )
         }
 
-        private const val HEADER_BYTES = 36
+        private const val HEADER_BYTES = 24
         private const val CELL_BYTES = 12
     }
 }

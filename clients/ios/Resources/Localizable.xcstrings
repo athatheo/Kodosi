@@ -4,54 +4,54 @@
     "%@" : {
       "shouldTranslate" : false
     },
-    "%@ also keeps the model and effort for its next sessions." : {
+    "%@ also keeps the model and effort the next time it starts." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ behält Modell und Denkaufwand auch für seine nächsten Sitzungen."
+            "value" : "%@ behält Modell und Denkaufwand auch beim nächsten Start."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το %@ κρατά το μοντέλο και την ένταση σκέψης και για τις επόμενες συνεδρίες του."
+            "value" : "Το %@ κρατά το μοντέλο και την ένταση σκέψης και την επόμενη φορά που θα ξεκινήσει."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ también conserva el modelo y el razonamiento para sus próximas sesiones."
+            "value" : "%@ también conserva el modelo y el razonamiento la próxima vez que se inicie."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ garde aussi le modèle et le raisonnement pour ses prochaines sessions."
+            "value" : "%@ garde aussi le modèle et le raisonnement à son prochain démarrage."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ mantiene modello e ragionamento anche per le sessioni successive."
+            "value" : "%@ mantiene modello e ragionamento anche al prossimo avvio."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ は、このモデルと推論レベルを次回以降のセッションでも使います。"
+            "value" : "%@ は、次回の起動時もこのモデルと推論レベルを使います。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@은(는) 이 모델과 추론 수준을 다음 세션에도 그대로 써요."
+            "value" : "%@은(는) 다음에 시작할 때도 이 모델과 추론 수준을 그대로 써요."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 之后的会话也会沿用这个模型和推理强度。"
+            "value" : "%@ 下次启动时也会沿用这个模型和推理强度。"
           }
         }
       }

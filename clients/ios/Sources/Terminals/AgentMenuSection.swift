@@ -81,7 +81,7 @@ struct AgentMenuSection: View {
                     .accessibilityIdentifier("terminal.menu.permissions")
                 }
                 if live.keeps, live.model || live.effort, models != nil {
-                    Text("\(agent.label) also keeps the model and effort for its next sessions.")
+                    Text("\(agent.label) also keeps the model and effort the next time it starts.")
                 }
             }
             .task(id: session.program) { await launcher?.loadModels(agent.rawValue) }

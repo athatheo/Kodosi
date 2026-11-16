@@ -13,8 +13,9 @@ import java.util.Locale;
 
 /**
  * The mail codes of one sign-in. The codes live in the notes of the sign-in that asked for them, each
- * under the address that it went to, and the limits of a mail address live in a store that all sign-ins
- * share.
+ * under the address that it went to. A store that all sign-ins share limits the mails to an address and
+ * the codes that one sign-in compares, also when its posts come at the same time. A sign-in compares
+ * only the codes that went to it, so the wrong codes of other sign-ins never stop the person's own.
  */
 final class MailCode {
     static final int DIGITS = 8;
@@ -22,7 +23,7 @@ final class MailCode {
     private static final int KEPT = 3;
     private static final int WRONG_PER_SIGN_IN = 5;
     private static final int MAILS_PER_HOUR = 5;
-    private static final int WRONG_PER_DAY = 20;
+    private static final int COMPARED_PER_SIGN_IN = WRONG_PER_SIGN_IN + MAILS_PER_HOUR;
     private static final int HOUR = 3600;
     private static final int DAY = 86400;
 
@@ -30,6 +31,7 @@ final class MailCode {
     private static final String SENT = "kodosi.code.sent";
     private static final String LAST = "kodosi.code.last";
     private static final String WRONG = "kodosi.code.wrong";
+    private static final String SIGN_IN = "kodosi.code.signIn";
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -48,10 +50,8 @@ final class MailCode {
         void drop(String key);
     }
 
-    /** What the page says about a request for a mail. */
     enum Shown { SENT, WAIT, LATER }
 
-    /** The mail that goes out: none, a code, or a note that the address has an account. */
     enum Mail { NONE, CODE, ACCOUNT }
 
     record Send(Shown shown, Mail mail, String code) {}
@@ -81,11 +81,12 @@ final class MailCode {
         sent.add(now);
         notes.set(SENT, join(sent));
         notes.set(LAST, Long.toString(now));
-        if (address == null || hold("mail", address, MAILS_PER_HOUR, HOUR) == null) {
+        if (address == null || hold("mail", key(address), MAILS_PER_HOUR, HOUR) == null) {
             return new Send(Shown.SENT, Mail.NONE, null);
         }
         if (!codeWorks) return new Send(Shown.SENT, Mail.ACCOUNT, null);
         String code = String.format("%0" + DIGITS + "d", RANDOM.nextInt((int) Math.pow(10, DIGITS)));
+        signIn();
         List<String> codes = new ArrayList<>(codes(address));
         codes.add(code + "@" + now);
         notes.set(codesOf(address), String.join(",", codes.subList(Math.max(0, codes.size() - KEPT), codes.size())));
@@ -99,7 +100,9 @@ final class MailCode {
     Check check(String typed, String address) {
         String digits = typed == null ? "" : typed.replaceAll("[\\s-]", "");
         if (!digits.matches("[0-9]{" + DIGITS + "}")) return Check.WRONG;
-        String held = address == null ? null : hold("wrong", address, WRONG_PER_DAY, DAY);
+        String held = address == null || codes(address).isEmpty()
+                ? null
+                : hold("compared", signIn() + "." + key(address), COMPARED_PER_SIGN_IN, DAY);
         if (held != null) {
             for (String entry : codes(address)) {
                 int at = entry.indexOf('@');
@@ -117,7 +120,6 @@ final class MailCode {
         return Check.ENDED;
     }
 
-    /** Drops the wait of the address before, when the person gives a different one. */
     void forget() {
         notes.remove(LAST);
     }
@@ -148,8 +150,19 @@ final class MailCode {
         return times;
     }
 
-    private String hold(String kind, String address, int limit, int seconds) {
-        String prefix = "kodosi-mail-code." + kind + "." + key(address) + ".";
+    private String signIn() {
+        String id = notes.get(SIGN_IN);
+        if (id == null) {
+            byte[] random = new byte[16];
+            RANDOM.nextBytes(random);
+            id = HexFormat.of().formatHex(random);
+            notes.set(SIGN_IN, id);
+        }
+        return id;
+    }
+
+    private String hold(String kind, String who, int limit, int seconds) {
+        String prefix = "kodosi-mail-code." + kind + "." + who + ".";
         for (int slot = 0; slot < limit; slot++) {
             if (store.hold(prefix + slot, seconds)) return prefix + slot;
         }
