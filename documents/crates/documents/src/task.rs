@@ -68,10 +68,9 @@ fn hash_of(bytes: &[u8]) -> Hash {
     Sha256::digest(bytes).into()
 }
 
+/// Small enough that the JavaScript of a view holds the epoch exactly.
 fn new_epoch() -> io::Result<u64> {
-    let mut bytes = [0; 8];
-    getrandom::fill(&mut bytes[2..]).map_err(io::Error::other)?;
-    Ok(u64::from_be_bytes(bytes))
+    Ok(getrandom::u64()? >> 16)
 }
 
 /// Writes a file in one step: nobody sees half of it, and its rights stay.
