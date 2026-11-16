@@ -2094,7 +2094,7 @@ impl Runtime {
                         .canvas
                         .paths()
                         .into_iter()
-                        .filter_map(|path| path.into_os_string().into_string().ok())
+                        .filter_map(|path| path.into_string().ok())
                         .collect(),
                     browser: local.terminal.canvas.address(),
                     quiet_settings,
@@ -2775,11 +2775,7 @@ impl Runtime {
             .get(&id)
             .map(|local| local.terminal.incarnation_id)
             .or(expected);
-        if expected.ok_or(Error::NotFound)? == incarnation {
-            Ok(())
-        } else {
-            Err(Error::Stale)
-        }
+        (expected.ok_or(Error::NotFound)? == incarnation).ok_or(Error::Stale)
     }
 
     fn error(&self, command: &Command, error: &Error) {

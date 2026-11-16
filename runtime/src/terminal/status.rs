@@ -252,7 +252,7 @@ impl ProgramStatusRecords {
 #[cfg(feature = "host")]
 fn program_from_app(app: &str) -> Option<&'static str> {
     let app = app.to_ascii_lowercase();
-    let app = app.strip_prefix("github-").unwrap_or(&app);
+    let app = app.trim_prefix("github-");
     crate::agents::Agent::ALL
         .into_iter()
         .map(crate::agents::Agent::name)

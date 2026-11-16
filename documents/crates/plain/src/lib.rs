@@ -37,7 +37,7 @@ const MOST_LINES: usize = 10_000;
 const MOST_BYTES: usize = 512 * 1024;
 
 fn text_of(file: &[u8]) -> Result<&str, Unreadable> {
-    std::str::from_utf8(file.strip_prefix(BOM).unwrap_or(file))
+    std::str::from_utf8(file.trim_prefix(BOM))
         .map_err(|error| Unreadable(format!("the file is not UTF-8 text: {error}")))
 }
 
@@ -249,7 +249,7 @@ fn split(text: &str) -> impl Iterator<Item = &str> {
     } else {
         "\n"
     };
-    let body = text.strip_suffix(ending).unwrap_or(text);
+    let body = text.trim_suffix(ending);
     body.split(ending)
 }
 

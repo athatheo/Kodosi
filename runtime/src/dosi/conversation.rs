@@ -241,9 +241,7 @@ impl Conversation {
     }
 
     fn bound(&mut self) {
-        while self.entries.len() > MAX_ITEMS {
-            self.entries.pop_front();
-        }
+        self.entries.retain_back(MAX_ITEMS);
     }
 
     #[cfg(feature = "host")]

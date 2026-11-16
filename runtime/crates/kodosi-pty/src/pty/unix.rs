@@ -506,11 +506,7 @@ fn set_terminal_size_using_fd(
     };
 
     let result = unsafe { libc::ioctl(fd, libc::TIOCSWINSZ, &winsize) };
-    if result == -1 {
-        Err(KodosiError::Io(io::Error::last_os_error()))
-    } else {
-        Ok(())
-    }
+    (result != -1).ok_or_else(|| KodosiError::Io(io::Error::last_os_error()))
 }
 
 const LOGIN_SHELLS: [&str; 8] = ["bash", "csh", "dash", "fish", "ksh", "sh", "tcsh", "zsh"];
@@ -1204,7 +1200,7 @@ mod tests {
                     output.extend_from_slice(&bytes[..count]);
                 }
                 end_by_force(&mut pty, &mut reader).await;
-                String::from_utf8_lossy(&output).into_owned()
+                String::from_utf8_lossy_owned(output)
             });
         let variables: Vec<&str> = output.lines().map(str::trim_end).collect();
         for expected in [

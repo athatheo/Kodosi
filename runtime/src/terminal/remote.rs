@@ -837,9 +837,7 @@ impl RemoteActor {
                 })?;
                 let frame = DataFrame { sequence, bytes };
                 self.recent.push_back(frame.clone());
-                while self.recent.len() > DATA_CAPACITY {
-                    self.recent.pop_front();
-                }
+                self.recent.retain_back(DATA_CAPACITY);
                 self.subscribers.data(&frame);
                 self.next_sequence = Some(next);
                 if self

@@ -81,7 +81,7 @@ impl BrowserHost {
             folder: data_root.join("browser"),
             isolated,
             browsers: Arc::default(),
-            updating: Arc::new(Once::new()),
+            updating: Arc::default(),
             installing: Arc::default(),
             getting: Arc::default(),
         }
@@ -430,11 +430,7 @@ async fn download(
         .finalize()
         .iter()
         .fold(String::new(), |text, byte| text + &format!("{byte:02x}"));
-    if found == engine.sha256 {
-        Ok(())
-    } else {
-        Err(no_engine())
-    }
+    (found == engine.sha256).ok_or_else(no_engine)
 }
 
 async fn unpack(archive: PathBuf, folder: PathBuf) -> Result<(), Text> {

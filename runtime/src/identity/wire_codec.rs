@@ -135,13 +135,9 @@ impl<'a> LpReader<'a> {
     }
 
     pub(super) fn expect_consumed(&self) -> Result<()> {
-        if self.pos == self.bytes.len() {
-            Ok(())
-        } else {
-            Err(Error::Invalid {
-                reason: format!("{}: trailing bytes after parse", self.context),
-            })
-        }
+        (self.pos == self.bytes.len()).ok_or_else(|| Error::Invalid {
+            reason: format!("{}: trailing bytes after parse", self.context),
+        })
     }
 }
 

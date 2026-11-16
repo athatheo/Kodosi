@@ -689,7 +689,7 @@ async fn finished(mut command: tokio::process::Command, limit: Duration) -> Resu
             ))
         })?
         .map_err(|error| Text::plain(format!("agent-browser failed: {error}")))?;
-    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let mut text = String::from_utf8_lossy_owned(output.stdout);
     let errors = String::from_utf8_lossy(&output.stderr);
     if !errors.trim().is_empty() {
         push_line(&mut text, errors.trim_end());

@@ -70,8 +70,7 @@ fn workbook(model: &Model) -> Option<Workbook> {
 fn address(text: &str) -> Option<RangeAddress> {
     let (sheet, cells) = text.trim_start_matches('=').rsplit_once('!')?;
     let sheet = sheet
-        .strip_prefix('\'')
-        .and_then(|quoted| quoted.strip_suffix('\''))
+        .strip_circumfix('\'', '\'')
         .map_or_else(|| sheet.to_owned(), |quoted| quoted.replace("''", "'"));
     let [top, left, bottom, right] = parse_range(&cells.replace('$', ""))?;
     RangeAddress::new(sheet, top + 1, left + 1, bottom + 1, right + 1).ok()

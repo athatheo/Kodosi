@@ -201,9 +201,9 @@ pub fn spans(line: &str) -> Vec<Span> {
             });
         }
         if mark == "**" {
-            bold = !bold;
+            bold.toggle();
         } else {
-            italic = !italic;
+            italic.toggle();
         }
     }
     text.push_str(rest);

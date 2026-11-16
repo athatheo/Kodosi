@@ -845,11 +845,7 @@ impl Terminal {
     }
 
     fn ensure_healthy(&self) -> Result<(), Error> {
-        if self.callbacks.poisoned {
-            Err(Error::CallbackRejected)
-        } else {
-            Ok(())
-        }
+        (!self.callbacks.poisoned).ok_or(Error::CallbackRejected)
     }
 }
 
@@ -897,11 +893,7 @@ impl DecoderGuard {
             )?
                 == GhosttySnapshotDecoderProgressKind_GHOSTTY_SNAPSHOT_DECODER_PROGRESS_KIND_PAGE;
         }
-        if self.source_offset()? == snapshot_len {
-            Ok(())
-        } else {
-            Err(Error::InvalidValue)
-        }
+        (self.source_offset()? == snapshot_len).ok_or(Error::InvalidValue)
     }
 }
 

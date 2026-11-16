@@ -479,11 +479,9 @@ impl BackendClient {
             settled => {
                 self.inner.state.lock().await.link = None;
                 let current = settled.and_then(|()| {
-                    if self.identity().is_some_and(|identity| identity.enrolled) {
-                        Ok(())
-                    } else {
-                        Err(invalid("Device approval has not become current."))
-                    }
+                    self.identity()
+                        .is_some_and(|identity| identity.enrolled)
+                        .ok_or_else(|| invalid("Device approval has not become current."))
                 });
                 if let Err(error) = current {
                     resolved("cancelled");

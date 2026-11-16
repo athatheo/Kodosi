@@ -117,7 +117,7 @@ pub(super) fn place(accounts: &[AgentAccount], home: &Path, folder: &Path) -> us
 
 fn tilde(path: &Path, home: &Path) -> String {
     match path.strip_prefix(home) {
-        Ok(rest) if rest.as_os_str().is_empty() => "~".to_owned(),
+        Ok(rest) if rest.is_empty() => "~".to_owned(),
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.display().to_string(),
     }

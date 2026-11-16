@@ -356,9 +356,6 @@ async fn read_json(socket: &mut Socket) -> Result<Value> {
 }
 
 pub(crate) fn check_generation(network: &BackendClient, generation: u64) -> Result<()> {
-    if network.generation() != generation || network.inner.shutdown.is_cancelled() {
-        Err(Error::Stale)
-    } else {
-        Ok(())
-    }
+    (network.generation() == generation && !network.inner.shutdown.is_cancelled())
+        .ok_or(Error::Stale)
 }

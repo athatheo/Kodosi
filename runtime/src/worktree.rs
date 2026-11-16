@@ -35,13 +35,11 @@ pub(crate) fn branch_name(name: &str) -> Result<()> {
         && !name.ends_with(['/', '.'])
         && !name.contains("..")
         && !name.contains("//");
-    if plain {
-        Ok(())
-    } else {
-        Err(Error::Refused(text!(
+    plain.ok_or_else(|| {
+        Error::Refused(text!(
             "Use letters, numbers, dots, dashes and slashes in a branch name."
-        )))
-    }
+        ))
+    })
 }
 
 #[cfg(feature = "host")]

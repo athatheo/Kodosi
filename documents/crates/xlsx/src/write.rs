@@ -853,11 +853,10 @@ fn cell_format_xml(look: &Look, font: usize, fill: usize, format: u32) -> String
 /// New looks go after the ones that the file holds, so that each look keeps its index.
 fn add_looks(model: &Model, package: &mut Package<'_>, parts: &mut Parts) -> Result<(), String> {
     let Some(xml) = package.text(STYLES_PART) else {
-        return if model.looks.is_empty() {
-            Ok(())
-        } else {
-            Err("the file has no styles".to_owned())
-        };
+        return model
+            .looks
+            .is_empty()
+            .ok_or_else(|| "the file has no styles".to_owned());
     };
     let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
     let root = parsed.root_element();

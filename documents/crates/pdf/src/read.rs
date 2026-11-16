@@ -58,13 +58,7 @@ pub(crate) fn inherited<'d>(
 
 pub(crate) fn text_of(bytes: &[u8]) -> String {
     if let Some(wide) = bytes.strip_prefix(&[0xfe, 0xff]) {
-        let units: Vec<u16> = wide
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|pair| u16::from_be_bytes(*pair))
-            .collect();
-        return String::from_utf16_lossy(&units);
+        return String::from_utf16be_lossy(wide.as_chunks::<2>().0.as_flattened());
     }
     bytes.iter().map(|byte| char::from(*byte)).collect()
 }

@@ -408,11 +408,7 @@ fn parse_cwd(raw: &[u8]) -> Option<PathBuf> {
         kodosi_os::fs::path_from_file_url(&rest[..slash], &decoded)?
     } else {
         // Windows Terminal and ConEmu shell integrations quote the OSC 9;9 path.
-        PathBuf::from(
-            text.strip_prefix('"')
-                .and_then(|path| path.strip_suffix('"'))
-                .unwrap_or(text),
-        )
+        PathBuf::from(text.strip_circumfix('"', '"').unwrap_or(text))
     };
     (path.is_absolute() && path.to_str().is_some_and(is_valid_folder)).then_some(path)
 }

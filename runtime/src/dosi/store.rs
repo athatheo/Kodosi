@@ -132,9 +132,7 @@ impl Marks {
     pub(super) fn trim(&mut self, waiting: Option<&str>) {
         self.settled.trim(waiting);
         self.answered.trim(None);
-        while self.withdrawn.len() > MAX_MARKS {
-            self.withdrawn.pop_front();
-        }
+        self.withdrawn.retain_back(MAX_MARKS);
     }
 }
 

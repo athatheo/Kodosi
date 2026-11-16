@@ -26,7 +26,7 @@ pub(crate) fn kept<T: Eq + Hash>(old: &[T], new: &[T]) -> Vec<(usize, usize)> {
     };
     let one: Vec<u32> = old[head..old_end].iter().map(&mut id).collect();
     let other: Vec<u32> = new[head..new_end].iter().map(&mut id).collect();
-    let mut pairs: Vec<(usize, usize)> = (0..head).map(|line| (line, line)).collect();
+    let mut pairs = Vec::from_fn(head, |line| (line, line));
     if let Some(middle) = shortest(&one, &other) {
         pairs.extend(middle.into_iter().map(|(at, to)| (head + at, head + to)));
     }
