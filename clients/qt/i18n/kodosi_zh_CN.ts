@@ -475,6 +475,14 @@
         <translation>地址</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>此终端已共享，因此它的浏览器有独立于你的登录信息。终端中的每个人都会使用这些登录信息。</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>已共享</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 个标签页</translation>
     </message>
@@ -489,6 +497,18 @@
     <message>
         <source>Shared browser</source>
         <translation>共享浏览器</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>复制链接</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
     </message>
     <message>
         <source>Cancel</source>

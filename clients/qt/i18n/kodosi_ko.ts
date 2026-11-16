@@ -475,6 +475,14 @@
         <translation>주소</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>이 터미널은 공유되어 있어서 브라우저에 내 것과 별개인 로그인 정보가 있어요. 터미널의 모든 사람이 이 정보를 사용해요.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>공유됨</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>탭 %1개</translation>
     </message>
@@ -489,6 +497,18 @@
     <message>
         <source>Shared browser</source>
         <translation>공유 브라우저</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>링크 복사</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>붙여넣기</translation>
     </message>
     <message>
         <source>Cancel</source>

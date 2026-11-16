@@ -476,6 +476,14 @@
         <translation>Adresse</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>Dieses Terminal ist geteilt, daher hat sein Browser eigene Anmeldungen, getrennt von deinen. Alle im Terminal nutzen sie.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Geteilt</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 Tabs</translation>
     </message>
@@ -490,6 +498,18 @@
     <message>
         <source>Shared browser</source>
         <translation>Geteilter Browser</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Kopieren</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Link kopieren</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Einfügen</translation>
     </message>
     <message>
         <source>Cancel</source>

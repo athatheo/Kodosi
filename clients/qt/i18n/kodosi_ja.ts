@@ -475,6 +475,14 @@
         <translation>アドレス</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>このターミナルは共有されているため、ブラウザにはあなたとは別のサインイン情報があります。ターミナルの全員がそれを使います。</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>共有中</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>タブ %1 個</translation>
     </message>
@@ -489,6 +497,18 @@
     <message>
         <source>Shared browser</source>
         <translation>共有ブラウザ</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>リンクをコピー</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
     </message>
     <message>
         <source>Cancel</source>
