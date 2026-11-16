@@ -1,4 +1,5 @@
 import Foundation
+import GhosttyTerminal
 import KodosiLinks
 @testable import KodosiTerminal
 import Testing

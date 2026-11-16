@@ -1,5 +1,6 @@
 #if os(macOS)
     import AppKit
+    import GhosttyTerminal
     @testable import KodosiTerminal
     import SwiftUI
     import Testing
