@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -67,7 +66,6 @@ import com.kodosi.mobile.terminals.NewTerminalRequest
 import com.kodosi.mobile.terminals.NewTerminalSheet
 import com.kodosi.mobile.terminals.TerminalScreen
 import com.kodosi.mobile.terminals.TerminalsScreen
-import com.kodosi.mobile.ui.AppIcon
 import com.kodosi.mobile.ui.AppSymbol
 import com.kodosi.mobile.ui.KodosiButton
 import com.kodosi.mobile.ui.KodosiNavigation

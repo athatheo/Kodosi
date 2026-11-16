@@ -27,8 +27,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,9 +59,7 @@ import com.kodosi.mobile.ui.ConfirmDialog
 import com.kodosi.mobile.ui.CountBadge
 import com.kodosi.mobile.ui.IconTile
 import com.kodosi.mobile.ui.KodosiButton
-import com.kodosi.mobile.ui.KodosiCard
 import com.kodosi.mobile.ui.KodosiDialog
-import com.kodosi.mobile.ui.KodosiSwitch
 import com.kodosi.mobile.ui.KodosiTextButton
 import com.kodosi.mobile.ui.KodosiTheme
 import com.kodosi.mobile.ui.KodosiType
@@ -74,7 +70,6 @@ import com.kodosi.mobile.ui.LocalLinkOpener
 import com.kodosi.mobile.ui.MenuPicker
 import com.kodosi.mobile.ui.PageHeader
 import com.kodosi.mobile.ui.PersonAvatar
-import com.kodosi.mobile.ui.SectionTitle
 import com.kodosi.mobile.ui.SegmentOption
 import com.kodosi.mobile.ui.SegmentedPill
 import com.kodosi.mobile.ui.SelectableWords
