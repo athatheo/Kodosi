@@ -48,3 +48,13 @@ def verify_rust_licenses(packaged: dict[str, bytes], generated: Path) -> None:
     for name, path in sorted(expected.items()):
         if packaged[name] != path.read_bytes():
             raise ValueError(f"the packaged Rust license file differs from {path}")
+
+
+def translation_files(i18n: Path, qt_translations: Path) -> list[str]:
+    languages = sorted(
+        path.stem.removeprefix("kodosi_") for path in i18n.glob("kodosi_*.ts") if path.stem != "kodosi_en"
+    )
+    return [
+        *(f"qt_{language}.qm" for language in languages if (qt_translations / f"qtbase_{language}.qm").is_file()),
+        *(f"qtwebengine_locales/{language.replace('_', '-')}.pak" for language in languages),
+    ]

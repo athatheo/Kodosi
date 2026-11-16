@@ -805,6 +805,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>剪切</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -825,6 +839,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi 无法打开此链接。</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
     </message>
 </context>
 <context>
@@ -2383,6 +2404,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -3178,6 +3206,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>确定(&amp;O)</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>取消(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>关闭(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3200,6 +3258,13 @@
         <translation>
             <numerusform>这台电脑上的 %n 个终端会停止，Kodosi 打开时会重新启动。</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>重做</translation>
     </message>
 </context>
 <context>
@@ -3272,6 +3337,13 @@
     <message>
         <source>No repositories found</source>
         <translation>未找到仓库</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>全选</translation>
     </message>
 </context>
 <context>
@@ -4156,6 +4228,13 @@
     <message>
         <source>Detailed</source>
         <translation>详细</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>撤销</translation>
     </message>
 </context>
 <context>

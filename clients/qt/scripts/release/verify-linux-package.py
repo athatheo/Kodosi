@@ -17,7 +17,7 @@ import unicodedata
 import zlib
 from pathlib import Path, PurePosixPath
 
-from package_evidence import verify_rust_licenses, verify_source_identity
+from package_evidence import translation_files, verify_rust_licenses, verify_source_identity
 from release_source import product_version, source_identity
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -470,6 +470,10 @@ def check_files(root: Path, qt_version: str, webengine_version: str) -> None:
         *(f"{PRIVATE}/{plugin}" for plugin in PLUGINS),
         f"{PRIVATE}/resources/qtwebengine_resources.pak",
         f"{PRIVATE}/translations/qtwebengine_locales/en-US.pak",
+        *(
+            f"{PRIVATE}/translations/{name}"
+            for name in translation_files(ROOT / "i18n", ROOT / ".tools/Qt/gcc_64/translations")
+        ),
     ):
         if not (root / name).is_file():
             fail(f"{name} is missing")

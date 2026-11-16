@@ -502,6 +502,14 @@ qt_add_resources(kodosi-qt kodosi-translations
     BASE "${CMAKE_CURRENT_BINARY_DIR}"
     FILES ${KODOSI_QM_FILES}
 )
+# Qt words its own texts in only some of these languages.
+set(KODOSI_QT_LANGUAGES "")
+foreach(language IN LISTS KODOSI_LANGUAGES)
+    if(EXISTS "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${language}.qm")
+        list(APPEND KODOSI_QT_LANGUAGES "${language}")
+    endif()
+endforeach()
+string(REPLACE "_" "-" KODOSI_CHROMIUM_LANGUAGES "en-US;${KODOSI_LANGUAGES}")
 
 target_compile_definitions(kodosi-runtime
     PUBLIC

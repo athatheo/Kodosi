@@ -51,6 +51,8 @@ function(kodosi_install app)
         NO_UNSUPPORTED_PLATFORM_ERROR
     )
     set(private_deploy_script "${CMAKE_CURRENT_BINARY_DIR}/deploy-kodosi-private-runtime.cmake")
+    list(JOIN KODOSI_QT_LANGUAGES " " qt_languages)
+    list(JOIN KODOSI_CHROMIUM_LANGUAGES "|" chromium_languages)
     file(GENERATE
         OUTPUT "${private_deploy_script}"
         CONTENT "set(QT_DEPLOY_PLUGINS_DIR lib/kodosi/plugins)
@@ -71,9 +73,10 @@ foreach(folder bin libexec)
         TRANSLATIONS_DIR lib/kodosi/translations
     )
 endforeach()
+qt_deploy_translations(LOCALES ${qt_languages} CATALOGS qtbase qtdeclarative)
 file(REMOVE_RECURSE \"\${QT_DEPLOY_PREFIX}/lib/kodosi/plugins/position\")
 file(GLOB locales \"\${QT_DEPLOY_PREFIX}/lib/kodosi/translations/qtwebengine_locales/*.pak\")
-list(FILTER locales EXCLUDE REGEX \"/en-US[.]pak$\")
+list(FILTER locales EXCLUDE REGEX \"/(${chromium_languages})[.]pak$\")
 file(REMOVE \${locales})
 "
     )

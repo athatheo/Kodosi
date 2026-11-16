@@ -88,7 +88,20 @@ function(kodosi_install app)
         NO_COMPILER_RUNTIME
         DEPLOY_TOOL_OPTIONS --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --skip-plugin-types position
     )
-    install(SCRIPT "${deploy_script}")
+    set(languages_deploy_script "${CMAKE_CURRENT_BINARY_DIR}/deploy-kodosi-languages.cmake")
+    list(JOIN KODOSI_QT_LANGUAGES " " qt_languages)
+    list(TRANSFORM KODOSI_CHROMIUM_LANGUAGES
+        REPLACE "^(.+)$" "\"${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtwebengine_locales/\\1.pak\""
+        OUTPUT_VARIABLE chromium_locales)
+    list(JOIN chromium_locales " " chromium_locales)
+    file(GENERATE
+        OUTPUT "${languages_deploy_script}"
+        CONTENT "include(\"${deploy_script}\")
+qt_deploy_translations(LOCALES ${qt_languages} CATALOGS qtbase qtdeclarative)
+file(INSTALL ${chromium_locales} DESTINATION \"\${CMAKE_INSTALL_PREFIX}/\${QT_DEPLOY_TRANSLATIONS_DIR}/qtwebengine_locales\")
+"
+    )
+    install(SCRIPT "${languages_deploy_script}")
 
     set(KODOSI_MSIX_VERSION "${PROJECT_VERSION}.0")
     string(REPLACE "&" "&amp;" KODOSI_MSIX_PUBLISHER_XML "${KODOSI_MSIX_PUBLISHER}")

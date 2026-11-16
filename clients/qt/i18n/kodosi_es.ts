@@ -806,6 +806,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>Cortar</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -826,6 +840,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi no ha podido abrir este enlace.</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>Eliminar</translation>
     </message>
 </context>
 <context>
@@ -2386,6 +2407,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>Pegar</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -3189,6 +3217,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>&amp;Aceptar</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>&amp;Cancelar</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>&amp;Cerrar</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>Aceptar</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Cerrar</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3212,6 +3270,13 @@
             <numerusform>%n terminal de este ordenador se detiene. Vuelve a iniciarse cuando se abre Kodosi.</numerusform>
             <numerusform>%n terminales de este ordenador se detienen. Vuelven a iniciarse cuando se abre Kodosi.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>Rehacer</translation>
     </message>
 </context>
 <context>
@@ -3284,6 +3349,13 @@
     <message>
         <source>No repositories found</source>
         <translation>No se encontraron repositorios</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>Seleccionar todo</translation>
     </message>
 </context>
 <context>
@@ -4169,6 +4241,13 @@
     <message>
         <source>Detailed</source>
         <translation>Detallada</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>Deshacer</translation>
     </message>
 </context>
 <context>
