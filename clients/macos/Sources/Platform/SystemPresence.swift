@@ -36,8 +36,8 @@ private final class InputWatch {
     private static let readAgain: TimeInterval = 10
 
     private var monitors: [Any] = []
-    private var activation: NSObjectProtocol?
-    private var reading: DispatchSourceTimer?
+    private var activation: any NSObjectProtocol?
+    private var reading: any DispatchSourceTimer?
 
     init(_ action: @escaping @MainActor () -> Void) {
         let fire: @MainActor () -> Void = { [weak self] in

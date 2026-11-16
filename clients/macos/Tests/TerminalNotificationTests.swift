@@ -9,7 +9,7 @@ private final class NotificationDriver: DesktopNotificationDriving, @unchecked S
     private let lock = NSLock()
     private var requests: [UNNotificationRequest] = []
     private var removed: [String] = []
-    private var completions: [@Sendable (Error?) -> Void] = []
+    private var completions: [@Sendable (any Error?) -> Void] = []
     private var authorization: (@Sendable (UNAuthorizationStatus) -> Void)?
     let delaysDelivery: Bool
     let delaysAuthorization: Bool
@@ -41,7 +41,7 @@ private final class NotificationDriver: DesktopNotificationDriving, @unchecked S
         true
     }
 
-    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (Error?) -> Void) {
+    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (any Error?) -> Void) {
         lock.withLock {
             requests.append(request)
             if delaysDelivery {

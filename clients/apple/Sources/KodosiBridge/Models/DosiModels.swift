@@ -97,7 +97,7 @@ public enum DosiBody: Decodable, Equatable, Sendable {
         case kind, text, live, seconds
     }
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let fields = try decoder.container(keyedBy: Key.self)
         switch try fields.decode(String.self, forKey: .kind) {
         case "person": self = try .person(fields.decode(String.self, forKey: .text))
