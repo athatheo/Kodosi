@@ -1,17 +1,5 @@
 use super::*;
-
-struct ClientSlot(std::sync::Arc<watch::Sender<usize>>);
-impl ClientSlot {
-    fn enter(clients: &std::sync::Arc<watch::Sender<usize>>) -> Self {
-        clients.send_modify(|count| *count += 1);
-        Self(std::sync::Arc::clone(clients))
-    }
-}
-impl Drop for ClientSlot {
-    fn drop(&mut self) {
-        self.0.send_modify(|count| *count = count.saturating_sub(1));
-    }
-}
+use std::mem::DropGuard;
 
 pub struct LocalServer {
     pub(super) cancel: CancellationToken,
@@ -106,7 +94,10 @@ pub async fn serve(
                     Ok(stream) => {
                         let Ok(permit) = std::sync::Arc::clone(&slots).try_acquire_owned() else { continue; };
                         let handle = runtime.clone(); let expected = identity.clone(); let cancel = stop.child_token();
-                        let slot = ClientSlot::enter(&clients);
+                        clients.send_modify(|count| *count += 1);
+                        let slot = DropGuard::new(std::sync::Arc::clone(&clients), |clients| {
+                            clients.send_modify(|count| *count = count.saturating_sub(1));
+                        });
                         connections.spawn(async move {
                             let _permit = permit;
                             let _slot = slot;

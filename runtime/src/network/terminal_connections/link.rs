@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicU64, AtomicUsize};
+use std::{
+    mem::DropGuard,
+    sync::atomic::{AtomicU64, AtomicUsize},
+};
 
 use super::{channel::Transport, *};
 use crate::{
@@ -623,14 +626,6 @@ fn refusal(value: &Value) -> Error {
     }
 }
 
-struct Disconnect<'a>(&'a Link);
-
-impl Drop for Disconnect<'_> {
-    fn drop(&mut self) {
-        self.0.disconnected();
-    }
-}
-
 /// The server may drop the link while the computer sleeps, and a network may drop it without a
 /// word. So after a sleep, or when the server has not answered what the link sent for a while, the
 /// link asks the server at once and must hear back soon.
@@ -694,7 +689,7 @@ pub(crate) async fn run(
         control: control.clone(),
         frames,
     });
-    let _disconnect = Disconnect(&link);
+    let _disconnect = DropGuard::new(link.as_ref(), Link::disconnected);
     for surface in ["sessions", "friends", "devices", "projects"] {
         drop(notices.send(wire::Notice::Changed(wire::Change::of(surface))));
     }
