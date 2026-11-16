@@ -56,17 +56,22 @@ pub(crate) fn inherited<'d>(
     None
 }
 
-pub(crate) fn text_of(bytes: &[u8]) -> String {
-    if let Some(wide) = bytes.strip_prefix(&[0xfe, 0xff]) {
-        return String::from_utf16be_lossy(wide.as_chunks::<2>().0.as_flattened());
-    }
-    bytes.iter().map(|byte| char::from(*byte)).collect()
+/// The text of a string of the file. A string that is not valid in the encoding that it names
+/// still reads, with what cannot be read replaced.
+pub(crate) fn text_of(string: &Object) -> Option<String> {
+    let bytes = string.as_str().ok()?;
+    Some(lopdf::decode_text_string(string).unwrap_or_else(|_| {
+        bytes.strip_prefix(&[0xfe, 0xff]).map_or_else(
+            || String::from_utf8_lossy(bytes.trim_prefix(&[0xef, 0xbb, 0xbf])).into_owned(),
+            |wide| String::from_utf16be_lossy(wide.as_chunks::<2>().0.as_flattened()),
+        )
+    }))
 }
 
 fn string_of(document: &Document, dictionary: &Dictionary, key: &[u8]) -> Option<String> {
     let (_, object) = document.dereference(dictionary.get(key).ok()?).ok()?;
     match object {
-        Object::String(bytes, _) => Some(text_of(bytes)),
+        Object::String(..) => text_of(object),
         Object::Name(name) => Some(String::from_utf8_lossy(name).into_owned()),
         _ => None,
     }
