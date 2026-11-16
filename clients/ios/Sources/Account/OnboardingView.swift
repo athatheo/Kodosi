@@ -70,7 +70,7 @@ struct OnboardingView: View {
             guard let page = account.signInPage else { return }
             do {
                 let answer = try await webAuthenticationSession.authenticate(
-                    using: page, callbackURLScheme: "com.kodosi", preferredBrowserSession: .shared,
+                    using: page, callback: .customScheme("com.kodosi"), preferredBrowserSession: .shared, additionalHeaderFields: [:],
                 )
                 account.finishSignIn(with: answer)
             } catch {
