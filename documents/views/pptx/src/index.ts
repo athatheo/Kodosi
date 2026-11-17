@@ -332,7 +332,7 @@ class PptxEditor implements Editor, Pictures {
       }),
     );
     for (const shape of slide.behind) this.drawShape(shape, false);
-    for (const shape of [...slide.shapes].sort((left, right) => left.order - right.order)) {
+    for (const shape of slide.shapes.toSorted((left, right) => left.order - right.order)) {
       this.drawShape(shape, this.canEdit);
     }
     this.transformer = new Konva.Transformer({ keepRatio: false, ignoreStroke: true });

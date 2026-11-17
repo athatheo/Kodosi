@@ -67,6 +67,7 @@ interface Open {
 
 /** A menu that a panel opens lies over it. */
 const opened: Open[] = [];
+let listening: AbortController | undefined;
 
 function closeTop(): void {
   const top = opened.pop();
@@ -74,7 +75,7 @@ function closeTop(): void {
   top.box.remove();
   delete top.anchor.dataset.open;
   top.anchor.ariaExpanded = "false";
-  if (opened.length === 0) listen(false);
+  if (opened.length === 0) listening?.abort();
 }
 
 function closeOver(node: Node | null): void {
@@ -100,18 +101,13 @@ const escape = (event: KeyboardEvent) => {
   if (focused) top.anchor.focus();
 };
 
-function listen(on: boolean): void {
-  if (on) {
-    document.addEventListener("pointerdown", outside, true);
-    document.addEventListener("keydown", escape, true);
-    window.addEventListener("resize", closePopover);
-    window.addEventListener("blur", closePopover);
-  } else {
-    document.removeEventListener("pointerdown", outside, true);
-    document.removeEventListener("keydown", escape, true);
-    window.removeEventListener("resize", closePopover);
-    window.removeEventListener("blur", closePopover);
-  }
+function listen(): void {
+  listening = new AbortController();
+  const signal = listening.signal;
+  document.addEventListener("pointerdown", outside, { capture: true, signal });
+  document.addEventListener("keydown", escape, { capture: true, signal });
+  window.addEventListener("resize", closePopover, { signal });
+  window.addEventListener("blur", closePopover, { signal });
 }
 
 export function openPopover(
@@ -131,7 +127,7 @@ export function openPopover(
   place(box, anchor, options.align ?? "start");
   anchor.dataset.open = "true";
   anchor.ariaExpanded = "true";
-  if (opened.length === 0) listen(true);
+  if (opened.length === 0) listen();
   opened.push({ box, anchor });
 }
 
