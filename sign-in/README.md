@@ -12,8 +12,8 @@ page needs to bind its tokens to the browser.
 
 `bun run theme` builds the theme in `dist_keycloak/` (it needs Node.js and Maven), and
 `extension/maven.sh package` builds the extension in `extension/target/` (it needs Docker;
-Maven with Java 21 builds it too). Put both jars in Keycloak's `providers/` folder and set
-the realm's login, account and e-mail themes to `kodosi`. Then:
+Maven 3.10 or later with Java 21 builds it too). Put both jars in Keycloak's `providers/`
+folder and set the realm's login, account and e-mail themes to `kodosi`. Then:
 
 - In the registration flow, the step `kodosi-mail-code` goes before the registration form,
   and in the form `kodosi-confirmed-email` goes after the step that makes the account.

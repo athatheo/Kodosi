@@ -103,7 +103,10 @@ docker rm -f "$name" "$mailbox" >/dev/null 2>&1 || true
 docker network rm "$network" >/dev/null 2>&1 || true
 [ "${1:-}" = down ] && exit
 
-[ -f "$jar" ] && [ -z "$(find src index.html -newer "$jar" -print -quit)" ] || bun run theme
+# Keycloakify finds Maven only on PATH, and by default it keeps Maven's downloads in its cache,
+# which the container does not see.
+[ -f "$jar" ] && [ -z "$(find src index.html -newer "$jar" -print -quit)" ] ||
+  PATH="$PWD/tools/maven:$PATH" KEYCLOAKIFY_USE_DEFAULT_MAVEN_REPO=true bun run theme
 
 [ -f "$code_jar" ] && [ -z "$(find extension/src extension/pom.xml -newer "$code_jar" -print -quit)" ] ||
   extension/maven.sh -q package
