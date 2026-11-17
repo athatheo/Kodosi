@@ -42,7 +42,7 @@ internal static class TerminalAccess
     }
 
     public static async Task<HashSet<Guid>> PeopleAsync(KodosiDbContext db, Guid sessionId, CancellationToken ct) =>
-        (await People(db).Where(x => x.SessionId == sessionId).Select(x => x.UserId).ToListAsync(ct)).ToHashSet();
+        await People(db).Where(x => x.SessionId == sessionId).Select(x => x.UserId).ToHashSetAsync(ct);
 
     public static async Task<ILookup<Guid, Guid>> PeopleAsync(KodosiDbContext db, IReadOnlyCollection<Guid> sessionIds, CancellationToken ct)
     {

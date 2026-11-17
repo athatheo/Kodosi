@@ -30,7 +30,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
     private async Task<Project> LockAsync(Guid id, CancellationToken ct)
     {
         if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("A project change requires a transaction.");
-        return await db.Projects.FromSqlInterpolated($"SELECT * FROM projects WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+        return await db.Projects.FromSql($"SELECT * FROM projects WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw ApiException.Missing();
     }
 
@@ -42,7 +42,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
     private async Task<HashSet<Guid>> TerminalPeopleAsync(Guid id, CancellationToken ct)
     {
         var terminals = TerminalsOf(id).Select(x => x.Id);
-        return (await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToListAsync(ct)).ToHashSet();
+        return await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToHashSetAsync(ct);
     }
 
     public async Task<object> ListAsync(Guid userId, CancellationToken ct)
