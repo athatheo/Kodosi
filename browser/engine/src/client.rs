@@ -254,7 +254,7 @@ wrap_display_handler! {
         fn on_favicon_urlchange(&self, browser: Option<&mut Browser>, icon_urls: Option<&mut CefStringList>) {
             let Some(browser) = browser else { return };
             let tab = i64::from(browser.identifier());
-            let address = icon_urls.and_then(|urls| urls.clone().into_iter().next()).unwrap_or_default();
+            let address = icon_urls.map(std::mem::take).and_then(|urls| urls.into_iter().next()).unwrap_or_default();
             if engine::with(|engine| engine.icon_named(tab, &address)) == Some(true)
                 && let Some(host) = browser.host()
             {
