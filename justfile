@@ -161,6 +161,7 @@ documents-app-run *files:
 browser-check:
     cargo fmt --manifest-path browser/crate/Cargo.toml --all -- --check
     CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path browser/crate/Cargo.toml --locked --all-targets -- {{ test_lints }}
+    CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path browser/crate/Cargo.toml --locked --no-default-features --all-targets -- {{ test_lints }}
     cargo test --manifest-path browser/crate/Cargo.toml --locked
     python3 browser/build/build-engine.py --check
 
