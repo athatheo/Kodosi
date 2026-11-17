@@ -11,6 +11,7 @@ use time::format_description::well_known::Rfc3339;
 use tracing::{
     Event, Level, Metadata, Subscriber,
     field::{Field, Visit},
+    level_filters::LevelFilter,
     span::{Attributes, Id, Record},
 };
 
@@ -171,6 +172,10 @@ impl Subscriber for Log {
             && LOGGED
                 .iter()
                 .any(|name| metadata.target().starts_with(name))
+    }
+
+    fn max_level_hint(&self) -> Option<LevelFilter> {
+        Some(LevelFilter::INFO)
     }
 
     fn new_span(&self, _: &Attributes<'_>) -> Id {
