@@ -201,8 +201,12 @@ fn read_sheet(
 ) -> Result<Sheet, Unreadable> {
     let parsed = Document::parse(xml).map_err(broken)?;
     let root = parsed.root_element();
-    let mut sheet = Sheet::default();
-    if let Some(data) = local(root, "sheetData") {
+    let data = local(root, "sheetData");
+    let mut sheet = Sheet {
+        chart: data.is_none(),
+        ..Sheet::default()
+    };
+    if let Some(data) = data {
         let mut shared: HashMap<String, (String, u32, u32)> = HashMap::new();
         for row in locals(data, "row") {
             if let Some(line) = row

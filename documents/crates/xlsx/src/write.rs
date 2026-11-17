@@ -269,7 +269,7 @@ fn patch_sheet(xml: &str, sheet: &Sheet, strings: &[String]) -> Result<Option<St
         }
     }
     if !waiting.is_empty() {
-        add_rows(xml, data, sheet, &waiting, &mut edits)?;
+        add_rows(xml, data, sheet, &waiting, &mut edits);
     }
     if edits.is_empty() {
         return Ok(None);
@@ -300,27 +300,24 @@ fn dimension_edit(
     Some((dimension.range(), text))
 }
 
-fn close_row_edit(
-    xml: &str,
-    row: Xml<'_, '_>,
-    last_end: Option<usize>,
-    added: String,
-) -> (std::ops::Range<usize>, String) {
-    if let Some(end) = last_end {
-        return (end..end, added);
-    }
-    let range = row.range();
+fn appended(xml: &str, element: Xml<'_, '_>, added: String) -> Edit {
+    let range = element.range();
     let text = &xml[range.clone()];
     if let Some(open) = text.strip_suffix("/>") {
-        let name = row.tag_name().name();
-        let tag = text
-            .get(1..)
-            .and_then(|rest| rest.split([' ', '/', '>']).next())
-            .unwrap_or(name);
-        (range, format!("{open}>{added}</{tag}>"))
+        (
+            range,
+            format!("{open}>{added}</{}>", tag_name(xml, element)),
+        )
     } else {
         let closing = range.start + text.rfind("</").unwrap_or(text.len());
         (closing..closing, added)
+    }
+}
+
+fn close_row_edit(xml: &str, row: Xml<'_, '_>, last_end: Option<usize>, added: String) -> Edit {
+    match last_end {
+        Some(end) => (end..end, added),
+        None => appended(xml, row, added),
     }
 }
 
@@ -329,39 +326,33 @@ fn add_rows(
     data: Xml<'_, '_>,
     sheet: &Sheet,
     waiting: &BTreeMap<u32, BTreeMap<u32, &Cell>>,
-    edits: &mut Vec<(std::ops::Range<usize>, String)>,
-) -> Result<(), String> {
+    edits: &mut Vec<Edit>,
+) {
     let rows: Vec<(u32, Xml<'_, '_>)> = locals(data, "row")
         .filter_map(|row| {
             let number = row.attribute("r")?.parse::<u32>().ok()?.checked_sub(1)?;
             Some((number, row))
         })
         .collect();
+    let mut last = String::new();
     for (row, cells) in waiting {
         let mut text = format!("{}>", row_tag(sheet, *row));
         for (column, cell) in cells {
             text.push_str(&cell_xml(*row, *column, cell));
         }
         text.push_str("</row>");
-        let next = rows.iter().find(|(number, _)| number > row);
-        let at = match next {
-            Some((_, element)) => element.range().start,
-            None => end_of_rows(xml, data, &rows)?,
-        };
-        edits.push((at..at, text));
+        match rows.iter().find(|(number, _)| number > row) {
+            Some((_, next)) => edits.push((next.range().start..next.range().start, text)),
+            None => last.push_str(&text),
+        }
     }
-    Ok(())
-}
-
-fn end_of_rows(xml: &str, data: Xml<'_, '_>, rows: &[(u32, Xml<'_, '_>)]) -> Result<usize, String> {
-    if let Some((_, last)) = rows.last() {
-        return Ok(last.range().end);
+    if last.is_empty() {
+        return;
     }
-    let text = &xml[data.range()];
-    if text.ends_with("/>") {
-        return Err("the sheet data has no end tag".to_owned());
-    }
-    Ok(data.range().start + text.rfind("</").unwrap_or(text.len()))
+    edits.push(match rows.last() {
+        Some((_, element)) => (element.range().end..element.range().end, last),
+        None => appended(xml, data, last),
+    });
 }
 
 fn anchor_edits(xml: &str, root: Xml<'_, '_>, sheet: &Sheet) -> Vec<Edit> {
@@ -569,7 +560,7 @@ fn layout_edits(xml: &str, sheet: &Sheet) -> Result<Vec<Edit>, String> {
         .map(|line| (*line, BTreeMap::new()))
         .collect();
     if !missing.is_empty() {
-        add_rows(xml, data, sheet, &missing, &mut edits)?;
+        add_rows(xml, data, sheet, &missing, &mut edits);
     }
     Ok(edits)
 }
@@ -1038,7 +1029,7 @@ fn write_parts(
     let mut package = Package::open(file).map_err(|error| error.to_string())?;
     let strings = strings_of(&mut package);
     let mut parts = Parts::new();
-    for sheet in &model.sheets {
+    for sheet in model.sheets.iter().filter(|sheet| !sheet.chart) {
         let part = sheet.part_name();
         let Some(xml) = package.text(&part) else {
             continue;

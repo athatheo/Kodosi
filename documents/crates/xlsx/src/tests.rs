@@ -23,10 +23,7 @@ fn xlsx_file() -> Vec<u8> {
 }
 
 fn xlsx_file_with(sheet: &str, workbook: &str, styles: &str) -> Vec<u8> {
-    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    for (name, bytes) in [
+    xlsx_package(&[
         ("[Content_Types].xml", TYPES),
         ("_rels/.rels", ROOT_RELATIONS),
         ("xl/workbook.xml", workbook),
@@ -34,8 +31,15 @@ fn xlsx_file_with(sheet: &str, workbook: &str, styles: &str) -> Vec<u8> {
         ("xl/worksheets/sheet1.xml", sheet),
         ("xl/sharedStrings.xml", STRINGS),
         ("xl/styles.xml", styles),
-    ] {
-        writer.start_file(name, options).unwrap();
+    ])
+}
+
+fn xlsx_package(parts: &[(&str, &str)]) -> Vec<u8> {
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for (name, bytes) in parts {
+        writer.start_file(*name, options).unwrap();
         writer.write_all(bytes.as_bytes()).unwrap();
     }
     writer.finish().unwrap().into_inner()
@@ -315,6 +319,65 @@ fn new_text_keeps_the_shared_strings_as_they_are() {
         r#"<c r="C1" t="inlineStr"><is><t xml:space="preserve">a &lt;b&gt;</t></is></c>"#
     ));
     assert_eq!(cell_value(&read(&new_file), "C1"), "a <b>");
+}
+
+#[test]
+fn a_cell_goes_into_a_sheet_that_has_no_rows() {
+    let empty = r#"<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1"/><sheetData/></worksheet>"#;
+    let file = xlsx_file_with(empty, WORKBOOK, STYLES);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("B2", Value::Number(10.0))]).unwrap();
+    let xml = part(&saved(&model, &file), "xl/worksheets/sheet1.xml");
+    assert!(xml.contains(r#"<sheetData><row r="2"><c r="B2"><v>10</v></c></row></sheetData>"#));
+}
+
+#[test]
+fn a_workbook_saves_with_its_chart_sheet_as_it_is() {
+    let chart_sheet = r#"<?xml version="1.0"?><chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"/></sheetViews><drawing r:id="rId1"/></chartsheet>"#;
+    let workbook = WORKBOOK.replace(
+        "</sheets>",
+        r#"<sheet name="Chart" sheetId="2" r:id="rId4"/></sheets>"#,
+    );
+    let relations = RELATIONS.replace(
+        "</Relationships>",
+        r#"<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/></Relationships>"#,
+    );
+    let file = xlsx_package(&[
+        ("[Content_Types].xml", TYPES),
+        ("_rels/.rels", ROOT_RELATIONS),
+        ("xl/workbook.xml", &workbook),
+        ("xl/_rels/workbook.xml.rels", &relations),
+        (
+            "xl/worksheets/sheet1.xml",
+            &SHEET.replace(" x14ac:custom=\"kept\"", ""),
+        ),
+        ("xl/chartsheets/sheet1.xml", chart_sheet),
+        ("xl/sharedStrings.xml", STRINGS),
+        ("xl/styles.xml", STYLES),
+    ]);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    let new_file = saved(&model, &file);
+    assert!(part(&new_file, "xl/worksheets/sheet1.xml").contains(r#"<c r="A2"><v>10</v></c>"#));
+    assert_eq!(part(&new_file, "xl/chartsheets/sheet1.xml"), chart_sheet);
+    for op in [
+        Op::SetCell {
+            sheet: "Chart".to_owned(),
+            cell: "A1".to_owned(),
+            value: Some(Value::Number(1.0)),
+            formula: None,
+        },
+        Op::InsertRows {
+            sheet: "Chart".to_owned(),
+            at: 0,
+            count: 1,
+        },
+    ] {
+        assert!(matches!(
+            ops(&mut model, vec![op]),
+            Err(Refused::Invalid(_))
+        ));
+    }
 }
 
 #[test]

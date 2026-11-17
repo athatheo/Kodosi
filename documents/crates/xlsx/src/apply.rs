@@ -14,6 +14,17 @@ fn no_sheet(id: &str) -> Refused {
     Refused::Invalid(format!("There is no sheet {id}."))
 }
 
+fn sheet_with_cells<'m>(model: &'m mut Model, id: &str) -> Result<&'m mut Sheet, Refused> {
+    let sheet = model.sheet_mut(id).ok_or_else(|| no_sheet(id))?;
+    if sheet.chart {
+        return Err(Refused::Invalid(format!(
+            "The sheet {} is a chart and has no cells.",
+            sheet.name
+        )));
+    }
+    Ok(sheet)
+}
+
 fn moves_lines(change: &Change, sheet: &str) -> bool {
     match change {
         Change::Rows { sheet: moved, .. } | Change::Columns { sheet: moved, .. } => moved == sheet,
@@ -71,7 +82,7 @@ fn apply_one(model: &mut Model, change: &mut Change) -> Result<(), Refused> {
                     cell.style = Some(Some(look_index(model, look)));
                 }
             }
-            let target = model.sheet_mut(sheet).ok_or_else(|| no_sheet(sheet))?;
+            let target = sheet_with_cells(model, sheet)?;
             for cell in cells.iter() {
                 set_cell(target, cell);
             }
@@ -116,7 +127,7 @@ fn apply_one(model: &mut Model, change: &mut Change) -> Result<(), Refused> {
             widths,
             heights,
         } => {
-            let target = model.sheet_mut(sheet).ok_or_else(|| no_sheet(sheet))?;
+            let target = sheet_with_cells(model, sheet)?;
             target
                 .widths
                 .extend(widths.iter().map(|(at, width)| (*at, *width)));
@@ -125,7 +136,7 @@ fn apply_one(model: &mut Model, change: &mut Change) -> Result<(), Refused> {
                 .extend(heights.iter().map(|(at, height)| (*at, *height)));
         }
         Change::Merges { sheet, add, remove } => {
-            let target = model.sheet_mut(sheet).ok_or_else(|| no_sheet(sheet))?;
+            let target = sheet_with_cells(model, sheet)?;
             target.merges.retain(|merge| !remove.contains(merge));
             for merge in add.iter() {
                 if !target.merges.contains(merge) {
@@ -179,7 +190,7 @@ fn move_lines(model: &mut Model, id: &str, at: u32, count: i32, rows: bool) -> R
         ));
     }
     let shift = Shift { at, count };
-    let name = model.sheet(id).ok_or_else(|| no_sheet(id))?.name.clone();
+    let name = sheet_with_cells(model, id)?.name.clone();
     let (row_shift, column_shift) = (rows.then_some(shift), (!rows).then_some(shift));
     for defined in &mut model.names {
         defined.text = shift_formula(&defined.text, false, &name, row_shift, column_shift);
