@@ -544,7 +544,7 @@ fn create_job() -> io::Result<OwnedHandle> {
         return Err(io::Error::last_os_error());
     }
     let job = unsafe { OwnedHandle::from_raw_handle(job) };
-    let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if unsafe {
         SetInformationJobObject(
@@ -600,11 +600,11 @@ fn start(
     {
         return Err(io::Error::last_os_error().into());
     }
-    let mut startup: STARTUPINFOEXW = unsafe { std::mem::zeroed() };
+    let mut startup = STARTUPINFOEXW::default();
     startup.StartupInfo.cb = u32::try_from(size_of::<STARTUPINFOEXW>()).unwrap_or(u32::MAX);
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
     startup.lpAttributeList = list.0;
-    let mut information: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut information = PROCESS_INFORMATION::default();
     let application = wide(application.as_os_str());
     let directory = directory.map(|directory| wide(directory.as_os_str()));
     // A program inherits its parent's choice to ignore Ctrl+C, which a host

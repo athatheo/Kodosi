@@ -241,7 +241,7 @@ pub(super) fn open_beneath(parent: &File, name: &str, directory: bool) -> io::Re
         )
     };
     let mut handle: HANDLE = ptr::null_mut();
-    let mut status_block: IO_STATUS_BLOCK = unsafe { std::mem::zeroed() };
+    let mut status_block = IO_STATUS_BLOCK::default();
     let status = unsafe {
         NtCreateFile(
             &raw mut handle,
