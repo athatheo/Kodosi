@@ -926,6 +926,7 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "windows-sys",
+ "zbus",
 ]
 
 [[package]]

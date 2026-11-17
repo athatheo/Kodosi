@@ -28,6 +28,12 @@ const KEY_BYTES: usize = 16;
 const KEY_ROUNDS: u32 = 1003;
 #[cfg(all(unix, not(target_os = "macos")))]
 const KEY_ROUNDS: u32 = 1;
+/// The Secret Service of KDE refuses about one session in 256, whose key secret-service sends
+/// without its leading zero byte (secret-service-rs#127). Each session draws a new key.
+#[cfg(all(unix, not(target_os = "macos")))]
+const SECRET_SERVICE_OPENINGS: usize = 3;
+#[cfg(all(unix, not(target_os = "macos")))]
+const REFUSED_ARGUMENTS: &str = "org.freedesktop.DBus.Error.InvalidArgs";
 const HOST_HASH_BYTES: usize = 32;
 /// From this version of the store, each value starts with a hash of its host.
 const HASHED_FROM: i64 = 24;
@@ -260,11 +266,21 @@ fn opener_of(family: &Family, _folder: &Path) -> Result<Box<dyn Opener>, CopyErr
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn system_password(application: &str) -> Option<Vec<u8>> {
-    use secret_service::{EncryptionType, SecretService};
+    use secret_service::{EncryptionType, Error, SecretService};
 
     let runtime = tokio::runtime::Handle::try_current().ok()?;
     runtime.block_on(async {
-        let service = SecretService::connect(EncryptionType::Dh).await.ok()?;
+        let mut openings = 1;
+        let service = loop {
+            match SecretService::connect(EncryptionType::Dh).await {
+                Err(Error::Zbus(zbus::Error::MethodError(name, ..)))
+                    if openings < SECRET_SERVICE_OPENINGS && name == REFUSED_ARGUMENTS =>
+                {
+                    openings += 1;
+                }
+                connected => break connected.ok()?,
+            }
+        };
         let found = service
             .search_items(std::collections::HashMap::from([(
                 "application",
