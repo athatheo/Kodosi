@@ -1,4 +1,4 @@
-import { Check, Mail, SquareArrowOutUpRight } from "lucide-react";
+import { Check, Mail, SquareArrowUpRightExit } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CodeCells } from "../../parts/code";
@@ -162,7 +162,7 @@ export function MailCode({ kcContext, i18n }: Page<"kodosi-code.ftl">) {
             rel="noreferrer"
             tile={<IconTile tint="teal" icon={<Mail />} waits />}
             title={msgStr("kdsOpenMail", inbox.name)}
-            end={<SquareArrowOutUpRight className="size-4 shrink-0 text-ink-faint" aria-hidden />}
+            end={<SquareArrowUpRightExit className="size-4 shrink-0 text-ink-faint" aria-hidden />}
           />
         )}
         {resend}
