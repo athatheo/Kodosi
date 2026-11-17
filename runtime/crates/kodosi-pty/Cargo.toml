@@ -13,8 +13,8 @@ tokio = { workspace = true, features = ["macros", "net", "process", "rt", "sync"
 [target.'cfg(unix)'.dependencies]
 close_fds = "0.3.2"
 libc = "0.2.191"
-nix = { workspace = true, features = ["fs", "process", "signal", "term"] }
-rustix = { workspace = true, features = ["termios"] }
+nix = { workspace = true, features = ["process", "signal", "term"] }
+rustix = { workspace = true, features = ["fs", "termios"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [

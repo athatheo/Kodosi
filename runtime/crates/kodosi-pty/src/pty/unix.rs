@@ -11,10 +11,14 @@ use std::{
 use crate::{KodosiError, Result};
 use nix::{
     errno::Errno,
-    fcntl::{FcntlArg, FdFlag, OFlag, fcntl},
-    pty::{Winsize, openpty},
+    pty::openpty,
     sys::signal::{Signal, killpg},
     unistd::{self, Pid},
+};
+use rustix::{
+    fs::{OFlags, fcntl_getfl, fcntl_setfl},
+    io::{FdFlags, fcntl_setfd},
+    termios::{LocalModes, tcgetattr, tcgetpgrp, tcsetwinsize},
 };
 use tokio::{
     io::{Interest, Ready, unix::AsyncFd},
@@ -33,10 +37,7 @@ pub struct PtyReader {
 
 impl PtyReader {
     fn new(fd: OwnedFd) -> io::Result<Self> {
-        let flags = fcntl(fd.as_fd(), FcntlArg::F_GETFL)?;
-        let mut oflags = OFlag::from_bits_truncate(flags);
-        oflags.insert(OFlag::O_NONBLOCK);
-        fcntl(fd.as_fd(), FcntlArg::F_SETFL(oflags))?;
+        fcntl_setfl(&fd, fcntl_getfl(&fd)? | OFlags::NONBLOCK)?;
 
         let file = File::from(fd);
         Ok(Self {
@@ -66,7 +67,7 @@ impl PtyReader {
         let async_fd = self.get_async_fd()?;
         loop {
             let mut guard = async_fd.readable().await?;
-            match guard.try_io(|inner| Ok(unistd::read(inner.get_ref(), buf)?)) {
+            match guard.try_io(|inner| Ok(rustix::io::read(inner.get_ref(), &mut *buf)?)) {
                 Ok(Ok(bytes_read)) => return Ok(bytes_read),
                 Ok(Err(error)) => return Err(error),
                 Err(_would_block) => continue,
@@ -91,20 +92,20 @@ impl PtyReader {
             if let Some(bytes) = write
                 && ready.is_writable()
             {
-                match unistd::write(guard.get_inner(), bytes) {
-                    Ok(0) | Err(nix::errno::Errno::EAGAIN) => {
+                match rustix::io::write(guard.get_inner(), bytes) {
+                    Ok(0) | Err(rustix::io::Errno::AGAIN) => {
                         guard.clear_ready_matching(Ready::WRITABLE);
                     }
                     Ok(count) => return Ok(Transfer::Wrote(count)),
-                    Err(nix::errno::Errno::EINTR) => {}
+                    Err(rustix::io::Errno::INTR) => {}
                     Err(error) => return Err(error.into()),
                 }
             }
             if ready.is_readable() {
-                match unistd::read(guard.get_inner(), read) {
+                match rustix::io::read(guard.get_inner(), &mut *read) {
                     Ok(count) => return Ok(Transfer::Read(count)),
-                    Err(nix::errno::Errno::EAGAIN) => guard.clear_ready_matching(Ready::READABLE),
-                    Err(nix::errno::Errno::EINTR) => {}
+                    Err(rustix::io::Errno::AGAIN) => guard.clear_ready_matching(Ready::READABLE),
+                    Err(rustix::io::Errno::INTR) => {}
                     Err(error) => return Err(error.into()),
                 }
             }
@@ -134,19 +135,14 @@ impl KodosiPty {
             KodosiError::Spawn(format!("command not found: {}", program.display()))
         })?;
 
-        let size = Winsize {
-            ws_row: rows,
-            ws_col: cols,
-            ws_xpixel: 0,
-            ws_ypixel: 0,
-        };
         let openpty_result = {
             let _serial = OPEN_PTY.lock().unwrap_or_else(PoisonError::into_inner);
-            openpty(&size, None).map_err(open_failure)?
+            openpty(None, None).map_err(open_failure)?
         };
+        set_terminal_size(&openpty_result.master, cols, rows, None, None)?;
         let slave_raw = openpty_result.slave.as_raw_fd();
         for descriptor in [&openpty_result.master, &openpty_result.slave] {
-            fcntl(descriptor, FcntlArg::F_SETFD(FdFlag::FD_CLOEXEC)).map_err(io::Error::from)?;
+            fcntl_setfd(descriptor, FdFlags::CLOEXEC).map_err(io::Error::from)?;
         }
         let reader = PtyReader::new(openpty_result.master.try_clone()?)?;
 
@@ -222,11 +218,8 @@ impl KodosiPty {
     }
 
     pub fn reads_keys(&self) -> bool {
-        nix::sys::termios::tcgetattr(&self.master).is_ok_and(|attributes| {
-            !attributes
-                .local_flags
-                .contains(nix::sys::termios::LocalFlags::ICANON)
-        })
+        tcgetattr(&self.master)
+            .is_ok_and(|attributes| !attributes.local_modes.contains(LocalModes::ICANON))
     }
 
     pub fn foreground_program(&self) -> Option<String> {
@@ -490,7 +483,7 @@ fn set_terminal_size(
         ws_xpixel: width_in_pixels.unwrap_or(0),
         ws_ypixel: height_in_pixels.unwrap_or(0),
     };
-    Ok(rustix::termios::tcsetwinsize(terminal, size).map_err(io::Error::from)?)
+    Ok(tcsetwinsize(terminal, size).map_err(io::Error::from)?)
 }
 
 const LOGIN_SHELLS: [&str; 8] = ["bash", "csh", "dash", "fish", "ksh", "sh", "tcsh", "zsh"];
@@ -760,11 +753,9 @@ pub fn process_group(pid: u32) -> Option<u32> {
 }
 
 fn foreground_process_group(terminal: impl AsFd) -> Option<u32> {
-    nix::unistd::tcgetpgrp(terminal)
+    tcgetpgrp(terminal)
         .ok()
-        .map(Pid::as_raw)
-        .filter(|pgid| *pgid > 0)
-        .and_then(|pgid| u32::try_from(pgid).ok())
+        .and_then(|group| u32::try_from(group.as_raw_nonzero().get()).ok())
 }
 
 #[cfg(test)]
@@ -773,7 +764,7 @@ mod tests {
         KodosiError, KodosiPty, PtyReader, ShutdownStage, Transfer, WaitOutcome, find_executable,
         login_shell_name, resolve_program, set_terminal_size, validate_working_dir,
     };
-    use nix::fcntl::{FcntlArg, FdFlag, fcntl};
+    use rustix::io::{FdFlags, fcntl_getfd};
     use std::{
         env,
         os::fd::{AsRawFd, BorrowedFd},
@@ -842,8 +833,7 @@ mod tests {
                 let reader_fd = reader.pending.as_ref().unwrap().as_raw_fd();
                 for descriptor in [pty.master.as_raw_fd(), reader_fd] {
                     let descriptor = unsafe { BorrowedFd::borrow_raw(descriptor) };
-                    let flags = fcntl(descriptor, FcntlArg::F_GETFD).unwrap();
-                    assert!(FdFlag::from_bits_truncate(flags).contains(FdFlag::FD_CLOEXEC));
+                    assert!(fcntl_getfd(descriptor).unwrap().contains(FdFlags::CLOEXEC));
                 }
                 end_by_force(&mut pty, &mut reader).await;
             });
