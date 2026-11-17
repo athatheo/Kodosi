@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -24,13 +25,15 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
 {
     public const string Issuer = "https://auth.kodosi.com/realms/kodosi";
     private readonly RSA key = RSA.Create(2048);
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+    protected override void ConfigureWebApplicationBuilder(IHostApplicationBuilder builder) =>
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Kodosi"] = connection,
             ["Logging:LogLevel:Default"] = "Warning",
-        }.Concat(settings ?? new Dictionary<string, string?>())));
+        }.Concat(settings ?? new Dictionary<string, string?>()));
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.ConfigureTestServices(services => services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             var config = new OpenIdConnectConfiguration { Issuer = Issuer };
@@ -40,7 +43,7 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
         if (configure is not null) builder.ConfigureTestServices(configure);
     }
 
-    protected override Microsoft.Extensions.Hosting.IHost CreateHost(Microsoft.Extensions.Hosting.IHostBuilder builder)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
         using (var db = PostgresFixture.Context(connection))
             Kodosi.Data.DatabaseSetup.MigrateAsync(db, CancellationToken.None).GetAwaiter().GetResult();
