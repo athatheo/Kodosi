@@ -95,11 +95,15 @@ pub(crate) fn read(file: &[u8]) -> Result<Model, Unreadable> {
         .map(|text| read_looks(&text))
         .transpose()?
         .unwrap_or_default();
+    let dates_from_1904 = local(workbook.root_element(), "workbookPr")
+        .and_then(|properties| properties.attribute("date1904"))
+        .is_some_and(|value| matches!(value, "1" | "true"));
     Ok(Model {
         sheets,
         looks,
         names,
         last_number,
+        dates_from_1904,
     })
 }
 
@@ -197,8 +201,12 @@ fn read_sheet(
 ) -> Result<Sheet, Unreadable> {
     let parsed = Document::parse(xml).map_err(broken)?;
     let root = parsed.root_element();
-    let mut sheet = Sheet::default();
-    if let Some(data) = local(root, "sheetData") {
+    let data = local(root, "sheetData");
+    let mut sheet = Sheet {
+        chart: data.is_none(),
+        ..Sheet::default()
+    };
+    if let Some(data) = data {
         let mut shared: HashMap<String, (String, u32, u32)> = HashMap::new();
         for row in locals(data, "row") {
             if let Some(line) = row
@@ -304,24 +312,20 @@ fn color_of(color: Option<Xml<'_, '_>>) -> Option<String> {
 fn read_looks(text: &str) -> Result<Vec<Look>, Unreadable> {
     let parsed = Document::parse(text).map_err(broken)?;
     let root = parsed.root_element();
-    let fonts: Vec<Xml<'_, '_>> = local(root, "fonts")
-        .map(|fonts| locals(fonts, "font").collect())
-        .unwrap_or_default();
-    let fills: Vec<Xml<'_, '_>> = local(root, "fills")
-        .map(|fills| locals(fills, "fill").collect())
-        .unwrap_or_default();
-    let number_formats: BTreeMap<&str, &str> = local(root, "numFmts")
-        .map(|formats| {
-            locals(formats, "numFmt")
-                .filter_map(|format| {
-                    Some((
-                        format.attribute("numFmtId")?,
-                        format.attribute("formatCode")?,
-                    ))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let fonts: Vec<Xml<'_, '_>> =
+        local(root, "fonts").map_or_default(|fonts| locals(fonts, "font").collect());
+    let fills: Vec<Xml<'_, '_>> =
+        local(root, "fills").map_or_default(|fills| locals(fills, "fill").collect());
+    let number_formats: BTreeMap<&str, &str> = local(root, "numFmts").map_or_default(|formats| {
+        locals(formats, "numFmt")
+            .filter_map(|format| {
+                Some((
+                    format.attribute("numFmtId")?,
+                    format.attribute("formatCode")?,
+                ))
+            })
+            .collect()
+    });
     let Some(formats) = local(root, "cellXfs") else {
         return Ok(Vec::new());
     };

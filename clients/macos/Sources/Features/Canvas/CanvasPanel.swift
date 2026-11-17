@@ -3,10 +3,14 @@ import KodosiBridge
 import KodosiDesign
 import SwiftUI
 
-struct CanvasPlace {
+struct CanvasPlace: Equatable {
     var flight: Namespace.ID?
     var open: String?
     var show: @MainActor (RuntimeSession, CanvasSection) -> Void = { _, _ in }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.flight == rhs.flight && lhs.open == rhs.open
+    }
 }
 
 extension EnvironmentValues {
@@ -52,7 +56,7 @@ struct CanvasStage<Terminal: View>: View {
     @State private var shownFront: String?
 
     init(canvas: RuntimeSession?, front: String?, wide: Binding<Bool>, width: Binding<CGFloat?>, tab: CGRect? = nil,
-         always: Bool = false, hide: @escaping () -> Void, @ViewBuilder terminal: () -> Terminal)
+         always: Bool = false, hide: @escaping () -> Void, @ContentBuilder terminal: () -> Terminal)
     {
         self.canvas = canvas
         self.front = front
@@ -228,7 +232,7 @@ struct CanvasPanel: View {
         .padding(.leading, wide ? 7 : 7 + CanvasBody.clearance).padding(.trailing, 6).frame(height: CanvasBody.band)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func actions(_ item: CanvasItem) -> some View {
         if !item.missing {
             Button("Save a Copy…", systemImage: "square.and.arrow.down") { save(item) }
@@ -240,7 +244,7 @@ struct CanvasPanel: View {
         Button("Remove from Canvas", systemImage: "xmark") { remove([item.key]) }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func progress(_ current: CanvasShown?) -> some View {
         if let current, let part = deps.canvas.read(current.key, in: session.id) {
             GeometryReader { geometry in
@@ -262,7 +266,7 @@ struct CanvasPanel: View {
     }
 
     private func ask(about shown: CanvasShown, words: String?) {
-        Task { @MainActor in
+        Task {
             let words: String? = if let words {
                 words
             } else if case let .item(item) = shown {
@@ -287,7 +291,7 @@ struct CanvasPanel: View {
     }
 
     private func remove(_ keys: [String]) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.canvas.remove(keys, in: session.id)
             } catch { deps.errorMessage = error.localizedDescription }
@@ -295,7 +299,7 @@ struct CanvasPanel: View {
     }
 
     private func save(_ item: CanvasItem) {
-        Task { @MainActor in
+        Task {
             do {
                 let (_, data) = try await deps.canvas.content(of: item, in: session.id)
                 let panel = NSSavePanel()
@@ -309,7 +313,7 @@ struct CanvasPanel: View {
 
 extension AppDependencies {
     func openBrowser(of session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await canvas.openBrowser(of: session)
             } catch { errorMessage = error.localizedDescription }
@@ -326,7 +330,7 @@ extension AppDependencies {
     }
 
     func add(_ files: [URL], to session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 for file in files {
                     try await canvas.attach(file, in: session.id)
@@ -336,13 +340,9 @@ extension AppDependencies {
     }
 }
 
-private struct Grow: ViewModifier, Animatable {
+@Animatable
+private struct Grow: ViewModifier {
     var part: Double
-
-    var animatableData: Double {
-        get { part }
-        set { part = newValue }
-    }
 
     func body(content: Content) -> some View {
         GeometryReader { geometry in
@@ -401,13 +401,9 @@ extension AnyTransition {
     }
 }
 
-private struct Unfold: ViewModifier, Animatable {
+@Animatable
+private struct Unfold: ViewModifier {
     var shown: Double
-
-    var animatableData: Double {
-        get { shown }
-        set { shown = newValue }
-    }
 
     func body(content: Content) -> some View {
         content.mask(alignment: .leading) {

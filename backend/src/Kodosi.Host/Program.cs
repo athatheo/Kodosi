@@ -50,6 +50,7 @@ builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<PushTokens>();
 builder.Services.ConfigureHttpJsonOptions(options => StrictJson.Configure(options.SerializerOptions));
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.AddServerHeader = false;
@@ -89,5 +90,3 @@ var api = app.MapGroup("").AddEndpointFilter<AdmissionFilter>();
 api.MapAccounts(); api.MapDevices(); api.MapFriends(); api.MapSessions(); api.MapProjects(); api.MapPush();
 app.MapTerminalConnections();
 app.Run();
-
-public partial class Program;

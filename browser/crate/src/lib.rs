@@ -29,6 +29,8 @@ mod socket;
 mod window;
 
 #[cfg(feature = "host")]
+pub use driver::Driver;
+#[cfg(feature = "host")]
 pub use host::{Browsers, Error, Place, Settings};
 #[cfg(feature = "host")]
 pub use page::HostPage;

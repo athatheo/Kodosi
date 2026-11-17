@@ -101,15 +101,12 @@ fn attrs_of(model: &Model, name: &str) -> Vec<Value> {
 }
 
 fn mark_names(node: &Value) -> Vec<&str> {
-    node["marks"]
-        .as_array()
-        .map(|marks| {
-            marks
-                .iter()
-                .map(|mark| mark["type"].as_str().unwrap())
-                .collect()
-        })
-        .unwrap_or_default()
+    node["marks"].as_array().map_or_default(|marks| {
+        marks
+            .iter()
+            .map(|mark| mark["type"].as_str().unwrap())
+            .collect()
+    })
 }
 
 /// A picture that names the relationship rId9 of `with_picture`.

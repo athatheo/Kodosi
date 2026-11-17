@@ -190,7 +190,7 @@ fn common_blocks(from: &[String], to: &[String]) -> Vec<(usize, usize)> {
         tail += 1;
     }
     let (from_end, to_end) = (from.len() - tail, to.len() - tail);
-    let mut pairs: Vec<(usize, usize)> = (0..start).map(|index| (index, index)).collect();
+    let mut pairs = Vec::from_fn(start, |index| (index, index));
     let (rows, columns) = (from_end - start, to_end - start);
     if rows.saturating_mul(columns) <= MOST_COMPARED && rows > 0 && columns > 0 {
         let mut table = vec![vec![0_u32; columns + 1]; rows + 1];

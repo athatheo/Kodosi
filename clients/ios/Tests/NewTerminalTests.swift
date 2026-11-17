@@ -4,7 +4,6 @@ import KodosiBridge
 import KodosiKit
 import Testing
 
-@MainActor
 struct NewTerminalTests {
     private let model = AppModel()
     private let sent = SentCommands()

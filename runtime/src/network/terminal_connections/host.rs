@@ -100,7 +100,7 @@ pub(super) async fn run(
     );
     let viewers = Viewers::default();
     let stop = credentials.cancel.child_token();
-    let _stop = stop.clone().drop_guard();
+    let _stop = stop.drop_guard_ref();
     let mut tasks = JoinSet::new();
     let mut trust = tokio::time::interval(TRUST_CHECK);
     trust.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -279,8 +279,7 @@ async fn review(
     }
     let connected = viewers
         .lock()
-        .map(|viewers| viewers.values().cloned().collect::<Vec<_>>())
-        .unwrap_or_default();
+        .map_or_default(|viewers| viewers.values().cloned().collect::<Vec<_>>());
     let mut identities = BTreeMap::new();
     for viewer in connected {
         if !allowed(publication, credentials, &viewer.user).await {
@@ -403,10 +402,19 @@ async fn viewer(
     cancel: CancellationToken,
 ) {
     let channel = pipe.id();
-    let result = tokio::select! {
-        () = cancel.cancelled() => Ok(()),
-        result = connect(&network, &publication, &credentials, output, pipe, (user, device), &viewers, &cancel) => result,
-    };
+    let result = cancel
+        .run_until_cancelled(connect(
+            &network,
+            &publication,
+            &credentials,
+            output,
+            pipe,
+            (user, device),
+            &viewers,
+            &cancel,
+        ))
+        .await
+        .unwrap_or(Ok(()));
     let admitted = viewers
         .lock()
         .ok()
@@ -1196,12 +1204,15 @@ impl<'a, T: Transport> Stream<'a, T> {
                 let response = self.submit(control).await?;
                 let authorization = self.controller.authorization.clone();
                 self.controls.push(Box::pin(async move {
-                    let result = tokio::select! {
-                        () = authorization.cancelled() => Err(text!("This terminal connection is no longer authorized.")),
-                        result = tokio::time::timeout(CONTROL_TIMEOUT, response) => match result {
-                            Ok(Ok(result)) => result,
-                            _ => Err(text!("The terminal did not confirm the operation, and Kodosi did not send it again.")),
-                        },
+                    let confirmed = authorization
+                        .run_until_cancelled(tokio::time::timeout(CONTROL_TIMEOUT, response))
+                        .await;
+                    let result = match confirmed {
+                        None => Err(text!("This terminal connection is no longer authorized.")),
+                        Some(Ok(Ok(result))) => result,
+                        Some(_) => Err(text!(
+                            "The terminal did not confirm the operation, and Kodosi did not send it again."
+                        )),
                     };
                     match result {
                         Ok(value) if answers && wire::answer_fits(&value) => {
@@ -1241,7 +1252,7 @@ impl<'a, T: Transport> Stream<'a, T> {
     /// A view offers the next picture before an answer only when it stopped waiting for the last
     /// one, so the next picture takes its place.
     async fn offered(&mut self, offer: PictureOffer) -> Result<()> {
-        let digest = crate::terminal::picture_digest(&offer.sha256)
+        let digest = crate::hex::hash_from_hex(&offer.sha256)
             .filter(|_| offer.size > 0 && offer.size <= TERMINAL_PICTURE_MAX_BYTES as u64)
             .ok_or_else(|| invalid("The picture offer is not valid."))?;
         self.picture = None;

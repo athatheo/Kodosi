@@ -49,11 +49,8 @@ def fail(message: str) -> None:
 
 
 def file_sha256(path: Path) -> str:
-    value = hashlib.sha256()
     with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            value.update(chunk)
-    return value.hexdigest()
+        return hashlib.file_digest(source, "sha256").hexdigest()
 
 
 def load_json(path: Path) -> tuple[dict, bytes]:

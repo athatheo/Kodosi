@@ -105,6 +105,21 @@ public sealed class ProjectContentTests(PostgresFixture postgres)
         Assert.False(newest.GetProperty("hasMore").GetBoolean());
     }
 
+    [Fact]
+    public async Task ASignedBodyThatNamesAFieldTwiceIsRefusedAsDevicesRefuseIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await TestStore.CreateAsync(postgres);
+        var (project, alice, _) = await TwoPersonProjectAsync(store, ct);
+        var message = Guid.CreateVersion7();
+        var body = System.Text.Encoding.UTF8.GetBytes(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(Item(project, message, "message", 0, alice).Body))
+            .Replace("\"kind\":\"message\"", "\"kind\":\"task\",\"kind\":\"message\"", StringComparison.Ordinal));
+        var twice = new ProjectService.ContentWrite(0, alice.Device.Id, Convert.ToBase64String(body),
+            Convert.ToBase64String(alice.Fixture.Sign(Proofs.Tagged("kodosi-room-content-v1"u8, body))));
+        await Assert.ThrowsAsync<JsonException>(() => store.Projects.PutContentAsync(project, message, alice.User.Id, twice, ct));
+        Assert.False(await store.Db.ProjectItems.AnyAsync(ct));
+    }
+
     private static async Task<(Guid Project, TestUser Alice, TestUser Bob)> TwoPersonProjectAsync(TestStore store, CancellationToken ct)
     {
         var alice = await store.UserAsync("alice"); var bob = await store.UserAsync("bob");

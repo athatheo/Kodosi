@@ -391,6 +391,9 @@ __cmpxf2
 __cosh
 __cosl
 __cosx
+__cpu_features2
+__cpu_indicator_init
+__cpu_model
 __ctzdi2
 __ctzsi2
 __ctzti2

@@ -6,10 +6,10 @@ use super::{
     BackendClient, Credentials, Error, IdentityBundle, Method, Result, Value, VerifiedIdentity,
     invalid, json, path_segment, untrusted, wire,
 };
+use crate::hex::hex;
 use crate::identity::{
     friends::{
         Chain, Friend, FriendList, Head, Newest, SignedFriendList, broken, invite, parse_invite,
-        root_hex,
     },
     pins::Root,
     qr_code,
@@ -148,7 +148,7 @@ impl BackendClient {
         let (signed, head) = list.sign(
             on,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
         )?;
         let _response: Value = self
             .inner
@@ -402,7 +402,7 @@ impl BackendClient {
                     .get_mut(user_id)
                     .filter(|friend| friend.root.is_none())
                     .is_some_and(|friend| {
-                        friend.root = Some(root_hex(&root));
+                        friend.root = Some(hex(&root));
                         true
                     })
             })
@@ -696,7 +696,7 @@ impl BackendClient {
                         verified: false,
                     });
                     if let Some(root) = root {
-                        friend.root = Some(root_hex(&root));
+                        friend.root = Some(hex(&root));
                         friend.verified = true;
                     }
                     list.friends.insert(user.clone(), friend.clone()) != Some(friend)
@@ -774,7 +774,7 @@ impl BackendClient {
                 self.change_friends(&credentials, |list| {
                     let next = Friend {
                         handle: record.handle.clone(),
-                        root: Some(root_hex(&root)),
+                        root: Some(hex(&root)),
                         verified: false,
                     };
                     list.friends
@@ -801,7 +801,7 @@ impl BackendClient {
                 self.change_friends(&credentials, |list| {
                     let friend = Friend {
                         handle: handle.clone(),
-                        root: Some(root_hex(&root)),
+                        root: Some(hex(&root)),
                         verified: true,
                     };
                     list.friends.insert(user.clone(), friend.clone()) != Some(friend)

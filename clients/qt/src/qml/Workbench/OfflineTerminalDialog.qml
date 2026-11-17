@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Kodosi.Models 1.0 as Models
 
 KDialog {
@@ -9,7 +9,7 @@ KDialog {
     property var sessionIds: []
     property string host: ""
 
-    function ask(ids, hostName) {
+    function ask(ids: var, hostName: string): void {
         sessionIds = ids;
         host = hostName;
         open();

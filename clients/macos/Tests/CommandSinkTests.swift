@@ -3,12 +3,12 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@Test @MainActor func `command reply matches request and operation`() async throws {
+@Test func `command reply matches request and operation`() async throws {
     var sent: [Data] = []
     let commands = CommandSink { data in sent.append(data); return 0 }
     commands.setAccount(userId: "owner", epoch: 4)
     var completed = false
-    let request = Task { @MainActor in
+    let request = Task {
         let reply = try await commands.request("session.close", ["requestId": .string("request")])
         completed = true
         return reply
@@ -29,49 +29,33 @@ import Testing
     #expect(completed)
 }
 
-@Test @MainActor func `account change cancels pending mutation`() async throws {
+@Test func `account change cancels pending mutation`() async {
     var sent = false
     let commands = CommandSink { _ in sent = true; return 0 }
     commands.setAccount(userId: "owner", epoch: 1)
     let request = Task { try await commands.request("session.rename") }
     await settle { !sent }
     commands.setAccount(userId: nil, epoch: 2)
-    do {
-        _ = try await request.value
-        Issue.record("A pending action must not survive an account change")
-    } catch {
-        #expect(error as? RuntimeError == .accountChanged)
-    }
+    await #expect(throws: RuntimeError.accountChanged) { try await request.value }
 }
 
-@Test @MainActor func `duplicate request cannot replace continuation`() async throws {
+@Test func `duplicate request cannot replace continuation`() async {
     var sent = false
     let commands = CommandSink { _ in sent = true; return 0 }
     let fields: [String: JSONValue] = ["requestId": .string("duplicate")]
     let first = Task { try await commands.request("project.create", fields) }
     await settle { !sent }
-    do {
-        _ = try await commands.request("project.create", fields)
-        Issue.record("A duplicate request replaced its original continuation")
-    } catch { #expect(error is RuntimeError) }
+    await #expect(throws: RuntimeError.self) { try await commands.request("project.create", fields) }
     commands.cancelPending()
-    do {
-        _ = try await first.value
-        Issue.record("Expected cancellation")
-    } catch {
-        #expect(error as? RuntimeError == .unavailable)
-    }
+    await #expect(throws: RuntimeError.unavailable) { try await first.value }
 }
 
-@Test @MainActor func `synchronous rejection does not report success`() async {
+@Test func `synchronous rejection does not report success`() async {
     let commands = CommandSink { _ in 5 }
-    do {
-        _ = try await commands.request("session.create")
-        Issue.record("Rejected admission was treated as success")
-    } catch { #expect(error as? RuntimeError == .rejected(5)) }
+    await #expect(throws: RuntimeError.rejected(5)) { try await commands.request("session.create") }
 }
 
-@Test @MainActor func `an error shows once and only for a request of the app`() async throws {
+@Test func `an error shows once and only for a request of the app`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "CommandErrors"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -89,17 +73,15 @@ import Testing
     try app.receive(runtimeEvent("project.error", fields: [
         "requestId": .string("create"), "operation": .string("project.create"), "message": .string("Use another name."),
     ]))
-    do {
-        _ = try await creating.value
-        Issue.record("The waiting caller must get the error")
-    } catch { #expect(error.localizedDescription == "Use another name.") }
+    let error = await #expect(throws: (any Error).self) { try await creating.value }
+    #expect(error?.localizedDescription == "Use another name.")
     #expect(app.errorMessage == nil)
 
     try app.receive(runtimeEvent("friends.error", fields: ["operation": .string("friends.remove"), "message": .string("Try again.")]))
     #expect(app.errorMessage == "Try again.")
 }
 
-@Test @MainActor func `a late answer to a request that its caller left shows nowhere`() async throws {
+@Test func `a late answer to a request that its caller left shows nowhere`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "LeftRequest"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -115,17 +97,14 @@ import Testing
     let listing = Task { try await app.commandSink.request("folders.list", ["requestId": .string("folders")]) }
     await settle { !sent.contains { $0["type"] == .string("folders.list") } }
     listing.cancel()
-    do {
-        _ = try await listing.value
-        Issue.record("A caller that left must not wait for the answer")
-    } catch { #expect(error is CancellationError) }
+    await #expect(throws: CancellationError.self) { try await listing.value }
     try app.receive(runtimeEvent("folders.error", fields: [
         "requestId": .string("folders"), "operation": .string("folders.list"), "message": .string("Studio is away."),
     ]))
     #expect(app.errorMessage == nil)
 }
 
-@Test @MainActor func `a failed friend request of this app shows its error`() throws {
+@Test func `a failed friend request of this app shows its error`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "FriendRequestError"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -146,7 +125,7 @@ import Testing
     #expect(app.errorMessage == "No such person.")
 }
 
-@Test @MainActor func `a failed code for a new device shows only in its sheet`() throws {
+@Test func `a failed code for a new device shows only in its sheet`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "DeviceOfferError"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -168,13 +147,13 @@ import Testing
     #expect(app.errorMessage == nil)
 }
 
-@MainActor private func settle(_ pending: () -> Bool) async {
+private func settle(_ pending: () -> Bool) async {
     for _ in 0 ..< 100 where pending() {
         await Task.yield()
     }
 }
 
-@Test @MainActor func `preview uses native identity and byte cursor`() async throws {
+@Test func `preview uses native identity and byte cursor`() async throws {
     var requests: [[String: JSONValue]] = []
     let commands = CommandSink { data in
         if let value = try? JSONDecoder().decode([String: JSONValue].self, from: data) {

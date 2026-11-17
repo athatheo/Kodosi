@@ -142,6 +142,7 @@ final class CanvasDocumentPage {
         configuration.upgradeKnownHostsToHTTPS = false
         configuration.userContentController.add(messages, contentWorld: .page, name: "document")
         configuration.userContentController.add(messages, contentWorld: .page, name: "ready")
+        links.watch(configuration.userContentController)
         page = WebPage(configuration: configuration, navigationDecider: DocumentNavigation(links: links))
         let (stream, frames) = AsyncStream.makeStream(of: Data.self)
         self.frames = frames

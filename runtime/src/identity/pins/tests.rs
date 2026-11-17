@@ -37,15 +37,7 @@ impl Fixture {
         let a = DeviceKeys::generate().unwrap();
         let b = DeviceKeys::generate().unwrap();
         let cert_a = certificate(
-            build_self_cert(
-                &user,
-                &a.device_id,
-                "a",
-                &a.signing_key().unwrap(),
-                1000,
-                None,
-            )
-            .unwrap(),
+            build_self_cert(&user, &a.device_id, "a", a.signing_key(), 1000, None).unwrap(),
         );
         let cert_b = certificate(
             build_cert_for(
@@ -54,20 +46,14 @@ impl Fixture {
                 "b",
                 b.signing_public(),
                 &a.device_id,
-                &a.signing_key().unwrap(),
+                a.signing_key(),
                 1100,
                 None,
             )
             .unwrap(),
         );
-        let initial = build_bootstrap_list(
-            &user,
-            &a.device_id,
-            &a.signing_key().unwrap(),
-            1000,
-            Some(20_000),
-        )
-        .unwrap();
+        let initial =
+            build_bootstrap_list(&user, &a.device_id, a.signing_key(), 1000, Some(20_000)).unwrap();
         let mut entries = initial.list().entries;
         entries.push(DeviceListEntry {
             device_id: b.device_id.clone(),
@@ -79,7 +65,7 @@ impl Fixture {
             &initial.list().entries,
             entries,
             &a.device_id,
-            &a.signing_key().unwrap(),
+            a.signing_key(),
             1100,
             Some(20_000),
         )
@@ -115,19 +101,12 @@ impl Fixture {
     }
     fn again(&self) -> IdentityBundle {
         let c = DeviceKeys::generate().unwrap();
-        let cert = build_self_cert(
-            &self.user,
-            &c.device_id,
-            "c",
-            &c.signing_key().unwrap(),
-            1500,
-            None,
-        )
-        .unwrap();
+        let cert =
+            build_self_cert(&self.user, &c.device_id, "c", c.signing_key(), 1500, None).unwrap();
         let first = build_bootstrap_list(
             &self.user,
             &c.device_id,
-            &c.signing_key().unwrap(),
+            c.signing_key(),
             1500,
             Some(20_000),
         )
@@ -147,7 +126,7 @@ impl Fixture {
             &self.both.list().entries,
             vec![self.both.list().entries[1].clone()],
             &self.b.device_id,
-            &self.b.signing_key().unwrap(),
+            self.b.signing_key(),
             1200,
             Some(20_000),
         )
@@ -202,7 +181,7 @@ fn revocation_and_generation_survive_reload() {
         &previous.entries,
         fixture.both.list().entries,
         &fixture.b.device_id,
-        &fixture.b.signing_key().unwrap(),
+        fixture.b.signing_key(),
         1300,
         Some(20_000),
     )
@@ -251,7 +230,7 @@ fn identity_replacement_and_same_generation_equivocation_fail_closed() {
     let changed_list = build_bootstrap_list(
         &fixture.user,
         &fixture.a.device_id,
-        &fixture.a.signing_key().unwrap(),
+        fixture.a.signing_key(),
         1200,
         Some(30_000),
     )
@@ -435,7 +414,7 @@ fn a_removed_device_cannot_approve_a_new_device() {
             &previous.entries,
             entries,
             &fixture.b.device_id,
-            &fixture.b.signing_key().unwrap(),
+            fixture.b.signing_key(),
             1300,
             Some(20_000),
         )
@@ -446,7 +425,7 @@ fn a_removed_device_cannot_approve_a_new_device() {
             "added",
             added.signing_public(),
             &approver.device_id,
-            &approver.signing_key().unwrap(),
+            approver.signing_key(),
             1300,
             None,
         )

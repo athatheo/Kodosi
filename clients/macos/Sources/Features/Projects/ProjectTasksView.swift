@@ -48,7 +48,7 @@ struct ProjectTasksView: View {
         .showsProjectPart(.tasks, of: state)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func lane(_ lane: ProjectTaskLaneTitle.Lane, tasks: [ProjectTask]) -> some View {
         if !tasks.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
@@ -149,7 +149,7 @@ struct ProjectTasksView: View {
         guard !title.isEmpty, !workspace.busy else { return }
         let revision = workspace.taskRevision
         workspace.busy = true; state.failure = nil
-        Task { @MainActor in
+        Task {
             defer { workspace.busy = false }
             do {
                 try await deps.projects.createTask(
@@ -223,7 +223,7 @@ private struct ProjectTaskCard: View {
         .animation(theme.motion.hover, value: hovered)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var trailing: some View {
         if let person = task.assignedName {
             PersonAvatar(name: person, key: task.assignedTo, size: 24, isSelf: mine).help(person)
@@ -264,7 +264,7 @@ private struct ProjectTaskCard: View {
 
     private func update(_ change: ProjectTaskChange, note: String? = nil) {
         workspace.busy = true; state.failure = nil
-        Task { @MainActor in
+        Task {
             defer { workspace.busy = false }
             do {
                 try await deps.projects.update(task, in: projectId, change: change, note: note)

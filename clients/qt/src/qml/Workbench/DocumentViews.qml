@@ -24,10 +24,10 @@ QtObject {
         }
     }
 
-    function nameOf(sessionId, key) {
+    function nameOf(sessionId: string, key: string): string {
         return sessionId + "\n" + key;
     }
-    function show(sessionId, key, view, place) {
+    function show(sessionId: string, key: string, view: string, place: Item): void {
         const name = nameOf(sessionId, key);
         if (!pages[name])
             pages[name] = page.createObject(parking, { sessionId: sessionId, key: key, view: view });
@@ -35,21 +35,21 @@ QtObject {
         shown.parent = place;
         shown.anchors.fill = place;
     }
-    function hide(sessionId, key) {
+    function hide(sessionId: string, key: string): void {
         const shown = pages[nameOf(sessionId, key)];
         if (!shown)
             return;
         shown.anchors.fill = undefined;
         shown.parent = parking;
     }
-    function selection(sessionId, key, done) {
+    function selection(sessionId: string, key: string, done: var): void {
         const shown = pages[nameOf(sessionId, key)];
         if (shown)
             shown.selection(done);
         else
             done("");
     }
-    function close(sessionId, key) {
+    function close(sessionId: string, key: string): void {
         const name = nameOf(sessionId, key);
         const shown = pages[name];
         delete pages[name];

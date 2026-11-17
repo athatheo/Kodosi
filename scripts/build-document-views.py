@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Builds the view bundle of live documents, when its sources changed, and copies it."""
 
+# Xcode runs this with its own Python 3.9.
 import argparse
 import os
 import shutil

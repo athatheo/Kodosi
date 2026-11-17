@@ -43,7 +43,7 @@ import Testing
     #expect(!token.canSendInput)
 }
 
-@Test @MainActor func `focus blur and resize use canonical subscription token`() throws {
+@Test func `focus blur and resize use canonical subscription token`() throws {
     let token = TerminalConnectionToken()
     let sessionId = UUIDv7.generate()
     let incarnationId = UUIDv7.generate()

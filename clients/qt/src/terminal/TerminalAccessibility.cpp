@@ -110,7 +110,7 @@ public:
     void selection(int selectionIndex, int* startOffset, int* endOffset) const override
     {
         const auto* view = terminalView();
-        const auto selection = view == nullptr ? QPair {-1, -1}
+        const auto selection = view == nullptr ? std::pair {-1, -1}
                                                : view->accessibleSelection();
         if (selectionIndex == 0 && selection.first >= 0) {
             *startOffset = selection.first;

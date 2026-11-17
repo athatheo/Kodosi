@@ -273,7 +273,7 @@ impl Shape {
             asset: text("asset"),
             link: json.get("link").filter(|link| !link.is_null()).cloned(),
             text: tree,
-            look: json.get("look").cloned().unwrap_or(Value::Null),
+            look: json.get("look").cloned().unwrap_or_default(),
             order: json["order"].as_u64().unwrap_or(0),
             source: text("source"),
         })

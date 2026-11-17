@@ -6,10 +6,8 @@ using Npgsql;
 
 namespace Kodosi;
 
-internal sealed record ErrorBody(
-    string Error,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Limit = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? Most = null);
+[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+internal sealed record ErrorBody(string Error, string? Limit = null, long? Most = null);
 
 internal sealed partial class ApiErrors(RequestDelegate next, ServerMetrics metrics, ILogger<ApiErrors> logger)
 {

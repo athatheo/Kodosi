@@ -219,7 +219,7 @@ struct SidebarView: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func folder(_ group: SessionFolderGroup, underCaption: Bool) -> some View {
         let collapsed = group.directory != nil && collapsedFolders.contains(group.id)
         if group.directory != nil {

@@ -32,8 +32,7 @@ public sealed partial class ContractTests(PostgresFixture postgres)
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "protocol", file))) directory = directory.Parent;
         Assert.NotNull(directory);
-        using var json = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory.FullName, "protocol", file)));
-        return json.RootElement.Clone();
+        return JsonElement.Parse(File.ReadAllBytes(Path.Combine(directory.FullName, "protocol", file)));
     }
 
     private static List<(string Route, RouteEndpoint Endpoint)> Routes(BackendApplication app) =>

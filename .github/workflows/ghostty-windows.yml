@@ -45,19 +45,14 @@ jobs:
         run: |
           tools="$(cygpath -u "$RUNNER_TEMP")/kodosi-tools"
           mkdir -p "$tools"
-          # The runner's Git Bash has python, not python3.
-          cat > "$tools/python3" <<'EOF'
-          #!/bin/sh
-          exec python "$@"
-          EOF
           if ! command -v unzip >/dev/null; then
               cat > "$tools/unzip" <<'EOF'
           #!/bin/sh
           [ "$1" = -q ] && shift
           exec python -m zipfile -e "$1" "$3"
           EOF
+              chmod +x "$tools/unzip"
           fi
-          chmod +x "$tools"/*
           PATH="$tools:$PATH" terminal/ghostty/scripts/build.sh
       - name: Check that the committed library has the inputs of this build
         run: |
@@ -75,3 +70,4 @@ jobs:
             terminal/ghostty/Vendor/GhosttyVt/windows-x86_64
             terminal/ghostty/Vendor/GhosttyVt/windows-x86_64.version
           if-no-files-found: error
+          retention-days: 14

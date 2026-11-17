@@ -32,9 +32,10 @@ public sealed class CurrentUser(KodosiDbContext db, TimeProvider clock)
             if (remembered && !(SignedInAt(context.User) > deleted.DeletedAt)) throw ApiException.Gone();
             db.DeletedAccounts.Remove(deleted);
         }
-        var handle = context.User.FindFirstValue("preferred_username")?.ToLowerInvariant();
-        if (handle is null || handle.Length is < 3 or > 64 || !handle.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c is '_' or '-'))
+        var name = context.User.FindFirstValue("preferred_username");
+        if (name is null || name.Length is < 3 or > 64 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
             throw ApiException.Forbidden("The sign-in service gave no user name that Kodosi can use.");
+        var handle = name.ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Handle == handle, ct))
         {
             loaded = await db.Users.SingleOrDefaultAsync(x => x.Issuer == issuer && x.Subject == subject, ct);

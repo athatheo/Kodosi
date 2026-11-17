@@ -15,7 +15,7 @@ TextEdit {
 
     signal submitted
 
-    function wake() {
+    function wake(): void {
         lit = true
         holds = true
         blink.restart()

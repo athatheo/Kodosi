@@ -2,7 +2,7 @@ package com.kodosi.mobile.notifications
 
 import com.kodosi.mobile.terminals.AgentKind
 import com.kodosi.mobile.terminals.ProgramStatus
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 data class PushedTerminal(val terminal: String, val agent: AgentKind, val status: ProgramStatus, val sound: Boolean) {
     companion object {
@@ -12,11 +12,7 @@ data class PushedTerminal(val terminal: String, val agent: AgentKind, val status
             val parts = text.split(':')
             if (parts.size != 5) return null
             val (terminal, agent, state, kind, sound) = parts
-            if (terminal.length != 36 ||
-                !runCatching { UUID.fromString(terminal).toString() == terminal.lowercase() }.getOrDefault(false)
-            ) {
-                return null
-            }
+            if (Uuid.parseHexDashOrNull(terminal) == null) return null
             val status = ProgramStatus(
                 when (state) {
                     "blocked" -> ProgramStatus.State.BLOCKED

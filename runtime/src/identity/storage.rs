@@ -105,10 +105,11 @@ impl Secrets {
                 drop(reply.send(result));
             })
             .map_err(crate::network::Error::from)?;
-        tokio::select! {
-            () = cancel.cancelled() => Err(crate::network::Error::Stale),
-            result = response => result.map_err(|_| crate::network::Error::Closed)?,
-        }
+        cancel
+            .run_until_cancelled(response)
+            .await
+            .ok_or(crate::network::Error::Stale)?
+            .map_err(|_| crate::network::Error::Closed)?
     }
 
     fn label(key: &str) -> Result<String> {

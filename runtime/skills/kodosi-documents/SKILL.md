@@ -48,7 +48,8 @@ An op is a JSON object with its name in `op`:
 ```
 
 - Sheet: `{ "op": "setCell", "sheet": "Sheet1", "cell": "B4", "formula": "=SUM(B2:B3)" }`.
-  `read` then prints the value that the formula gives.
+  `read` then prints the value that the formula gives. When a workbook's formulas cannot be
+  worked out in time, `read` and `check` say so in place of their values and errors.
 - Presentation: `{ "op": "addSlide" }`, then read again for the ids of the new slide and its
   shapes, and `setText` them.
 - PDF: `{ "op": "setField", "name": "Name", "value": "Ana" }`. `redact` removes what a page

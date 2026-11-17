@@ -65,6 +65,9 @@ pub(crate) struct Sheet {
     pub(crate) anchors: Vec<Anchor>,
     /// Rows or columns moved, so a save writes the whole sheet.
     pub(crate) moved: bool,
+    /// A chart sheet, like any sheet without sheet data, has no cells: a save keeps it as it is,
+    /// and a change to its cells, rows or columns is refused.
+    pub(crate) chart: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -109,6 +112,8 @@ pub struct Model {
     pub(crate) names: Vec<DefinedName>,
     /// The highest sheet number so far, so that a new sheet never takes a removed one's.
     pub(crate) last_number: u32,
+    /// Whether the file counts days from 1904, as Excel for Mac once did, rather than from 1900.
+    pub(crate) dates_from_1904: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

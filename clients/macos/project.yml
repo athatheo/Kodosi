@@ -17,7 +17,7 @@ packages:
     path: ../apple
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
-    exactVersion: 2.10.0
+    exactVersion: 2.10.1
 
 aggregateTargets:
   RuntimeLibrary:
@@ -32,9 +32,11 @@ settingGroups:
     MARKETING_VERSION: "${KODOSI_VERSION}"
     CURRENT_PROJECT_VERSION: "${KODOSI_VERSION}"
     SWIFT_VERSION: "6.0"
-    SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    OTHER_SWIFT_FLAGS: $(inherited) -enable-upcoming-feature ImmutableWeakCaptures
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: C5886CWK32
     GENERATE_INFOPLIST_FILE: NO

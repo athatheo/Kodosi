@@ -30,7 +30,7 @@ public extension EnvironmentValues {
 public extension View {
     func kodosiPopover(
         isPresented: Binding<Bool>, arrowEdge: Edge = .bottom, alignment: HorizontalAlignment = .center,
-        @ViewBuilder content: @escaping () -> some View,
+        @ContentBuilder content: @escaping () -> some View,
     ) -> some View {
         #if os(macOS)
             modifier(KodosiPopoverSource(isPresented: isPresented, edge: arrowEdge, alignment: alignment, popover: content))
@@ -82,7 +82,7 @@ public extension View {
 
 #if os(macOS)
     public extension View {
-        func kodosiFlyout(isPresented: Bool, @ViewBuilder content: @escaping () -> some View) -> some View {
+        func kodosiFlyout(isPresented: Bool, @ContentBuilder content: @escaping () -> some View) -> some View {
             anchorPreference(key: KodosiFlyoutKey.self, value: .bounds) { anchor in
                 isPresented ? [KodosiFlyoutItem(anchor: anchor, content: AnyView(content()))] : []
             }
@@ -127,7 +127,7 @@ public extension View {
                 .onChange(of: isPresented) { _, now in
                     guard !now, !theme.motion.reduced else { return }
                     leaving = true
-                    Task { @MainActor in
+                    Task {
                         try? await Task.sleep(for: .milliseconds(140))
                         if !isPresented {
                             leaving = false

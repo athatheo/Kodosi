@@ -167,11 +167,7 @@ pub fn real_path(path: &Path) -> io::Result<PathBuf> {
 }
 
 fn name_of(path: &Path) -> String {
-    let digest = Sha256::digest(path.as_os_str().as_encoded_bytes());
-    digest
-        .iter()
-        .take(16)
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"))
+    document::hex(&Sha256::digest(path.as_os_str().as_encoded_bytes())[..16])
 }
 
 pub struct Pipe {

@@ -280,9 +280,10 @@ impl Runtime {
             Command::ListRepositories { project_id, .. } => {
                 self.job_capacity()?;
                 let folders = self.repository_folders(project_id.as_deref());
+                let client = self.network.inner.http.client.clone();
                 let command = command.clone();
                 self.spawn(async move {
-                    let result = crate::projects::providers::choices(folders)
+                    let result = crate::projects::providers::choices(&client, folders)
                         .await
                         .map_err(Error::from);
                     Completion::Repositories { command, result }
@@ -567,11 +568,11 @@ impl Runtime {
         tokio::spawn(async move {
             let mut sequence = 0_u64;
             'frames: loop {
-                let frame = tokio::select! {
-                    () = lifetime.cancelled() => None,
-                    frame = receiver.recv() => frame,
-                };
-                let Some(frame) = frame else {
+                let Some(frame) = lifetime
+                    .run_until_cancelled(receiver.recv())
+                    .await
+                    .flatten()
+                else {
                     break;
                 };
                 let parts = frame.len().div_ceil(crate::canvas::PART_BYTES);
@@ -1082,13 +1083,8 @@ impl Runtime {
     }
 
     fn require_owner(&self, id: Uuid) -> Result<()> {
-        if self.hosts(&id) || self.remotes.get(&id).is_some_and(|entry| entry.is_owner) {
-            Ok(())
-        } else {
-            Err(Error::Refused(text!(
-                "Only the owner can change this terminal."
-            )))
-        }
+        (self.hosts(&id) || self.remotes.get(&id).is_some_and(|entry| entry.is_owner))
+            .ok_or_else(|| Error::Refused(text!("Only the owner can change this terminal.")))
     }
 
     #[cfg(feature = "host")]
@@ -1287,11 +1283,7 @@ impl Runtime {
     }
 
     pub(super) fn reachable(&self, id: Uuid) -> Result<()> {
-        if self.host_online(id) {
-            Ok(())
-        } else {
-            Err(self.offline(id))
-        }
+        self.host_online(id).ok_or_else(|| self.offline(id))
     }
 
     fn offline(&self, id: Uuid) -> Error {

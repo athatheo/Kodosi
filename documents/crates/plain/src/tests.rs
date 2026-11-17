@@ -402,8 +402,8 @@ fn a_diff_keeps_as_many_lines_as_the_texts_share_and_its_stretches_make_the_new_
         u8::try_from((seed >> 33) % below).unwrap()
     };
     for _ in 0..200 {
-        let old: Vec<u8> = (0..next(30)).map(|_| next(4)).collect();
-        let new: Vec<u8> = (0..next(30)).map(|_| next(4)).collect();
+        let old = Vec::from_fn(usize::from(next(30)), |_| next(4));
+        let new = Vec::from_fn(usize::from(next(30)), |_| next(4));
         let kept = diff::kept(&old, &new);
         assert_eq!(kept.len(), common(&old, &new), "{old:?} {new:?}");
         assert!(kept.iter().all(|(at, to)| old[*at] == new[*to]));

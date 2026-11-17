@@ -10,9 +10,23 @@ export function plain(html: string): string {
   return new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
 }
 
+const LINK_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+function schemeOf(href: string): string {
+  try {
+    return new URL(href, location.href).protocol;
+  } catch {
+    return "";
+  }
+}
+
 export function safeHtml(html: string): string {
   const page = new DOMParser().parseFromString(kcSanitize(html), "text/html");
   for (const link of page.querySelectorAll("a[href]")) {
+    if (!LINK_SCHEMES.has(schemeOf(link.getAttribute("href") ?? ""))) {
+      link.replaceWith(...link.childNodes);
+      continue;
+    }
     link.setAttribute("target", "_blank");
     link.setAttribute("rel", "noreferrer");
   }

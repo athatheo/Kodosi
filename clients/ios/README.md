@@ -4,9 +4,10 @@ The native iOS app follows your terminals and projects. It embeds the viewer bui
 Rust runtime and Ghostty's terminal view, and shares code with the Mac app through the
 [shared Swift package](../apple/Package.swift).
 
-You need Xcode with the iOS 26 SDK and simulator, the pinned Rust toolchain with the iOS
-targets (`just ios-rust-targets-install`), and `just`, Python 3, `xcodegen`,
-`swiftformat` and `swiftlint`.
+Besides the [shared tools](../../docs/DEVELOPMENT.md#toolchains), you need Xcode 27.2 or
+later with its iOS simulator and the pinned Rust toolchain with the iOS targets
+(`just ios-rust-targets-install`). The first build puts the SwiftLint, SwiftFormat and
+XcodeGen that [Tools.env](../apple/Tools.env) pins in `clients/apple/.tools/`.
 
 ```sh
 just ios-build

@@ -27,9 +27,7 @@ set(KODOSI_GHOSTTY_VT_ARCHIVE_NAME "ghostty-vt-static.lib")
 set(KODOSI_RUNTIME_SYSTEM_LIBRARIES kernel32 ntdll userenv ws2_32 dbghelp)
 set(KODOSI_COMPILE_OPTIONS /W4 -Wpedantic /WX)
 # Rust's compiler_builtins and Zig's compiler_rt both define the builtins as weak symbols.
-if(CMAKE_CXX_COMPILER_LINKER_ID STREQUAL "LLD")
-    add_link_options(-lld-allow-duplicate-weak)
-endif()
+set(KODOSI_RUNTIME_LINK_OPTIONS "$<$<CXX_COMPILER_LINKER_ID:LLD>:-lld-allow-duplicate-weak>")
 set(KODOSI_PLATFORM_SOURCES
     platform/windows/PackageUpdate.cpp
     platform/windows/PackageUpdate.hpp
@@ -52,7 +50,10 @@ set(KODOSI_MSIX_PUBLISHER "CN=Kodosi Development, OID.2.25.311729368913984317654
     CACHE STRING "MSIX publisher, equal to the signing certificate subject")
 
 function(kodosi_install app)
-    set_target_properties(${app} PROPERTIES WIN32_EXECUTABLE ON)
+    set_target_properties(${app} PROPERTIES
+        WIN32_EXECUTABLE ON
+        QT_WINDOWS_APP_PROJECT_IDENTIFIER com.kodosi.Kodosi
+    )
     configure_file(
         "${PROJECT_SOURCE_DIR}/packaging/windows/Kodosi.rc.in"
         "${PROJECT_BINARY_DIR}/Kodosi.rc"
@@ -86,9 +87,23 @@ function(kodosi_install app)
         OUTPUT_SCRIPT deploy_script
         NO_TRANSLATIONS
         NO_COMPILER_RUNTIME
-        DEPLOY_TOOL_OPTIONS --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --skip-plugin-types position
+        EXCLUDE_PLUGIN_TYPES position
+        DEPLOY_TOOL_OPTIONS --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler
     )
-    install(SCRIPT "${deploy_script}")
+    set(languages_deploy_script "${CMAKE_CURRENT_BINARY_DIR}/deploy-kodosi-languages.cmake")
+    list(JOIN KODOSI_QT_LANGUAGES " " qt_languages)
+    list(TRANSFORM KODOSI_CHROMIUM_LANGUAGES
+        REPLACE "^(.+)$" "\"${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtwebengine_locales/\\1.pak\""
+        OUTPUT_VARIABLE chromium_locales)
+    list(JOIN chromium_locales " " chromium_locales)
+    file(GENERATE
+        OUTPUT "${languages_deploy_script}"
+        CONTENT "include(\"${deploy_script}\")
+qt_deploy_translations(LOCALES ${qt_languages} CATALOGS qtbase qtdeclarative)
+file(INSTALL ${chromium_locales} DESTINATION \"\${CMAKE_INSTALL_PREFIX}/\${QT_DEPLOY_TRANSLATIONS_DIR}/qtwebengine_locales\")
+"
+    )
+    install(SCRIPT "${languages_deploy_script}")
 
     set(KODOSI_MSIX_VERSION "${PROJECT_VERSION}.0")
     string(REPLACE "&" "&amp;" KODOSI_MSIX_PUBLISHER_XML "${KODOSI_MSIX_PUBLISHER}")

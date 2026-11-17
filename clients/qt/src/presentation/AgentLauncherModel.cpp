@@ -46,7 +46,7 @@ QVariantMap describedLimit(QVariantMap limit)
     limit.insert(QStringLiteral("id"), !scope.isEmpty() ? QStringLiteral("scope:") + scope
             : monthly ? QStringLiteral("month") : QStringLiteral("hours:") + QString::number(count));
     limit.insert(QStringLiteral("window"), window);
-    limit.insert(QStringLiteral("spoken"), AgentLauncherModel::tr("%1: %2% used").arg(name).arg(limit.value(QStringLiteral("used")).toInt()));
+    limit.insert(QStringLiteral("spoken"), AgentLauncherModel::tr("%1: %2% used").arg(name, QString::number(limit.value(QStringLiteral("used")).toInt())));
     return limit;
 }
 }

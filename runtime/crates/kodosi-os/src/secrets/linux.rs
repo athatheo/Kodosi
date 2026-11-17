@@ -11,6 +11,10 @@ use zbus_secret_service_keyring_store::Store as SecretService;
 use zeroize::Zeroizing;
 
 const OPENING: Duration = Duration::from_secs(10);
+/// The Secret Service of KDE refuses about one opening in 256, whose key secret-service sends
+/// without its leading zero byte (secret-service-rs#127). Each opening draws a new key.
+const OPENINGS: usize = 3;
+const REFUSED_ARGUMENTS: &str = "org.freedesktop.DBus.Error.InvalidArgs";
 
 static SECRET_SERVICE: Session<SecretService> = Session::new();
 
@@ -20,7 +24,25 @@ pub(super) fn available() -> bool {
 
 fn secret_service() -> io::Result<Arc<SecretService>> {
     SECRET_SERVICE.get(OPENING, || {
-        SecretService::new().map_err(|error| unavailable(&error))
+        let mut openings = 1;
+        loop {
+            match SecretService::new() {
+                Err(error) if openings < OPENINGS && refused_key(&error) => openings += 1,
+                opened => return opened.map_err(|error| unavailable(&error)),
+            }
+        }
+    })
+}
+
+fn refused_key(error: &Error) -> bool {
+    std::iter::successors(Some::<&(dyn std::error::Error + 'static)>(error), |error| {
+        error.source()
+    })
+    .any(|error| {
+        matches!(
+            error.downcast_ref::<zbus::Error>(),
+            Some(zbus::Error::MethodError(name, ..)) if *name == REFUSED_ARGUMENTS
+        )
     })
 }
 

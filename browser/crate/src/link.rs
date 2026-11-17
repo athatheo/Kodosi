@@ -13,6 +13,9 @@ use crate::message::{Dialog, MenuItem, Size};
 /// needs a normal user.
 pub const AS_ROOT: i32 = 73;
 
+/// The host bounds what a page says, so a bigger icon shows as none.
+pub const MOST_ICON: usize = 12 * 1024;
+
 /// The bytes before a picture's data: its window, whether it is a key frame, and its time.
 const FRAME_HEADER: usize = 8 + 1 + 8;
 

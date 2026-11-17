@@ -155,7 +155,7 @@ struct BrowserSettingsView: View {
         working = key
         problem = nil
         done[key] = nil
-        Task { @MainActor in
+        Task {
             do {
                 try await action()
             } catch {

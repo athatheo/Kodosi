@@ -12,7 +12,7 @@ struct InMemoryTerminalSessionViewportTests {
 
     @Test
     func `backend resize callback does not dispatch host resize`() {
-        let collector = ViewportCollector()
+        let collector = LockedValues<InMemoryTerminalViewport>()
         let session = InMemoryTerminalSession(
             write: { _ in },
             resize: { collector.append($0) }
@@ -31,7 +31,7 @@ struct InMemoryTerminalSessionViewportTests {
 
     @Test
     func `platform viewport dispatches authoritative geometry`() {
-        let collector = ViewportCollector()
+        let collector = LockedValues<InMemoryTerminalViewport>()
         let session = InMemoryTerminalSession(
             write: { _ in },
             resize: { collector.append($0) }
@@ -57,20 +57,5 @@ struct InMemoryTerminalSessionViewportTests {
                 cellHeightPixels: 30
             ),
         ])
-    }
-}
-
-final class ViewportCollector: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [InMemoryTerminalViewport] = []
-
-    var values: [InMemoryTerminalViewport] {
-        lock.withLock { storage }
-    }
-
-    func append(_ viewport: InMemoryTerminalViewport) {
-        lock.withLock {
-            storage.append(viewport)
-        }
     }
 }

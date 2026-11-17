@@ -62,7 +62,7 @@ public sealed class DeviceSessions(TimeProvider clock)
         lock (sync)
         {
             SweepLocked(now);
-            if (!byDevice.TryGetValue(userId, out var devices)) byDevice[userId] = devices = new Dictionary<string, List<SessionKey>>(StringComparer.Ordinal);
+            if (!byDevice.TryGetValue(userId, out var devices)) byDevice[userId] = devices = [with(StringComparer.Ordinal)];
             if (!devices.TryGetValue(deviceId, out var held)) devices[deviceId] = held = [];
             while (held.Count >= SessionsForEachDevice)
             {

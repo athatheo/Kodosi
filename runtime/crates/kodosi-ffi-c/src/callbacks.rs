@@ -9,6 +9,13 @@ use super::{
 };
 
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        expect(
+            clippy::missing_const_for_thread_local,
+            reason = "Clippy flags an initializer that is already const where std keeps thread locals with the OS (rust-clippy#17566)"
+        )
+    )]
     static CALLBACK_GATES: RefCell<Vec<*const Gate>> = const { RefCell::new(Vec::new()) };
 }
 

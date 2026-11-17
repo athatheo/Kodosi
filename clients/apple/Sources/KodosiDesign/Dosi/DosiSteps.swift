@@ -195,7 +195,7 @@ struct DosiToolGroup: View {
             Button { open.toggle() } label: {
                 HStack(spacing: 7) {
                     HStack(spacing: -4) {
-                        ForEach(Array(marks(tools).enumerated()), id: \.offset) { _, tool in
+                        ForEach(marks(tools).enumerated(), id: \.offset) { _, tool in
                             DosiMini(target: tool.target, action: tool.action)
                                 .overlay { RoundedRectangle(cornerRadius: 4.2, style: .continuous).stroke(theme.colors.ground, lineWidth: 1.5) }
                         }

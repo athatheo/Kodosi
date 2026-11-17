@@ -256,8 +256,7 @@ fn recipient_key(keys: &DeviceKeys, user: &str) -> RecipientKey {
         user_id: user.to_owned(),
         device_id: keys.device_id.clone(),
         public_key: BASE64.encode(keys.project_public()),
-        signature: BASE64
-            .encode(crypto::sign_control_message(keys.signing_pkcs8(), &proof).unwrap()),
+        signature: BASE64.encode(crypto::sign(keys.signing_key(), &proof).unwrap()),
     }
 }
 

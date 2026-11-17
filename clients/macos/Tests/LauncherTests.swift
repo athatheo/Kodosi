@@ -3,7 +3,6 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@MainActor
 private func launcherApp(_ prefix: String) throws -> (AppDependencies, () -> [[String: JSONValue]]) {
     let defaults = try #require(EphemeralUserDefaults(prefix: prefix))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
@@ -52,7 +51,6 @@ private let catalog: JSONValue = .object([
     ]),
 ])
 
-@MainActor
 private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: JSONValue]]) async throws {
     var answered = Set<String>()
     for _ in 0 ..< 500 where app.launcher.catalog == nil {
@@ -66,7 +64,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     }
 }
 
-@Test @MainActor func `new terminal focuses the home launcher and opens a sheet elsewhere`() throws {
+@Test func `new terminal focuses the home launcher and opens a sheet elsewhere`() throws {
     let (app, _) = try launcherApp("LauncherHome")
     defer { app.shutdownProcess() }
     app.openLauncher()
@@ -89,7 +87,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     #expect(app.workbench.launcherDraft == LauncherDraft())
 }
 
-@Test @MainActor func `a terminal started for a project joins that project`() async throws {
+@Test func `a terminal started for a project joins that project`() async throws {
     let (app, sent) = try launcherApp("LauncherProject")
     defer { app.shutdownProcess() }
     let creating = Task { try await app.createSession(name: "Test", directory: "/work", projectId: "project", command: "claude") }
@@ -106,11 +104,11 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
         "requestId": .string(request), "sessionId": .string(created), "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     #expect(app.freshTerminals.contains(created))
 }
 
-@Test @MainActor func `a folder's plus starts a plain terminal there without the launcher`() async throws {
+@Test func `a folder's plus starts a plain terminal there without the launcher`() async throws {
     let (app, sent) = try launcherApp("LauncherFolder")
     defer { app.shutdownProcess() }
     app.openTerminal(in: "/work/atlas")
@@ -136,7 +134,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     #expect(app.freshTerminals.contains(created))
 }
 
-@MainActor private func quickFolder(_ prefix: String, selected: RuntimeSession?, last: String? = nil) throws -> String? {
+private func quickFolder(_ prefix: String, selected: RuntimeSession?, last: String? = nil) throws -> String? {
     let (app, _) = try launcherApp(prefix)
     defer { app.shutdownProcess() }
     app.sessions = selected.map { [$0] } ?? []
@@ -145,13 +143,13 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     return app.quickFolder
 }
 
-@Test @MainActor func `a quick terminal starts in the folder of the selected terminal of this computer`() throws {
+@Test func `a quick terminal starts in the folder of the selected terminal of this computer`() throws {
     let here = FileManager.default.temporaryDirectory.path
     let local = try runtimeSession(kind: "local", connection: "local", directory: here)
     #expect(try quickFolder("QuickLocal", selected: local, last: "/") == here)
 }
 
-@Test @MainActor func `a quick terminal starts where the launcher would without a folder of this computer`() throws {
+@Test func `a quick terminal starts where the launcher would without a folder of this computer`() throws {
     let here = FileManager.default.temporaryDirectory.path
     #expect(try quickFolder("QuickNone", selected: nil, last: here) == here)
     #expect(try quickFolder("QuickRemote", selected: runtimeSession(), last: here) == here)
@@ -160,7 +158,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     #expect(try quickFolder("QuickHome", selected: nil, last: "/no/such/folder") == nil)
 }
 
-@Test @MainActor func `a quick terminal is a plain terminal and skips the launcher`() async throws {
+@Test func `a quick terminal is a plain terminal and skips the launcher`() async throws {
     let (app, sent) = try launcherApp("QuickPlain")
     defer { app.shutdownProcess() }
     app.workbench.launcher = LauncherRequest()
@@ -192,7 +190,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     #expect(!app.typeAhead.isHolding)
 }
 
-@Test @MainActor func `a quick terminal says so when the stage is full and starts nothing`() async throws {
+@Test func `a quick terminal says so when the stage is full and starts nothing`() async throws {
     let (app, sent) = try launcherApp("QuickFull")
     defer { app.shutdownProcess() }
     app.workbench.stagedSessionIds = (0 ..< WorkbenchState.maximumStagedSessions).map { _ in UUIDv7.generate() }
@@ -205,7 +203,7 @@ private func answerAgentRequests(_ app: AppDependencies, sent: () -> [[String: J
     #expect(!app.typeAhead.isHolding)
 }
 
-@Test @MainActor func `a quick terminal starts in single view when the stage is full`() async throws {
+@Test func `a quick terminal starts in single view when the stage is full`() async throws {
     let (app, sent) = try launcherApp("QuickFullAlone")
     defer { app.shutdownProcess() }
     app.workbench.stagedSessionIds = (0 ..< WorkbenchState.maximumStagedSessions).map { _ in UUIDv7.generate() }
@@ -229,7 +227,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     return try JSONDecoder().decode(RuntimeSession.self, from: JSONEncoder().encode(fields))
 }
 
-@Test @MainActor func `same agent starts one more like the selected terminal of this computer that runs an agent`() async throws {
+@Test func `same agent starts one more like the selected terminal of this computer that runs an agent`() async throws {
     let (app, sent) = try launcherApp("SameAgent")
     defer { app.shutdownProcess() }
     let claude = try terminal(running: ["program": .string("claude")])
@@ -256,7 +254,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     #expect(created.allSatisfy { $0["agent"] == nil })
 }
 
-@Test @MainActor func `a launcher for another computer asks that computer and starts there`() async throws {
+@Test func `a launcher for another computer asks that computer and starts there`() async throws {
     let (app, sent) = try launcherApp("LauncherComputer")
     defer { app.shutdownProcess() }
     let studio = app.launcher(for: "studio")
@@ -284,11 +282,11 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
         "requestId": .string(#require(fields["requestId"]?.stringValue)), "sessionId": .string(UUIDv7.generate()),
         "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     #expect(app.settings.lastWorkingDir == "/Users/maya/here")
 }
 
-@Test @MainActor func `the folder menu keeps the host's recent folders after a restart`() async throws {
+@Test func `the folder menu keeps the host's recent folders after a restart`() async throws {
     let (app, sent) = try launcherApp("LauncherRecent")
     defer { app.shutdownProcess() }
     app.settings.lastWorkingDir = "/work/atlas"
@@ -323,7 +321,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     #expect(windows.child("Repos") == #"C:\Users\maya\Repos"#)
 }
 
-@Test @MainActor func `the launcher starts the agent as it shows it`() async throws {
+@Test func `the launcher starts the agent as it shows it`() async throws {
     let (app, sent) = try launcherApp("LauncherPlan")
     defer { app.shutdownProcess() }
     try await answerAgentRequests(app, sent: sent)
@@ -339,7 +337,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     #expect(plan.shown?.permissions == .ask)
 }
 
-@Test @MainActor func `usage shows only on accounts that are signed in`() async throws {
+@Test func `usage shows only on accounts that are signed in`() async throws {
     let (app, sent) = try launcherApp("LauncherUsage")
     defer { app.shutdownProcess() }
     try await answerAgentRequests(app, sent: sent)
@@ -365,7 +363,7 @@ private func terminal(running agent: [String: JSONValue]) throws -> RuntimeSessi
     #expect(plan.usage(of: plan.info?.accounts.first)?.used == 91)
 }
 
-@Test @MainActor func `a choice made here outlives an answer asked before it`() async throws {
+@Test func `a choice made here outlives an answer asked before it`() async throws {
     let (app, sent) = try launcherApp("LauncherChoice")
     defer { app.shutdownProcess() }
     var asked: String?

@@ -23,7 +23,7 @@ struct VerificationCode: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 8) {
-                ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                ForEach(groups.enumerated(), id: \.offset) { index, group in
                     Text(group)
                         .font(.system(size: 26, weight: .semibold, design: .monospaced))
                         .minimumScaleFactor(0.6)

@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 KDialog {
     id: root
@@ -13,7 +13,7 @@ KDialog {
 
     signal copyRequested(string target)
 
-    function ask(asked, shown) {
+    function ask(asked: url, shown: string): void {
         if (visible)
             return;
         link = asked;
@@ -22,7 +22,7 @@ KDialog {
         open();
     }
 
-    function refuse(shown, why) {
+    function refuse(shown: string, why: string): void {
         if (visible)
             return;
         target = shown;

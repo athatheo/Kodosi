@@ -165,7 +165,7 @@ struct ProjectMessageRow: View {
     }
 
     private func delete() {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.delete(message, in: projectId)
             } catch { state.failure = error.localizedDescription }
@@ -173,7 +173,7 @@ struct ProjectMessageRow: View {
     }
 
     private func makeTask() {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.makeTask(from: message, in: projectId)
                 madeTask = true

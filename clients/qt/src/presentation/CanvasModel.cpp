@@ -592,7 +592,7 @@ int CanvasModel::publish(const QString& sessionId, const QString& key)
 QString CanvasModel::pageAddress(const QString& sessionId, const QString& key)
 {
     const auto number = publish(sessionId, key);
-    return number == 0 ? QString {} : QStringLiteral("%1://page/%2").arg(pageScheme).arg(number);
+    return number == 0 ? QString {} : QStringLiteral("%1://page/%2").arg(pageScheme, QString::number(number));
 }
 
 QString CanvasModel::pictureAddress(const QString& sessionId, const QString& key)

@@ -58,11 +58,7 @@ fn inflate(
         let used = consumed(before, stream.total_in())?;
         input = &input[used..];
         if status == Status::StreamEnd {
-            return if input.is_empty() {
-                Ok(())
-            } else {
-                Err(corrupt())
-            };
+            return input.is_empty().ok_or_else(corrupt);
         }
         if input.is_empty() && output.len() < output.capacity() {
             return Err(corrupt());

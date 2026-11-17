@@ -64,7 +64,7 @@ public extension View {
                         shown = true
                         return
                     }
-                    waiting = Task { @MainActor in
+                    waiting = Task {
                         try? await Task.sleep(for: .milliseconds(450))
                         guard !Task.isCancelled else { return }
                         instant = false

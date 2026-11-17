@@ -97,7 +97,7 @@ struct SessionDetailsView: View {
         return current.isConnected ? nil : current.message ?? current.statusLabel
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func access(_ current: RuntimeSession) -> some View {
         if deps.account.userId == nil {
             ListRow(String(localized: "Only on this Mac"), subtitle: String(localized: "Sign in to share it"), symbol: "lock.fill", tint: TileTint.graphite)
@@ -124,7 +124,7 @@ struct SessionDetailsView: View {
     private func leave() {
         guard let current else { return }
         error = nil
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.mutateSession("session.leave", session: current)
                 dismiss()

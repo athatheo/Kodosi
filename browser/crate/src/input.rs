@@ -23,8 +23,7 @@ pub(crate) fn address(typed: &str) -> String {
         let name = host
             .split(']')
             .next()
-            .map(|name| format!("{name}]"))
-            .unwrap_or_default();
+            .map_or_default(|name| format!("{name}]"));
         (name, false)
     } else if let Some((name, port)) = host.rsplit_once(':') {
         if !port.bytes().all(|byte| byte.is_ascii_digit()) {

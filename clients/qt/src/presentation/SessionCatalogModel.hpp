@@ -11,14 +11,14 @@ namespace kodosi {
 
 class SessionCatalogModel final : public QAbstractListModel {
     Q_OBJECT
-    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
-    Q_PROPERTY(QVariantList folderGroups READ folderGroups NOTIFY folderGroupsChanged)
-    Q_PROPERTY(QVariantList sessions READ sessions NOTIFY folderGroupsChanged)
-    Q_PROPERTY(QVariantList listedSessions READ listedSessions NOTIFY folderGroupsChanged)
-    Q_PROPERTY(QStringList attention READ attention NOTIFY attentionChanged)
-    Q_PROPERTY(QVariantMap pictures READ pictures NOTIFY picturesChanged)
-    Q_PROPERTY(AuthorityState authorityState READ authorityState NOTIFY authorityStateChanged)
-    Q_PROPERTY(QString authorityError READ authorityError NOTIFY authorityStateChanged)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged FINAL)
+    Q_PROPERTY(QVariantList folderGroups READ folderGroups NOTIFY folderGroupsChanged FINAL)
+    Q_PROPERTY(QVariantList sessions READ sessions NOTIFY folderGroupsChanged FINAL)
+    Q_PROPERTY(QVariantList listedSessions READ listedSessions NOTIFY folderGroupsChanged FINAL)
+    Q_PROPERTY(QStringList attention READ attention NOTIFY attentionChanged FINAL)
+    Q_PROPERTY(QVariantMap pictures READ pictures NOTIFY picturesChanged FINAL)
+    Q_PROPERTY(AuthorityState authorityState READ authorityState NOTIFY authorityStateChanged FINAL)
+    Q_PROPERTY(QString authorityError READ authorityError NOTIFY authorityStateChanged FINAL)
 public:
     enum AuthorityState { Loading, Loaded, Failed };
     Q_ENUM(AuthorityState)

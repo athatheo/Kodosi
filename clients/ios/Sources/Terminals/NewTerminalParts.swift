@@ -85,8 +85,8 @@ struct SheetRow<Leading: View, Trailing: View>: View {
     var subtitle: String?
     var monoSubtitle = false
     var titleColor: Color?
-    @ViewBuilder let leading: () -> Leading
-    @ViewBuilder let trailing: () -> Trailing
+    @ContentBuilder let leading: () -> Leading
+    @ContentBuilder let trailing: () -> Trailing
 
     var body: some View {
         let layout = typeSize.isAccessibilitySize
@@ -113,7 +113,7 @@ struct SheetRow<Leading: View, Trailing: View>: View {
 }
 
 extension SheetRow where Trailing == EmptyView {
-    init(title: String, subtitle: String? = nil, monoSubtitle: Bool = false, titleColor: Color? = nil, @ViewBuilder leading: @escaping () -> Leading) {
+    init(title: String, subtitle: String? = nil, monoSubtitle: Bool = false, titleColor: Color? = nil, @ContentBuilder leading: @escaping () -> Leading) {
         self.init(title: title, subtitle: subtitle, monoSubtitle: monoSubtitle, titleColor: titleColor, leading: leading) { EmptyView() }
     }
 }
@@ -129,8 +129,8 @@ struct ChoiceRow<Value: Hashable, Leading: View, Accessory: View>: View {
     let selection: Value
     let label: (Value) -> String
     let choose: (Value) -> Void
-    @ViewBuilder let leading: () -> Leading
-    @ViewBuilder let accessory: () -> Accessory
+    @ContentBuilder let leading: () -> Leading
+    @ContentBuilder let accessory: () -> Accessory
 
     var body: some View {
         if values.count > 1 {
@@ -174,7 +174,7 @@ struct ChoiceRow<Value: Hashable, Leading: View, Accessory: View>: View {
 extension ChoiceRow where Accessory == EmptyView {
     init(
         title: String, subtitle: String? = nil, value: String, loading: Bool = false, values: [Value], selection: Value,
-        label: @escaping (Value) -> String, choose: @escaping (Value) -> Void, @ViewBuilder leading: @escaping () -> Leading,
+        label: @escaping (Value) -> String, choose: @escaping (Value) -> Void, @ContentBuilder leading: @escaping () -> Leading,
     ) {
         self.init(
             title: title, subtitle: subtitle, value: value, loading: loading, values: values, selection: selection, label: label,

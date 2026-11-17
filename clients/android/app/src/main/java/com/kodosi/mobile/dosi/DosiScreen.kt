@@ -17,6 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -81,7 +86,8 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
         ?: computers.firstOrNull { it.device == state.snapshot?.last?.device } ?: computers.firstOrNull()
     var choosing by remember { mutableStateOf(false) }
     var renewing by remember { mutableStateOf(false) }
-    var draft by rememberSaveable { mutableStateOf(model.dosi.draft) }
+    val draft = rememberTextFieldState(model.dosi.draft)
+    LaunchedEffect(draft) { snapshotFlow { draft.text.toString() }.collect { model.dosi.draft = it } }
     var sending by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -192,18 +198,15 @@ fun DosiScreen(model: AppModel, target: (String, String) -> Unit) {
             }
         }
         failure?.let { ErrorNote(it, Modifier.padding(horizontal = 12.dp)) }
-        MessageComposer(draft, sending, {
-            draft = it
-            model.dosi.draft = it
-        }, enabled = computer != null && state.connected, send = {
+        MessageComposer(draft, sending, enabled = computer != null && state.connected, send = {
             val chosen = computer ?: return@MessageComposer
-            val sent = draft
+            val sent = draft.text.toString()
             sending = true
             failure = null
             scope.launch {
                 try {
                     model.dosi.send(sent, chosen)
-                    if (draft == sent) draft = ""
+                    if (draft.text.toString() == sent) draft.clearText()
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
@@ -330,7 +333,7 @@ private fun DosiItemView(model: AppModel, item: DosiItem, open: (String, String)
 private fun DosiQuestion(model: AppModel, item: DosiItem) {
     val body = item.body
     var choices by rememberSaveable(item.id) { mutableStateOf<Set<String>>(emptySet()) }
-    var own by rememberSaveable(item.id) { mutableStateOf("") }
+    val own = rememberSaveable(item.id, saver = TextFieldState.Saver) { TextFieldState() }
     var sending by remember { mutableStateOf(false) }
     val answered = body["answer"]?.toString()?.takeIf { it != "null" } != null
     val scope = rememberCoroutineScope()
@@ -382,17 +385,16 @@ private fun DosiQuestion(model: AppModel, item: DosiItem) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             KodosiField(
                 own,
-                { own = it },
                 modifier = Modifier.weight(1f),
                 placeholder = stringResource(R.string.your_answer),
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 enabled = !sending,
                 compact = true,
                 textStyle = KodosiType.footnote
             )
-            if (body.flag("multiple") || own.isNotBlank()) {
+            if (body.flag("multiple") || own.text.isNotBlank()) {
                 val values = body.strings("options").filter(choices::contains) +
-                    listOfNotNull(own.trim().takeIf(String::isNotEmpty))
+                    listOfNotNull(own.text.toString().trim().takeIf(String::isNotEmpty))
                 KodosiButton(
                     stringResource(R.string.send),
                     { answer(values) },

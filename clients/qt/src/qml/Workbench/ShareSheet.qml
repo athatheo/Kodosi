@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -31,7 +31,7 @@ KPopover {
         return qsTr("Share with %1 people").arg(people.length)
     }
 
-    function openSession(id) {
+    function openSession(id: string): void {
         sessionId = id;
         session = Models.Sessions.presentationForSession(id);
         originalPeople = (session.sharedWith || []).slice();
@@ -39,7 +39,7 @@ KPopover {
         projectId = currentProjectId;
         open();
     }
-    function toggle(userId) {
+    function toggle(userId: string): void {
         const next = people.slice();
         const index = next.indexOf(userId);
         if (index >= 0)
@@ -48,7 +48,7 @@ KPopover {
             next.push(userId);
         people = next;
     }
-    function save() {
+    function save(): void {
         const sent = projectId !== currentProjectId
             ? Models.SessionActions.attachProject(sessionId, projectId)
             : Models.SessionActions.share(sessionId, people, originalPeople);

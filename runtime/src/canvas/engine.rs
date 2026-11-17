@@ -5,11 +5,12 @@ use std::{
     time::Duration,
 };
 
-use aws_lc_rs::signature::{ED25519, UnparsedPublicKey};
+use aws_lc_rs::{
+    digest::{Context, SHA256},
+    signature::{ED25519, UnparsedPublicKey},
+};
 use base64::Engine as _;
-use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use shared_browser::{Browsers, Settings};
 use tokio::{io::AsyncWriteExt as _, sync::OnceCell};
 
@@ -81,7 +82,7 @@ impl BrowserHost {
             folder: data_root.join("browser"),
             isolated,
             browsers: Arc::default(),
-            updating: Arc::new(Once::new()),
+            updating: Arc::default(),
             installing: Arc::default(),
             getting: Arc::default(),
         }
@@ -399,7 +400,7 @@ async fn download(
     to: &Path,
     progress: impl Fn(u8) + Send,
 ) -> Result<(), Text> {
-    let response = client
+    let mut response = client
         .get(&engine.url)
         .send()
         .await
@@ -407,12 +408,10 @@ async fn download(
         .map_err(|_| no_engine())?;
     let total = response.content_length().unwrap_or(0);
     let mut file = tokio::fs::File::create(to).await.map_err(|_| no_engine())?;
-    let mut digest = Sha256::new();
+    let mut digest = Context::new(&SHA256);
     let mut got: u64 = 0;
     let mut told = 0;
-    let mut stream = response.bytes_stream();
-    while let Some(part) = stream.next().await {
-        let part = part.map_err(|_| no_engine())?;
+    while let Some(part) = response.chunk().await.map_err(|_| no_engine())? {
         got += part.len() as u64;
         if got > MOST_ARCHIVE {
             return Err(no_engine());
@@ -426,15 +425,8 @@ async fn download(
         }
     }
     file.flush().await.map_err(|_| no_engine())?;
-    let found = digest
-        .finalize()
-        .iter()
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"));
-    if found == engine.sha256 {
-        Ok(())
-    } else {
-        Err(no_engine())
-    }
+    let found = crate::hex::hex(digest.finish().as_ref());
+    (found == engine.sha256).ok_or_else(no_engine)
 }
 
 async fn unpack(archive: PathBuf, folder: PathBuf) -> Result<(), Text> {

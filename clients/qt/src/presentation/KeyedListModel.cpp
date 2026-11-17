@@ -1,6 +1,7 @@
 #include "presentation/KeyedListModel.hpp"
 
 #include <QSet>
+#include <QVariantMap>
 
 namespace kodosi {
 

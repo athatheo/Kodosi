@@ -5,7 +5,10 @@ use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::tungstenite::{
     Message,
     handshake::server::{Callback, ErrorResponse, Request, Response},
-    http::{StatusCode, header::ORIGIN},
+    http::{
+        StatusCode,
+        header::{AUTHORIZATION, ORIGIN},
+    },
 };
 
 use crate::{
@@ -64,7 +67,10 @@ impl Socket {
         let socket = tokio::time::timeout(CONNECT_LIMIT, async {
             loop {
                 let (stream, _) = self.listener.accept().await?;
-                let admission = Admission { path: path.clone() };
+                let admission = Admission {
+                    path: path.clone(),
+                    authorization: None,
+                };
                 let handshake = tokio_tungstenite::accept_hdr_async(stream, admission);
                 if let Ok(Ok(socket)) = tokio::time::timeout(HANDSHAKE_LIMIT, handshake).await {
                     return Ok::<_, Error>(socket);
@@ -104,15 +110,22 @@ impl Socket {
     }
 }
 
-/// Admits only the path with the token. A web page cannot connect, because a browser always
-/// names the page's origin.
+/// Admits only the path, with the authorization when there is one, that shows the token. A web
+/// page cannot connect, because a browser always names the page's origin.
 pub(crate) struct Admission {
     pub(crate) path: String,
+    pub(crate) authorization: Option<String>,
 }
 
 impl Callback for Admission {
     fn on_request(self, request: &Request, response: Response) -> Result<Response, ErrorResponse> {
-        if request.uri().path() == self.path && !request.headers().contains_key(ORIGIN) {
+        let headers = request.headers();
+        let authorized = self.authorization.is_none_or(|authorization| {
+            headers
+                .get(AUTHORIZATION)
+                .is_some_and(|shown| shown == authorization.as_str())
+        });
+        if request.uri().path() == self.path && authorized && !headers.contains_key(ORIGIN) {
             Ok(response)
         } else {
             let mut refused = ErrorResponse::new(None);
@@ -124,7 +137,7 @@ impl Callback for Admission {
 
 pub(crate) fn token() -> io::Result<String> {
     let mut bytes = [0_u8; 32];
-    getrandom::fill(&mut bytes).map_err(io::Error::other)?;
+    getrandom::fill(&mut bytes)?;
     let mut text = String::with_capacity(64);
     for byte in bytes {
         write!(text, "{byte:02x}").map_err(io::Error::other)?;
@@ -183,27 +196,38 @@ mod tests {
     }
 
     #[test]
-    fn a_web_page_does_not_pass_even_with_the_token() {
-        let request = |path: &str, origin: Option<&str>| {
+    fn only_a_request_with_the_token_and_no_origin_passes() {
+        let request = |path: &str, authorization: Option<&str>, origin: Option<&str>| {
             let mut request = Request::builder().uri(path);
+            if let Some(authorization) = authorization {
+                request = request.header(AUTHORIZATION, authorization);
+            }
             if let Some(origin) = origin {
                 request = request.header(ORIGIN, origin);
             }
             request.body(()).unwrap()
         };
-        let admitted = |request: &Request| {
+        let admitted = |authorization: Option<&str>, request: &Request| {
             Admission {
-                path: "/devtools/browser/token".into(),
+                path: "/token".into(),
+                authorization: authorization.map(str::to_owned),
             }
             .on_request(request, Response::default())
             .is_ok()
         };
-        assert!(admitted(&request("/devtools/browser/token", None)));
-        assert!(!admitted(&request(
-            "/devtools/browser/token",
-            Some("http://site.example")
-        )));
-        assert!(!admitted(&request("/devtools/browser/1", None)));
+        let page = Some("http://site.example");
+        assert!(admitted(None, &request("/token", None, None)));
+        assert!(!admitted(None, &request("/token", None, page)));
+        assert!(!admitted(None, &request("/1", None, None)));
+
+        let driver = Some("Bearer token");
+        assert!(admitted(driver, &request("/token", driver, None)));
+        assert!(!admitted(driver, &request("/token", driver, page)));
+        assert!(!admitted(driver, &request("/token", None, None)));
+        assert!(!admitted(
+            driver,
+            &request("/token", Some("Bearer 1"), None)
+        ));
     }
 
     #[tokio::test]

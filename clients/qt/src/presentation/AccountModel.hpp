@@ -12,17 +12,17 @@ class Workspace;
 
 class AccountModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool signedIn READ signedIn NOTIFY accountChanged)
-    Q_PROPERTY(bool signingIn READ signingIn NOTIFY loginChanged)
-    Q_PROPERTY(QString restoring READ restoring NOTIFY loginChanged)
-    Q_PROPERTY(QString credentialStore READ credentialStore NOTIFY loginChanged)
-    Q_PROPERTY(QString credentialFolder READ credentialFolder NOTIFY loginChanged)
-    Q_PROPERTY(QString userId READ userId NOTIFY accountChanged)
-    Q_PROPERTY(QString displayName READ displayName NOTIFY accountChanged)
-    Q_PROPERTY(QString signInPage READ signInPage NOTIFY loginChanged)
-    Q_PROPERTY(bool deleting READ deleting NOTIFY deletionChanged)
-    Q_PROPERTY(QString deletionUri READ deletionUri NOTIFY deletionChanged)
-    Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
+    Q_PROPERTY(bool signedIn READ signedIn NOTIFY accountChanged FINAL)
+    Q_PROPERTY(bool signingIn READ signingIn NOTIFY loginChanged FINAL)
+    Q_PROPERTY(QString restoring READ restoring NOTIFY loginChanged FINAL)
+    Q_PROPERTY(QString credentialStore READ credentialStore NOTIFY loginChanged FINAL)
+    Q_PROPERTY(QString credentialFolder READ credentialFolder NOTIFY loginChanged FINAL)
+    Q_PROPERTY(QString userId READ userId NOTIFY accountChanged FINAL)
+    Q_PROPERTY(QString displayName READ displayName NOTIFY accountChanged FINAL)
+    Q_PROPERTY(QString signInPage READ signInPage NOTIFY loginChanged FINAL)
+    Q_PROPERTY(bool deleting READ deleting NOTIFY deletionChanged FINAL)
+    Q_PROPERTY(QString deletionUri READ deletionUri NOTIFY deletionChanged FINAL)
+    Q_PROPERTY(bool online READ online NOTIFY onlineChanged FINAL)
 
 public:
     explicit AccountModel(Workspace& workspace);

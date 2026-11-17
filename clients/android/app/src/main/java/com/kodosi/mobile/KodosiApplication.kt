@@ -2,6 +2,8 @@ package com.kodosi.mobile
 
 import android.app.Application
 import android.content.res.Configuration
+import androidx.compose.runtime.Composer
+import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import com.kodosi.mobile.notifications.FirebaseConfiguration
 import com.kodosi.mobile.terminals.TerminalNotifications
 
@@ -12,6 +14,7 @@ class KodosiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
         FirebaseConfiguration.initialize(this)
     }
 

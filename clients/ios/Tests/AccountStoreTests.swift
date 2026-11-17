@@ -4,7 +4,6 @@ import KodosiBridge
 import KodosiKit
 import Testing
 
-@MainActor
 struct AccountStoreTests {
     private let outbox = AccountOutbox()
     private let notices = NoticeCenter()
@@ -228,7 +227,6 @@ struct AccountStoreTests {
     }
 }
 
-@MainActor
 private final class AccountOutbox {
     let commands = CommandSink()
     private(set) var sent: [[String: JSONValue]] = []

@@ -20,7 +20,7 @@ struct MainTabView: View {
         TabView(selection: $tab) {
             Tab("Terminals", systemImage: "apple.terminal", value: .terminals) {
                 NavigationStack(path: $terminals) { TerminalsHome() }
-                    .environment(\.openRoute, OpenRouteAction { terminals.append($0) })
+                    .environment(\.openRoute, OpenRouteAction(in: .terminals) { terminals.append($0) })
                     .tint(theme.colors.ink)
             }
             .badge(model.terminals.needsYou.count)
@@ -28,7 +28,7 @@ struct MainTabView: View {
 
             Tab("Projects", systemImage: "square.grid.2x2", value: .projects) {
                 NavigationStack(path: $projects) { ProjectsHome() }
-                    .environment(\.openRoute, OpenRouteAction { projects.append($0) })
+                    .environment(\.openRoute, OpenRouteAction(in: .projects) { projects.append($0) })
                     .tint(theme.colors.ink)
             }
             .badge(model.projects.invitations.count + model.projects.entries.count(where: \.unread))
@@ -36,7 +36,7 @@ struct MainTabView: View {
 
             Tab("Dosi", systemImage: "eyes", value: .dosi) {
                 NavigationStack(path: $dosi) { DosiHome { tab = $0 } }
-                    .environment(\.openRoute, OpenRouteAction { dosi.append($0) })
+                    .environment(\.openRoute, OpenRouteAction(in: .dosi) { dosi.append($0) })
                     .tint(theme.colors.ink)
             }
             .badge(dosiCalls)
@@ -44,7 +44,7 @@ struct MainTabView: View {
 
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 NavigationStack(path: $settings) { SettingsHome() }
-                    .environment(\.openRoute, OpenRouteAction { settings.append($0) })
+                    .environment(\.openRoute, OpenRouteAction(in: .settings) { settings.append($0) })
                     .tint(theme.colors.ink)
             }
             .badge(model.people.incoming.count + model.account.deviceRequests.count + (model.account.otherDeviceReset == nil ? 0 : 1))

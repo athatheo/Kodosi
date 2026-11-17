@@ -8,7 +8,7 @@ import Testing
 @Suite(.serialized)
 struct TerminalLifecycleTests {
     @Test
-    func `a snapshot restores a live host managed surface transactionally`() async {
+    func `a snapshot restores a live host managed surface transactionally`() async throws {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
         view.wantsLayer = true
         let session = InMemoryTerminalSession(write: { _ in }, resize: { _ in })
@@ -23,7 +23,7 @@ struct TerminalLifecycleTests {
             }
             selectionChanges += 1
         }
-        guard let surface = controller.createSurface(
+        let surface = try #require(controller.createSurface(
             bridge: bridge,
             configuration: TerminalSurfaceOptions(session: session),
             platformSetup: { config in
@@ -35,10 +35,7 @@ struct TerminalLifecycleTests {
                 )
                 config.scale_factor = 1
             }
-        ) else {
-            Issue.record("failed to create host-managed visual surface")
-            return
-        }
+        ))
         session.setSurface(surface)
         defer {
             session.clearSurface(ifMatches: surface)
@@ -46,13 +43,8 @@ struct TerminalLifecycleTests {
             controller.remove(bridge)
         }
 
-        guard let fixtureURL = Bundle.module.url(
-            forResource: "visual-checkpoint",
-            withExtension: "snapshot"
-        ), let checkpoint = try? Data(contentsOf: fixtureURL) else {
-            Issue.record("missing visual checkpoint fixture")
-            return
-        }
+        let fixtureURL = try #require(Bundle.module.url(forResource: "visual-checkpoint", withExtension: "snapshot"))
+        let checkpoint = try Data(contentsOf: fixtureURL)
         let initial = Data("select me".utf8)
         #expect(session.receive(initial))
         session.waitForPendingOutput()
@@ -216,7 +208,7 @@ struct TerminalLifecycleTests {
 
     @Test
     func `only the view that shows a terminal types into it`() {
-        let writes = LockedTerminalWrites()
+        let writes = LockedValues<Data>()
         let session = InMemoryTerminalSession(write: { writes.append($0) }, resize: { _ in })
         let earlier = TerminalCallbackBridge()
         let shown = TerminalCallbackBridge()
@@ -242,7 +234,7 @@ struct TerminalLifecycleTests {
 
     @Test
     func `only the view that shows a terminal sets its size`() {
-        let sizes = ViewportCollector()
+        let sizes = LockedValues<InMemoryTerminalViewport>()
         let session = InMemoryTerminalSession(write: { _ in }, resize: { sizes.append($0) })
         let controller = TerminalController()
         let earlier = TerminalView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
@@ -272,17 +264,17 @@ struct TerminalLifecycleTests {
     }
 
     @Test
-    func `host managed parser reports stay native while literal user bytes pass through`() {
+    func `host managed parser reports stay native while literal user bytes pass through`() throws {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
         view.wantsLayer = true
-        let writes = LockedTerminalWrites()
+        let writes = LockedValues<Data>()
         let session = InMemoryTerminalSession(
             write: { writes.append($0) },
             resize: { _ in }
         )
         let controller = TerminalController()
         let bridge = TerminalCallbackBridge()
-        guard let surface = controller.createSurface(
+        let surface = try #require(controller.createSurface(
             bridge: bridge,
             configuration: TerminalSurfaceOptions(session: session),
             platformSetup: { config in
@@ -294,10 +286,7 @@ struct TerminalLifecycleTests {
                 )
                 config.scale_factor = 1
             }
-        ) else {
-            Issue.record("failed to create host-managed query surface")
-            return
-        }
+        ))
         session.setSurface(surface)
         defer {
             session.clearSurface(ifMatches: surface)
@@ -316,7 +305,7 @@ struct TerminalLifecycleTests {
 
     @Test
     func `programs write the clipboard and only the focused view asks before a read`() async {
-        let writes = LockedTerminalWrites()
+        let writes = LockedValues<Data>()
         let delegate = ClipboardReadDelegate(allows: true)
         let session = InMemoryTerminalSession(write: { writes.append($0) }, resize: { _ in })
         let controller = TerminalController(configuration: .init {
@@ -384,17 +373,17 @@ struct TerminalLifecycleTests {
     }
 
     @Test
-    func `host managed paste stays direct when mode 5522 is set`() {
+    func `host managed paste stays direct when mode 5522 is set`() throws {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
         view.wantsLayer = true
-        let writes = LockedTerminalWrites()
+        let writes = LockedValues<Data>()
         let session = InMemoryTerminalSession(
             write: { writes.append($0) },
             resize: { _ in }
         )
         let controller = TerminalController()
         let bridge = TerminalCallbackBridge()
-        guard let rawSurface = controller.createSurface(
+        let rawSurface = try #require(controller.createSurface(
             bridge: bridge,
             configuration: TerminalSurfaceOptions(session: session),
             platformSetup: { config in
@@ -406,10 +395,7 @@ struct TerminalLifecycleTests {
                 )
                 config.scale_factor = 1
             }
-        ) else {
-            Issue.record("failed to create host-managed paste surface")
-            return
-        }
+        ))
         bridge.rawSurface = rawSurface
         session.setSurface(rawSurface)
         defer {
@@ -434,9 +420,9 @@ struct TerminalLifecycleTests {
     }
 
     @Test
-    func `a program reads the clipboard through input after the user allows it`() async {
+    func `a program reads the clipboard through input after the user allows it`() async throws {
         let delegate = ClipboardReadDelegate(allows: true)
-        await withHostManagedSurface(delegate: delegate, pasteboardText: "copied before") { session, writes in
+        try await withHostManagedSurface(delegate: delegate, pasteboardText: "copied before") { session, writes in
             #expect(session.receive(Data("\u{1B}]52;c;?\u{1B}\\".utf8)))
             session.waitForPendingOutput()
             await waitUntil { !writes.values.isEmpty }
@@ -447,9 +433,9 @@ struct TerminalLifecycleTests {
     }
 
     @Test
-    func `a program gets an empty answer when the user refuses the clipboard`() async {
+    func `a program gets an empty answer when the user refuses the clipboard`() async throws {
         let delegate = ClipboardReadDelegate(allows: false)
-        await withHostManagedSurface(delegate: delegate, pasteboardText: "copied before") { session, writes in
+        try await withHostManagedSurface(delegate: delegate, pasteboardText: "copied before") { session, writes in
             #expect(session.receive(Data("\u{1B}]52;c;?\u{1B}\\".utf8)))
             session.waitForPendingOutput()
             await waitUntil { !writes.values.isEmpty }
@@ -460,8 +446,8 @@ struct TerminalLifecycleTests {
     }
 
     @Test
-    func `a program writes the clipboard`() async {
-        await withHostManagedSurface(delegate: nil, pasteboardText: "copied before") { session, writes in
+    func `a program writes the clipboard`() async throws {
+        try await withHostManagedSurface(delegate: nil, pasteboardText: "copied before") { session, writes in
             #expect(session.receive(Data("\u{1B}]52;c;d3JpdHRlbiBieSBhIHByb2dyYW0=\u{1B}\\".utf8)))
             session.waitForPendingOutput()
             await waitUntil { NSPasteboard.general.string(forType: .string) != "copied before" }
@@ -1000,23 +986,6 @@ struct TerminalLifecycleTests {
     }
 }
 
-private final class LockedTerminalWrites: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [Data] = []
-
-    var values: [Data] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage
-    }
-
-    func append(_ data: Data) {
-        lock.lock()
-        storage.append(data)
-        lock.unlock()
-    }
-}
-
 private func testLifecycleSurface(_ address: Int) -> ghostty_surface_t {
     UnsafeMutableRawPointer(bitPattern: address)!
 }
@@ -1062,11 +1031,11 @@ private struct SavedPasteboard {
 private func withHostManagedSurface(
     delegate: (any TerminalSurfaceViewDelegate)?,
     pasteboardText: String,
-    _ body: (InMemoryTerminalSession, LockedTerminalWrites) async -> Void
-) async {
+    _ body: (InMemoryTerminalSession, LockedValues<Data>) async -> Void
+) async throws {
     let view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
     view.wantsLayer = true
-    let writes = LockedTerminalWrites()
+    let writes = LockedValues<Data>()
     let session = InMemoryTerminalSession(
         write: { writes.append($0) },
         resize: { _ in }
@@ -1074,7 +1043,7 @@ private func withHostManagedSurface(
     let controller = TerminalController()
     let bridge = TerminalCallbackBridge(delegate: delegate)
     bridge.hasFocus = true
-    guard let rawSurface = controller.createSurface(
+    let rawSurface = try #require(controller.createSurface(
         bridge: bridge,
         configuration: TerminalSurfaceOptions(session: session),
         platformSetup: { config in
@@ -1086,10 +1055,7 @@ private func withHostManagedSurface(
             )
             config.scale_factor = 1
         }
-    ) else {
-        Issue.record("failed to create host-managed surface")
-        return
-    }
+    ))
     bridge.rawSurface = rawSurface
     session.setSurface(rawSurface)
     let pasteboard = NSPasteboard.general

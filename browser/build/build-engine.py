@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds Kodosi Browser: the engine in browser/engine on the CEF build that its `cef` crate pins.
+"""Builds Kodosi Browser: the engine in browser/engine on the CEF build that its `cef-dll-sys` pins.
 Nothing compiles Chromium; CEF comes ready-built and checked. A Mac build is a background app
 with no window, links or files of its own, signed and notarized when the signing variables are
 set. Leaves the program in <output-dir>/<platform>/ and writes
@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 import urllib.request
 from pathlib import Path
 
@@ -28,7 +29,7 @@ ENGINE = ROOT / "browser/engine"
 TOOLS = ROOT / ".tools/browser-engine"
 CEF_CACHE = ROOT / ".tools/cef"
 # The CEF wrapper builds with Ninja and CMake, from these releases on the Python package index.
-BUILD_TOOLS = ("ninja==1.13.0", "cmake==4.1.2")
+BUILD_TOOLS = ("ninja==1.13.2", "cmake==4.4.4")
 APP_ID = "com.kodosi.browser"
 PRODUCT = "Kodosi Browser"
 HELPERS = {
@@ -48,7 +49,7 @@ ENTITLEMENTS = {
         "com.apple.security.cs.disable-library-validation": True,
     },
 }
-MINIMUM_MAC = "12.0"
+MINIMUM_MAC = "13.0"
 # The parts of a CEF download that a package leaves out or places itself. The SUID sandbox
 # helper works only when root owns it, which a download never is.
 CEF_LEFT_OUT = {
@@ -62,6 +63,7 @@ CEF_LEFT_OUT = {
     "bootstrap.exe",
     "bootstrapc.exe",
 }
+CEF_SYSTEMS = {"apple-darwin": "macos", "pc-windows-msvc": "windows", "unknown-linux-gnu": "linux"}
 LICENSE_TEXT = re.compile(r"^(?:licen[cs]e|copying|notice)", re.I)
 # The texts of crates whose packages carry none, from their source at the commit of the package.
 CRATE_LICENSES = HERE / "licenses"
@@ -118,7 +120,7 @@ def check() -> None:
     run("cargo", "clippy", "--locked", "--all-targets", *manifest, "--", "-D", "warnings", "-A", "clippy::unwrap_used", "-A", "clippy::expect_used", env=env)
     run("cargo", "test", "--locked", *manifest, env=env)
     with tempfile.TemporaryDirectory() as folder:
-        notices(newest_cef(), Path(folder) / "licenses")
+        notices(cef_folder(), Path(folder) / "licenses")
 
 
 def build(debug: bool) -> tuple[Path, Path]:
@@ -130,14 +132,18 @@ def build(debug: bool) -> tuple[Path, Path]:
         run("cargo", "rustc", "--locked", "--lib", "--crate-type", "cdylib", *profile, *manifest, env=environment_of_build)
     else:
         run("cargo", "build", "--locked", "--bins", *profile, *manifest, env=environment_of_build)
-    return ENGINE / "target" / ("debug" if debug else "release"), newest_cef()
+    return ENGINE / "target" / ("debug" if debug else "release"), cef_folder()
 
 
-def newest_cef() -> Path:
-    found = sorted(CEF_CACHE.glob("*/cef_*/archive.json"), key=lambda path: path.stat().st_mtime)
-    if not found:
-        raise SystemExit(f"No CEF in {CEF_CACHE}")
-    return found[-1].parent
+def cef_folder() -> Path:
+    """The CEF of the locked `cef-dll-sys`, where its build put it."""
+    lock = tomllib.loads((ENGINE / "Cargo.lock").read_text("utf-8"))
+    version = next(package["version"] for package in lock["package"] if package["name"] == "cef-dll-sys")
+    machine, system = host_target().split("-", 1)
+    folder = CEF_CACHE / version.partition("+")[2] / f"cef_{CEF_SYSTEMS[system]}_{machine}"
+    if not (folder / "archive.json").is_file():
+        raise SystemExit(f"No CEF in {folder}")
+    return folder
 
 
 def host_target() -> str:
@@ -206,8 +212,7 @@ def version_of(cef: Path) -> str:
     """The Chromium version and the engine's version, as the feed names a release."""
     name = json.loads((cef / "archive.json").read_text("utf-8"))["name"]
     chromium = name.split("+chromium-", 1)[1].split("_", 1)[0]
-    manifest = (ENGINE / "Cargo.toml").read_text("utf-8")
-    engine = next(line.split('"')[1] for line in manifest.splitlines() if line.startswith("version = "))
+    engine = tomllib.loads((ENGINE / "Cargo.toml").read_text("utf-8"))["package"]["version"]
     return f"{chromium}-{engine}"
 
 
@@ -331,7 +336,8 @@ def package(stage: Path, output: Path, version: str, program: str) -> Path:
     with tarfile.open(archive, "w:gz") as tar:
         for path in sorted(stage.iterdir()):
             tar.add(path, arcname=path.name)
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    with archive.open("rb") as file:
+        digest = hashlib.file_digest(file, "sha256").hexdigest()
     entry = {"version": version, "platform": name, "file": archive.name, "program": program, "sha256": digest}
     (output / f"{archive.name}.json").write_text(json.dumps(entry, indent=2) + "\n", "utf-8")
     return archive

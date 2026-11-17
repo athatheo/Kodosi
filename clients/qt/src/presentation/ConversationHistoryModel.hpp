@@ -12,16 +12,16 @@
 namespace kodosi {
 class ConversationHistoryModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QString provider READ provider NOTIFY selectionChanged)
-    Q_PROPERTY(QString directory READ directory NOTIFY selectionChanged)
-    Q_PROPERTY(QVariantList conversations READ conversations NOTIFY conversationsChanged)
-    Q_PROPERTY(QVariantList entries READ entries NOTIFY entriesChanged)
-    Q_PROPERTY(QVariantMap selectedConversation READ selectedConversation NOTIFY entriesChanged)
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(bool hasMore READ hasMore NOTIFY conversationsChanged)
-    Q_PROPERTY(bool hasOlder READ hasOlder NOTIFY entriesChanged)
-    Q_PROPERTY(bool hasNewer READ hasNewer NOTIFY entriesChanged)
-    Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    Q_PROPERTY(QString provider READ provider NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QString directory READ directory NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QVariantList conversations READ conversations NOTIFY conversationsChanged FINAL)
+    Q_PROPERTY(QVariantList entries READ entries NOTIFY entriesChanged FINAL)
+    Q_PROPERTY(QVariantMap selectedConversation READ selectedConversation NOTIFY entriesChanged FINAL)
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
+    Q_PROPERTY(bool hasMore READ hasMore NOTIFY conversationsChanged FINAL)
+    Q_PROPERTY(bool hasOlder READ hasOlder NOTIFY entriesChanged FINAL)
+    Q_PROPERTY(bool hasNewer READ hasNewer NOTIFY entriesChanged FINAL)
+    Q_PROPERTY(QString error READ error NOTIFY errorChanged FINAL)
 
 public:
     explicit ConversationHistoryModel(CommandDispatcher& commands, QObject* parent = nullptr);

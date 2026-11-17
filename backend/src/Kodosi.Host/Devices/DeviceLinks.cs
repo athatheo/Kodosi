@@ -33,7 +33,7 @@ public sealed partial class DeviceService
         {
             if (!pending.SigningPublicKey.AsSpan().SequenceEqual(signing))
                 throw ApiException.Conflict("Pending device identity has different keys.");
-            var retrySecret = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+            var retrySecret = RandomNumberGenerator.GetHexString(64, lowercase: true);
             pending.DeviceCodeHash = HashCode(retrySecret);
             pending.Nonce = nonce;
             pending.Proof = proof;
@@ -42,7 +42,7 @@ public sealed partial class DeviceService
         }
         if (await db.DeviceLinks.CountAsync(x => x.UserId == userId && x.State == "pending" && x.ExpiresAt > now, ct) >= 5)
             throw new ApiException(429, "Too many pending device approvals.");
-        var secret = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        var secret = RandomNumberGenerator.GetHexString(64, lowercase: true);
         var link = new DeviceLink
         {
             Id = Guid.CreateVersion7(),

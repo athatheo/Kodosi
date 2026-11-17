@@ -2,16 +2,19 @@ name: kodosi-local
 
 services:
   postgres:
-    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    image: postgres:18.7-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
     environment:
       POSTGRES_DB: kodosi
       POSTGRES_USER: kodosi
       POSTGRES_PASSWORD: kodosi-local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kodosi -d kodosi"]
-      interval: 2s
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "kodosi", "-d", "kodosi"]
+      interval: 10s
       timeout: 3s
-      retries: 30
+      retries: 3
+      start_period: 1m
+      start_interval: 1s
+    stop_grace_period: 1m
     restart: unless-stopped
     volumes:
       - kodosi-postgres:/var/lib/postgresql
@@ -49,10 +52,11 @@ services:
           "--silent",
           "http://127.0.0.1:8080/health/ready",
         ]
-      interval: 3s
+      interval: 10s
       timeout: 5s
-      retries: 40
-      start_period: 15s
+      retries: 3
+      start_period: 1m
+      start_interval: 1s
     ports:
       - "127.0.0.1:5180:8080"
     restart: unless-stopped

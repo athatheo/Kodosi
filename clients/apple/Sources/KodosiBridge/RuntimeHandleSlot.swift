@@ -1,46 +1,50 @@
 import Foundation
+import Synchronization
 
 struct RuntimeHandleSnapshot: @unchecked Sendable {
     let pointer: UnsafeMutableRawPointer
 }
 
-final class RuntimeHandleSlot: @unchecked Sendable {
-    private let lock = NSLock()
-    private var pointer: UnsafeMutableRawPointer?
-    private var generation: UInt64 = 0
+final class RuntimeHandleSlot: Sendable {
+    private struct State {
+        var handle: RuntimeHandleSnapshot?
+        var generation: UInt64 = 0
+    }
+
+    private let state = Mutex(State())
 
     var isRunning: Bool {
-        lock.withLock { pointer != nil }
+        state.withLock { $0.handle != nil }
     }
 
     func currentGeneration() -> UInt64? {
-        lock.withLock {
-            guard pointer != nil else { return nil }
-            return generation
+        state.withLock {
+            guard $0.handle != nil else { return nil }
+            return $0.generation
         }
     }
 
     @discardableResult
     func install(_ pointer: UnsafeMutableRawPointer) -> UInt64 {
-        lock.withLock {
-            generation &+= 1
-            self.pointer = pointer
-            return generation
+        let handle = RuntimeHandleSnapshot(pointer: pointer)
+        return state.withLock {
+            $0.generation &+= 1
+            $0.handle = handle
+            return $0.generation
         }
     }
 
     func snapshot(matching expectedGeneration: UInt64) -> RuntimeHandleSnapshot? {
-        lock.withLock {
-            guard let pointer, generation == expectedGeneration else { return nil }
-            return RuntimeHandleSnapshot(pointer: pointer)
+        state.withLock {
+            guard $0.generation == expectedGeneration else { return nil }
+            return $0.handle
         }
     }
 
     func tombstone() -> RuntimeHandleSnapshot? {
-        lock.withLock {
-            guard let pointer else { return nil }
-            self.pointer = nil
-            return RuntimeHandleSnapshot(pointer: pointer)
+        state.withLock {
+            defer { $0.handle = nil }
+            return $0.handle
         }
     }
 }

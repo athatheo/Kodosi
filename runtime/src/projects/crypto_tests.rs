@@ -19,7 +19,7 @@ fn person_with(user: String, list_expires_at_ms: Option<u64>) -> (DeviceKeys, Id
         &user,
         &keys.device_id,
         "Project device",
-        &keys.signing_key().unwrap(),
+        keys.signing_key(),
         1000,
         None,
     )
@@ -27,7 +27,7 @@ fn person_with(user: String, list_expires_at_ms: Option<u64>) -> (DeviceKeys, Id
     let list = build_bootstrap_list(
         &user,
         &keys.device_id,
-        &keys.signing_key().unwrap(),
+        keys.signing_key(),
         1000,
         list_expires_at_ms,
     )

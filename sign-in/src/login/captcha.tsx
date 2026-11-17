@@ -1,4 +1,4 @@
-import { RotateCw, TriangleAlert } from "lucide-react";
+import { RotateCw, TriangleExclamationPoint } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "../parts/cn";
@@ -272,7 +272,11 @@ export function PersonCheckRow({
           role="alert"
           className="resolve flex min-h-12 items-center gap-2.5 py-1.5 pr-2.5 pl-[18px]"
         >
-          <TriangleAlert className="size-4 shrink-0 text-caution" strokeWidth={2.2} aria-hidden />
+          <TriangleExclamationPoint
+            className="size-4 shrink-0 text-caution"
+            strokeWidth={2.2}
+            aria-hidden
+          />
           <span className="min-w-0 flex-1 text-footnote text-ink">{problem}</span>
           <RowAction onClick={check.retry}>
             <span className="inline-flex items-center gap-1.5">

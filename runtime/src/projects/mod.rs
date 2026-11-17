@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use specta_macros::Type;
+use specta::Type;
 
 pub(crate) mod crypto;
 pub(crate) mod providers;
@@ -218,13 +218,8 @@ pub(crate) enum Payload {
 impl Action {
     pub(crate) fn validate(&self) -> crate::Result<()> {
         let text = |value: &str, maximum: usize| {
-            if value.trim().is_empty() || value.len() > maximum || value.contains('\0') {
-                Err(crate::Error::Refused(text!(
-                    "The text is empty or too long."
-                )))
-            } else {
-                Ok(())
-            }
+            (!value.trim().is_empty() && value.len() <= maximum && !value.contains('\0'))
+                .ok_or_else(|| crate::Error::Refused(text!("The text is empty or too long.")))
         };
         match self {
             Self::Post {

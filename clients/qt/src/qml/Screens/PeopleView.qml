@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -12,7 +12,7 @@ Item {
     readonly property var friends: Models.People.friends
     property bool copied: false
 
-    function add() {
+    function add(): void {
         if (handle.text.trim().length === 0)
             return;
         trust.askToAdd(handle.text);

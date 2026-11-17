@@ -64,7 +64,6 @@ struct PromptField: NSViewRepresentable {
         return CGSize(width: width, height: view.height(forWidth: width))
     }
 
-    @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: PromptField
         var focus = 0
@@ -158,7 +157,7 @@ final class PromptTextView: NSTextView {
         needsDisplay = true
         blinking?.cancel()
         guard blinks, focused else { return }
-        blinking = Task { @MainActor [weak self] in
+        blinking = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(1100))
             while !Task.isCancelled, let self {
                 lit.toggle()

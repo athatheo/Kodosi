@@ -13,11 +13,12 @@ use serde_json::json;
 use tokio::sync::{Notify, mpsc, oneshot, watch};
 
 use crate::{
-    Error, driver,
+    Error,
+    driver::{self, Driver},
     engine::Engine,
     flow::{self, Flow},
     input,
-    link::{EncodedFrame, EngineTab, ToEngine},
+    link::{EncodedFrame, EngineTab, MOST_ICON, ToEngine},
     message::{
         Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuContext, MenuItem,
         MouseAction, MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
@@ -41,7 +42,6 @@ const MOST_LINE: usize = 1024;
 const MOST_ADDRESS: usize = 8 * 1024;
 const MOST_MESSAGE: usize = 16 * 1024;
 const MOST_ITEMS: usize = 1000;
-const MOST_ICON: usize = 12 * 1024;
 /// The menu that a right-click opens, which the page does not know about.
 const CONTEXT_MENU: u32 = u32::MAX;
 const COPY_SELECTION: u32 = 0;
@@ -121,7 +121,7 @@ pub(crate) enum Event {
 
 #[derive(Clone)]
 pub struct Window {
-    driver: Arc<str>,
+    driver: Arc<Driver>,
     events: mpsc::Sender<Event>,
     state: watch::Receiver<State>,
     open: watch::Receiver<bool>,
@@ -154,7 +154,7 @@ impl Window {
         })
     }
 
-    pub fn driver(&self) -> &str {
+    pub fn driver(&self) -> &Driver {
         &self.driver
     }
 
@@ -296,7 +296,7 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
     });
     let (open_in, open) = watch::channel(true);
     let (used_in, used) = watch::channel(None);
-    let driver = Arc::from(driver.serve(Arc::clone(&engine), id, open.clone()));
+    let driver = Arc::new(driver.serve(Arc::clone(&engine), id, open.clone()));
     let window = Window {
         driver,
         events: events_in,
@@ -1316,11 +1316,7 @@ fn fitted(size: Size) -> Option<Size> {
 }
 
 fn cut(text: &str, most: usize) -> String {
-    let mut end = text.len().min(most);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    text[..end].to_owned()
+    text[..text.floor_char_boundary(most)].to_owned()
 }
 
 /// A page names the file, so only its last part counts, and an equal name gets a number.

@@ -344,13 +344,11 @@ fn convert_effect(effect: Effect) -> Option<TerminalEffect> {
     match effect {
         Effect::PtyWrite(bytes) => Some(TerminalEffect::PtyWrite(bytes)),
         Effect::Bell => Some(TerminalEffect::Bell),
-        Effect::Title(bytes) => Some(TerminalEffect::Title(
-            String::from_utf8_lossy(&bytes).into_owned(),
-        )),
+        Effect::Title(bytes) => Some(TerminalEffect::Title(String::from_utf8_lossy_owned(bytes))),
         Effect::Pwd(bytes) => parse_cwd(&bytes).map(TerminalEffect::Cwd),
         Effect::DesktopNotification { title, body } => Some(TerminalEffect::DesktopNotification {
-            title: String::from_utf8_lossy(&title).into_owned(),
-            body: String::from_utf8_lossy(&body).into_owned(),
+            title: String::from_utf8_lossy_owned(title),
+            body: String::from_utf8_lossy_owned(body),
         }),
         Effect::ProgramStatus(status) => program_status(status).map(TerminalEffect::ProgramStatus),
         Effect::Progress { state, progress } => {
@@ -408,11 +406,7 @@ fn parse_cwd(raw: &[u8]) -> Option<PathBuf> {
         kodosi_os::fs::path_from_file_url(&rest[..slash], &decoded)?
     } else {
         // Windows Terminal and ConEmu shell integrations quote the OSC 9;9 path.
-        PathBuf::from(
-            text.strip_prefix('"')
-                .and_then(|path| path.strip_suffix('"'))
-                .unwrap_or(text),
-        )
+        PathBuf::from(text.strip_circumfix('"', '"').unwrap_or(text))
     };
     (path.is_absolute() && path.to_str().is_some_and(is_valid_folder)).then_some(path)
 }

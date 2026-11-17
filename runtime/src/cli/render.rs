@@ -265,7 +265,7 @@ fn pick<'a>(result: &'a Value, agent: &str) -> &'a Value {
         .into_iter()
         .flatten()
         .find(|pick| pick["agent"] == agent)
-        .unwrap_or(&Value::Null)
+        .unwrap_or_default()
 }
 
 fn chosen(pick: &Value) -> String {

@@ -30,7 +30,7 @@ struct PermissionsGroup: View {
                     EmptyView()
                 case .notDetermined:
                     Button("Allow") {
-                        Task { @MainActor in
+                        Task {
                             _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
                             await refresh()
                         }

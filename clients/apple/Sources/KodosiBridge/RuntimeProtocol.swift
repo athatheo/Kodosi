@@ -6,7 +6,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let accountEpoch: UInt64
     public let payload: [String: JSONValue]
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let fields = try container.decode([String: JSONValue].self)
         let envelope = try decoder.container(keyedBy: CodingKeys.self)
@@ -76,7 +76,7 @@ public struct RuntimeCommand: Encodable, Sendable {
         self.fields = fields
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var value = fields
         value["type"] = .string(type)
         try value.encode(to: encoder)
@@ -96,7 +96,7 @@ public struct RuntimeCommandEnvelope<Command: Encodable>: Encodable {
 
     private enum CodingKeys: String, CodingKey { case accountUserId, accountEpoch }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         try command.encode(to: encoder)
         var envelope = encoder.container(keyedBy: CodingKeys.self)
         try envelope.encode(accountUserId, forKey: .accountUserId)

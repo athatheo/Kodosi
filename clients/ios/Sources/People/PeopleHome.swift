@@ -116,7 +116,7 @@ struct PeopleHome: View {
         .cardRow()
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var emptyActions: some View {
         Button { sheet = PeopleSheet(kind: .add(nil)) } label: {
             Label("Add a friend", systemImage: "person.badge.plus")
@@ -132,7 +132,7 @@ struct PeopleHome: View {
         .accessibilityIdentifier("people.empty.showInvite")
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var requests: some View {
         if !people.incoming.isEmpty || !people.outgoing.isEmpty || people.sendingRequest {
             ListHeader(title: "Requests", count: people.incoming.count)
@@ -154,7 +154,7 @@ struct PeopleHome: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var friends: some View {
         if !people.friends.isEmpty {
             ListHeader(title: "Friends", count: people.friends.count)
@@ -166,7 +166,7 @@ struct PeopleHome: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var blocked: some View {
         if !people.blocked.isEmpty {
             ListHeader(title: "Blocked", count: people.blocked.count)

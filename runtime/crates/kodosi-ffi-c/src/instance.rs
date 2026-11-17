@@ -245,12 +245,12 @@ fn run_executor(
     }
     drop(ready);
     let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        executor.block_on(async {
-            tokio::select! {
-                () = instance.state.cancel.cancelled() => {},
-                () = link::stopped(&instance.link) => {},
-            }
-        });
+        executor.block_on(
+            instance
+                .state
+                .cancel
+                .run_until_cancelled(link::stopped(&instance.link)),
+        );
         instance.state.close();
         executor.block_on(async {
             let _ = tokio::time::timeout(STOP_BUDGET, link::shutdown(&instance.link)).await;

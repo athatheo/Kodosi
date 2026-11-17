@@ -186,7 +186,7 @@ impl Terminal {
             },
             FORMATTER_PROFILE_MAX_BYTES,
         )?;
-        Ok(String::from_utf8_lossy(&text).into_owned())
+        Ok(String::from_utf8_lossy_owned(text))
     }
 
     pub fn format_finite_cli_replay(&mut self) -> Result<Vec<u8>, Error> {

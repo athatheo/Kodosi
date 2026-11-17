@@ -1,8 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Kodosi.TerminalConnections;
@@ -13,6 +11,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -24,13 +24,15 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
 {
     public const string Issuer = "https://auth.kodosi.com/realms/kodosi";
     private readonly RSA key = RSA.Create(2048);
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+    protected override void ConfigureWebApplicationBuilder(IHostApplicationBuilder builder) =>
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Kodosi"] = connection,
             ["Logging:LogLevel:Default"] = "Warning",
-        }.Concat(settings ?? new Dictionary<string, string?>())));
+        }.Concat(settings ?? new Dictionary<string, string?>()));
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.ConfigureTestServices(services => services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             var config = new OpenIdConnectConfiguration { Issuer = Issuer };
@@ -40,7 +42,7 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
         if (configure is not null) builder.ConfigureTestServices(configure);
     }
 
-    protected override Microsoft.Extensions.Hosting.IHost CreateHost(Microsoft.Extensions.Hosting.IHostBuilder builder)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
         using (var db = PostgresFixture.Context(connection))
             Kodosi.Data.DatabaseSetup.MigrateAsync(db, CancellationToken.None).GetAwaiter().GetResult();
@@ -49,10 +51,17 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
 
     public string Token(string subject, string audience = "kodosi-app", DateTimeOffset? authenticatedAt = null, TimeSpan? lifetime = null)
     {
-        List<Claim> claims = [new("sub", subject), new("preferred_username", subject)];
-        if (authenticatedAt is { } at) claims.Add(new Claim("auth_time", at.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64));
-        return new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(Issuer, audience, claims,
-            DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromMinutes(10)), new SigningCredentials(new RsaSecurityKey(key), SecurityAlgorithms.RsaSha256)));
+        Dictionary<string, object> claims = new() { ["sub"] = subject, ["preferred_username"] = subject };
+        if (authenticatedAt is { } at) claims["auth_time"] = at.ToUnixTimeSeconds();
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = Issuer,
+            Audience = audience,
+            Claims = claims,
+            NotBefore = DateTime.UtcNow.AddMinutes(-1),
+            Expires = DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromMinutes(10)),
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(key), SecurityAlgorithms.RsaSha256),
+        });
     }
 
     public async Task<ApiDevice> EnrollAsync(string subject)
@@ -153,8 +162,7 @@ internal sealed class BackendApplication(string connection, Action<IServiceColle
     public static async Task<JsonElement> JsonAsync(WebSocket socket)
     {
         var frame = await FrameAsync(socket); Assert.Equal(WebSocketMessageType.Text, frame.Type);
-        using var json = JsonDocument.Parse(frame.Bytes);
-        return json.RootElement.Clone();
+        return JsonElement.Parse(frame.Bytes);
     }
     public override async ValueTask DisposeAsync() { await base.DisposeAsync(); key.Dispose(); }
 }

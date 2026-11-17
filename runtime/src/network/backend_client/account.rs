@@ -101,6 +101,7 @@ impl BackendClient {
 
     pub(super) fn oidc(&self) -> Result<Oidc> {
         Oidc::new(
+            self.inner.http.client.clone(),
             &self.inner.config.issuer,
             self.inner.config.client_id.clone(),
             &self.inner.config.scopes,

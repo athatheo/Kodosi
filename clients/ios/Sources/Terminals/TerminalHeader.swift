@@ -22,7 +22,7 @@ struct TerminalTitle: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var title: some View {
         if let rename {
             Button(action: rename) { label.frame(minHeight: 44).contentShape(Rectangle()) }
@@ -67,7 +67,7 @@ struct TerminalTitle: View {
             .contentTransition(.interpolate)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var caption: some View {
         if unreachable {
             Text("Offline")

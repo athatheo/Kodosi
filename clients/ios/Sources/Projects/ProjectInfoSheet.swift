@@ -121,15 +121,7 @@ struct ProjectInfoSheet: View {
             } message: {
                 Text("The messages up to now disappear from all your devices. Everyone else keeps them.")
             }
-            .confirmationDialog(
-                String(localized: "Remove \(removing?.personName ?? "")?"),
-                isPresented: Binding(get: { removing != nil }, set: {
-                    if !$0 {
-                        removing = nil
-                    }
-                }),
-                titleVisibility: .visible, presenting: removing,
-            ) { member in
+            .confirmationDialog(String(localized: "Remove \(removing?.personName ?? "")?"), item: $removing, titleVisibility: .visible) { member in
                 Button("Remove from project", role: .destructive) {
                     perform { try await projects.remove(member, from: projectId) }
                 }
@@ -144,7 +136,7 @@ struct ProjectInfoSheet: View {
         .animation(theme.motion.spring, value: failure)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var inviteSection: some View {
         let candidates = projects.invitable(model.people.friends, to: projectId)
         ListGroup(title: "Invite friends") {

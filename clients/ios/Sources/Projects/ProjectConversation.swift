@@ -61,7 +61,7 @@ struct ProjectConversation: View {
                 } else if snapshot.historyTrimmed, !messages.isEmpty {
                     ProjectTrimmedNote().padding(.bottom, 8)
                 }
-                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                ForEach(messages.enumerated(), id: \.element.id) { index, message in
                     ProjectMessageRow(
                         projectId: projectId,
                         message: message,

@@ -62,7 +62,7 @@ enum TerminalCommand: Encodable {
         case subscriptionId, subscriptionGeneration
     }
 
-    func encode(to encoder: Encoder) throws {
+    func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case let .resize(sessionId, identity):

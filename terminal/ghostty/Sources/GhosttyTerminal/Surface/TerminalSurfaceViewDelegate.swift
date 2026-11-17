@@ -29,11 +29,6 @@ public protocol TerminalSurfaceOpenURLDelegate: TerminalSurfaceViewDelegate {
 }
 
 @MainActor
-public protocol TerminalSurfaceHoverLinkDelegate: TerminalSurfaceViewDelegate {
-    func terminalDidUpdateHoverLink(_ url: String?)
-}
-
-@MainActor
 public protocol TerminalSurfaceClipboardReadDelegate: TerminalSurfaceViewDelegate {
     func terminalDidRequestClipboardRead(_ answer: @escaping @MainActor (Bool) -> Void)
 }

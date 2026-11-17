@@ -3,7 +3,6 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@MainActor
 private func signedOutApp(prefix: String) throws -> (AppDependencies, SignInRecord) {
     let defaults = try #require(EphemeralUserDefaults(prefix: prefix))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
@@ -37,7 +36,7 @@ private struct SignInRecord {
     }
 }
 
-private final class Box<T>: @unchecked Sendable {
+private final class Box<T> {
     var value: T
     init(_ value: T) {
         self.value = value
@@ -47,7 +46,7 @@ private final class Box<T>: @unchecked Sendable {
 private let page = "https://auth.example/realms/kodosi/protocol/openid-connect/auth?client_id=kodosi-app&state=s"
 private let browserPage: [String: JSONValue] = ["url": .string(page)]
 
-@Test @MainActor func `sign in walks through the steps and only opens the browser once`() throws {
+@Test func `sign in walks through the steps and only opens the browser once`() throws {
     let (app, record) = try signedOutApp(prefix: "SignInSteps")
     #expect(app.signInPrompt == "Sign in")
     app.beginSignIn()
@@ -78,7 +77,7 @@ private let browserPage: [String: JSONValue] = ["url": .string(page)]
     app.shutdownProcess()
 }
 
-@Test @MainActor func `cancel stops the pending sign in and failures keep progress`() throws {
+@Test func `cancel stops the pending sign in and failures keep progress`() throws {
     let (app, record) = try signedOutApp(prefix: "SignInCancel")
     app.beginSignIn()
     try app.receive(runtimeEvent("auth.browser", epoch: 0, userId: nil, fields: browserPage))
@@ -104,7 +103,7 @@ private let browserPage: [String: JSONValue] = ["url": .string(page)]
     app.shutdownProcess()
 }
 
-@Test @MainActor func `untrusted Mac continues into the trust step with approval or reset`() throws {
+@Test func `untrusted Mac continues into the trust step with approval or reset`() throws {
     let (app, record) = try signedOutApp(prefix: "SignInTrust")
     app.beginSignIn()
     try app.receive(runtimeEvent("auth.browser", epoch: 0, userId: nil, fields: browserPage))
@@ -155,7 +154,7 @@ private let browserPage: [String: JSONValue] = ["url": .string(page)]
     app.shutdownProcess()
 }
 
-@Test @MainActor func `restored untrusted account offers trust without stealing focus`() throws {
+@Test func `restored untrusted account offers trust without stealing focus`() throws {
     let (app, _) = try signedOutApp(prefix: "SignInRestore")
     try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner"), "enrolled": .bool(false)]))
     #expect(app.account.stage == .trustingDevice(.choose))
@@ -171,7 +170,7 @@ private let browserPage: [String: JSONValue] = ["url": .string(page)]
     app.shutdownProcess()
 }
 
-@Test @MainActor func `device notices lead to the account settings until dismissed and a new request shows again`() throws {
+@Test func `device notices lead to the account settings until dismissed and a new request shows again`() throws {
     let (app, _) = try signedOutApp(prefix: "DeviceNotice")
     try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner"), "enrolled": .bool(false)]))
     #expect(app.deviceNotice == .approvalNeeded)
@@ -211,7 +210,7 @@ private func requestIds(_ notice: DeviceNotice?) -> [String]? {
     return requests.map(\.id)
 }
 
-@Test @MainActor func `this Mac is ready once it is approved and an ended sign in says so`() throws {
+@Test func `this Mac is ready once it is approved and an ended sign in says so`() throws {
     let (app, _) = try signedOutApp(prefix: "SignInReason")
     try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner"), "enrolled": .bool(false)]))
     try app.receive(runtimeEvent("devices.list", fields: [
@@ -229,7 +228,7 @@ private func requestIds(_ notice: DeviceNotice?) -> [String]? {
     app.shutdownProcess()
 }
 
-@Test @MainActor func `deleting the account waits for the browser and ends signed out with a note`() throws {
+@Test func `deleting the account waits for the browser and ends signed out with a note`() throws {
     let (app, record) = try signedOutApp(prefix: "AccountDeletion")
     try app.receive(runtimeEvent("auth.ready", fields: ["userId": .string("owner"), "enrolled": .bool(true)]))
     let page = "https://auth.example/realms/kodosi/protocol/openid-connect/auth?kc_action=delete_account"

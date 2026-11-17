@@ -57,7 +57,7 @@ impl Drop for RawMode {
 }
 
 pub(super) fn size() -> io::Result<(u16, u16)> {
-    let mut info: CONSOLE_SCREEN_BUFFER_INFO = unsafe { std::mem::zeroed() };
+    let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
     if unsafe { GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &raw mut info) } == 0 {
         return Err(io::Error::last_os_error());
     }

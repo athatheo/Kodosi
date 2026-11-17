@@ -32,6 +32,7 @@ mod documents;
 pub mod dosi;
 #[cfg(feature = "host")]
 mod folders;
+mod hex;
 pub mod identity;
 #[cfg(feature = "host")]
 pub mod local_host;

@@ -1,6 +1,6 @@
 <#ftl output_format="plainText">
 <#import "../sentences.ftl" as say>
-${msg("eventRemoveCredentialSubject")}
+${subject}
 
 ${say.wayText("kdsRemoveCredentialText", "kdsRemoveWayText")}
 

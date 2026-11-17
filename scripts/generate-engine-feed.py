@@ -22,6 +22,11 @@ def fail(message: str) -> None:
     raise SystemExit(f"generate-engine-feed: {message}")
 
 
+def file_sha256(path: Path) -> str:
+    with path.open("rb") as file:
+        return hashlib.file_digest(file, "sha256").hexdigest()
+
+
 def feed(folder: Path) -> dict:
     entries = [json.loads(path.read_text("utf-8")) for path in sorted(folder.glob("kodosi-browser-*.tar.gz.json"))]
     if not entries:
@@ -37,7 +42,7 @@ def feed(folder: Path) -> dict:
             fail(f"{archive.name} is for {platform}, which Kodosi does not know")
         if platform in engines:
             fail(f"two packages are for {platform}")
-        if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != entry["sha256"]:
+        if not archive.is_file() or file_sha256(archive) != entry["sha256"]:
             fail(f"{archive.name} is missing or does not match its entry")
         engines[platform] = {
             "url": f"https://github.com/{REPOSITORY}/releases/download/browser-{version}/{archive.name}",

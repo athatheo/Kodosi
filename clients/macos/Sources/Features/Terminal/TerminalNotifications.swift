@@ -3,7 +3,6 @@ import KodosiBridge
 import os
 @preconcurrency import UserNotifications
 
-@MainActor
 final class TerminalNotifications {
     enum Cue: String {
         case sound, banner, list

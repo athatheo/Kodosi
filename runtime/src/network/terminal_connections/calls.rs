@@ -85,10 +85,11 @@ async fn run_line(
 ) {
     let mut waiting = BTreeMap::<String, oneshot::Sender<Result<Value>>>::new();
     let result = async {
-        let mut channel = tokio::select! {
-            () = credentials.cancel.cancelled() => return Err(Error::Stale),
-            channel = connect(&network, &credentials, &device) => channel?,
-        };
+        let mut channel = credentials
+            .cancel
+            .run_until_cancelled(connect(&network, &credentials, &device))
+            .await
+            .ok_or(Error::Stale)??;
         let mut open = true;
         loop {
             if !open && waiting.is_empty() {

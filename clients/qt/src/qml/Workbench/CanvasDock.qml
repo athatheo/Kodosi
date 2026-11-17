@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Kodosi.Models 1.0 as Models
 
 Row {
@@ -35,7 +35,7 @@ Row {
     function title(section: string): string {
         return section === "browser" ? qsTr("Browser") : qsTr("Files");
     }
-    function tell(section: string, words: string) {
+    function tell(section: string, words: string): void {
         toldSection = section;
         toldWords = words;
         telling.restart();

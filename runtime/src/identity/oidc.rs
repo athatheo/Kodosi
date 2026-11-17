@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use aws_lc_rs::digest::{SHA256, digest};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use tokio_util::sync::CancellationToken;
 use zeroize::{Zeroize as _, Zeroizing};
 
@@ -147,18 +147,13 @@ fn sign_in_locale(language: crate::text::Language) -> &'static str {
 }
 
 impl Oidc {
-    pub fn new(issuer: &str, client_id: String, scopes: &[String]) -> Result<Self> {
+    pub fn new(client: Client, issuer: &str, client_id: String, scopes: &[String]) -> Result<Self> {
         let issuer =
             Url::parse(issuer).map_err(|_| invalid("The sign-in issuer is not configured."))?;
         validate_url(&issuer)?;
         if issuer.query().is_some() {
             return Err(invalid("OIDC issuer must not contain a query."));
         }
-        let client = Client::builder()
-            .timeout(Duration::from_secs(20))
-            .connect_timeout(Duration::from_secs(5))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
         Ok(Self {
             client,
             issuer,
@@ -362,7 +357,7 @@ impl Oidc {
 }
 
 fn challenge(verifier: &str) -> String {
-    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+    URL_SAFE_NO_PAD.encode(digest(&SHA256, verifier.as_bytes()))
 }
 
 fn random_text() -> Result<Zeroizing<String>> {
@@ -419,18 +414,15 @@ pub(crate) fn validate_url(url: &Url) -> Result<()> {
     ))
 }
 
-pub(crate) async fn read_bounded(response: reqwest::Response, max: usize) -> Result<Vec<u8>> {
-    use futures_util::StreamExt as _;
+pub(crate) async fn read_bounded(mut response: reqwest::Response, max: usize) -> Result<Vec<u8>> {
     if response
         .content_length()
         .is_some_and(|len| len > max as u64)
     {
         return Err(invalid("Server response exceeds its size limit."));
     }
-    let mut stream = response.bytes_stream();
     let mut bytes = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
+    while let Some(chunk) = response.chunk().await? {
         if bytes.len().saturating_add(chunk.len()) > max {
             return Err(invalid("Server response exceeds its size limit."));
         }
@@ -531,7 +523,13 @@ mod tests {
     #[tokio::test]
     async fn a_browser_sign_in_proves_its_challenge_when_it_trades_the_code() {
         let (address, server) = issuer(vec![token()]).await;
-        let oidc = Oidc::new(&address, "kodosi-app".into(), &["openid".to_owned()]).unwrap();
+        let oidc = Oidc::new(
+            Client::new(),
+            &address,
+            "kodosi-app".into(),
+            &["openid".to_owned()],
+        )
+        .unwrap();
         let login = oidc
             .browser(
                 "http://127.0.0.1:9/callback",
@@ -575,7 +573,13 @@ mod tests {
             "verification_uri": "http://127.0.0.1:9/device",
         });
         let (address, server) = issuer(vec![device, token()]).await;
-        let oidc = Oidc::new(&address, "kodosi-app".into(), &["openid".to_owned()]).unwrap();
+        let oidc = Oidc::new(
+            Client::new(),
+            &address,
+            "kodosi-app".into(),
+            &["openid".to_owned()],
+        )
+        .unwrap();
         let login = oidc.start().await.unwrap();
         let tokens = oidc.poll(login, &CancellationToken::new()).await.unwrap();
         assert_eq!(tokens.access_token, "access");

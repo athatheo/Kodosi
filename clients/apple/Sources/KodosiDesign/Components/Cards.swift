@@ -69,7 +69,7 @@ public struct TerminalCard<Detail: View, Accessory: View>: View {
 
     public init(
         session: RuntimeSession, rested: AgentMark.Activity, badged: Bool = false, muted: Bool = false, open: @escaping () -> Void,
-        @ViewBuilder detail: () -> Detail, @ViewBuilder accessory: () -> Accessory,
+        @ContentBuilder detail: () -> Detail, @ContentBuilder accessory: () -> Accessory,
     ) {
         self.session = session
         self.rested = rested
@@ -166,7 +166,7 @@ public struct ProjectCard<Detail: View>: View {
     let detail: Detail
 
     public init(
-        project: ProjectEntry, sessions: [RuntimeSession], yours: Bool, open: @escaping () -> Void, @ViewBuilder detail: () -> Detail,
+        project: ProjectEntry, sessions: [RuntimeSession], yours: Bool, open: @escaping () -> Void, @ContentBuilder detail: () -> Detail,
     ) {
         self.project = project
         self.sessions = sessions
@@ -282,7 +282,7 @@ struct AnswerLayout<Identity: View, Keys: View>: View {
     let identity: Identity
     let keys: (Bool) -> Keys
 
-    init(@ViewBuilder identity: () -> Identity, @ViewBuilder keys: @escaping (_ stacked: Bool) -> Keys) {
+    init(@ContentBuilder identity: () -> Identity, @ContentBuilder keys: @escaping (_ stacked: Bool) -> Keys) {
         self.identity = identity()
         self.keys = keys
     }

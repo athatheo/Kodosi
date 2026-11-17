@@ -197,11 +197,9 @@ async fn stderr_tail(stderr: Option<tokio::process::ChildStderr>) -> String {
             break;
         }
         tail.extend(&chunk[..count]);
-        while tail.len() > STDERR_TAIL_BYTES {
-            tail.pop_front();
-        }
+        tail.retain_back(STDERR_TAIL_BYTES);
     }
-    String::from_utf8_lossy(&tail.into_iter().collect::<Vec<_>>()).into_owned()
+    String::from_utf8_lossy_owned(tail.into())
 }
 
 pub(super) async fn read_lines<R, F, Fut>(mut reader: R, mut deliver: F)
@@ -237,7 +235,7 @@ where
         if complete.is_some() {
             let finished = std::mem::take(&mut line);
             if !std::mem::replace(&mut skipping, false)
-                && !deliver(String::from_utf8_lossy(&finished).into_owned()).await
+                && !deliver(String::from_utf8_lossy_owned(finished)).await
             {
                 return;
             }

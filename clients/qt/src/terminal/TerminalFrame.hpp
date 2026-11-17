@@ -77,6 +77,7 @@ struct TerminalFrame {
     QVector<TerminalImagePlacement> images;
     std::optional<std::chrono::steady_clock::time_point> imageAnimationDue;
     bool mouseTracking = false;
+    std::optional<Qt::CursorShape> programPointer;
 
     [[nodiscard]] const TerminalCell* cell(
         const std::uint16_t column,

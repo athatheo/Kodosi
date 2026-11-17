@@ -32,16 +32,16 @@ data class PeopleState(
 )
 
 class PeopleStore(private val commands: CommandSink) {
-    private val mutableState = MutableStateFlow(PeopleState())
-    val state: StateFlow<PeopleState> = mutableState
+    val state: StateFlow<PeopleState>
+        field = MutableStateFlow(PeopleState())
 
     fun reset() {
-        mutableState.value = PeopleState()
+        state.value = PeopleState()
     }
 
     fun receive(event: RuntimeEvent) {
         if (event.type != "friends.snapshot") return
-        mutableState.value = PeopleState(
+        state.value = PeopleState(
             friends = event.value("friends"),
             incoming = event.value("incoming"),
             outgoing = event.value("outgoing"),

@@ -60,7 +60,7 @@ struct PeopleView: View {
                             .frame(height: 260)
                     } else {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 360), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
-                            ForEach(Array(deps.people.friends.enumerated()), id: \.element.id) { index, friend in
+                            ForEach(deps.people.friends.enumerated(), id: \.element.id) { index, friend in
                                 FriendItem(friend: friend) { pendingRemoval = friend } block: {
                                     deps.workbench.blocking = BlockTarget(handle: friend.handle, name: friend.personName)
                                 }
@@ -86,21 +86,11 @@ struct PeopleView: View {
             .animation(theme.motion.spring, value: deps.people.outgoing.map(\.id))
             .animation(theme.motion.spring, value: deps.people.blocked.map(\.id))
             .animation(theme.motion.snappy, value: copied)
-            .confirmationDialog(
-                "Remove \(pendingRemoval?.personName ?? "")?",
-                isPresented: Binding(get: { pendingRemoval != nil }, set: {
-                    if !$0 {
-                        pendingRemoval = nil
-                    }
-                }), titleVisibility: .visible,
-            ) {
-                if let friend = pendingRemoval {
-                    Button("Remove", role: .destructive) {
-                        deps.people.remove(friend)
-                        pendingRemoval = nil
-                    }
-                }
-            } message: { Text("You stop sharing terminals with each other, and each of you leaves the projects that the other owns. Kodosi does not undo the commands that they already ran.") }
+            .confirmationDialog("Remove \(pendingRemoval?.personName ?? "")?", item: $pendingRemoval, titleVisibility: .visible) { friend in
+                Button("Remove", role: .destructive) { deps.people.remove(friend) }
+            } message: { _ in
+                Text("You stop sharing terminals with each other, and each of you leaves the projects that the other owns. Kodosi does not undo the commands that they already ran.")
+            }
             .onChange(of: deps.inviteCopies) { _, _ in copied = true }
             .task(id: copied) {
                 guard copied else { return }

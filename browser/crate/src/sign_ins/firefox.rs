@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, OpenFlags};
-
-use super::{Cookie, CopyError, Kind, SignInSource, store_copy};
+use super::{Cookie, CopyError, Kind, SignInSource, open_store, store_copy};
 
 const STORE: &str = "cookies.sqlite";
 const BROWSER: &str = "firefox";
@@ -119,7 +117,7 @@ fn same_site_of(value: i64) -> Option<&'static str> {
 }
 
 fn read_store(store: &Path) -> Result<Vec<Cookie>, CopyError> {
-    let connection = Connection::open_with_flags(store, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let connection = open_store(store)?;
     let mut statement = connection.prepare(
         "SELECT name, value, host, path, expiry, isSecure, isHttpOnly, sameSite, \
          originAttributes FROM moz_cookies",
@@ -159,7 +157,7 @@ mod tests {
     use super::*;
 
     fn store(path: &Path) {
-        let connection = Connection::open(path).unwrap();
+        let connection = rusqlite::Connection::open(path).unwrap();
         connection
             .execute_batch(
                 "CREATE TABLE moz_cookies(name TEXT, value TEXT, host TEXT, path TEXT,

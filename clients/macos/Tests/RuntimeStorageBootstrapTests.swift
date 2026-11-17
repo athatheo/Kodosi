@@ -63,7 +63,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     }
 }
 
-@MainActor
 @Test func `hosted bootstrap requires explicit data root`() {
     #expect(throws: RuntimeStorageBootstrap.BootstrapError.missingTestDataRoot) {
         try RuntimeStorageBootstrap.resolve(
@@ -74,7 +73,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     }
 }
 
-@MainActor
 @Test func `storage bootstrap rejects unsafe roots`() {
     for candidate in [
         "",
@@ -90,7 +88,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     }
 }
 
-@MainActor
 @Test func `storage bootstrap rejects filesystem aliases of production root`() throws {
     let parent = try canonicalTemporaryTestDirectory(
         "KodosiStorageIdentityTests-\(UUID().uuidString)",
@@ -114,7 +111,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     #expect(!FileManager.default.fileExists(atPath: candidate.path))
 }
 
-@MainActor
 @Test func `storage bootstrap rejects protected ancestors and child symlinks before mutation`() throws {
     let parent = try canonicalTemporaryTestDirectory("KodosiBootstrapPreflight-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: parent) }
@@ -140,7 +136,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     #expect(permissions?.intValue == 0o755)
 }
 
-@MainActor
 @Test func `hosted bootstrap creates unique contained paths`() throws {
     let parent = URL(
         fileURLWithPath: "/private/var/tmp/KodosiBootstrapTests-\(UUID().uuidString)",
@@ -174,7 +169,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     #expect(first.defaults is EphemeralUserDefaults)
 }
 
-@MainActor
 @Test func `isolated bootstrap releases preferences after its last consumer`() throws {
     let root = try canonicalTemporaryTestDirectory("KodosiBootstrapLifetimeTests-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -195,7 +189,6 @@ private func canonicalTemporaryTestDirectory(_ name: String) throws -> URL {
     #expect(!FileManager.default.fileExists(atPath: file.path))
 }
 
-@MainActor
 @Test func `production bootstrap keeps standard preferences`() throws {
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     #expect(!bootstrap.isIsolated)

@@ -119,8 +119,7 @@ fn rollout_thread(path: &Path) -> Option<&str> {
     let name = path
         .file_name()?
         .to_str()?
-        .strip_prefix("rollout-")?
-        .strip_suffix(".jsonl")?;
+        .strip_circumfix("rollout-", ".jsonl")?;
     let ids = name.get(19..)?.strip_prefix('-')?;
     Some(ids.split_once('_').map_or(ids, |(thread, _)| thread))
 }

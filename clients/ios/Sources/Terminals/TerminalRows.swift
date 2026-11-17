@@ -23,7 +23,7 @@ struct TerminalRowsFrame<Content: View>: View {
     @Environment(\.displayScale) private var scale
     private let content: Content
 
-    init(renderer: TerminalRendererSession, @ViewBuilder content: () -> Content) {
+    init(renderer: TerminalRendererSession, @ContentBuilder content: () -> Content) {
         _renderer = ObservedObject(wrappedValue: renderer)
         _cursor = ObservedObject(wrappedValue: renderer.cursor)
         self.content = content()

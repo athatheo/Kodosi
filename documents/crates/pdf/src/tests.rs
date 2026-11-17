@@ -1,6 +1,6 @@
-use document::{Assets, Format, Ordered, Refused};
+use document::{Assets, Format, Ordered, Refused, hash_from_hex};
 use lopdf::{
-    Dictionary, Document, Object, Stream,
+    Dictionary, Document, Object, Stream, StringFormat,
     content::{Content, Operation},
     dictionary,
 };
@@ -111,6 +111,24 @@ fn pages_come_with_inherited_sizes_and_form_values() {
     assert_eq!(snapshot["pages"].as_array().unwrap().len(), 2);
     assert_eq!(snapshot["pages"][0]["width"], 612.0);
     assert_eq!(snapshot["fields"]["name"], "Ana");
+}
+
+#[test]
+fn a_string_in_the_encoding_of_pdf_reads_as_its_letters() {
+    let mut document = Document::load_mem(&pdf_file()).unwrap();
+    let field = document
+        .objects
+        .values_mut()
+        .filter_map(|object| object.as_dict_mut().ok())
+        .find(|dictionary| dictionary.has(b"FT"))
+        .unwrap();
+    field.set(
+        "V",
+        Object::String(b"Ana \x84 \x80 \xa0".to_vec(), StringFormat::Literal),
+    );
+    let mut file = Vec::new();
+    document.save_to(&mut file).unwrap();
+    assert_eq!(Pdf::snapshot(&read(&file)).0["fields"]["name"], "Ana — • €");
 }
 
 #[test]
@@ -329,11 +347,7 @@ fn page_work_gives_views_a_new_file_to_load() {
     };
     assert_eq!(asset, model.asset);
     assert_eq!(pages[0].rotation, 180);
-    let hash: Vec<u8> = (0..64)
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&asset[index..index + 2], 16).unwrap())
-        .collect();
-    assert!(assets.get(&<[u8; 32]>::try_from(hash).unwrap()).is_some());
+    assert!(assets.get(&hash_from_hex(&asset).unwrap()).is_some());
 }
 
 #[test]

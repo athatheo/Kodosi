@@ -5,7 +5,7 @@ they connect.
 
 ## Toolchains
 
-Install `just`, Python 3 and the toolchains of the part you change.
+Install `just`, Python 3.12 or later and the toolchains of the part you change.
 [rust-toolchain.toml](../rust-toolchain.toml) pins Rust and
 [backend/global.json](../backend/global.json) pins .NET; put that .NET SDK in
 `backend/.tools/dotnet/`. `just rust-tools-install` puts the Rust check tools in
@@ -15,6 +15,12 @@ downloads in `.tools/maven/`. Keep every tool and dependency inside the project.
 [iOS](../clients/ios/README.md) and [Android](../clients/android/README.md) guides list the
 native prerequisites; on Windows run the recipes in Git Bash. The apps need Bun for the
 document views, at the version of [.bun-version](../.bun-version).
+
+Cargo and Bun take a new release of a dependency only after it has been public for a while,
+as [.cargo/config.toml](../.cargo/config.toml) and each `bunfig.toml` set, so that a bad
+release is found before Kodosi takes it. For a fix that cannot wait, run
+`CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate> --precise <version>`,
+or `bun add --minimum-release-age=0 <package>@<version>`.
 
 ## Commands
 
@@ -86,7 +92,9 @@ just backend-docker-run
 
 `just backend-docker-stop` stops it and keeps the volume. To sign in with another
 identity provider, such as the disposable Keycloak of `sign-in/keycloak.sh`, set
-`Auth__Authority` and `Auth__Audience` in a local Compose override.
+`Auth__Authority` and `Auth__Audience` in a local Compose override. With that Keycloak,
+the client that `sign-in/keycloak.sh` prints for account deletions goes into the
+`Auth__AccountDeletion` settings of [Self-hosting](SELF-HOSTING.md).
 
 Debug builds of the Mac, iPhone and Android apps use this local backend and sign in with the
 Keycloak of `sign-in/keycloak.sh`, or with the service that `KODOSI__AUTH__ISSUER` names. For
@@ -106,8 +114,8 @@ ships next to the `kodosi` program, by its version and Git commit. Each app buil
 it from that commit with its own `Cargo.lock`, in `.tools/agent-browser/`. To move the
 pin, check the release and its tag first, change both lines and build each app.
 
-Kodosi Browser builds on the ready-built CEF that its `cef` crate pins, which the build
-downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
+Kodosi Browser builds on the ready-built CEF that its `cef-dll-sys` crate pins, which the
+build downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
 --output-dir <folder>` builds it on each computer with `uv`, with its archive and its entry
 in the feed. `scripts/generate-engine-feed.py <folder>` writes the feed of the archives of all
 computers and signs it with the updates key from standard input; each update site carries

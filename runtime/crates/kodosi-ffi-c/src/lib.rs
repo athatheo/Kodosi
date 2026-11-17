@@ -155,10 +155,7 @@ fn start_failure(code: i32, message: &str) -> Box<KodosiStartFailure> {
         host_terminals: 0,
         message: [0; KODOSI_START_FAILURE_MESSAGE_BYTES],
     });
-    let mut end = message.len().min(KODOSI_START_FAILURE_MESSAGE_BYTES - 1);
-    while !message.is_char_boundary(end) {
-        end -= 1;
-    }
+    let end = message.floor_char_boundary(KODOSI_START_FAILURE_MESSAGE_BYTES - 1);
     for (slot, byte) in failure.message.iter_mut().zip(&message.as_bytes()[..end]) {
         *slot = c_char::from_ne_bytes([*byte]);
     }

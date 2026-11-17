@@ -652,6 +652,6 @@ fn changed_of<C: serde::Serialize>(ordered: &Ordered<C>) -> Changed {
         author: ordered.author.clone(),
         client: ordered.client.clone(),
         seq: ordered.seq,
-        body: serde_json::to_value(&ordered.change).unwrap_or(Value::Null),
+        body: serde_json::to_value(&ordered.change).unwrap_or_default(),
     }
 }

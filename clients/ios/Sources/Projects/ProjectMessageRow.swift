@@ -104,7 +104,7 @@ struct ProjectMessageRow: View {
         .contextMenu { actions }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var avatar: some View {
         if startsGroup {
             ProjectMessageFace(message: message, terminal: terminal)
@@ -133,7 +133,7 @@ struct ProjectMessageRow: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var actions: some View {
         Button { UIPasteboard.general.string = message.text } label: {
             Label("Copy", systemImage: "doc.on.doc")

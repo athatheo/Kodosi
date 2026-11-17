@@ -6,11 +6,11 @@ use aws_lc_rs::{
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use crate::{
+    hex::sha256_hex,
     identity::{
         keys::{
             AGREEMENT_BYTES, DeviceKeys, PROJECT_KEM_PUBLIC_BYTES, PROJECT_PUBLIC_BYTES,
@@ -147,7 +147,7 @@ pub(crate) fn sign<T: Serialize>(
     signed.extend_from_slice(&body);
     Ok((
         BASE64.encode(&body),
-        BASE64.encode(crypto::sign_control_message(keys.signing_pkcs8(), &signed)?),
+        BASE64.encode(crypto::sign(keys.signing_key(), &signed)?),
     ))
 }
 
@@ -247,7 +247,7 @@ pub(crate) fn verify_state(
         }
     }
     Ok(VerifiedState {
-        hash: digest(&bytes),
+        hash: sha256_hex(&bytes),
         state,
         identities,
     })
@@ -469,17 +469,4 @@ fn open(key: &[u8], context: &[u8], sealed: &Sealed) -> Result<Zeroizing<Vec<u8>
         decode(&sealed.ciphertext, 256 * 1024)?,
     )
     .ok_or_else(|| invalid("Project content could not be authenticated."))
-}
-
-fn digest(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    Sha256::digest(bytes)
-        .iter()
-        .flat_map(|byte| {
-            [
-                char::from(HEX[usize::from(byte >> 4)]),
-                char::from(HEX[usize::from(byte & 15)]),
-            ]
-        })
-        .collect()
 }

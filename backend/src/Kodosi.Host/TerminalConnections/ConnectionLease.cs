@@ -102,6 +102,7 @@ public sealed partial class ConnectionLease(DatabaseConnection database, Connect
                 if (await HeldAsync(ct)) continue;
                 connections.StopAll();
                 LeaseLost(logger);
+                Environment.ExitCode = 1;
                 lifetime.StopApplication();
                 return;
             }

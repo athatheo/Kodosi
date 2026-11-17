@@ -156,15 +156,9 @@ struct DeviceSettingsView: View {
         .animation(theme.motion.spring, value: deps.account.deletion)
         .animation(theme.motion.spring, value: deps.account.deviceRequests)
         .animation(theme.motion.spring, value: deps.account.pendingReset)
-        .confirmationDialog("Remove \(revoke?.title ?? "")?", isPresented: Binding(get: { revoke != nil }, set: {
-            if !$0 {
-                revoke = nil
-            }
-        }), titleVisibility: .visible) {
-            if let device = revoke {
-                Button("Remove", role: .destructive) { deps.account.revokeDevice(device); revoke = nil }
-            }
-        } message: { Text(revoke?.removalMessage(hasRecoveryKey: deps.account.hasRecoveryKey) ?? "") }
+        .confirmationDialog("Remove \(revoke?.title ?? "")?", item: $revoke, titleVisibility: .visible) { device in
+            Button("Remove", role: .destructive) { deps.account.revokeDevice(device) }
+        } message: { device in Text(device.removalMessage(hasRecoveryKey: deps.account.hasRecoveryKey)) }
         .confirmationDialog(Text("Approve \(confirmingLabel ?? "")?"), isPresented: Binding(get: { confirmingLabel != nil }, set: { _ in }),
                             titleVisibility: .visible)
         {

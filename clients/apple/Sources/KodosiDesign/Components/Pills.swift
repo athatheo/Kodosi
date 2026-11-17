@@ -109,7 +109,7 @@ public struct SegmentedPill<Value: Hashable>: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var thumbFace: some View {
         if stacked {
             RaisedBackground(shape: RoundedRectangle(cornerRadius: Radius.xl - 3, style: .continuous), fill: theme.colors.raised, elevation: .resting)
@@ -214,7 +214,7 @@ public struct SectionDock: View {
         .animation(theme.motion.snappy, value: items.map(\.count))
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func glyph(_ item: DockItem, selected: Bool) -> some View {
         if let progress = item.progress {
             ProgressRing(value: progress, size: 14, lineWidth: 2.4)

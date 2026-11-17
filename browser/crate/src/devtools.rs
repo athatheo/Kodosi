@@ -85,7 +85,7 @@ impl Devtools {
                         .send(Event {
                             session: reply.session,
                             method,
-                            params: reply.params.unwrap_or(Value::Null),
+                            params: reply.params.unwrap_or_default(),
                         })
                         .is_err()
                 {
@@ -207,7 +207,7 @@ fn answer(
     if let Some(waiter) = waiter {
         let outcome = match error {
             Some(error) => Err(Error::Engine(error.message)),
-            None => Ok(result.unwrap_or(Value::Null)),
+            None => Ok(result.unwrap_or_default()),
         };
         drop(waiter.send(outcome));
     }

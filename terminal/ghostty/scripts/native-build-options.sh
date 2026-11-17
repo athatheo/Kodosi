@@ -18,10 +18,12 @@ case ",$GHOSTTY_BUILD_APPLE_SLICES," in
 esac
 case "$SLICE" in
     macos-arm64*)
+        SLICE_OS=macos
         SLICE_TARGET=$GHOSTTY_BUILD_MACOS_TARGET
         SLICE_I18N=$GHOSTTY_BUILD_MACOS_I18N
         ;;
     ios-arm64*)
+        SLICE_OS=ios
         SLICE_TARGET=$GHOSTTY_BUILD_IOS_TARGET
         SLICE_I18N=$GHOSTTY_BUILD_IOS_I18N
         ;;
@@ -68,11 +70,18 @@ case "${1:-}" in
     target)
         printf '%s\n' "$SLICE_TARGET"
         ;;
+    minimum)
+        if [[ ! "$SLICE_TARGET" =~ ^aarch64-$SLICE_OS\.([0-9]+\.[0-9]+(\.[0-9]+)?)(-simulator)?$ ]]; then
+            echo "[!] the target of $SLICE gives no $SLICE_OS version: $SLICE_TARGET" >&2
+            exit 1
+        fi
+        printf '%s\n' "${BASH_REMATCH[1]}"
+        ;;
     slices)
         printf '%s\n' "${SLICES[@]}"
         ;;
     *)
-        echo "Usage: $0 <arguments|vector|target|slices> [slice]" >&2
+        echo "Usage: $0 <arguments|vector|target|minimum|slices> [slice]" >&2
         exit 1
         ;;
 esac

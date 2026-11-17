@@ -1,6 +1,5 @@
 package com.kodosi.mobile.projects
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -168,8 +169,8 @@ private fun NewTaskDialog(
     repositories: List<ProjectRepository>,
     dismiss: () -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    val title = rememberTextFieldState()
+    val description = rememberTextFieldState()
     var chosen by remember { mutableStateOf<Set<String>>(emptySet()) }
     var issue by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -181,14 +182,18 @@ private fun NewTaskDialog(
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {
-                    KodosiField(title, {
-                        title = it
-                    }, label = stringResource(R.string.name), singleLine = true)
+                    KodosiField(
+                        title,
+                        label = stringResource(R.string.name),
+                        lineLimits = TextFieldLineLimits.SingleLine
+                    )
                 }
                 item {
-                    KodosiField(description, {
-                        description = it
-                    }, label = stringResource(R.string.description), minLines = 3)
+                    KodosiField(
+                        description,
+                        label = stringResource(R.string.description),
+                        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3)
+                    )
                 }
                 items(repositories, key = { it.id }) { repository ->
                     CheckRow(repository.name, repository.id in chosen, {
@@ -204,14 +209,14 @@ private fun NewTaskDialog(
             }
         },
         confirmButton = {
-            KodosiButton(enabled = !busy && title.isNotBlank(), onClick = {
+            KodosiButton(enabled = !busy && title.text.isNotBlank(), onClick = {
                 busy = true
                 scope.launch {
                     try {
                         model.projects.createTask(
                             projectId,
-                            title,
-                            description,
+                            title.text.toString(),
+                            description.text.toString(),
                             chosen,
                             chosen.sorted().firstOrNull().takeIf {
                                 issue

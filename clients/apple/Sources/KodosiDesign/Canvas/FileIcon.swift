@@ -39,7 +39,7 @@ public struct FileIcon: View {
             .accessibilityHidden(true)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var mark: some View {
         switch look.mark {
         case let .letters(letters):

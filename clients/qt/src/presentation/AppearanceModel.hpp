@@ -12,12 +12,12 @@ namespace kodosi {
 
 class AppearanceModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(Preference preference READ preference NOTIFY preferenceChanged)
-    Q_PROPERTY(bool dark READ dark NOTIFY darkChanged)
-    Q_PROPERTY(bool reduceMotion READ reduceMotion NOTIFY reduceMotionChanged)
-    Q_PROPERTY(bool systemReducesMotion READ systemReducesMotion NOTIFY reduceMotionChanged)
-    Q_PROPERTY(bool summaryFirst READ summaryFirst NOTIFY summaryFirstChanged)
-    Q_PROPERTY(QString settingsError READ settingsError NOTIFY settingsErrorChanged)
+    Q_PROPERTY(Preference preference READ preference NOTIFY preferenceChanged FINAL)
+    Q_PROPERTY(bool dark READ dark NOTIFY darkChanged FINAL)
+    Q_PROPERTY(bool reduceMotion READ reduceMotion NOTIFY reduceMotionChanged FINAL)
+    Q_PROPERTY(bool systemReducesMotion READ systemReducesMotion NOTIFY reduceMotionChanged FINAL)
+    Q_PROPERTY(bool summaryFirst READ summaryFirst NOTIFY summaryFirstChanged FINAL)
+    Q_PROPERTY(QString settingsError READ settingsError NOTIFY settingsErrorChanged FINAL)
 
 public:
     enum class Preference {

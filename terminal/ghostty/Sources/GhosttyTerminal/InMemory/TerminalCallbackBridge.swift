@@ -8,6 +8,8 @@ enum TerminalActionSnapshot: Sendable {
     case openURL(kind: TerminalOpenURLKind, url: String)
     case mouseOverLink(String?)
     case selectionChanged
+    case mouseShape(ghostty_action_mouse_shape_e)
+    case mouseVisibility(visible: Bool)
     case unsupported(String)
 }
 
@@ -20,6 +22,8 @@ final class TerminalCallbackBridge {
     var onCellSizeChange: ((UInt32, UInt32) -> Void)?
     var onRenderRequest: (() -> Void)?
     var onSelectionChanged: (() -> Void)?
+    var onMouseShapeChange: ((ghostty_action_mouse_shape_e) -> Void)?
+    var onMouseVisibilityChange: ((Bool) -> Void)?
     var onAppWakeup: (() -> Void)?
     var canProcessAppWakeup: (() -> Bool)?
     var surfaceConfig: ghostty_config_t?
@@ -86,12 +90,18 @@ final class TerminalCallbackBridge {
                 .actions,
                 "callback action=mouse_over_link url=\(url.map { TerminalDebugLog.describe($0) } ?? "nil")"
             )
-            (delegate as? any TerminalSurfaceHoverLinkDelegate)?
-                .terminalDidUpdateHoverLink(url)
 
         case .selectionChanged:
             TerminalDebugLog.log(.actions, "callback action=selection_changed")
             onSelectionChanged?()
+
+        case let .mouseShape(shape):
+            TerminalDebugLog.log(.actions, "callback action=mouse_shape shape=\(shape.rawValue)")
+            onMouseShapeChange?(shape)
+
+        case let .mouseVisibility(visible):
+            TerminalDebugLog.log(.actions, "callback action=mouse_visibility visible=\(visible)")
+            onMouseVisibilityChange?(visible)
 
         case let .unsupported(tag):
             TerminalDebugLog.log(.actions, "callback action=\(tag)")
