@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,9 +31,8 @@ import com.kodosi.mobile.R
 
 @Composable
 fun MessageComposer(
-    text: String,
+    draft: TextFieldState,
     busy: Boolean,
-    change: (String) -> Unit,
     send: () -> Unit,
     enabled: Boolean = true,
     focusRequester: FocusRequester? = null
@@ -55,9 +56,8 @@ fun MessageComposer(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         BasicTextField(
-            value = text,
-            onValueChange = change,
-            maxLines = 6,
+            draft,
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 6),
             interactionSource = interaction,
             textStyle = KodosiType.body.copy(color = if (enabled) colors.ink else colors.inkFaint),
             cursorBrush = SolidColor(colors.accent),
@@ -65,13 +65,13 @@ fun MessageComposer(
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .padding(horizontal = 12.dp, vertical = 11.dp).semantics { contentDescription = label },
             enabled = enabled,
-            decorationBox = { input ->
+            decorator = { input ->
                 Box {
-                    if (text.isEmpty()) Text(label, style = KodosiType.body, color = colors.inkMuted)
+                    if (draft.text.isEmpty()) Text(label, style = KodosiType.body, color = colors.inkMuted)
                     input()
                 }
             }
         )
-        KodosiSendKey(enabled && !busy && text.isNotBlank(), busy, send)
+        KodosiSendKey(enabled && !busy && draft.text.isNotBlank(), busy, send)
     }
 }

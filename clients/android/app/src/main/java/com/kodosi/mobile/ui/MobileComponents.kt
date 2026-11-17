@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -763,7 +763,7 @@ fun TextEntryDialog(
     dismiss: () -> Unit,
     submit: suspend (String) -> Unit
 ) {
-    var text by remember { mutableStateOf(initial) }
+    val text = rememberTextFieldState(initial)
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -772,21 +772,19 @@ fun TextEntryDialog(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                KodosiField(text, {
-                    text = it
-                }, label = label, modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                KodosiField(text, label = label, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                 extra?.invoke()
                 error?.let { ErrorNote(it) }
                 if (busy) ProgressCaption(stringResource(R.string.working))
             }
         },
         confirmButton = {
-            KodosiButton(enabled = !busy && (allowBlank || text.isNotBlank()), onClick = {
+            KodosiButton(enabled = !busy && (allowBlank || text.text.isNotBlank()), onClick = {
                 error = null
                 busy = true
                 scope.launch {
                     try {
-                        submit(text)
+                        submit(text.text.toString())
                         dismiss()
                     } catch (failure: CancellationException) {
                         throw failure

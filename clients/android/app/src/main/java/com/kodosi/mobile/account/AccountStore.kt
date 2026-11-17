@@ -50,35 +50,35 @@ data class AccountState(
 }
 
 class AccountStore(private val commands: CommandSink, private val words: Words, private val language: () -> String) {
-    private val mutableState = MutableStateFlow(AccountState())
-    val state: StateFlow<AccountState> = mutableState
+    val state: StateFlow<AccountState>
+        field = MutableStateFlow(AccountState())
     var notify: (String) -> Unit = {}
 
     fun reset(userId: String?) {
-        mutableState.update { current ->
+        state.update { current ->
             AccountState(userId = userId, stage = if (current.stage.isPending) current.stage else SignInStage.Idle)
         }
     }
 
     fun receiveAuth(event: RuntimeEvent) {
         if (event.type != "auth.restoring" && event.type != "auth.deletion_pending") {
-            mutableState.update { it.copy(restoring = null) }
+            state.update { it.copy(restoring = null) }
         }
         when (event.type) {
             "auth.ready" -> receiveReady(event)
 
             "auth.required" -> receiveRequired(event)
 
-            "auth.restoring" -> mutableState.update { it.copy(restoring = event.string("reason")) }
+            "auth.restoring" -> state.update { it.copy(restoring = event.string("reason")) }
 
             "auth.browser" -> {
                 val page = event.string("url")?.let(ExternalAuthUrl::parse)
-                mutableState.update { it.copy(stage = SignInStage.AwaitingBrowser(page), signInPage = page) }
+                state.update { it.copy(stage = SignInStage.AwaitingBrowser(page), signInPage = page) }
             }
 
-            "auth.finalizing" -> mutableState.update { it.copy(stage = SignInStage.Finalizing, signInPage = null) }
+            "auth.finalizing" -> state.update { it.copy(stage = SignInStage.Finalizing, signInPage = null) }
 
-            "auth.deletion_pending" -> mutableState.update {
+            "auth.deletion_pending" -> state.update {
                 it.copy(deletionPage = event.string("confirmationUri")?.let(ExternalAuthUrl::parse), deleting = true)
             }
         }
@@ -88,13 +88,13 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         when {
             event.type == "devices.list" -> receiveList(event)
 
-            event.type == "devices.link.snapshot" -> mutableState.update { it.copy(requests = event.value("requests")) }
+            event.type == "devices.link.snapshot" -> state.update { it.copy(requests = event.value("requests")) }
 
             event.type == "devices.hosts" -> {
                 val ids = event["deviceIds"]?.let {
                     RuntimeJson.decodeFromJsonElement(ListSerializer(String.serializer()), it)
                 }
-                mutableState.update { it.copy(onlineHosts = ids.orEmpty().toSet()) }
+                state.update { it.copy(onlineHosts = ids.orEmpty().toSet()) }
             }
 
             event.type == "devices.result" && event.string("operation") == "devices.link.startSelf" -> {
@@ -104,11 +104,11 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
                     }
                     DeviceTrust.PendingApproval(code, qr.orEmpty())
                 } ?: DeviceTrust.Joining
-                mutableState.update { it.copy(stage = SignInStage.TrustingDevice(trust)) }
+                state.update { it.copy(stage = SignInStage.TrustingDevice(trust)) }
             }
 
             event.type == "devices.link.selfResolved" -> {
-                mutableState.update {
+                state.update {
                     if (it.stage is SignInStage.TrustingDevice && event.string("outcome") != "approved") {
                         it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose))
                     } else {
@@ -125,7 +125,7 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     fun receiveConnection(event: RuntimeEvent) {
         if (event.type != "connection.state") return
         val online = event.bool("online") ?: return
-        mutableState.update { it.copy(online = online) }
+        state.update { it.copy(online = online) }
     }
 
     fun retryConnection() {
@@ -133,28 +133,28 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     }
 
     fun absorb(event: RuntimeEvent, message: String): Boolean {
-        val current = mutableState.value
+        val current = state.value
         if (event.type.startsWith("auth.")) {
             if (event.string("operation") ==
                 "auth.deleteAccount"
             ) {
-                mutableState.update { it.copy(deleting = false, deletionPage = null) }
+                state.update { it.copy(deleting = false, deletionPage = null) }
             }
             if (!current.stage.isPending && current.isReady) return false
-            mutableState.update {
+            state.update {
                 it.copy(stage = SignInStage.Failed(message, it.stage.completedSteps), signInPage = null)
             }
             return current.needsOnboarding || current.userId == null
         }
         if (event.type.startsWith("devices.") && current.stage is SignInStage.TrustingDevice) {
-            mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Failed(message))) }
+            state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Failed(message))) }
             return true
         }
         return false
     }
 
     fun signIn() {
-        val current = mutableState.value
+        val current = state.value
         when (current.stage) {
             SignInStage.Starting,
             is SignInStage.AwaitingBrowser,
@@ -164,7 +164,7 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
 
             SignInStage.Idle, is SignInStage.Failed, SignInStage.SignedIn ->
                 if (current.userId != null && !current.localDeviceEnrolled) {
-                    mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
+                    state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
                 } else {
                     restartSignIn()
                 }
@@ -172,7 +172,7 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     }
 
     fun restartSignIn() {
-        mutableState.update { it.copy(stage = SignInStage.Starting) }
+        state.update { it.copy(stage = SignInStage.Starting) }
         commands.perform(
             "auth.login.start",
             mapOf(
@@ -183,20 +183,20 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     }
 
     fun openedSignInPage() {
-        mutableState.update { it.copy(signInPage = null) }
+        state.update { it.copy(signInPage = null) }
     }
 
     fun finishSignIn(answer: String) {
-        if (mutableState.value.stage !is SignInStage.AwaitingBrowser) return
-        mutableState.update { it.copy(stage = SignInStage.Finalizing, signInPage = null) }
+        if (state.value.stage !is SignInStage.AwaitingBrowser) return
+        state.update { it.copy(stage = SignInStage.Finalizing, signInPage = null) }
         commands.perform("auth.login.finish", mapOf("url" to JsonPrimitive(answer)))
     }
 
     fun cancelSignIn() {
-        when (mutableState.value.stage) {
+        when (state.value.stage) {
             SignInStage.Starting, is SignInStage.AwaitingBrowser, SignInStage.Finalizing -> {
                 commands.perform("auth.login.cancel")
-                mutableState.update { it.copy(stage = SignInStage.Idle, signInPage = null) }
+                state.update { it.copy(stage = SignInStage.Idle, signInPage = null) }
             }
 
             else -> Unit
@@ -205,22 +205,22 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
 
     fun failSignIn(message: String) {
         commands.perform("auth.login.cancel")
-        mutableState.update { it.copy(stage = SignInStage.Failed(message, 0), signInPage = null) }
+        state.update { it.copy(stage = SignInStage.Failed(message, 0), signInPage = null) }
     }
 
     fun requestDeviceApproval() {
-        mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Requesting)) }
+        state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Requesting)) }
         commands.perform("devices.link.startSelf")
     }
 
     fun cancelDeviceApproval() {
         commands.perform("devices.link.cancelSelf")
-        mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
+        state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
     }
 
-    fun joinDevice(scanned: String): Boolean = when ((mutableState.value.stage as? SignInStage.TrustingDevice)?.trust) {
+    fun joinDevice(scanned: String): Boolean = when ((state.value.stage as? SignInStage.TrustingDevice)?.trust) {
         DeviceTrust.Choose, is DeviceTrust.PendingApproval, is DeviceTrust.Failed -> {
-            mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Joining)) }
+            state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Joining)) }
             commands.perform("devices.link.startSelf", fields("code" to scanned))
             true
         }
@@ -231,17 +231,17 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     fun useRecoveryKey(key: String) {
         val trimmed = key.trim()
         if (trimmed.isEmpty()) return
-        mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Recovering)) }
+        state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Recovering)) }
         commands.perform("devices.recovery.use", mapOf("key" to JsonPrimitive(trimmed)))
     }
 
     fun startFresh() {
-        mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Resetting)) }
+        state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Resetting)) }
         commands.perform("devices.reset")
     }
 
     fun chooseTrust() {
-        mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
+        state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Choose)) }
     }
 
     fun signOut() = commands.perform("auth.logout")
@@ -266,17 +266,17 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     }
 
     fun deleteAccount() {
-        mutableState.update { it.copy(deleting = true) }
+        state.update { it.copy(deleting = true) }
         commands.perform("auth.deleteAccount")
     }
 
     fun cancelDeletion() {
-        mutableState.update { it.copy(deleting = false, deletionPage = null) }
+        state.update { it.copy(deleting = false, deletionPage = null) }
         commands.perform("auth.deleteAccount.cancel")
     }
 
     fun openedDeletionPage() {
-        mutableState.update { it.copy(deletionPage = null) }
+        state.update { it.copy(deletionPage = null) }
     }
 
     private fun receiveList(event: RuntimeEvent) {
@@ -284,7 +284,7 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
         val devices = event["devices"]?.let {
             RuntimeJson.decodeFromJsonElement(ListSerializer(Device.serializer()), it)
         }
-        mutableState.update {
+        state.update {
             it.copy(
                 selfDeviceId = event.string("selfDeviceId"),
                 localDeviceEnrolled = enrolled,
@@ -295,19 +295,19 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
                 stage = if (enrolled && it.stage is SignInStage.TrustingDevice) SignInStage.SignedIn else it.stage
             )
         }
-        val reset = mutableState.value.reset
+        val reset = state.value.reset
         if (!enrolled && reset?.thisDevice == true) {
-            mutableState.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Waiting(reset.readyAtMs))) }
+            state.update { it.copy(stage = SignInStage.TrustingDevice(DeviceTrust.Waiting(reset.readyAtMs))) }
         }
     }
 
     private fun receiveReady(event: RuntimeEvent) {
-        if (event.string("userId") != mutableState.value.userId) {
+        if (event.string("userId") != state.value.userId) {
             notify(words.otherAccount)
             return
         }
         val enrolled = event.bool("enrolled") != false
-        mutableState.update {
+        state.update {
             it.copy(
                 authResolved = true,
                 signInPage = null,
@@ -323,7 +323,7 @@ class AccountStore(private val commands: CommandSink, private val words: Words, 
     }
 
     private fun receiveRequired(event: RuntimeEvent) {
-        mutableState.update {
+        state.update {
             it.copy(
                 authResolved = true,
                 signInPage = null,

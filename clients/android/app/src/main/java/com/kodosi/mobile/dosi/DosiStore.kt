@@ -77,13 +77,13 @@ data class DosiState(
 }
 
 class DosiStore(private val commands: CommandSink) {
-    private val mutableState = MutableStateFlow(DosiState())
-    val state: StateFlow<DosiState> = mutableState
+    val state: StateFlow<DosiState>
+        field = MutableStateFlow(DosiState())
     var draft = ""
     var device: String? = null
 
     fun reset() {
-        mutableState.value = DosiState()
+        state.value = DosiState()
         draft = ""
         device = null
     }
@@ -92,7 +92,7 @@ class DosiStore(private val commands: CommandSink) {
         when (event.type) {
             "dosi.snapshot" -> {
                 val next = event.value<DosiSnapshot>("dosi")
-                mutableState.update { previous ->
+                state.update { previous ->
                     val replaced = next.conversation?.string("id") != previous.snapshot?.conversation?.string("id")
                     val first = next.items.firstOrNull()?.id
                     val start = previous.items.indexOfFirst { it.id == first }
@@ -111,7 +111,7 @@ class DosiStore(private val commands: CommandSink) {
 
             "dosi.item" -> {
                 val item = event.value<DosiItem>("item")
-                mutableState.update {
+                state.update {
                     val index = it.items.indexOfFirst { old -> old.id == item.id }
                     it.copy(
                         items = if (index <
@@ -127,7 +127,7 @@ class DosiStore(private val commands: CommandSink) {
         }
     }
 
-    fun see() = mutableState.update { it.copy(seenTurn = it.items.lastOrNull()?.turn) }
+    fun see() = state.update { it.copy(seenTurn = it.items.lastOrNull()?.turn) }
 
     suspend fun send(text: String, computer: DosiComputer) {
         commands.request("dosi.send", fields("text" to text.trim(), "device" to computer.device))
@@ -153,7 +153,7 @@ class DosiStore(private val commands: CommandSink) {
         val items = page.objects("items").map {
             com.kodosi.mobile.runtime.RuntimeJson.decodeFromJsonElement(DosiItem.serializer(), it)
         }
-        mutableState.update { old ->
+        state.update { old ->
             old.copy(
                 items = items.filter { item ->
                     old.items.none { it.id == item.id }

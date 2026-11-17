@@ -7,7 +7,6 @@ import com.kodosi.mobile.canvas.Canvas
 import com.kodosi.mobile.runtime.RuntimeJson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.encodeToString
 
 data class Preferences(
     val appearance: String = "system",
@@ -27,28 +26,28 @@ data class Preferences(
 
 class AppPreferences(context: Context) {
     private val saved = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-    private val mutableState = MutableStateFlow(
-        Preferences(
-            saved.getString("appearance", "system").orEmpty(),
-            saved.getInt("textSize", 0),
-            saved.getBoolean("keepScreenOn", false),
-            saved.getBoolean("lock", false),
-            saved.getStringSet("disabledViewers", emptySet()).orEmpty().toSet(),
-            saved.getBoolean("documentPages", true),
-            saved.getBoolean("documentDark", true),
-            saved.getStringSet("canvas/closed", emptySet()).orEmpty().toSet(),
-            saved.getBoolean("notifications", true),
-            saved.getBoolean("summaryFirst", false)
+    val state: StateFlow<Preferences>
+        field = MutableStateFlow(
+            Preferences(
+                saved.getString("appearance", "system").orEmpty(),
+                saved.getInt("textSize", 0),
+                saved.getBoolean("keepScreenOn", false),
+                saved.getBoolean("lock", false),
+                saved.getStringSet("disabledViewers", emptySet()).orEmpty().toSet(),
+                saved.getBoolean("documentPages", true),
+                saved.getBoolean("documentDark", true),
+                saved.getStringSet("canvas/closed", emptySet()).orEmpty().toSet(),
+                saved.getBoolean("notifications", true),
+                saved.getBoolean("summaryFirst", false)
+            )
         )
-    )
-    val state: StateFlow<Preferences> = mutableState
-    private val mutableHistory = MutableStateFlow(
-        runCatching {
-            RuntimeJson.decodeFromString<List<BrowserPage>>(saved.getString("browser/history", "[]").orEmpty())
-        }
-            .getOrDefault(emptyList()).take(100)
-    )
-    val browserHistory: StateFlow<List<BrowserPage>> = mutableHistory
+    val browserHistory: StateFlow<List<BrowserPage>>
+        field = MutableStateFlow(
+            runCatching {
+                RuntimeJson.decodeFromString<List<BrowserPage>>(saved.getString("browser/history", "[]").orEmpty())
+            }
+                .getOrDefault(emptyList()).take(100)
+        )
     val notificationPermissionAsked: Boolean get() = saved.getBoolean("notifications/asked", false)
 
     fun notificationPermissionAsked() {
@@ -73,8 +72,8 @@ class AppPreferences(context: Context) {
             remove("browser/history")
             remove("canvas/closed")
         }
-        mutableHistory.value = emptyList()
-        mutableState.value = state.value.copy(closedCanvas = emptySet())
+        browserHistory.value = emptyList()
+        state.value = state.value.copy(closedCanvas = emptySet())
     }
 
     fun canvasPart(session: String, part: String, open: Boolean, changed: Long = 0) {
@@ -89,10 +88,10 @@ class AppPreferences(context: Context) {
     fun browsed(title: String, address: String) {
         if (address.isBlank() || address == "about:blank" || address.length > 8192) return
         val page = BrowserPage(title.take(256).ifBlank { address }, address)
-        if (mutableHistory.value.firstOrNull() == page) return
-        val next = (listOf(page) + mutableHistory.value.filter { it.address != address }).take(100)
+        if (browserHistory.value.firstOrNull() == page) return
+        val next = (listOf(page) + browserHistory.value.filter { it.address != address }).take(100)
         saved.edit { putString("browser/history", RuntimeJson.encodeToString(next)) }
-        mutableHistory.value = next
+        browserHistory.value = next
     }
 
     fun update(change: (Preferences) -> Preferences) {
@@ -110,7 +109,7 @@ class AppPreferences(context: Context) {
             putBoolean("notifications", next.notifications)
             putBoolean("summaryFirst", next.summaryFirst)
         }
-        mutableState.value = next
+        state.value = next
     }
 
     companion object {

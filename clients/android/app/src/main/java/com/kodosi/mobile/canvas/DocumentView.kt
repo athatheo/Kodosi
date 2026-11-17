@@ -196,7 +196,6 @@ internal class DocumentPage(
             allowFileAccess = false
             allowContentAccess = false
             domStorageEnabled = false
-            databaseEnabled = false
             mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportMultipleWindows(false)
         }

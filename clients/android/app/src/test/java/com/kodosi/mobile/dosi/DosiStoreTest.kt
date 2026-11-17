@@ -4,7 +4,6 @@ import com.kodosi.mobile.runtime.RuntimeJson
 import com.kodosi.mobile.runtime.SentCommands
 import com.kodosi.mobile.runtime.event
 import com.kodosi.mobile.runtime.fields
-import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
