@@ -828,6 +828,26 @@ fn the_browser_keeps_its_session_and_hides_what_an_agent_types() {
     assert_eq!(words(&["click", "@e2", "--new-tab"]), "click @e2");
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn a_long_answer_of_agent_browser_is_cut_at_a_character_and_still_ends() {
+    let mut command = tokio::process::Command::new("sh");
+    command
+        .args([
+            "-c",
+            "yes 'a\u{1D11E}' | head -c 3000000 && printf problem >&2 && exit 3",
+        ])
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    let run = browser::finished(command, std::time::Duration::from_secs(20))
+        .await
+        .unwrap();
+    assert_eq!(run.code, 3);
+    assert!(run.output.ends_with("\n…"));
+    assert!(run.output.len() <= browser::MOST_OUTPUT + "\n…".len());
+    assert!(!run.output.contains(char::REPLACEMENT_CHARACTER));
+}
+
 #[tokio::test]
 async fn a_browser_ends_at_once_while_kodosi_browser_comes() {
     let folder = tempfile::tempdir().unwrap();
