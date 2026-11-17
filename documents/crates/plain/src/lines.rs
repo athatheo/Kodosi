@@ -44,7 +44,7 @@ impl Text {
     }
 
     pub(crate) fn lines(&self) -> Vec<&str> {
-        (0..self.count()).map(|line| self.line(line)).collect()
+        Vec::from_fn(self.count(), |line| self.line(line))
     }
 
     pub(crate) fn start(&self, line: usize) -> usize {
