@@ -3,7 +3,6 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@MainActor
 private final class StandInMac {
     private struct Wake {
         let id: Int
@@ -63,13 +62,11 @@ private final class StandInMac {
     }
 }
 
-@MainActor
 private final class Sent {
     var states: [Presence] = []
     var accepts = true
 }
 
-@MainActor
 private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     let sent = Sent()
     let reporter = PresenceReporter(source: mac.source) { state in
@@ -80,7 +77,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     return (reporter, sent)
 }
 
-@Test @MainActor func `the person is in Kodosi while it is in front and at the Mac while another app is`() {
+@Test func `the person is in Kodosi while it is in front and at the Mac while another app is`() {
     let mac = StandInMac()
     let (reporter, sent) = reporter(on: mac)
     mac.active = true
@@ -95,7 +92,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     #expect(mac.wakes == [1180])
 }
 
-@Test @MainActor func `the Mac turns idle when the input stops for the away time and back at the next input`() {
+@Test func `the Mac turns idle when the input stops for the away time and back at the next input`() {
     let mac = StandInMac()
     let (reporter, sent) = reporter(on: mac)
     reporter.connected(awaySeconds: 180)
@@ -117,7 +114,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     #expect(mac.wakes == [mac.now + 180])
 }
 
-@Test @MainActor func `a locked screen, sleeping screens, a sleeping Mac or another user is away at once`() {
+@Test func `a locked screen, sleeping screens, a sleeping Mac or another user is away at once`() {
     let mac = StandInMac()
     let (reporter, sent) = reporter(on: mac)
     mac.active = true
@@ -142,7 +139,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     #expect(sent.states.suffix(2) == [.away, .idle])
 }
 
-@Test @MainActor func `a lock before the runtime is ready is away on its first report`() {
+@Test func `a lock before the runtime is ready is away on its first report`() {
     let mac = StandInMac()
     let (reporter, sent) = reporter(on: mac)
     reporter.left(.locked)
@@ -151,7 +148,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     #expect(sent.states == [.away])
 }
 
-@Test @MainActor func `each new runtime connection hears the state once, and a refused report goes out at the next change`() {
+@Test func `each new runtime connection hears the state once, and a refused report goes out at the next change`() {
     let mac = StandInMac()
     let (reporter, sent) = reporter(on: mac)
     reporter.connected(awaySeconds: 180)
@@ -175,7 +172,7 @@ private func reporter(on mac: StandInMac) -> (PresenceReporter, Sent) {
     #expect(sent.states == [.here, .kodosi, .kodosi, .here])
 }
 
-@Test @MainActor func `app.presence goes to the runtime before the visible terminals, with the away time of system.ready`() throws {
+@Test func `app.presence goes to the runtime before the visible terminals, with the away time of system.ready`() throws {
     let mac = StandInMac()
     mac.active = true
     let defaults = try #require(EphemeralUserDefaults(prefix: "Presence"))

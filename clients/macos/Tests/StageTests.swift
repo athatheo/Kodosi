@@ -7,7 +7,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     try runtimeSession(id, connection: "connected", restoredFrom: restoredFrom, ownerUserId: owner, hostDeviceId: "mini")
 }
 
-@Test @MainActor func `stage restoration is account scoped and survives delayed catalog`() throws {
+@Test func `stage restoration is account scoped and survives delayed catalog`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageRestoration"))
     let session = try runtimeSession()
     let first = WorkbenchState(defaults: defaults)
@@ -32,7 +32,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.reconcile([session]).isEmpty)
 }
 
-@Test @MainActor func `the signed out stage comes back after a restart`() throws {
+@Test func `the signed out stage comes back after a restart`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageSignedOut"))
     let session = try runtimeSession()
     let first = WorkbenchState(defaults: defaults)
@@ -45,7 +45,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.reconcile([session]).isEmpty)
 }
 
-@Test @MainActor func `a terminal that the host started again takes the place of the one before`() throws {
+@Test func `a terminal that the host started again takes the place of the one before`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageRestarted"))
     let before = try runtimeSession(kind: "local", connection: "local")
     let first = WorkbenchState(defaults: defaults)
@@ -59,7 +59,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.stagedSessionIds == [again.id])
 }
 
-@Test @MainActor func `restored terminals keep their order on the stage`() throws {
+@Test func `restored terminals keep their order on the stage`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageRestartedOrder"))
     let ids = (0 ..< 4).map { "01992e43-53db-7040-8e02-f6ebf4149b4\($0)" }
     let first = WorkbenchState(defaults: defaults)
@@ -75,7 +75,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.stagedSessionIds == [ids[2], ids[3]])
 }
 
-@Test @MainActor func `a terminal that another computer started again takes the place and focus of the one that ended`() throws {
+@Test func `a terminal that another computer started again takes the place and focus of the one that ended`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollow"))
     let ids = (0 ..< 3).map { "01992e43-53db-7040-8e02-f6ebf4149b5\($0)" }
     let (ended, other) = try (onMini(ids[0]), onMini(ids[1]))
@@ -96,7 +96,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.focusedSessionId == again.id)
 }
 
-@Test @MainActor func `a restart takes no selection that the person gave to another terminal`() throws {
+@Test func `a restart takes no selection that the person gave to another terminal`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowSelection"))
     let ids = (0 ..< 3).map { "01992e43-53db-7040-8e02-f6ebf4149b6\($0)" }
     let (ended, other) = try (onMini(ids[0]), onMini(ids[1]))
@@ -114,7 +114,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.focusedSessionId == nil)
 }
 
-@Test @MainActor func `terminals that ended together come back in their places and only the selected one takes the selection`() throws {
+@Test func `terminals that ended together come back in their places and only the selected one takes the selection`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowTogether"))
     let ids = (0 ..< 4).map { "01992e43-53db-7040-8e02-f6ebf4149b9\($0)" }
     let (first, second) = try (onMini(ids[0]), onMini(ids[1]))
@@ -130,7 +130,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.selectedSessionId == ids[3])
 }
 
-@Test @MainActor func `terminals that ended one after another come back in their places`() throws {
+@Test func `terminals that ended one after another come back in their places`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowInTurn"))
     let ids = (0 ..< 6).map { "01992e43-53db-7040-8e02-f6ebf4149bb\($0)" }
     let ended = try ids[0 ..< 3].map { try onMini($0) }
@@ -148,7 +148,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.stagedSessionIds == [ids[3], ids[4], ids[5]])
 }
 
-@Test @MainActor func `a terminal that is still listed moves to its restart at once`() throws {
+@Test func `a terminal that is still listed moves to its restart at once`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowListed"))
     let ids = (0 ..< 2).map { "01992e43-53db-7040-8e02-f6ebf4149b7\($0)" }
     let away = try onMini(ids[0])
@@ -162,7 +162,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.selectedSessionId == again.id)
 }
 
-@Test @MainActor func `a terminal follows no restart on another computer, of another person or after a close`() throws {
+@Test func `a terminal follows no restart on another computer, of another person or after a close`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowRefused"))
     let ids = (0 ..< 6).map { "01992e43-53db-7040-8e02-f6ebf4149b8\($0)" }
     let (ended, closed) = try (onMini(ids[0]), onMini(ids[1]))
@@ -184,7 +184,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.reconcile([elsewhere, someone, reopened, again]) == [again.id])
 }
 
-@Test @MainActor func `a terminal whose close failed still follows its restart`() throws {
+@Test func `a terminal whose close failed still follows its restart`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageFollowFailedClose"))
     let ids = (0 ..< 2).map { "01992e43-53db-7040-8e02-f6ebf4149ba\($0)" }
     let ended = try onMini(ids[0])
@@ -200,7 +200,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.stagedSessionIds == [again.id])
 }
 
-@Test @MainActor func `stage restoration opens sessions whose host is offline so they connect when it is back`() throws {
+@Test func `stage restoration opens sessions whose host is offline so they connect when it is back`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageRestorationOffline"))
     let session = try runtimeSession(status: "offline")
     #expect(session.statusLabel == "Remote computer is offline")
@@ -214,7 +214,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.stagedSessionIds == [session.id])
 }
 
-@Test @MainActor func `stage limit keeps existing terminals and allows reopening`() throws {
+@Test func `stage limit keeps existing terminals and allows reopening`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageLimit"))
     let workbench = WorkbenchState(defaults: defaults)
     let ids = (0 ..< 7).map { _ in UUIDv7.generate() }
@@ -230,7 +230,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.selectedSessionId == ids[6])
 }
 
-@Test @MainActor func `single view makes room by taking the terminal looked at longest ago off the stage`() throws {
+@Test func `single view makes room by taking the terminal looked at longest ago off the stage`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageRoom"))
     let workbench = WorkbenchState(defaults: defaults)
     let ids = (0 ..< 7).map { _ in UUIDv7.generate() }
@@ -249,7 +249,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.makingRoom(for: ids[0]) == ids[2])
 }
 
-@Test @MainActor func `the layout key shows the selected terminal alone and then the grid again`() throws {
+@Test func `the layout key shows the selected terminal alone and then the grid again`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageLayout"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.toggleSingleView()
@@ -268,7 +268,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.selectedSessionId == ids[1])
 }
 
-@Test @MainActor func `closing or minimizing the terminal of single view shows the next terminal alone`() throws {
+@Test func `closing or minimizing the terminal of single view shows the next terminal alone`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageSingleClose"))
     let ids = (0 ..< 3).map { "01992e43-53db-7040-8e02-f6ebf4149bc\($0)" }
     let sessions = try ids.map { try onMini($0) }
@@ -290,7 +290,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(workbench.selectedSessionId == nil)
 }
 
-@Test @MainActor func `a pin stays with its account and follows the terminal when its host starts it again`() throws {
+@Test func `a pin stays with its account and follows the terminal when its host starts it again`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StagePins"))
     let local = try runtimeSession(kind: "local", connection: "local")
     let remote = try onMini("01992e43-53db-7040-8e02-f6ebf4149b31")
@@ -316,7 +316,7 @@ private func onMini(_ id: String, restoredFrom: String? = nil, owner: String = "
     #expect(restarted.pinnedSessionIds.isEmpty)
 }
 
-@Test @MainActor func `a dragged terminal takes the place of the terminal that it drops on`() throws {
+@Test func `a dragged terminal takes the place of the terminal that it drops on`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "StageMove"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.switchAccount("ana")

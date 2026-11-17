@@ -17,12 +17,10 @@ trap 'rm -rf "$staging"' EXIT
 /usr/bin/ditto "$app" "$staging/Kodosi.app"
 ln -s /Applications "$staging/Applications"
 mkdir -p "$(dirname "$dmg")"
-hdiutil create \
-    -volname "Kodosi" \
-    -srcfolder "$staging" \
-    -ov \
-    -fs APFS \
-    -format ULFO \
+diskutil image create from \
+    --format ULFO \
+    --volumeName "Kodosi" \
+    "$staging" \
     "$dmg"
 codesign \
     --force \

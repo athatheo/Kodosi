@@ -13,7 +13,7 @@ struct SidebarSectionHeader<Accessory: View>: View {
     @State private var hovered = false
     let title: LocalizedStringKey
     let open: () -> Void
-    @ViewBuilder let accessory: () -> Accessory
+    @ContentBuilder let accessory: () -> Accessory
 
     var body: some View {
         HStack(spacing: 4) {
@@ -424,7 +424,7 @@ struct SidebarTerminalRow: View {
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var trailing: some View {
         if hovered, !renaming {
             HStack(spacing: 0) {
@@ -460,7 +460,7 @@ struct SidebarTerminalRow: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var menu: some View {
         Button("Open") { deps.activateSession(session.id) }
         Button(deps.workbench.isPinned(session.id) ? "Unpin" : "Pin") {

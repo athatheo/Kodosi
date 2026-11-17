@@ -225,7 +225,7 @@ struct DosiTurnRow<Content: View>: View {
     let turn: String
     let starts: Bool
     let live: String?
-    @ViewBuilder let content: Content
+    @ContentBuilder let content: Content
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {

@@ -102,7 +102,7 @@ public struct TerminalPreview: View {
         .accessibilityElement(children: .ignore).accessibilityLabel(Text("Terminal preview", bundle: .module))
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var cursor: some View {
         let size = look.size
         switch look.cursor {

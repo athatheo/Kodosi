@@ -69,7 +69,7 @@ extension AppDependencies {
             dosi.draft = ""
         }
         let context = dosiContext
-        Task { @MainActor in
+        Task {
             do {
                 try await dosi.send(message, context: context)
             } catch {
@@ -82,7 +82,7 @@ extension AppDependencies {
     }
 
     func answerDosi(_ item: DosiItem, _ choices: [String]) {
-        Task { @MainActor in
+        Task {
             do {
                 try await dosi.answer(item, choices: choices)
             } catch { errorMessage = error.localizedDescription }
@@ -90,7 +90,7 @@ extension AppDependencies {
     }
 
     func renewDosi() {
-        Task { @MainActor in
+        Task {
             do {
                 try await dosi.renew()
             } catch { errorMessage = error.localizedDescription }

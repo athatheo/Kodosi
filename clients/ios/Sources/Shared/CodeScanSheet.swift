@@ -89,7 +89,7 @@ struct CodeScanView: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var hint: some View {
         if otherCode {
             ErrorNote(message: String(localized: scan.other))

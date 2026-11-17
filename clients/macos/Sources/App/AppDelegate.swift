@@ -4,7 +4,6 @@ import KodosiDesign
 import os
 @preconcurrency import UserNotifications
 
-@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     static let minimumWindowSize = NSSize(width: 760, height: 540)
 
@@ -129,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
         terminating = true
         dependencies.shutdownProcess { [weak self] in
-            Task { @MainActor in
+            Task {
                 if stopsHost {
                     _ = await HostStopResult.stopHost(force: true)
                 }

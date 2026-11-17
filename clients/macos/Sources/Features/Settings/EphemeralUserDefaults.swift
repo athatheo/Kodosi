@@ -1,6 +1,8 @@
 import Foundation
+import KodosiBridge
+import os
 
-final class EphemeralUserDefaults: UserDefaults {
+final nonisolated class EphemeralUserDefaults: UserDefaults {
     let suiteName: String
     let persistentFileURL: URL
     private let directory: URL
@@ -26,7 +28,7 @@ final class EphemeralUserDefaults: UserDefaults {
         do {
             try cleanUp()
         } catch {
-            NSLog("Ephemeral preferences cleanup failed for %@: %@", suiteName, String(describing: error))
+            Logger.app.error("Isolated preferences cleanup failed: \(error.localizedDescription)")
         }
     }
 

@@ -3,7 +3,7 @@ import KodosiBridge
 @testable import KodosiDesktop
 import Testing
 
-@Test @MainActor func `a terminal on a new branch sends the branch and the chosen folder`() async throws {
+@Test func `a terminal on a new branch sends the branch and the chosen folder`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "BranchTerminal"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -27,7 +27,7 @@ import Testing
         try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
             "requestId": .string(request), "sessionId": .string(UUIDv7.generate()), "operation": .string("session.create"),
         ]))
-        try await creating.value
+        _ = try await creating.value
     }
 
     try await create(branch: "fix/login")

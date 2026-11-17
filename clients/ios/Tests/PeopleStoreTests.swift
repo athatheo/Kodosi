@@ -3,7 +3,6 @@ import KodosiBridge
 import KodosiKit
 import Testing
 
-@MainActor
 struct PeopleStoreTests {
     private let outbox = PeopleOutbox()
     private let store: PeopleStore
@@ -115,10 +114,8 @@ struct PeopleStoreTests {
         try outbox.commands.receive(event("friends.error", [
             "requestId": requestId, "operation": "friends.report", "message": "Wait a few minutes.",
         ]))
-        do {
-            try await report.value
-            Issue.record("A failed report must fail for the one who sent it")
-        } catch { #expect(error.localizedDescription == "Wait a few minutes.") }
+        let error = await #expect(throws: (any Error).self) { try await report.value }
+        #expect(error?.localizedDescription == "Wait a few minutes.")
     }
 
     private func deliverSnapshot() throws {
@@ -134,7 +131,6 @@ struct PeopleStoreTests {
     }
 }
 
-@MainActor
 private final class PeopleOutbox {
     let commands = CommandSink()
     private(set) var sent: [[String: JSONValue]] = []

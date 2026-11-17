@@ -54,7 +54,6 @@ private let people = [
     #expect(people[1].link == nil)
 }
 
-@MainActor
 @Test func `message text links addresses`() {
     let text = ProjectMessageText.formatted("See https://github.com/team/app/pull/7 and **this**")
     #expect(text.runs.compactMap(\.link).map(\.absoluteString) == ["https://github.com/team/app/pull/7"])

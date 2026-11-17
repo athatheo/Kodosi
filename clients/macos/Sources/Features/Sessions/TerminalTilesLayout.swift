@@ -1,10 +1,10 @@
 import SwiftUI
 
-struct TerminalTileVisibility: LayoutValueKey {
+nonisolated struct TerminalTileVisibility: LayoutValueKey {
     static let defaultValue = true
 }
 
-struct TerminalTilesLayout: Layout {
+nonisolated struct TerminalTilesLayout: Layout {
     func makeCache(subviews _: Subviews) -> [Int: CGSize] {
         [:]
     }

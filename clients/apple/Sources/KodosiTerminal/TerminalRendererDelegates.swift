@@ -42,7 +42,7 @@ final class TerminalRendererDelegateProxy:
 
     func endViewUpdate() {
         let generation = updateGeneration
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             await Task.yield()
             guard let self, updateGeneration == generation else { return }
             isDeferring = false

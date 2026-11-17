@@ -203,7 +203,7 @@ struct CanvasScreen: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func actions(_ item: CanvasItem, in session: RuntimeSession) -> some View {
         if !item.missing {
             Button("Save a Copy…", systemImage: "square.and.arrow.down") { save(item, from: session) }

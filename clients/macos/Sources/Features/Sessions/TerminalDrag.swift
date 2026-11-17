@@ -5,7 +5,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let kodosiTerminal = UTType(exportedAs: "com.kodosi.terminal")
+    nonisolated static let kodosiTerminal = UTType(exportedAs: "com.kodosi.terminal")
 }
 
 struct TerminalDrag: Codable, Transferable {
@@ -63,7 +63,7 @@ struct DropSlot: View {
 }
 
 extension View {
-    @ViewBuilder
+    @ContentBuilder
     func terminalDrag(_ session: RuntimeSession, when enabled: Bool = true) -> some View {
         if enabled {
             draggable(TerminalDrag(sessionId: session.id)) { TerminalDragPreview(session: session) }

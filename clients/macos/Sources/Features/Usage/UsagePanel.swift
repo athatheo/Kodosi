@@ -90,7 +90,7 @@ struct UsagePanel: View {
                     .appTextStyle(.footnote).foregroundStyle(theme.colors.inkFaint)
                     .padding(.horizontal, 8).frame(height: 30)
             }
-            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+            ForEach(sections.enumerated(), id: \.element.id) { index, section in
                 if index > 0 {
                     Rectangle().fill(theme.colors.hairline).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 4)
                 }

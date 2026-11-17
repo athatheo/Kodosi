@@ -54,7 +54,7 @@ struct ProjectTerminals: View {
         .newTerminalSheet($newTerminal)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func emptyKeys(_ mine: [RuntimeSession], stacked: Bool) -> some View {
         if stacked {
             addKey(mine)
@@ -69,7 +69,7 @@ struct ProjectTerminals: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func addKey(_ mine: [RuntimeSession]) -> some View {
         if !mine.isEmpty {
             addMenu(mine) {
@@ -79,7 +79,7 @@ struct ProjectTerminals: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func slots(_ mine: [RuntimeSession]) -> some View {
         Button { newTerminal = NewTerminalRequest(projectId: projectId) } label: {
             slot("New terminal", symbol: "apple.terminal")
@@ -123,7 +123,7 @@ struct ProjectTerminals: View {
         .accessibilityIdentifier("projects.terminal.\(AccessibilityIdentifier.token(session.id))")
     }
 
-    private func addMenu(_ mine: [RuntimeSession], @ViewBuilder label: () -> some View) -> some View {
+    private func addMenu(_ mine: [RuntimeSession], @ContentBuilder label: () -> some View) -> some View {
         Menu {
             ForEach(mine) { session in
                 Button { move(session, to: projectId) } label: {

@@ -5,7 +5,6 @@ import QuartzCore
 import SwiftUI
 import Testing
 
-@MainActor
 private func hosted(_ frame: NSRect = NSRect(x: 10, y: 10, width: 46, height: 46)) -> (NSWindow, LayerHostView) {
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 160, height: 160), styleMask: [.titled], backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
@@ -14,7 +13,7 @@ private func hosted(_ frame: NSRect = NSRect(x: 10, y: 10, width: 46, height: 46
     return (window, host)
 }
 
-@Test @MainActor func `with reduced motion a working mark glows along its whole edge`() throws {
+@Test func `with reduced motion a working mark glows along its whole edge`() throws {
     let renderer = ImageRenderer(content: LightRim(onTile: .working, cornerRadius: 12, lineWidth: 3)
         .frame(width: 40, height: 40)
         .environment(\.theme, AppTheme.dark.reducingMotion(true)))
@@ -32,7 +31,7 @@ private func hosted(_ frame: NSRect = NSRect(x: 10, y: 10, width: 46, height: 46
     #expect(alpha(20, 20) == 0)
 }
 
-@Test @MainActor func `a line glides only while it flows with motion`() throws {
+@Test func `a line glides only while it flows with motion`() throws {
     let (window, host) = hosted(NSRect(x: 10, y: 10, width: 120, height: 3))
     defer { window.close() }
     for still in [false, true] {
@@ -43,7 +42,7 @@ private func hosted(_ frame: NSRect = NSRect(x: 10, y: 10, width: 46, height: 46
     }
 }
 
-@Test @MainActor func `looping marks animate in core animation and stop without a window`() throws {
+@Test func `looping marks animate in core animation and stop without a window`() throws {
     let (window, host) = hosted(NSRect(x: 10, y: 10, width: 18, height: 18))
     let breath = Breath(color: .orange, size: 7)
     host.update(setup: breath, environment: EnvironmentValues()) { Breath.draw(breath, $0) }

@@ -3,7 +3,6 @@ import Foundation
 import KodosiBridge
 
 enum NativeFiles {
-    @MainActor
     static func open(_ path: String) throws {
         guard path.hasPrefix("/"), path.utf8.count <= 4096,
               !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })

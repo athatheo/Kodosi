@@ -106,7 +106,7 @@ public struct KodosiButtonStyle: ButtonStyle {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func background(_ shape: RoundedRectangle, pressed: Bool) -> some View {
         let colors = theme.colors
         switch kind {

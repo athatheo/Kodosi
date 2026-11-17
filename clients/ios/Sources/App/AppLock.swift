@@ -6,7 +6,7 @@ import UIKit
 @Observable
 final class AppLock {
     static let storageKey = "privacy.lock"
-    nonisolated static let away: TimeInterval = 60
+    nonisolated static let away: Duration = .seconds(60)
 
     enum Proof {
         case faceID
@@ -36,7 +36,7 @@ final class AppLock {
 
     private(set) var locked: Bool
     private(set) var enabled: Bool
-    @ObservationIgnored private var left: Date?
+    @ObservationIgnored private var left: ContinuousClock.Instant?
     @ObservationIgnored private var asking = false
     @ObservationIgnored private var asked = false
     @ObservationIgnored private let defaults: UserDefaults
@@ -56,9 +56,9 @@ final class AppLock {
         locked = enabled
     }
 
-    nonisolated static func locks(enabled: Bool, left: Date?, now: Date) -> Bool {
+    nonisolated static func locks(enabled: Bool, left: ContinuousClock.Instant?, now: ContinuousClock.Instant) -> Bool {
         guard enabled, let left else { return false }
-        return now.timeIntervalSince(left) >= away
+        return left.duration(to: now) >= away
     }
 
     func covers(_ phase: ScenePhase) -> Bool {
@@ -67,7 +67,7 @@ final class AppLock {
 
     /// Kodosi asks once each time it comes to the front. The question of the system makes
     /// Kodosi inactive, so after the person cancels it, Unlock asks again, not the return.
-    func sceneChanged(to phase: ScenePhase, now: Date = .now) {
+    func sceneChanged(to phase: ScenePhase, now: ContinuousClock.Instant = .now) {
         switch phase {
         case .background:
             left = left ?? now

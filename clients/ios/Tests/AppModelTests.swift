@@ -7,7 +7,6 @@ import KodosiTerminalSessions
 import SwiftUI
 import Testing
 
-@MainActor
 struct AppModelTests {
     private let model = AppModel()
     private let sent = SentCommands()

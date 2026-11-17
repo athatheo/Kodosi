@@ -18,7 +18,7 @@ extension AppDependencies {
 
     func share(_ share: ProjectShare) {
         guard let target = session(share.sessionId) else { return }
-        Task { @MainActor in
+        Task {
             do {
                 try await mutateSession("session.attachProject", session: target, fields: ["projectId": .string(share.projectId)])
                 openProject(id: share.projectId)

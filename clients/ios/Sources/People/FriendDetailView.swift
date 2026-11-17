@@ -191,7 +191,7 @@ private struct FriendHero: View {
         .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var statusTag: some View {
         if friend.identityChanged {
             Tag(text: String(localized: "New identity"), symbol: "exclamationmark", tone: .caution)

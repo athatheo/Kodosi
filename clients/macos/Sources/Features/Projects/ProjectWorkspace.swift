@@ -1,7 +1,6 @@
 import CoreGraphics
 import Observation
 
-@MainActor
 @Observable
 final class ProjectWorkspace {
     var shownSection = 0

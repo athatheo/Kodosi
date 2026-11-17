@@ -153,7 +153,7 @@ private struct SettingsGlyph: View {
     }
 }
 
-private struct Sliders: Shape {
+private nonisolated struct Sliders: Shape {
     func path(in rect: CGRect) -> Path {
         let unit = min(rect.width, rect.height) / 24
         func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {

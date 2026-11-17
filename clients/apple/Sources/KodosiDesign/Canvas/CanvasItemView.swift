@@ -53,7 +53,7 @@ public struct CanvasItemView: View {
         let missing: Bool
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func file(_ item: CanvasItem) -> some View {
         if let content, content.key == item.key {
             switch item.kind {

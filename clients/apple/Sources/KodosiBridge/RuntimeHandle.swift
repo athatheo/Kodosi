@@ -2,9 +2,9 @@ import Foundation
 import KodosiKit
 import os
 
-public final class RuntimeHandle: @unchecked Sendable {
+public final class RuntimeHandle: Sendable {
     private let handleSlot = RuntimeHandleSlot()
-    private var retainedSelf: Unmanaged<RuntimeHandle>?
+    @MainActor private var retainedSelf: Unmanaged<RuntimeHandle>?
     @MainActor private var startGeneration: UInt64 = 0
     @MainActor private var starting = false
 

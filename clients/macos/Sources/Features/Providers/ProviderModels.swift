@@ -2,7 +2,7 @@ import Foundation
 import KodosiBridge
 import KodosiDesign
 
-enum Provider: String, Decodable, CaseIterable, Sendable {
+nonisolated enum Provider: String, Decodable, CaseIterable, Sendable {
     case claude, copilot
 
     var name: String {
@@ -14,12 +14,12 @@ enum Provider: String, Decodable, CaseIterable, Sendable {
     }
 }
 
-struct ProviderConversationIdentity: Equatable, Sendable {
+nonisolated struct ProviderConversationIdentity: Equatable, Sendable {
     let provider: Provider
     let nativeConversationId: String
 }
 
-struct ProviderConversation: Decodable, Equatable, Identifiable, Sendable {
+nonisolated struct ProviderConversation: Decodable, Equatable, Identifiable, Sendable {
     let provider: Provider
     let nativeConversationId: String
     let workingDirectory: String
@@ -39,26 +39,26 @@ struct ProviderConversation: Decodable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct ProviderConversationPage: Decodable, Sendable {
+nonisolated struct ProviderConversationPage: Decodable, Sendable {
     let items: [ProviderConversation]
     let nextCursor: String?
 }
 
-struct ConversationEntry: Decodable, Equatable, Sendable {
+nonisolated struct ConversationEntry: Decodable, Equatable, Sendable {
     let role: String
     let content: String
     let toolName: String?
 }
 
-struct ConversationPage: Decodable, Sendable {
+nonisolated struct ConversationPage: Decodable, Sendable {
     let entries: [ConversationEntry]
     let nextBeforeByte: UInt64?
     let sourceFileBytes: UInt64
     let degradedReason: String?
 }
 
-struct ProviderConfiguration: Decodable, Sendable {
-    struct File: Decodable, Identifiable, Sendable {
+nonisolated struct ProviderConfiguration: Decodable, Sendable {
+    nonisolated struct File: Decodable, Identifiable, Sendable {
         let label: String
         let path: String
         let exists: Bool

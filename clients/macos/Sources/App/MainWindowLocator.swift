@@ -1,6 +1,5 @@
 import AppKit
 
-@MainActor
 enum MainWindowLocator {
     static func activate() {
         NSApp.activate(ignoringOtherApps: true)

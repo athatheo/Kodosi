@@ -3,6 +3,7 @@ import Foundation
 @testable import Kodosi
 import KodosiKit
 import KodosiTerminalSessions
+import Synchronization
 import Testing
 
 struct TerminalInputTests {
@@ -202,20 +203,19 @@ struct TerminalInputTests {
     }
 }
 
-final nonisolated class TerminalChunkRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var values: [Data] = []
+final nonisolated class TerminalChunkRecorder: Sendable {
+    private let values = Mutex<[Data]>([])
 
     func append(_ data: Data) {
-        lock.withLock { values.append(data) }
+        values.withLock { $0.append(data) }
     }
 
     var chunks: [Data] {
-        lock.withLock { values }
+        values.withLock { $0 }
     }
 
     var joined: Data {
-        lock.withLock { values.reduce(into: Data()) { $0.append($1) } }
+        values.withLock { $0.reduce(into: Data()) { $0.append($1) } }
     }
 
     func waitFor(bytes: Int) async {
@@ -225,15 +225,14 @@ final nonisolated class TerminalChunkRecorder: @unchecked Sendable {
     }
 }
 
-final nonisolated class TerminalFailureRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var failures: [TerminalInputFailure] = []
+final nonisolated class TerminalFailureRecorder: Sendable {
+    private let failures = Mutex<[TerminalInputFailure]>([])
 
     func append(_ failure: TerminalInputFailure) {
-        lock.withLock { failures.append(failure) }
+        failures.withLock { $0.append(failure) }
     }
 
     var values: [TerminalInputFailure] {
-        lock.withLock { failures }
+        failures.withLock { $0 }
     }
 }

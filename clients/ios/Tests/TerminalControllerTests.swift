@@ -5,7 +5,6 @@ import KodosiKit
 import KodosiTerminalSessions
 import Testing
 
-@MainActor
 struct TerminalControllerTests {
     private let model = AppModel()
     private let log = TerminalCommandLog()

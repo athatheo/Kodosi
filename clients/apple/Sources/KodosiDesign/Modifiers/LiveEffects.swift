@@ -92,13 +92,9 @@ struct RimShape: InsettableShape {
     }
 }
 
+@Animatable
 struct Wedge: Shape {
     var fraction: Double
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
 
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
