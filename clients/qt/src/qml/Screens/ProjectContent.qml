@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi 1.0
 import Kodosi.Models 1.0 as Models
 
@@ -47,9 +48,9 @@ Item {
         const place = selectedTab.mapToItem(projectStage, 0, 0, selectedTab.width, selectedTab.height);
         tabRect = Qt.rect(place.x, place.y, place.width, place.height);
     }
-    function openTerminalMenu(sessionId: string): void {
+    function openTerminalMenu(sessionId: string, source: Item, position: point): void {
         terminalMenu.sessionId = sessionId
-        terminalMenu.popup()
+        terminalMenu.popupFor(source, position)
     }
 
     objectName: "project"
@@ -503,11 +504,9 @@ Item {
                                                     visible: tab.selected
                                                 }
                                                 onClicked: Models.SessionActions.activateInProject(sessionId)
-
-                                                TapHandler {
-                                                    acceptedButtons: Qt.RightButton
-                                                    enabled: tab.session.isOwner === true
-                                                    onTapped: root.openTerminalMenu(tab.sessionId)
+                                                T.ContextMenu.onRequested: position => {
+                                                    if (tab.session.isOwner === true)
+                                                        root.openTerminalMenu(tab.sessionId, tab, position)
                                                 }
                                             }
                                         }
@@ -725,11 +724,9 @@ Item {
                                                     AvatarStack { Layout.rightMargin: 12; visible: card.viewers.length > 0; userIds: card.viewers; size: 20; limit: 2; ring: KodosiTheme.raised }
                                                 }
                                                 onClicked: Models.SessionActions.activateInProject(modelData)
-
-                                                TapHandler {
-                                                    acceptedButtons: Qt.RightButton
-                                                    enabled: card.session.isOwner === true
-                                                    onTapped: root.openTerminalMenu(card.modelData)
+                                                T.ContextMenu.onRequested: position => {
+                                                    if (card.session.isOwner === true)
+                                                        root.openTerminalMenu(card.modelData, card, position)
                                                 }
                                             }
                                         }

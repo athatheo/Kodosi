@@ -4,6 +4,7 @@ import Kodosi 1.0
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi.Models 1.0 as Models
 
 Item {
@@ -1241,15 +1242,12 @@ Item {
                                     if (row.session.isOwner === true)
                                         root.renamingId = sessionId
                                 }
+                                T.ContextMenu.onRequested: position => {
+                                    terminalMenu.sessionId = row.sessionId
+                                    terminalMenu.popupFor(row, position)
+                                }
 
                                 HoverHandler { id: rowHover }
-                                TapHandler {
-                                    acceptedButtons: Qt.RightButton
-                                    onTapped: {
-                                        terminalMenu.sessionId = row.sessionId
-                                        terminalMenu.popup()
-                                    }
-                                }
                                 TerminalDragSource {
                                     anchors.fill: parent
                                     enabled: !row.renaming

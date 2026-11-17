@@ -4,6 +4,7 @@ import Kodosi 1.0
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi.Models 1.0 as Models
 
 Item {
@@ -92,9 +93,9 @@ Item {
         return bytes >= 1048576 ? qsTr("%1 MB").arg((bytes / 1048576).toFixed(1))
             : bytes >= 1024 ? qsTr("%1 KB").arg(Math.round(bytes / 1024)) : qsTr("%1 bytes").arg(bytes);
     }
-    function openFileMenu(item: var): void {
-        fileMenu.item = item;
-        fileMenu.popup();
+    function openFileMenu(file: var, source: Item, position: point): void {
+        fileMenu.item = file;
+        fileMenu.popupFor(source, position);
     }
 
     objectName: "canvas." + sessionId
@@ -367,6 +368,7 @@ Item {
                                         BreathingDot { x: parent.width - 8; y: 2; size: 6; color: KodosiTheme.glowOrange; visible: tab.fresh }
                                     }
                                     onClicked: Models.Canvas.pick(root.sessionId, modelData.key)
+                                    T.ContextMenu.onRequested: position => root.openFileMenu(tab.modelData, tab, position)
                                     onSelectedChanged: {
                                         if (selected)
                                             Qt.callLater(tabsArea.positionViewAtChild, tab, Flickable.Contain);
@@ -384,10 +386,6 @@ Item {
                                         visible: tab.closing
                                         objectName: "canvas.remove." + tab.modelData.key
                                         onClicked: Models.Canvas.remove(root.sessionId, tab.modelData.key)
-                                    }
-                                    TapHandler {
-                                        acceptedButtons: Qt.RightButton
-                                        onTapped: root.openFileMenu(tab.modelData)
                                     }
                                 }
                             }
@@ -498,6 +496,7 @@ Item {
                                     }
                                     background: Item {}
                                     onClicked: Models.Canvas.pick(root.sessionId, modelData.key)
+                                    T.ContextMenu.onRequested: position => root.openFileMenu(card.modelData, card, position)
 
                                     RemoveKey {
                                         x: -6
@@ -508,10 +507,6 @@ Item {
                                         backed: true
                                         objectName: "canvas.card.remove." + card.modelData.key
                                         onClicked: Models.Canvas.remove(root.sessionId, card.modelData.key)
-                                    }
-                                    TapHandler {
-                                        acceptedButtons: Qt.RightButton
-                                        onTapped: root.openFileMenu(card.modelData)
                                     }
                                 }
                             }
