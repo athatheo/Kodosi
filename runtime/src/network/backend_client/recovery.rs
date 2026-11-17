@@ -43,7 +43,7 @@ impl BackendClient {
                 signing_public: &key.signing_public(),
             },
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
         )?;
         let proof = projects::project_key_proof(
             &credentials.user_id,

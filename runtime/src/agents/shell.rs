@@ -300,8 +300,7 @@ fn alias_value(name: &str, text: &str) -> String {
             || text.to_owned(),
             |value| {
                 value
-                    .strip_prefix('\'')
-                    .and_then(|value| value.strip_suffix('\''))
+                    .strip_circumfix('\'', '\'')
                     .map_or_else(|| value.to_owned(), |value| value.replace(r"'\''", "'"))
             },
         )

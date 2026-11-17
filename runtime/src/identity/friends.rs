@@ -3,10 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use aws_lc_rs::{
-    digest::{SHA256, digest},
-    signature::{ML_DSA_65, PqdsaKeyPair, VerificationAlgorithm},
-};
+use aws_lc_rs::signature::{ML_DSA_65, PqdsaKeyPair, VerificationAlgorithm};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +12,10 @@ use super::{
     pins::{Root, decode},
     wire_codec::ML_DSA_65_SIGNATURE_LEN,
 };
-use crate::network::{Error, Result, crypto, invalid, untrusted};
+use crate::{
+    hex::{hash_from_hex, hex, sha256_hex},
+    network::{Error, Result, crypto, invalid, untrusted},
+};
 use kodosi_os::fs::write_private;
 
 const FRIEND_LIST_V1: &[u8] = b"kodosi-friend-list-v1";
@@ -34,7 +34,7 @@ pub(crate) struct Friend {
 
 impl Friend {
     pub(crate) fn root(&self) -> Option<Root> {
-        root_from_hex(self.root.as_deref()?)
+        hash_from_hex(self.root.as_deref()?)
     }
 }
 
@@ -107,7 +107,7 @@ impl FriendList {
         let signature = crypto::sign(key, &signed(&body))?;
         let head = Head {
             revision: self.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         Ok((
             SignedFriendList {
@@ -123,7 +123,7 @@ impl FriendList {
         let list = Self::parse(&body, user_id)?;
         let head = Head {
             revision: list.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         Ok((list, head))
     }
@@ -157,13 +157,6 @@ impl FriendList {
 
 fn signed(body: &[u8]) -> Vec<u8> {
     [FRIEND_LIST_V1, body].concat()
-}
-
-fn body_digest(body: &[u8]) -> String {
-    let digest = digest(&SHA256, body);
-    let mut bytes = [0; 32];
-    bytes.copy_from_slice(digest.as_ref());
-    root_hex(&bytes)
 }
 
 pub(crate) fn broken() -> Error {
@@ -236,7 +229,7 @@ impl<'a> Chain<'a> {
         let list = FriendList::parse(&body, self.user_id)?;
         let next = Head {
             revision: list.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         match &self.head {
             Some(head) if *head == next => return Ok(()),
@@ -331,28 +324,8 @@ impl FriendLists {
     }
 }
 
-pub(crate) fn root_hex(root: &Root) -> String {
-    use std::fmt::Write as _;
-    root.iter()
-        .fold(String::with_capacity(64), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        })
-}
-
-fn root_from_hex(text: &str) -> Option<Root> {
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    let mut root = [0; 32];
-    for (byte, pair) in root.iter_mut().zip(text.as_bytes().as_chunks::<2>().0) {
-        *byte = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
-    }
-    Some(root)
-}
-
 pub(crate) fn invite(handle: &str, root: &Root) -> String {
-    format!("{INVITE}:{handle}:{}", root_hex(root))
+    format!("{INVITE}:{handle}:{}", hex(root))
 }
 
 pub(crate) fn parse_invite(text: &str) -> Option<(String, Root)> {
@@ -361,7 +334,7 @@ pub(crate) fn parse_invite(text: &str) -> Option<(String, Root)> {
     else {
         return None;
     };
-    (!handle.is_empty()).then_some((handle.to_ascii_lowercase(), root_from_hex(root)?))
+    (!handle.is_empty()).then_some((handle.to_ascii_lowercase(), hash_from_hex(root)?))
 }
 
 #[cfg(test)]
@@ -377,7 +350,7 @@ mod tests {
             USER,
             &keys.device_id,
             "device",
-            &keys.signing_key().unwrap(),
+            keys.signing_key(),
             1000,
             None,
         )
@@ -405,7 +378,7 @@ mod tests {
             "22222222-2222-2222-2222-222222222222".into(),
             Friend {
                 handle: "bob".into(),
-                root: Some(root_hex(&[9; 32])),
+                root: Some(hex(&[9; 32])),
                 verified: true,
             },
         );
@@ -428,7 +401,7 @@ mod tests {
                     digest: None,
                 },
                 &keys.device_id,
-                &keys.signing_key().unwrap(),
+                keys.signing_key(),
             )
             .unwrap();
         let opened = open(&signed_list, USER, &device(&keys)).unwrap();
@@ -466,11 +439,7 @@ mod tests {
         let keys = DeviceKeys::generate().unwrap();
         let mut list = list();
         let (signed_list, _) = list
-            .sign(
-                &Head::default(),
-                &keys.device_id,
-                &keys.signing_key().unwrap(),
-            )
+            .sign(&Head::default(), &keys.device_id, keys.signing_key())
             .unwrap();
         let mut lists = FriendLists::load(path.clone()).unwrap();
         assert_eq!(lists.get(USER).unwrap(), None);
@@ -495,12 +464,12 @@ mod tests {
     #[test]
     fn a_device_takes_only_friend_lists_that_continue_the_list_it_keeps() {
         let keys = DeviceKeys::generate().unwrap();
-        let (key, devices) = (keys.signing_key().unwrap(), device(&keys));
+        let (key, devices) = (keys.signing_key(), device(&keys));
         let mut first = list();
-        let (kept, head) = first.sign(&Head::default(), &keys.device_id, &key).unwrap();
+        let (kept, head) = first.sign(&Head::default(), &keys.device_id, key).unwrap();
         let mut second = first.clone();
         second.friends.clear();
-        let (newer, newer_head) = second.sign(&head, &keys.device_id, &key).unwrap();
+        let (newer, newer_head) = second.sign(&head, &keys.device_id, key).unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(kept.clone()).unwrap();
         chain.follow(kept.clone()).unwrap();
@@ -512,7 +481,7 @@ mod tests {
 
         let mut other = first.clone();
         carol(&mut other);
-        let (fork, _) = other.sign(&head, &keys.device_id, &key).unwrap();
+        let (fork, _) = other.sign(&head, &keys.device_id, key).unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(newer.clone()).unwrap();
         assert!(matches!(chain.follow(fork.clone()), Err(Error::Trust(_))));
@@ -523,7 +492,7 @@ mod tests {
 
         let (third, _) = second
             .clone()
-            .sign(&newer_head, &keys.device_id, &key)
+            .sign(&newer_head, &keys.device_id, key)
             .unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(kept).unwrap();
@@ -536,15 +505,15 @@ mod tests {
             DeviceKeys::generate().unwrap(),
             DeviceKeys::generate().unwrap(),
         );
-        let (key, devices) = (keys.signing_key().unwrap(), device(&keys));
+        let (key, devices) = (keys.signing_key(), device(&keys));
         let gone = BTreeSet::from([removed.device_id.clone()]);
         let mut first = list();
-        let (kept, head) = first.sign(&Head::default(), &keys.device_id, &key).unwrap();
+        let (kept, head) = first.sign(&Head::default(), &keys.device_id, key).unwrap();
         let mut late = first.clone();
         carol(&mut late);
         let (unsigned, late_head) = late
             .clone()
-            .sign(&head, &removed.device_id, &removed.signing_key().unwrap())
+            .sign(&head, &removed.device_id, removed.signing_key())
             .unwrap();
         let mut chain = Chain::new(USER, &devices, &gone);
         chain.anchor(kept.clone()).unwrap();
@@ -562,7 +531,7 @@ mod tests {
             "a device that this device does not know may be a new one"
         );
 
-        let (mut forged, _) = late.sign(&head, &keys.device_id, &key).unwrap();
+        let (mut forged, _) = late.sign(&head, &keys.device_id, key).unwrap();
         forged.signature.clone_from(&unsigned.signature);
         let mut chain = Chain::new(USER, &devices, &gone);
         chain.anchor(kept).unwrap();
@@ -585,7 +554,7 @@ mod tests {
             "33333333-3333-3333-3333-333333333333".into(),
             Friend {
                 handle: "carol".into(),
-                root: Some(root_hex(&[7; 32])),
+                root: Some(hex(&[7; 32])),
                 verified: false,
             },
         );

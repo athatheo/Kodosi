@@ -3,9 +3,9 @@ use std::{
     path::PathBuf,
 };
 
+use aws_lc_rs::digest::{Context, SHA256};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 
 use super::{
@@ -43,10 +43,12 @@ pub struct IdentityBundle {
 pub(crate) type Root = [u8; 32];
 
 pub(crate) fn root_of(certificate_body: &[u8]) -> Root {
-    let mut hash = Sha256::new();
+    let mut hash = Context::new(&SHA256);
     hash.update(b"kodosi-identity-root-v1");
     hash.update(certificate_body);
-    hash.finalize().into()
+    let mut root = Root::default();
+    root.copy_from_slice(hash.finish().as_ref());
+    root
 }
 
 impl IdentityBundle {
@@ -122,8 +124,7 @@ impl Pins {
     pub(crate) fn revoked(&self, user_id: &str) -> BTreeSet<String> {
         self.pins
             .get(user_id)
-            .map(|pin| pin.revoked.clone())
-            .unwrap_or_default()
+            .map_or_default(|pin| pin.revoked.clone())
     }
 
     pub(crate) fn is_revoked(&self, user_id: &str, device_id: &str) -> bool {
@@ -424,7 +425,7 @@ impl Pins {
             )?;
             validate_bootstrap_chain(device_id, &bodies)?;
         }
-        let mut revoked = existing.map(|p| p.revoked.clone()).unwrap_or_default();
+        let mut revoked = existing.map_or_default(|p| p.revoked.clone());
         revoked.extend(bodies.keys().filter(|id| !entries.contains(*id)).cloned());
         if let Some(pin) = existing {
             revoked.extend(

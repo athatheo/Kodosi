@@ -234,8 +234,7 @@ impl Chat {
         self.devices = None;
         self.device = account
             .as_ref()
-            .map(|account| account.device.clone())
-            .unwrap_or_default();
+            .map_or_default(|account| account.device.clone());
         self.log = match account {
             Some(account) => Log::Shared(Shared::new(
                 account.user,

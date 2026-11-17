@@ -1207,11 +1207,7 @@ pub async fn start(config: Config) -> Result<RuntimeHandle> {
     let project_seen = project_seen::ProjectSeen::load(&config.data_root);
     let scope = Scope {
         user: None,
-        epoch: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |since| {
-                u64::try_from(since.as_millis()).unwrap_or_default()
-            }),
+        epoch: crate::identity::now_ms(),
         network_generation: network.generation(),
     };
     let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
@@ -2094,7 +2090,7 @@ impl Runtime {
                         .canvas
                         .paths()
                         .into_iter()
-                        .filter_map(|path| path.into_os_string().into_string().ok())
+                        .filter_map(|path| path.into_string().ok())
                         .collect(),
                     browser: local.terminal.canvas.address(),
                     quiet_settings,
@@ -2775,11 +2771,7 @@ impl Runtime {
             .get(&id)
             .map(|local| local.terminal.incarnation_id)
             .or(expected);
-        if expected.ok_or(Error::NotFound)? == incarnation {
-            Ok(())
-        } else {
-            Err(Error::Stale)
-        }
+        (expected.ok_or(Error::NotFound)? == incarnation).ok_or(Error::Stale)
     }
 
     fn error(&self, command: &Command, error: &Error) {

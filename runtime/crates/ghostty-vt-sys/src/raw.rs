@@ -7,7 +7,7 @@
 use std::{
     ffi::c_void,
     marker::PhantomData,
-    mem::{self, MaybeUninit},
+    mem::{self, DropGuard, MaybeUninit},
     panic::{AssertUnwindSafe, catch_unwind},
     ptr,
     rc::Rc,
@@ -594,11 +594,18 @@ impl Terminal {
         if formatter.is_null() {
             return Err(Error::InvalidValue);
         }
-        let guard = FormatterGuard(formatter);
+        let formatter = DropGuard::new(formatter, |formatter| unsafe {
+            ghostty_formatter_free(formatter);
+        });
         let mut required = 0;
 
         let query = unsafe {
-            ghostty_formatter_format_buf(guard.0, ptr::null_mut(), 0, ptr::from_mut(&mut required))
+            ghostty_formatter_format_buf(
+                *formatter,
+                ptr::null_mut(),
+                0,
+                ptr::from_mut(&mut required),
+            )
         };
         if query != GhosttyResult_GHOSTTY_OUT_OF_SPACE {
             result(query)?;
@@ -611,7 +618,7 @@ impl Terminal {
 
         result(unsafe {
             ghostty_formatter_format_buf(
-                guard.0,
+                *formatter,
                 bytes.as_mut_ptr(),
                 bytes.len(),
                 ptr::from_mut(&mut written),
@@ -838,11 +845,7 @@ impl Terminal {
     }
 
     fn ensure_healthy(&self) -> Result<(), Error> {
-        if self.callbacks.poisoned {
-            Err(Error::CallbackRejected)
-        } else {
-            Ok(())
-        }
+        (!self.callbacks.poisoned).ok_or(Error::CallbackRejected)
     }
 }
 
@@ -851,14 +854,6 @@ impl Drop for Terminal {
         unsafe {
             ghostty_terminal_free(self.raw);
         }
-    }
-}
-
-struct FormatterGuard(GhosttyFormatter);
-
-impl Drop for FormatterGuard {
-    fn drop(&mut self) {
-        unsafe { ghostty_formatter_free(self.0) };
     }
 }
 
@@ -898,11 +893,7 @@ impl DecoderGuard {
             )?
                 == GhosttySnapshotDecoderProgressKind_GHOSTTY_SNAPSHOT_DECODER_PROGRESS_KIND_PAGE;
         }
-        if self.source_offset()? == snapshot_len {
-            Ok(())
-        } else {
-            Err(Error::InvalidValue)
-        }
+        (self.source_offset()? == snapshot_len).ok_or(Error::InvalidValue)
     }
 }
 

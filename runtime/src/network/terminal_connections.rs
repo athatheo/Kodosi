@@ -171,7 +171,7 @@ pub(crate) fn spawn_host(
     credentials: Credentials,
 ) {
     tokio::spawn(async move {
-        let _completion = publication.drained.clone().drop_guard();
+        let _completion = publication.drained.drop_guard_ref();
         let generation = credentials.generation;
         let Some(mut output) = publication.output.lock().await.take() else {
             return;
@@ -329,16 +329,13 @@ async fn send_json(socket: &mut Socket, value: Value) -> Result<()> {
     if text.len() > MESSAGE_LIMIT {
         return Err(invalid("Connection message exceeds its limit."));
     }
-    tokio::time::timeout(
-        Duration::from_secs(10),
-        socket.send(Message::Text(text.into())),
-    )
-    .await
-    .map_err(|_| Error::Closed)?
-    .map_err(|error| {
-        tracing::warn!(%error, "terminal connection send failed");
-        Error::Text(text!("The connection to the server dropped."))
-    })
+    tokio::time::timeout(Duration::from_secs(10), socket.send(Message::text(text)))
+        .await
+        .map_err(|_| Error::Closed)?
+        .map_err(|error| {
+            tracing::warn!(%error, "terminal connection send failed");
+            Error::Text(text!("The connection to the server dropped."))
+        })
 }
 async fn read_json(socket: &mut Socket) -> Result<Value> {
     let message = tokio::time::timeout(Duration::from_secs(10), socket.next())
@@ -356,9 +353,6 @@ async fn read_json(socket: &mut Socket) -> Result<Value> {
 }
 
 pub(crate) fn check_generation(network: &BackendClient, generation: u64) -> Result<()> {
-    if network.generation() != generation || network.inner.shutdown.is_cancelled() {
-        Err(Error::Stale)
-    } else {
-        Ok(())
-    }
+    (network.generation() == generation && !network.inner.shutdown.is_cancelled())
+        .ok_or(Error::Stale)
 }

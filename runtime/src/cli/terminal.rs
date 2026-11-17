@@ -5,29 +5,13 @@ use crate::{
 use ghostty_vt::{Terminal, TerminalPolicy};
 use std::{
     io::{self, IsTerminal, Read, Write},
+    mem::DropGuard,
     path::Path,
     time::Duration,
 };
 use uuid::Uuid;
 
 const INPUT_WINDOW: usize = 16;
-
-struct ScreenGuard {
-    _raw: kodosi_os::console::RawMode,
-}
-impl ScreenGuard {
-    fn enter() -> Result<Self> {
-        let raw = kodosi_os::console::RawMode::enter()?;
-        io::stdout().write_all(b"\x1b[?1049h")?;
-        Ok(Self { _raw: raw })
-    }
-}
-impl Drop for ScreenGuard {
-    fn drop(&mut self) {
-        drop(io::stdout().write_all(b"\x1b[?1049l"));
-        drop(io::stdout().flush());
-    }
-}
 
 #[expect(
     clippy::future_not_send,
@@ -58,7 +42,13 @@ pub(super) async fn attach(root: &Path, session: Uuid) -> Result<()> {
     };
     let mut mirror = restore(&bytes, console)?;
     let mut next = next_sequence;
-    let _screen = ScreenGuard::enter()?;
+    let raw = kodosi_os::console::RawMode::enter()?;
+    io::stdout().write_all(b"\x1b[?1049h")?;
+    let _screen = DropGuard::new(raw, |raw| {
+        drop(io::stdout().write_all(b"\x1b[?1049l"));
+        drop(io::stdout().flush());
+        drop(raw);
+    });
     render(&mut mirror)?;
     if let Ok((cols, rows)) = kodosi_os::console::size() {
         local_host::write_resize(&mut client.writer, cols, rows).await?;

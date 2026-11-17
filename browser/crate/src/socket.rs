@@ -124,7 +124,7 @@ impl Callback for Admission {
 
 pub(crate) fn token() -> io::Result<String> {
     let mut bytes = [0_u8; 32];
-    getrandom::fill(&mut bytes).map_err(io::Error::other)?;
+    getrandom::fill(&mut bytes)?;
     let mut text = String::with_capacity(64);
     for byte in bytes {
         write!(text, "{byte:02x}").map_err(io::Error::other)?;

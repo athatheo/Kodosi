@@ -28,7 +28,7 @@ impl BackendClient {
             &credentials.user_id,
             &credentials.keys.device_id,
             &host_label(),
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             now,
             None,
         )?;
@@ -36,7 +36,7 @@ impl BackendClient {
         let list = build_bootstrap_list(
             &credentials.user_id,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             now,
             Some(now + DEVICE_LIST_LIFE_MS),
         )?;
@@ -89,7 +89,7 @@ impl BackendClient {
             )
             .await?;
         let signature = crypto::sign_pop_challenge(
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             &wire::decode_b64(&challenge, "challengeBytes", 32)?,
         )?;
         body["deviceId"] = json!(credentials.keys.device_id);
@@ -246,7 +246,7 @@ impl BackendClient {
             &verified.list.entries,
             verified.list.entries.clone(),
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             issued,
             Some(issued + DEVICE_LIST_LIFE_MS),
         )?;

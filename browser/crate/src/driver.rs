@@ -561,9 +561,7 @@ impl View {
 }
 
 fn params(text: &str) -> Value {
-    serde_json::from_str::<Value>(text)
-        .map(|mut message| message["params"].take())
-        .unwrap_or_default()
+    serde_json::from_str::<Value>(text).map_or_default(|mut message| message["params"].take())
 }
 
 fn answer(id: u64, result: &Value) -> String {

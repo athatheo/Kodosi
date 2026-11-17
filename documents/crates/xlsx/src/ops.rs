@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use document::{Guide, Ordered, Refused, guide_field as field, guide_op as op};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 
 use crate::{
-    calculate::calculated,
+    calculate::{calculated, without_results},
     formula::{cell_name, parse_cell, parse_range},
     model::{CellChange, Change, Look, Model, Query, Sheet, Value},
 };
@@ -163,20 +165,16 @@ fn cells_of(op: &Op) -> Vec<(String, u32, u32)> {
             .map(|(row, column)| (sheet.clone(), row, column))
             .into_iter()
             .collect(),
-        Op::SetRange { sheet, start, rows } => parse_cell(start)
-            .map(|(top, left)| {
-                let width = rows.iter().map(Vec::len).max().unwrap_or(1).max(1);
-                let bottom = top + u32::try_from(rows.len().max(1) - 1).unwrap_or(0);
-                let right = left + u32::try_from(width - 1).unwrap_or(0);
-                range(sheet, [top, left, bottom, right])
-            })
-            .unwrap_or_default(),
+        Op::SetRange { sheet, start, rows } => parse_cell(start).map_or_default(|(top, left)| {
+            let width = rows.iter().map(Vec::len).max().unwrap_or(1).max(1);
+            let bottom = top + u32::try_from(rows.len().max(1) - 1).unwrap_or(0);
+            let right = left + u32::try_from(width - 1).unwrap_or(0);
+            range(sheet, [top, left, bottom, right])
+        }),
         Op::ClearRange { sheet, range: name }
         | Op::FormatRange {
             sheet, range: name, ..
-        } => parse_range(name)
-            .map(|bounds| range(sheet, bounds))
-            .unwrap_or_default(),
+        } => parse_range(name).map_or_default(|bounds| range(sheet, bounds)),
         _ => Vec::new(),
     }
 }
@@ -381,10 +379,15 @@ fn sheet_json(sheet: &Sheet, range: Option<&str>) -> Json {
     json!({ "name": sheet.name, "cells": rows })
 }
 
-pub(crate) fn answer(model: &Model, query: &Query) -> Json {
-    let current = calculated(model);
+/// The values that a model holds for its formulas may be from before an edit, so an answer leaves
+/// them out when the engine could not work them out.
+pub(crate) fn answer(model: &Model, query: &Query, time: Duration) -> Json {
+    let calculation = calculated(model, time);
     match query {
         Query::Read { sheet, range } => {
+            let worked_out = calculation.is_some();
+            let current =
+                calculation.map_or_else(|| without_results(model), |calculation| calculation.model);
             let sheets: Vec<Json> = current
                 .sheets
                 .iter()
@@ -395,10 +398,23 @@ pub(crate) fn answer(model: &Model, query: &Query) -> Json {
                 })
                 .map(|sheet| sheet_json(sheet, range.as_deref()))
                 .collect();
-            json!({ "sheets": sheets })
+            if worked_out {
+                json!({ "sheets": sheets })
+            } else {
+                json!({
+                    "sheets": sheets,
+                    "problem": "The formulas could not be worked out in time, so their values are left out.",
+                })
+            }
         }
         Query::Check => {
-            let errors: Vec<Json> = current
+            let Some(calculation) = calculation else {
+                return json!({
+                    "problem": "The formulas could not be worked out in time, so their errors are not known.",
+                });
+            };
+            let errors: Vec<Json> = calculation
+                .model
                 .sheets
                 .iter()
                 .flat_map(|sheet| {

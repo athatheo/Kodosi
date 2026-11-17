@@ -3,7 +3,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD_INDIFFERENT};
 use serde_json::Value;
 
 use super::{
@@ -117,7 +117,7 @@ pub(super) fn place(accounts: &[AgentAccount], home: &Path, folder: &Path) -> us
 
 fn tilde(path: &Path, home: &Path) -> String {
     match path.strip_prefix(home) {
-        Ok(rest) if rest.as_os_str().is_empty() => "~".to_owned(),
+        Ok(rest) if rest.is_empty() => "~".to_owned(),
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.display().to_string(),
     }
@@ -127,8 +127,7 @@ fn folder_name(path: &Path, usual: &str, program: &str) -> String {
     let short = |path: &Path| {
         let name = path
             .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default();
+            .map_or_default(|name| name.to_string_lossy().into_owned());
         name.strip_prefix(usual)
             .and_then(|rest| rest.strip_prefix(['-', '_']))
             .filter(|rest| !rest.is_empty())
@@ -263,8 +262,8 @@ pub(super) fn identity(agent: Agent, home: &Path, path: &Path) -> Option<String>
         Agent::Codex => {
             let value: Value = serde_json::from_str(&read(&path.join("auth.json"))?).ok()?;
             let token = value.pointer("/tokens/id_token")?.as_str()?;
-            let claims = URL_SAFE_NO_PAD
-                .decode(token.split('.').nth(1)?.trim_end_matches('='))
+            let claims = URL_SAFE_NO_PAD_INDIFFERENT
+                .decode(token.split('.').nth(1)?)
                 .ok()?;
             let claims: Value = serde_json::from_slice(&claims).ok()?;
             claims.get("email")?.as_str()?.to_owned()

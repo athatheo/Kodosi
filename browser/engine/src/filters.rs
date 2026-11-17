@@ -101,8 +101,7 @@ wrap_resource_request_handler! {
             };
             let page = browser
                 .main_frame()
-                .map(|frame| CefString::from(&frame.url()).to_string())
-                .unwrap_or_default();
+                .map_or_default(|frame| CefString::from(&frame.url()).to_string());
             let url = CefString::from(&request.url()).to_string();
             let method = CefString::from(&request.method()).to_string();
             if blocks(&page, &url, request.resource_type(), &method) {

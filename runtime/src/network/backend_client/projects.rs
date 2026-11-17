@@ -117,11 +117,7 @@ impl CachedProject {
 
 impl ProjectCache {
     fn current(&self, credentials: &Credentials) -> Result<()> {
-        if self.generation == credentials.generation {
-            Ok(())
-        } else {
-            Err(Error::Stale)
-        }
+        (self.generation == credentials.generation).ok_or(Error::Stale)
     }
 
     fn sequence(&self, credentials: &Credentials, project: Uuid) -> Result<Option<u64>> {
@@ -547,7 +543,7 @@ impl BackendClient {
             &credentials.keys.device_id,
             credentials.keys.project_public(),
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &proof)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &proof)?;
         let _response: Value = self.inner.http.device(Method::PUT, "api/me/project-key", credentials,
             Some(json!({"publicKey":BASE64.encode(credentials.keys.project_public()),"signature":BASE64.encode(signature)}))).await?;
         self.inner.projects.lock().await.registered = Some(credentials.keys.device_id.clone());
@@ -1801,8 +1797,13 @@ impl BackendClient {
                         }
                         Some((
                             repository,
-                            projects::providers::create_issue(repository, &title, &description)
-                                .await?,
+                            projects::providers::create_issue(
+                                &self.inner.http.client,
+                                repository,
+                                &title,
+                                &description,
+                            )
+                            .await?,
                         ))
                     }
                     None => None,
@@ -1921,7 +1922,8 @@ impl BackendClient {
                     .iter()
                     .find(|repo| repo.id == repository_id)
                     .ok_or_else(|| Error::Text(text!("This repository is unavailable.")))?;
-                let issues = projects::providers::issues(repository, None).await?;
+                let issues =
+                    projects::providers::issues(&self.inner.http.client, repository, None).await?;
                 return Ok(vec![
                     json!({"type":"project.result","requestId":request,"operation":"project.act","projectId":project,"action":args["action"]["type"],"repositoryId":repository_id,"issues":issues}),
                 ]);
@@ -1935,11 +1937,12 @@ impl BackendClient {
                     .iter()
                     .find(|repo| repo.id == repository_id)
                     .ok_or_else(|| Error::Text(text!("This repository is unavailable.")))?;
-                let issue = projects::providers::issues(repository, Some(number))
-                    .await?
-                    .into_iter()
-                    .next()
-                    .ok_or_else(|| Error::Text(text!("This issue is unavailable.")))?;
+                let issue =
+                    projects::providers::issues(&self.inner.http.client, repository, Some(number))
+                        .await?
+                        .into_iter()
+                        .next()
+                        .ok_or_else(|| Error::Text(text!("This issue is unavailable.")))?;
                 if let Some(existing) = snapshot.tasks.iter().find(|task| {
                     task.issue
                         .as_ref()
@@ -2030,7 +2033,13 @@ impl BackendClient {
             else {
                 continue;
             };
-            let latest = match projects::providers::issues(repository, Some(linked.number)).await {
+            let latest = match projects::providers::issues(
+                &self.inner.http.client,
+                repository,
+                Some(linked.number),
+            )
+            .await
+            {
                 Ok(mut issues) if !issues.is_empty() => issues.remove(0),
                 Ok(_) => continue,
                 Err(error) => {
@@ -2092,8 +2101,13 @@ impl BackendClient {
                 .iter()
                 .find(|repo| repo.id == issue.repository_id)
                 .ok_or_else(|| Error::Text(text!("The task's repository is unavailable.")))?;
-            let updated =
-                projects::providers::update_issue(repository, issue.number, change).await?;
+            let updated = projects::providers::update_issue(
+                &self.inner.http.client,
+                repository,
+                issue.number,
+                change,
+            )
+            .await?;
             Self::apply_linked_issue(task, repository, updated);
         }
         Ok(())

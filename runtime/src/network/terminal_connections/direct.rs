@@ -117,13 +117,12 @@ pub(super) async fn run(mut pipe: Pipe) {
                 sender: pipe.to_view,
                 receiver: pipe.from_view,
             };
-            tokio::select! {
-                () = pipe.cancel.cancelled() => {}
-                carried = carry(&mut channel, pipe.id, ends) => {
-                    if let Err(error) = carried {
-                        tracing::debug!(%error, "a straight connection to a host ended");
-                    }
-                }
+            let carried = pipe
+                .cancel
+                .run_until_cancelled(carry(&mut channel, pipe.id, ends))
+                .await;
+            if let Some(Err(error)) = carried {
+                tracing::debug!(%error, "a straight connection to a host ended");
             }
             channel.close().await;
         }
@@ -269,19 +268,20 @@ impl Door {
         let authorization = self.authorization.clone();
         tokio::spawn(async move {
             let _room = room;
-            let welcomed = tokio::select! {
-                () = authorization.cancelled() => None,
-                welcomed = tokio::time::timeout(LISTENING, welcome(&listener, &keys, &viewer)) => welcomed.ok().flatten(),
-            };
+            let welcomed = authorization
+                .run_until_cancelled(tokio::time::timeout(
+                    LISTENING,
+                    welcome(&listener, &keys, &viewer),
+                ))
+                .await
+                .and_then(|welcomed| welcomed.ok().flatten());
             drop(listener);
             let Some(mut channel) = welcomed else { return };
-            tokio::select! {
-                () = authorization.cancelled() => {}
-                served = serve(&mut channel, &requests, connection) => {
-                    if let Err(error) = served {
-                        tracing::debug!(%error, "a straight connection of a viewer ended");
-                    }
-                }
+            let served = authorization
+                .run_until_cancelled(serve(&mut channel, &requests, connection))
+                .await;
+            if let Some(Err(error)) = served {
+                tracing::debug!(%error, "a straight connection of a viewer ended");
             }
             channel.close().await;
         });
@@ -307,6 +307,7 @@ fn own_addresses() -> Vec<Ipv4Addr> {
     let interfaces = if_addrs::get_if_addrs().unwrap_or_default();
     interfaces
         .into_iter()
+        .filter(if_addrs::Interface::is_oper_up)
         .filter_map(|interface| match interface.ip() {
             IpAddr::V4(address) if !address.is_loopback() && !address.is_link_local() => {
                 Some(address)

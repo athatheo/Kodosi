@@ -1439,8 +1439,7 @@ fn normalize_host_label(value: &str) -> Option<String> {
 fn sign_in_language(args: &Value) -> crate::text::Language {
     args.get("language")
         .and_then(Value::as_str)
-        .map(crate::text::Language::of)
-        .unwrap_or_default()
+        .map_or_default(crate::text::Language::of)
 }
 
 fn session_result(operation: &str, args: &Value) -> Value {

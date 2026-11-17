@@ -7,6 +7,8 @@ use objc2::{
 use objc2_app_kit::{NSApp, NSApplication, NSEvent};
 use std::cell::Cell;
 
+const FRAMEWORK: &str = "Chromium Embedded Framework.framework/Chromium Embedded Framework";
+
 #[derive(Default)]
 pub(crate) struct Ivars {
     handling_send_event: Cell<Bool>,
@@ -76,9 +78,15 @@ pub(crate) fn install_application() -> bool {
 }
 
 /// Loads CEF's framework from the app bundle: from `Contents/Frameworks` for the main program,
-/// and from three folders up for a helper app inside it.
+/// and from three folders up for a helper app inside it. CEF's loader panics when the framework
+/// is not there, so the engine looks for it first.
 pub(crate) fn load_framework(helper: bool) -> Option<cef::library_loader::LibraryLoader> {
     let program = std::env::current_exe().ok()?;
-    let loader = cef::library_loader::LibraryLoader::new(&program, helper);
-    loader.load().then_some(loader)
+    let frameworks = program
+        .parent()?
+        .join(if helper { "../../.." } else { "../Frameworks" });
+    std::fs::exists(frameworks.join(FRAMEWORK))
+        .ok()?
+        .then(|| cef::library_loader::LibraryLoader::new(&program, helper))
+        .filter(cef::library_loader::LibraryLoader::load)
 }

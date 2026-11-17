@@ -80,7 +80,7 @@ fn copilot_record(
     preview: &mut Preview,
     tool_ids: &mut HashSet<String>,
 ) -> Result<(), String> {
-    let data = value.get("data").unwrap_or(&Value::Null);
+    let data = value.get("data").unwrap_or_default();
     match kind {
         "user.message" => push(preview, "user", text_content(data.get("content")), None)?,
         "assistant.message" => {

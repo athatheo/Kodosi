@@ -106,8 +106,8 @@ impl ProjectKeyPair {
 
 pub struct DeviceKeys {
     pub device_id: String,
+    signing: PqdsaKeyPair,
     signing_pkcs8: Zeroizing<Vec<u8>>,
-    signing_public: Vec<u8>,
     project: ProjectKeyPair,
     recovery: Option<(String, ProjectKeyPair)>,
 }
@@ -206,8 +206,8 @@ impl DeviceKeys {
             .map_err(|_| invalid("Cannot encode device signing key."))?;
         Ok(Self {
             device_id: Uuid::now_v7().to_string(),
+            signing: pair,
             signing_pkcs8: Zeroizing::new(pkcs8.as_ref().to_vec()),
-            signing_public: pair.public_key().as_ref().to_vec(),
             project: ProjectKeyPair::generate()?,
             recovery: None,
         })
@@ -228,14 +228,13 @@ impl DeviceKeys {
     }
 
     pub fn signing_public(&self) -> &[u8] {
-        &self.signing_public
+        self.signing.public_key().as_ref()
     }
     pub fn signing_pkcs8(&self) -> &[u8] {
         &self.signing_pkcs8
     }
-    pub fn signing_key(&self) -> Result<PqdsaKeyPair> {
-        PqdsaKeyPair::from_pkcs8(&ML_DSA_65_SIGNING, &self.signing_pkcs8)
-            .map_err(|_| invalid("Stored device signing key is invalid."))
+    pub fn signing_key(&self) -> &PqdsaKeyPair {
+        &self.signing
     }
 
     fn encode(&self) -> Result<Zeroizing<String>> {
@@ -265,7 +264,7 @@ impl DeviceKeys {
                 .decode(&stored.signing_pkcs8)
                 .map_err(|_| invalid("Invalid stored signing key."))?,
         );
-        let pair = PqdsaKeyPair::from_pkcs8(&ML_DSA_65_SIGNING, &signing_pkcs8)
+        let signing = PqdsaKeyPair::from_pkcs8(&ML_DSA_65_SIGNING, &signing_pkcs8)
             .map_err(|_| invalid("Invalid stored signing key."))?;
         let bytes = |value: &str, reason: &'static str| {
             BASE64
@@ -294,8 +293,8 @@ impl DeviceKeys {
         };
         Ok(Self {
             device_id: stored.device_id.clone(),
+            signing,
             signing_pkcs8,
-            signing_public: pair.public_key().as_ref().to_vec(),
             project,
             recovery,
         })

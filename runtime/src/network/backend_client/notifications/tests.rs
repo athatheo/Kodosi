@@ -195,14 +195,12 @@ async fn a_friend_list_that_fails_its_check_waits_and_the_other_changes_still_ar
     let address = format!("http://{}", listener.local_addr().unwrap());
     let (_root, network, user) = signed_in_at(&address).await;
     let credentials = network.credentials().unwrap();
-    let key = credentials.keys.signing_key().unwrap();
+    let key = credentials.keys.signing_key();
     let mut list = FriendList::new(&user);
     let (_, first) = list
-        .sign(&Head::default(), &credentials.keys.device_id, &key)
+        .sign(&Head::default(), &credentials.keys.device_id, key)
         .unwrap();
-    let (kept, _) = list
-        .sign(&first, &credentials.keys.device_id, &key)
-        .unwrap();
+    let (kept, _) = list.sign(&first, &credentials.keys.device_id, key).unwrap();
     network
         .inner
         .state

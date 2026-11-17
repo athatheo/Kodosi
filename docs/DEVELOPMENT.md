@@ -16,6 +16,12 @@ downloads in `.tools/maven/`. Keep every tool and dependency inside the project.
 native prerequisites; on Windows run the recipes in Git Bash. The apps need Bun for the
 document views.
 
+Cargo and Bun take a new release of a dependency only after it has been public for a while,
+as [.cargo/config.toml](../.cargo/config.toml) and each `bunfig.toml` set, so that a bad
+release is found before Kodosi takes it. For a fix that cannot wait, run
+`CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate> --precise <version>`,
+or `bun add --minimum-release-age=0 <package>@<version>`.
+
 ## Commands
 
 Run these from the repository root; `just --list` shows the rest.
@@ -106,8 +112,8 @@ ships next to the `kodosi` program, by its version and Git commit. Each app buil
 it from that commit with its own `Cargo.lock`, in `.tools/agent-browser/`. To move the
 pin, check the release and its tag first, change both lines and build each app.
 
-Kodosi Browser builds on the ready-built CEF that its `cef` crate pins, which the build
-downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
+Kodosi Browser builds on the ready-built CEF that its `cef-dll-sys` crate pins, which the
+build downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
 --output-dir <folder>` builds it on each computer with `uv`, with its archive and its entry
 in the feed. `scripts/generate-engine-feed.py <folder>` writes the feed of the archives of all
 computers and signs it with the updates key from standard input; each update site carries

@@ -9,7 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer};
+use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer, hex};
 use sha2::{Digest as _, Sha256};
 use tokio::{
     sync::{mpsc, oneshot},
@@ -68,15 +68,9 @@ fn hash_of(bytes: &[u8]) -> Hash {
     Sha256::digest(bytes).into()
 }
 
-fn hex(hash: &Hash) -> String {
-    hash.iter()
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"))
-}
-
+/// Small enough that the JavaScript of a view holds the epoch exactly.
 fn new_epoch() -> io::Result<u64> {
-    let mut bytes = [0; 8];
-    getrandom::fill(&mut bytes[2..]).map_err(io::Error::other)?;
-    Ok(u64::from_be_bytes(bytes))
+    Ok(getrandom::u64()? >> 16)
 }
 
 /// Writes a file in one step: nobody sees half of it, and its rights stay.

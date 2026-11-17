@@ -4,7 +4,12 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 
-use crate::contract::{Hash, Rev, Seq};
+use crate::contract::{HASH_BYTES, Hash, Rev, Seq};
+
+/// A short name of a text from its SHA-256, the same for the same text.
+pub fn short_hash(text: &str) -> String {
+    crate::contract::hex(&Sha256::digest(text.as_bytes())[..HASH_BYTES / 4])
+}
 
 /// Pictures and other large parts never travel inside a change. A change names them by hash.
 #[derive(Debug, Clone, Default)]

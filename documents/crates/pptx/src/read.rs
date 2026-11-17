@@ -1,10 +1,9 @@
-use std::{collections::HashMap, fmt::Write as _};
+use std::collections::HashMap;
 
-use document::{Assets, Unreadable};
+use document::{Assets, Unreadable, hex, short_hash};
 use package::{Package, Relation, relation_id};
 use roxmltree::{Document, Node as Xml};
 use serde_json::{Map, Value, json};
-use sha2::{Digest as _, Sha256};
 use text::{Fragment, Mark, Node};
 
 use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
@@ -12,7 +11,6 @@ use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
 pub(crate) const PRESENTATION: &str = "ppt/presentation.xml";
 const LAYOUT_KIND: &str = "slideLayout";
 const MASTER_KIND: &str = "slideMaster";
-const SHORT_HASH: usize = 16;
 const TEXT_LEVELS: usize = 9;
 const WHOLE_SCALE: f64 = 100_000.0;
 
@@ -25,25 +23,18 @@ pub(crate) fn local<'a, 'input>(node: Xml<'a, 'input>, name: &str) -> Option<Xml
         .find(|child| child.is_element() && child.tag_name().name() == name)
 }
 
+/// The id of a slide in the slide list. roxmltree matches a plain name in any namespace, so
+/// `attribute("id")` can give the `r:id` of the slide's part.
+pub(crate) fn slide_id<'a>(entry: Xml<'a, '_>) -> Option<&'a str> {
+    entry
+        .attributes()
+        .find(|attribute| attribute.namespace().is_none() && attribute.name() == "id")
+        .map(|attribute| attribute.value())
+}
+
 fn descendant<'a, 'input>(node: Xml<'a, 'input>, name: &str) -> Option<Xml<'a, 'input>> {
     node.descendants()
         .find(|child| child.is_element() && child.tag_name().name() == name)
-}
-
-fn hash_of(text: &str) -> String {
-    let digest = Sha256::digest(text.as_bytes());
-    let mut hash = String::with_capacity(SHORT_HASH);
-    for byte in &digest[..SHORT_HASH / 2] {
-        let _ = write!(hash, "{byte:02x}");
-    }
-    hash
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -287,7 +278,7 @@ impl<'input> Reader<'_, '_, 'input> {
     }
 
     fn keep(&mut self, xml: &str) -> String {
-        let hash = hash_of(xml);
+        let hash = short_hash(xml);
         self.raws
             .entry(hash.clone())
             .or_insert_with(|| xml.to_owned());
@@ -592,7 +583,7 @@ fn slide_ids(
         .iter()
         .filter_map(|entry| {
             let relation = relations.get(relation_id(*entry, "id")?)?;
-            Some((relation.target.clone(), entry.attribute("id")?.to_owned()))
+            Some((relation.target.clone(), slide_id(*entry)?.to_owned()))
         })
         .collect()
 }
@@ -606,10 +597,10 @@ fn last_shape(root: Xml<'_, '_>) -> u64 {
 }
 
 fn inherited(master: Option<&str>, layout: Option<&str>) -> Inherited {
-    let [title, body, other] = master.map(text_styles).unwrap_or_default();
+    let [title, body, other] = master.map_or_default(text_styles);
     Inherited {
-        master: master.map(placeholders).unwrap_or_default(),
-        layout: layout.map(placeholders).unwrap_or_default(),
+        master: master.map_or_default(placeholders),
+        layout: layout.map_or_default(placeholders),
         title,
         body,
         other,
@@ -657,8 +648,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
         let layout_xml = layout.as_ref().and_then(|name| package.text(name));
         let layout_relations = layout
             .as_ref()
-            .map(|name| package.relations(name))
-            .unwrap_or_default();
+            .map_or_default(|name| package.relations(name));
         let master = linked_part(&layout_relations, MASTER_KIND);
         let master_xml = master.as_ref().and_then(|name| package.text(name));
         if first_master.is_none() {
@@ -705,7 +695,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
             );
         }
         model.slides.push(Slide {
-            id: entry.attribute("id").unwrap_or_default().to_owned(),
+            id: slide_id(entry).unwrap_or_default().to_owned(),
             part: Some(part),
             position: f64::from(u32::try_from(index).unwrap_or(0)),
             shapes,

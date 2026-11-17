@@ -434,14 +434,12 @@ pub(super) mod tests {
 
     pub(in crate::network::terminal_connections) fn noise(length: usize) -> Vec<u8> {
         let mut state = 0x9E37_79B9_7F4A_7C15_u64;
-        (0..length)
-            .map(|_| {
-                state = state
-                    .wrapping_mul(6_364_136_223_846_793_005)
-                    .wrapping_add(1_442_695_040_888_963_407);
-                state.to_be_bytes()[0]
-            })
-            .collect()
+        Vec::from_fn(length, |_| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            state.to_be_bytes()[0]
+        })
     }
 
     pub(in crate::network::terminal_connections) fn stand_in_snapshot(length: usize) -> Vec<u8> {

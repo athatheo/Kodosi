@@ -292,10 +292,7 @@ mod tests {
         fn run(&mut self, script: &str) -> impl Future<Output = Result<(), Text>> + Send {
             if script == "kodosiRender.pictures()" {
                 self.said.push_back("pictures 3".to_owned());
-            } else if let Some(index) = script
-                .strip_prefix("kodosiRender.picture(")
-                .and_then(|rest| rest.strip_suffix(')'))
-            {
+            } else if let Some(index) = script.strip_circumfix("kodosiRender.picture(", ')') {
                 self.shown = index.parse().unwrap();
                 let area = r#"{"x":0,"y":0,"width":160,"height":90}"#;
                 self.said.push_back(format!("picture {area}"));

@@ -573,8 +573,7 @@ impl Actor {
             let at = self
                 .browser()
                 .page()
-                .map(|address| format!(" at {address}"))
-                .unwrap_or_default();
+                .map_or_default(|address| format!(" at {address}"));
             lines.insert(
                 0,
                 format!(

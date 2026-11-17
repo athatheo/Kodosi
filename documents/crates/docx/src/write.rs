@@ -3,7 +3,7 @@ use std::{
     fmt::Write as _,
 };
 
-use document::{Assets, Hash, Unwritable};
+use document::{Assets, Hash, Unwritable, hash_from_hex, hex};
 use package::{Package, Parts, RELATIONSHIPS, Relation, escape, rewrite};
 use roxmltree::Node as Xml;
 use serde_json::Value;
@@ -375,7 +375,7 @@ impl Out<'_> {
             None => String::new(),
         };
         let wanted = |name: &str| text_attr(node, name).map(str::to_owned);
-        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or(Value::Null);
+        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or_default();
         let wanted = ParagraphLook {
             style: wanted("style"),
             align: wanted("align"),
@@ -1065,23 +1065,7 @@ fn grid_of(columns: u64, width: u64) -> String {
 }
 
 fn media_of(hash: &Hash, extension: &str) -> String {
-    let name: String = hash.iter().take(8).fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    });
-    format!("media/{name}.{extension}")
-}
-
-fn hash_from_hex(text: &str) -> Option<Hash> {
-    let mut hash = [0; 32];
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    for (index, pair) in text.as_bytes().chunks(2).enumerate() {
-        let pair = std::str::from_utf8(pair).ok()?;
-        hash[index] = u8::from_str_radix(pair, 16).ok()?;
-    }
-    Some(hash)
+    format!("media/{}.{extension}", hex(&hash[..8]))
 }
 
 fn picture_extension(bytes: &[u8]) -> Option<&'static str> {
