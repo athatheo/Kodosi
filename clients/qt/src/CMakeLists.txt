@@ -496,9 +496,8 @@ string(REPLACE "_" "-" KODOSI_CHROMIUM_LANGUAGES "en-US;${KODOSI_LANGUAGES}")
 
 target_compile_definitions(kodosi-runtime
     PUBLIC
+        QT_ENABLE_STRICT_MODE_UP_TO=0x060C00
         QT_NO_CAST_FROM_ASCII
-        QT_NO_CAST_TO_ASCII
-        QT_NO_URL_CAST_FROM_STRING
 )
 target_compile_definitions(kodosi-qt PRIVATE KODOSI_VERSION="${PROJECT_VERSION}")
 foreach(target kodosi-runtime kodosi-application kodosi-desktop-integration kodosi-terminal-kernel kodosi-canvas-web kodosi-qt)

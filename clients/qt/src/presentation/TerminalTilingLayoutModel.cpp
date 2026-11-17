@@ -363,7 +363,7 @@ qreal TerminalTilingLayoutModel::requiredContentHeight(
     return std::max(viewportHeight, minimum);
 }
 
-QPair<qreal, qreal> TerminalTilingLayoutModel::adjustedPair(
+std::pair<qreal, qreal> TerminalTilingLayoutModel::adjustedPair(
     const qreal previous,
     const qreal current,
     const qreal deltaPixels,

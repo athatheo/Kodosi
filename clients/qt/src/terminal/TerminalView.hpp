@@ -23,6 +23,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <utility>
 #include <variant>
 
 namespace kodosi {
@@ -107,7 +108,7 @@ public:
     [[nodiscard]] QString otherComputer() const;
     [[nodiscard]] QString accessibleText() const;
     [[nodiscard]] int accessibleCursorPosition() const;
-    [[nodiscard]] QPair<int, int> accessibleSelection() const;
+    [[nodiscard]] std::pair<int, int> accessibleSelection() const;
     [[nodiscard]] QRect accessibleCharacterRect(int offset) const;
     [[nodiscard]] int accessibleOffsetAt(const QPoint& globalPoint) const;
     void setFontFamily(const QString& family);

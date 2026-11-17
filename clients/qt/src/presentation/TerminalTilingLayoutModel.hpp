@@ -9,6 +9,8 @@
 #include <QStringList>
 #include <QVector>
 
+#include <utility>
+
 namespace kodosi {
 
 class TerminalTilingLayoutModel final : public QAbstractListModel {
@@ -86,7 +88,7 @@ public:
         int rowCount,
         qreal viewportHeight,
         qreal minimumTileHeight = 170);
-    [[nodiscard]] static QPair<qreal, qreal> adjustedPair(
+    [[nodiscard]] static std::pair<qreal, qreal> adjustedPair(
         qreal previous,
         qreal current,
         qreal deltaPixels,

@@ -2092,10 +2092,10 @@ void TerminalKernelTest::qmlConstructionEnrollsTerminalInAccessibleTree()
     }
     QVERIFY(attached != nullptr);
     QCOMPARE(
-        attached->property(QByteArrayLiteral("role")).toInt(),
+        attached->property("role").toInt(),
         static_cast<int>(QAccessible::Terminal));
     QCOMPARE(
-        attached->property(QByteArrayLiteral("name")).toString(),
+        attached->property("name").toString(),
         QStringLiteral("Terminal"));
 }
 
