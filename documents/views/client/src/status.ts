@@ -61,8 +61,7 @@ export class Status {
   closed(reason: ClosedReason): void {
     const notice = this.root.appendChild(document.createElement("div"));
     notice.className = "document-closed";
-    notice.textContent =
-      reason === "removed" ? say("Someone removed this file.") : say("This document closed.");
+    notice.textContent = closedText(reason);
   }
 
   kept(text: string): void {
@@ -81,5 +80,18 @@ export class Status {
     close.type = "button";
     close.textContent = say("Close");
     close.addEventListener("click", () => notice.remove());
+  }
+}
+
+function closedText(reason: ClosedReason): string {
+  switch (reason) {
+    case "removed":
+      return say("Someone removed this file.");
+    case "clientOutdated":
+      return say("Update this app to open this document.");
+    case "hostOutdated":
+      return say("Update the app on the computer with this file to open this document.");
+    default:
+      return say("This document closed.");
   }
 }

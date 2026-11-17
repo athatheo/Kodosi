@@ -284,9 +284,12 @@ impl<F: Format> Document<F> {
         fresh: bool,
     ) -> Vec<Effect> {
         if contract_number != contract::CONTRACT {
-            let closed = ToClient::Closed {
-                reason: ClosedReason::Contract,
+            let reason = if contract_number < contract::CONTRACT {
+                ClosedReason::ClientOutdated
+            } else {
+                ClosedReason::HostOutdated
             };
+            let closed = ToClient::Closed { reason };
             return vec![send_to(vec![pipe], &closed), Effect::Drop { pipe }];
         }
         let mut effects: Vec<Effect> = self

@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    Answer, Assets, CONTRACT, Catchup, Changed, Document, Effect, Format, Frame, Guide, Input,
-    Ordered, PipeId, Refused, RefusedReason, Restored, Rev, Seq, Snapshot, ToClient, ToDocument,
-    Unreadable, Unwritable, Viewer, contract,
+    Answer, Assets, CONTRACT, Catchup, Changed, ClosedReason, Document, Effect, Format, Frame,
+    Guide, Input, Ordered, PipeId, Refused, RefusedReason, Restored, Rev, Seq, Snapshot, ToClient,
+    ToDocument, Unreadable, Unwritable, Viewer, contract,
 };
 
 /// A small format with both kinds of change: cells that a key names, and lines that a position
@@ -319,28 +319,30 @@ fn a_change_that_only_the_server_makes_is_refused_from_a_sender() {
 }
 
 #[test]
-fn another_contract_number_cannot_join() {
+fn another_contract_number_cannot_join_and_learns_which_side_to_update() {
     let mut document = opened();
-    document.step(Input::Connected {
-        pipe: 1,
-        viewer: viewer("ana"),
-    });
-    let effects = message_to(
-        &mut document,
-        1,
-        frame(&ToDocument::Join {
-            contract: CONTRACT + 1,
-            client: "ana".to_owned(),
-            epoch: 0,
-            rev: 0,
-            fresh: true,
-        }),
-    );
-    assert!(matches!(
-        messages_for(1, &effects).as_slice(),
-        [ToClient::Closed { .. }]
-    ));
-    assert!(effects.contains(&Effect::Drop { pipe: 1 }));
+    for (pipe, contract, reason) in [
+        (1, CONTRACT - 1, ClosedReason::ClientOutdated),
+        (2, CONTRACT + 1, ClosedReason::HostOutdated),
+    ] {
+        document.step(Input::Connected {
+            pipe,
+            viewer: viewer("ana"),
+        });
+        let effects = message_to(
+            &mut document,
+            pipe,
+            frame(&ToDocument::Join {
+                contract,
+                client: "ana".to_owned(),
+                epoch: 0,
+                rev: 0,
+                fresh: true,
+            }),
+        );
+        assert_eq!(messages_for(pipe, &effects), [ToClient::Closed { reason }]);
+        assert!(effects.contains(&Effect::Drop { pipe }));
+    }
 }
 
 #[test]

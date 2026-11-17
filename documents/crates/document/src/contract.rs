@@ -118,11 +118,15 @@ pub enum RefusedReason {
     Invalid,
 }
 
+/// Views of another contract read why they could not join, so these names stay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ClosedReason {
-    Contract,
+    /// Update this app.
+    ClientOutdated,
+    /// Update the app on the computer with the file.
+    HostOutdated,
     Removed,
     Failed,
 }
