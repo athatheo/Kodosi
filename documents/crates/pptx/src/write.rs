@@ -294,14 +294,20 @@ fn shape_id(element: Xml<'_, '_>) -> Option<String> {
     properties.attribute("id").map(str::to_owned)
 }
 
-fn frame_xml(shape: &Shape) -> String {
+fn frame_xml(shape: &Shape, children: Option<&read::Frame>) -> String {
     let rotation = if shape.rotation == 0 {
         String::new()
     } else {
         format!(r#" rot="{}""#, shape.rotation)
     };
+    let children = children.map_or_else(String::new, |span| {
+        format!(
+            r#"<a:chOff x="{}" y="{}"/><a:chExt cx="{}" cy="{}"/>"#,
+            span.x, span.y, span.width, span.height
+        )
+    });
     format!(
-        r#"<a:xfrm{rotation}><a:off x="{}" y="{}"/><a:ext cx="{}" cy="{}"/></a:xfrm>"#,
+        r#"<a:xfrm{rotation}><a:off x="{}" y="{}"/><a:ext cx="{}" cy="{}"/>{children}</a:xfrm>"#,
         shape.x, shape.y, shape.width, shape.height
     )
 }
@@ -312,6 +318,9 @@ fn moved_frame(xml: &str, transform: Xml<'_, '_>, shape: &Shape) -> String {
     let tag = |element: Xml<'_, '_>| {
         let text = &xml[element.range()];
         name_end(text).map_or("", |end| &text[1..end])
+    };
+    let named = |name: &str| {
+        local(transform, name).map_or_else(|| format!("a:{name}"), |child| tag(child).to_owned())
     };
     let mut frame = format!("<{}", tag(transform));
     for attribute in transform
@@ -328,38 +337,35 @@ fn moved_frame(xml: &str, transform: Xml<'_, '_>, shape: &Shape) -> String {
     if shape.rotation != 0 {
         let _ = write!(frame, r#" rot="{}""#, shape.rotation);
     }
-    frame.push('>');
-    let mut placed = [false, false];
-    for child in transform.children().filter(Xml::is_element) {
-        match child.tag_name().name() {
-            "off" => {
-                placed[0] = true;
-                let _ = write!(
-                    frame,
-                    r#"<{} x="{}" y="{}"/>"#,
-                    tag(child),
-                    shape.x,
-                    shape.y
-                );
-            }
-            "ext" => {
-                placed[1] = true;
-                let _ = write!(
-                    frame,
-                    r#"<{} cx="{}" cy="{}"/>"#,
-                    tag(child),
-                    shape.width,
-                    shape.height
-                );
-            }
-            _ => frame.push_str(&xml[child.range()]),
-        }
-    }
-    if placed != [true, true] {
-        return frame_xml(shape);
+    let _ = write!(
+        frame,
+        r#"><{} x="{}" y="{}"/><{} cx="{}" cy="{}"/>"#,
+        named("off"),
+        shape.x,
+        shape.y,
+        named("ext"),
+        shape.width,
+        shape.height
+    );
+    for child in transform
+        .children()
+        .filter(|child| child.is_element() && !matches!(child.tag_name().name(), "off" | "ext"))
+    {
+        frame.push_str(&xml[child.range()]);
     }
     let _ = write!(frame, "</{}>", tag(transform));
     frame
+}
+
+fn appended(xml: &str, element: Xml<'_, '_>, added: String) -> (std::ops::Range<usize>, String) {
+    let range = element.range();
+    let text = &xml[range.clone()];
+    if let Some(open) = text.strip_suffix("/>") {
+        let name = name_end(text).map_or("", |end| &text[1..end]);
+        return (range, format!("{open}>{added}</{name}>"));
+    }
+    let at = range.start + text.rfind("</").unwrap_or(0);
+    (at..at, added)
 }
 
 fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
@@ -378,7 +384,7 @@ fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
         ),
         id = escape(&shape.id),
         name = escape(&shape.name),
-        frame = frame_xml(shape),
+        frame = frame_xml(shape, None),
         geometry = escape(shape.geometry.as_deref().unwrap_or("rect")),
         fill = fill,
         body = body,
@@ -398,18 +404,19 @@ fn patch_shape(
         (old.x, old.y, old.width, old.height, old.rotation)
             == (new.x, new.y, new.width, new.height, new.rotation)
     });
-    let properties = local(element, "spPr");
-    if !same_frame && let Some(properties) = properties {
-        if let Some(transform) = local(properties, "xfrm") {
+    let properties = local(element, "spPr").or_else(|| local(element, "grpSpPr"));
+    let transform = properties
+        .and_then(|properties| local(properties, "xfrm"))
+        .or_else(|| local(element, "xfrm"));
+    if !same_frame {
+        if let Some(transform) = transform {
             edits.push((transform.range(), moved_frame(xml, transform, new)));
-        } else if let Some(first) = properties.first_element_child() {
-            let at = first.range().start;
-            edits.push((at..at, frame_xml(new)));
-        } else {
-            let range = properties.range();
-            let text = &xml[range.clone()];
-            let tag = text.trim_end_matches("/>");
-            edits.push((range, format!("{tag}>{}</p:spPr>", frame_xml(new))));
+        } else if let Some(properties) = properties {
+            let frame = frame_xml(new, read::span_of(element).as_ref());
+            edits.push(match properties.first_element_child() {
+                Some(first) => (first.range().start..first.range().start, frame),
+                None => appended(xml, properties, frame),
+            });
         }
     }
     if old.is_none_or(|old| old.fill != new.fill)
@@ -440,8 +447,7 @@ fn patch_shape(
         if let (Some(first), Some(last)) = (paragraphs.first(), paragraphs.last()) {
             edits.push((first.range().start..last.range().end, replaced));
         } else {
-            let closing = body.range().start + xml[body.range()].rfind("</").unwrap_or(0);
-            edits.push((closing..closing, replaced));
+            edits.push(appended(xml, body, replaced));
         }
     }
     Ok(())

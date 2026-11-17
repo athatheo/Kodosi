@@ -1111,3 +1111,115 @@ fn a_change_of_what_a_change_before_it_removed_goes_and_the_rest_of_its_batch_st
         Err(Refused::Invalid(_))
     ));
 }
+
+fn framed_deck() -> Vec<u8> {
+    let group = concat!(
+        r#"<p:grpSp><p:nvGrpSpPr><p:cNvPr id="5" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"#,
+        r#"<p:grpSpPr><a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/>"#,
+        r#"<a:chOff x="1000" y="2000"/><a:chExt cx="3000" cy="4000"/></a:xfrm></p:grpSpPr>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="6" name="Inner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/></a:xfrm>"#,
+        r#"<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:grpSp>"#,
+    );
+    let table = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="5000" y="6000"/><a:ext cx="7000" cy="8000"/>"#,
+        r#"</p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">"#,
+        r#"<a:tbl><a:tblGrid><a:gridCol w="7000"/></a:tblGrid><a:tr h="8000"><a:tc><a:txBody><a:bodyPr/>"#,
+        r#"<a:p><a:r><a:t>cell</a:t></a:r></a:p></a:txBody></a:tc></a:tr></a:tbl></a:graphicData></a:graphic>"#,
+        r#"</p:graphicFrame>"#,
+    );
+    let chart = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="8" name="Chart"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="9000" y="10000"/><a:ext cx="11000" cy="12000"/>"#,
+        r#"</p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">"#,
+        r#"<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId9"/>"#,
+        r#"</a:graphicData></a:graphic></p:graphicFrame>"#,
+    );
+    let slide =
+        slide_xml("First").replace("</p:spTree>", &format!("{group}{table}{chart}</p:spTree>"));
+    with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)])
+}
+
+#[test]
+fn a_move_of_a_group_a_table_or_a_chart_reaches_the_file_and_comes_back_with_it() {
+    let file = framed_deck();
+    let mut model = read(&file);
+    let moved = |shape: &str| Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        x: Some(1.0),
+        y: Some(2.0),
+        width: None,
+        height: None,
+    };
+    apply_ops(&mut model, vec![moved("5"), moved("7"), moved("8")]);
+    let with_moves = saved(&model, &file);
+    for shape in &read(&with_moves).slides[0].shapes[2..] {
+        assert_eq!((shape.x, shape.y), (12_700, 25_400), "{}", shape.name);
+    }
+    let group = concat!(
+        r#"<a:xfrm><a:off x="12700" y="25400"/><a:ext cx="3000" cy="4000"/>"#,
+        r#"<a:chOff x="1000" y="2000"/><a:chExt cx="3000" cy="4000"/></a:xfrm>"#,
+    );
+    assert!(part(&with_moves, "ppt/slides/slide1.xml").contains(group));
+    let moved_group = Pptx::snapshot(&model).0["slides"][0]["shapes"][2].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "5".to_owned(),
+        }],
+    );
+    let without = saved(&model, &with_moves);
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: moved_group,
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, back).unwrap();
+    assert!(part(&saved(&model, &without), "ppt/slides/slide1.xml").contains(group));
+}
+
+#[test]
+fn a_group_without_a_frame_spans_its_shapes_and_a_move_takes_them_along() {
+    let group = concat!(
+        r#"<p:grpSp><p:nvGrpSpPr><p:cNvPr id="5" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="6" name="Left"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/></a:xfrm></p:spPr></p:sp>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="7" name="Right"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="6000" y="1000"/><a:ext cx="2000" cy="2000"/></a:xfrm></p:spPr></p:sp></p:grpSp>"#,
+    );
+    let chart = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="8" name="Chart"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="9000" y="10000"/></p:xfrm><a:graphic>"#,
+        r#"<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">"#,
+        r#"<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId9"/>"#,
+        r#"</a:graphicData></a:graphic></p:graphicFrame>"#,
+    );
+    let slide = slide_xml("First").replace("</p:spTree>", &format!("{group}{chart}</p:spTree>"));
+    let file = with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)]);
+    let mut model = read(&file);
+    let frame = |model: &Model, at: usize| {
+        let shape = &model.slides[0].shapes[at];
+        (shape.x, shape.y, shape.width, shape.height)
+    };
+    assert_eq!(frame(&model, 2), (1000, 1000, 7000, 5000));
+    let moved = |shape: &str| Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        x: Some(1.0),
+        y: Some(2.0),
+        width: None,
+        height: None,
+    };
+    apply_ops(&mut model, vec![moved("5"), moved("8")]);
+    let with_moves = saved(&model, &file);
+    assert_eq!(frame(&read(&with_moves), 2), (12_700, 25_400, 7000, 5000));
+    let xml = part(&with_moves, "ppt/slides/slide1.xml");
+    assert!(xml.contains(concat!(
+        r#"<p:grpSpPr><a:xfrm><a:off x="12700" y="25400"/><a:ext cx="7000" cy="5000"/>"#,
+        r#"<a:chOff x="1000" y="1000"/><a:chExt cx="7000" cy="5000"/></a:xfrm></p:grpSpPr>"#,
+    )));
+    assert!(xml.contains(r#"<p:xfrm><a:off x="12700" y="25400"/><a:ext cx="0" cy="0"/></p:xfrm>"#));
+}

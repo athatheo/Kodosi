@@ -76,6 +76,47 @@ pub(crate) fn frame_of(properties: Option<Xml<'_, '_>>) -> Option<Frame> {
     })
 }
 
+fn given_frame(element: Xml<'_, '_>) -> Option<Frame> {
+    frame_of(local(element, "spPr").or_else(|| local(element, "grpSpPr")))
+        .or_else(|| frame_of(Some(element)))
+}
+
+/// A group without a frame of its own leaves its shapes in the space of its parent, so it spans
+/// them there.
+pub(crate) fn span_of(group: Xml<'_, '_>) -> Option<Frame> {
+    if group.tag_name().name() != "grpSp" {
+        return None;
+    }
+    let mut frames = Vec::new();
+    let mut groups = vec![group];
+    while let Some(group) = groups.pop() {
+        for child in group.children().filter(Xml::is_element) {
+            match given_frame(child) {
+                Some(frame) => frames.push(frame),
+                None if child.tag_name().name() == "grpSp" => groups.push(child),
+                None => {}
+            }
+        }
+    }
+    let left = frames.iter().map(|frame| frame.x).min()?;
+    let top = frames.iter().map(|frame| frame.y).min()?;
+    let right = frames
+        .iter()
+        .map(|frame| frame.x.saturating_add(frame.width))
+        .max()?;
+    let bottom = frames
+        .iter()
+        .map(|frame| frame.y.saturating_add(frame.height))
+        .max()?;
+    Some(Frame {
+        x: left,
+        y: top,
+        width: right.saturating_sub(left),
+        height: bottom.saturating_sub(top),
+        rotation: 0,
+    })
+}
+
 fn color_of(fill: Option<Xml<'_, '_>>) -> Option<String> {
     let solid = fill.and_then(|node| local(node, "solidFill"))?;
     if let Some(color) = local(solid, "srgbClr") {
@@ -404,8 +445,8 @@ impl<'input> Reader<'_, '_, 'input> {
         };
         let properties = local(element, "spPr").or_else(|| local(element, "grpSpPr"));
         let placeholder = placeholder_key(element);
-        let frame = frame_of(properties)
-            .or_else(|| frame_of(Some(element)))
+        let frame = given_frame(element)
+            .or_else(|| span_of(element))
             .or_else(|| placeholder.as_ref().and_then(|key| inherited.frame(key)))
             .unwrap_or_default();
         let body = local(element, "txBody");
