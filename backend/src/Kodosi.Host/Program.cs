@@ -50,6 +50,7 @@ builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<PushTokens>();
 builder.Services.ConfigureHttpJsonOptions(options => StrictJson.Configure(options.SerializerOptions));
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.AddServerHeader = false;
