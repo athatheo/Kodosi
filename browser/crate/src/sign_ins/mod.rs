@@ -142,7 +142,7 @@ pub fn copied_sites(profiles: &Path, profile: &str) -> usize {
 /// Nothing here reads the data of a browser that macOS keeps from Kodosi, so looking never makes
 /// macOS refuse or warn.
 pub fn sign_in_sources() -> Vec<SignInSource> {
-    let Some(home) = std::env::home_dir() else {
+    let Some(home) = std::env::home_dir().filter(|home| !home.as_os_str().is_empty()) else {
         return Vec::new();
     };
     let mut sources = chromium::sources(&home);
