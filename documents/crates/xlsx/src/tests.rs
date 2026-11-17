@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{io::Write as _, time::Duration};
 
 use document::{Assets, Format, Ordered, Refused};
 use package::Package;
@@ -186,6 +186,75 @@ fn a_save_keeps_the_stored_results_that_an_edit_does_not_change() {
         r#"<c r="C1"><f>0.1+0.2-0.3</f><v>0</v></c><c r="D1" t="str"><f>""</f><v></v></c>"#
     ));
     assert!(xml.contains(r#"<c r="A3"><f>A1+A2</f><v>12</v></c>"#));
+}
+
+#[test]
+fn a_save_that_cannot_work_out_the_formulas_asks_the_program_that_opens_it_to() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "");
+    for (before, asking) in [
+        ("", r#"<calcPr fullCalcOnLoad="1"/>"#),
+        (
+            r#"<calcPr calcId="191029"/>"#,
+            r#"<calcPr fullCalcOnLoad="1" calcId="191029"/>"#,
+        ),
+    ] {
+        let workbook = WORKBOOK.replace("</sheets>", &format!("</sheets>{before}"));
+        let file = xlsx_file_with(&sheet, &workbook, STYLES);
+        let mut model = read(&file);
+        ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+        let unfinished = crate::write::write(&model, &file, Duration::ZERO).unwrap();
+        assert!(
+            part(&unfinished, "xl/workbook.xml").contains(&format!("</sheets>{asking}</workbook>"))
+        );
+        assert!(
+            part(&unfinished, "xl/worksheets/sheet1.xml").contains(r#"<c r="A3"><f>A1+A2</f></c>"#)
+        );
+        let finished = saved(&model, &unfinished);
+        assert!(
+            part(&finished, "xl/workbook.xml").contains(&format!("</sheets>{before}</workbook>"))
+        );
+        assert!(
+            part(&finished, "xl/worksheets/sheet1.xml")
+                .contains(r#"<c r="A3"><f>A1+A2</f><v>12</v></c>"#)
+        );
+    }
+}
+
+#[test]
+fn a_workbook_asks_to_be_worked_out_while_a_formula_keeps_its_value() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="D1"><f>KODOSIUNKNOWN(A2)</f><v>7</v></c>"#,
+    );
+    let workbook = WORKBOOK.replace("</sheets>", r#"</sheets><calcPr fullCalcOnLoad="1"/>"#);
+    let file = xlsx_file_with(&sheet, &workbook, STYLES);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert!(part(&saved(&model, &file), "xl/workbook.xml").contains("fullCalcOnLoad"));
+}
+
+#[test]
+fn an_answer_says_when_the_formulas_could_not_be_worked_out_in_time() {
+    let file = xlsx_file();
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    let everything = Query::Read {
+        sheet: None,
+        range: None,
+    };
+    let unfinished = crate::ops::answer(&model, &everything, Duration::ZERO);
+    let formula = unfinished["sheets"][0]["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["cell"] == "A3")
+        .unwrap();
+    assert_eq!(formula["value"], serde_json::Value::Null);
+    assert!(unfinished["problem"].is_string());
+    let unchecked = crate::ops::answer(&model, &Query::Check, Duration::ZERO);
+    assert!(unchecked.get("errors").is_none() && unchecked["problem"].is_string());
+    assert!(Xlsx::query(&model, everything).0.get("problem").is_none());
+    assert!(Xlsx::query(&model, Query::Check).0.get("problem").is_none());
 }
 
 #[test]
