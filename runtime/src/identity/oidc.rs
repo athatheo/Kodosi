@@ -147,18 +147,13 @@ fn sign_in_locale(language: crate::text::Language) -> &'static str {
 }
 
 impl Oidc {
-    pub fn new(issuer: &str, client_id: String, scopes: &[String]) -> Result<Self> {
+    pub fn new(client: Client, issuer: &str, client_id: String, scopes: &[String]) -> Result<Self> {
         let issuer =
             Url::parse(issuer).map_err(|_| invalid("The sign-in issuer is not configured."))?;
         validate_url(&issuer)?;
         if issuer.query().is_some() {
             return Err(invalid("OIDC issuer must not contain a query."));
         }
-        let client = Client::builder()
-            .timeout(Duration::from_secs(20))
-            .connect_timeout(Duration::from_secs(5))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
         Ok(Self {
             client,
             issuer,
@@ -528,7 +523,13 @@ mod tests {
     #[tokio::test]
     async fn a_browser_sign_in_proves_its_challenge_when_it_trades_the_code() {
         let (address, server) = issuer(vec![token()]).await;
-        let oidc = Oidc::new(&address, "kodosi-app".into(), &["openid".to_owned()]).unwrap();
+        let oidc = Oidc::new(
+            Client::new(),
+            &address,
+            "kodosi-app".into(),
+            &["openid".to_owned()],
+        )
+        .unwrap();
         let login = oidc
             .browser(
                 "http://127.0.0.1:9/callback",
@@ -572,7 +573,13 @@ mod tests {
             "verification_uri": "http://127.0.0.1:9/device",
         });
         let (address, server) = issuer(vec![device, token()]).await;
-        let oidc = Oidc::new(&address, "kodosi-app".into(), &["openid".to_owned()]).unwrap();
+        let oidc = Oidc::new(
+            Client::new(),
+            &address,
+            "kodosi-app".into(),
+            &["openid".to_owned()],
+        )
+        .unwrap();
         let login = oidc.start().await.unwrap();
         let tokens = oidc.poll(login, &CancellationToken::new()).await.unwrap();
         assert_eq!(tokens.access_token, "access");
