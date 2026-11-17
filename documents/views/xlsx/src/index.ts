@@ -10,6 +10,7 @@ import {
   opensLink,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -342,7 +343,8 @@ class XlsxEditor implements Editor, Pictures {
     return scheme ? scheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
-  load(raw: unknown, person: Person): void {
+  load(raw: unknown, person: Person, sent: Sent): void {
+    if (this.outbox.loaded(sent)) this.status.kept("");
     this.univer?.univer.dispose();
     const worker = new Worker(new URL("./formula-worker.ts", import.meta.url), { type: "module" });
     const made = createUniver({

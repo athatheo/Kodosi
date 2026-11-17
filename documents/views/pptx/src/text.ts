@@ -1,7 +1,9 @@
 import { cssColor, cssString } from "@documents/client";
 import { say } from "@documents/words";
-import type { Mark, MarkSpec, NodeSpec, Node as ProseNode } from "@tiptap/pm/model";
-import { Schema } from "@tiptap/pm/model";
+import type { Mark, MarkSpec, NodeSpec } from "@tiptap/pm/model";
+import { Node as ProseNode, Schema } from "@tiptap/pm/model";
+import type { EditorState } from "@tiptap/pm/state";
+import { sendableSteps } from "prosemirror-collab";
 import spec from "../../../crates/pptx/schema.json";
 
 const POINTS_PER_SIZE_UNIT = 0.01;
@@ -301,4 +303,23 @@ export function layOut(
   const free = Math.max(0, height - top);
   const shift = look?.anchor === "ctr" ? free / 2 : look?.anchor === "b" ? free : 0;
   return out.map((line) => ({ ...line, baseline: line.baseline + shift }));
+}
+
+/**
+ * The words of each text whose steps wait for the document and that a snapshot does not show. A
+ * new snapshot takes their place, so the person sees what they wrote, to write it again.
+ */
+export function unsentText(
+  texts: ReadonlyMap<string, EditorState>,
+  shown: (key: string) => unknown,
+): string {
+  const words: string[] = [];
+  for (const [key, state] of texts) {
+    if (!sendableSteps(state)) continue;
+    const json = shown(key);
+    if (json && ProseNode.fromJSON(schema, json).eq(state.doc)) continue;
+    const text = state.doc.textBetween(0, state.doc.content.size, "\n").trim();
+    if (text) words.push(text);
+  }
+  return words.join("\n\n");
 }

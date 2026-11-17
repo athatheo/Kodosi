@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { ToClient, ToDocument } from "@documents/contract";
 import { Client, type Editor, type Pipe, type Sent } from "./client";
+import { batchOf, Outbox } from "./outbox";
 
 class TestPipe implements Pipe {
   readonly sent: ToDocument[] = [];
@@ -39,6 +40,28 @@ class TestEditor implements Editor {
 
   batch(): unknown | null {
     return this.edits > 0 ? { edits: this.edits } : null;
+  }
+
+  peers(): void {}
+  saved(): void {}
+  closed(): void {}
+  destroy(): void {}
+}
+
+class OutboxEditor implements Editor {
+  readonly outbox = new Outbox<string>();
+  dropped = false;
+
+  load(_snapshot: unknown, _person: unknown, sent: Sent): void {
+    this.dropped = this.outbox.loaded(sent) || this.dropped;
+  }
+
+  apply(_changed: unknown, own: boolean): void {
+    if (own) this.outbox.answered();
+  }
+
+  batch(): unknown | null {
+    return batchOf(this.outbox.next());
   }
 
   peers(): void {}
@@ -123,4 +146,44 @@ test("a snapshot says what became of the batch on its way, as far as the documen
     await again.deliver(joined(1, seq, 8));
     expect(editor.loads).toEqual(["none", sent]);
   }
+});
+
+test("a batch that the document refused goes no more after the snapshot, nor what came after it", async () => {
+  const editor = new OutboxEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await pipe.deliver(joined(0));
+  editor.outbox.add("refused");
+  client.pull();
+  editor.outbox.add("after");
+  await settled();
+  await pipe.deliver({ type: "refused", seq: 1, reason: "invalid" });
+  await pipe.deliver(joined(0));
+  await settled();
+  expect(kinds(pipe)).toEqual(["join", "change", "join"]);
+  expect(editor.dropped).toBe(true);
+});
+
+test("a batch that the document took goes once, and what came after it goes on the snapshot", async () => {
+  const editor = new OutboxEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await pipe.deliver(joined(0));
+  editor.outbox.add("taken");
+  client.pull();
+  editor.outbox.add("after");
+  await settled();
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  await again.deliver(joined(1, 1, 8));
+  await settled();
+  expect(
+    again.sent.map((message) => (message.type === "change" ? message.body : message.type)),
+  ).toEqual(["join", "after"]);
+  expect(editor.dropped).toBe(false);
 });

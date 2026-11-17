@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { levelRules, schema } from "./text";
+import { Node as ProseNode } from "@tiptap/pm/model";
+import { EditorState } from "@tiptap/pm/state";
+import { collab } from "prosemirror-collab";
+import { levelRules, schema, unsentText } from "./text";
 
 function runStyle(attrs: Record<string, unknown>): string {
   const look = schema.marks.textStyle;
@@ -41,4 +44,23 @@ test("the colour and font of a text level cannot add CSS rules", () => {
     '.slides-text p[data-level="2"]{font:24px "constructor", Carlito, sans-serif;' +
       "line-height:1.2;margin:0 0 0 48px;text-align:left;color:inherit}",
   ]);
+});
+
+test("words that wait and that a snapshot does not show come back to write again", () => {
+  const typed = (words: string) => ({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: words }] }],
+  });
+  const start = EditorState.create({
+    doc: ProseNode.fromJSON(schema, typed("Plan")),
+    plugins: [collab()],
+  });
+  const waiting = start.apply(start.tr.insertText(" for 2027", 5));
+  const texts = new Map([
+    ["256/2", waiting],
+    ["256/3", start],
+  ]);
+  expect(unsentText(texts, () => typed("Plan"))).toBe("Plan for 2027");
+  expect(unsentText(texts, () => undefined)).toBe("Plan for 2027");
+  expect(unsentText(texts, () => typed("Plan for 2027"))).toBe("");
 });

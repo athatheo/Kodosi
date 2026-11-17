@@ -20,6 +20,7 @@ import {
   Outbox,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -293,7 +294,8 @@ class PdfEditor implements Editor, Pictures {
     this.change({ kind: "work", work: { kind: "order", pages } });
   }
 
-  load(raw: unknown, person: Person): void {
+  load(raw: unknown, person: Person, sent: Sent): void {
+    if (this.outbox.loaded(sent)) this.status.kept("");
     this.snapshot = raw as Snapshot;
     this.canEdit = person.canEdit;
     this.showBar();

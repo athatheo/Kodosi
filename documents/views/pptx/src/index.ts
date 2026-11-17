@@ -11,6 +11,7 @@ import {
   opensLink,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -36,6 +37,7 @@ import {
   schema,
   type TextLook,
   type Theme,
+  unsentText,
 } from "./text";
 import "./pptx.css";
 import { say } from "@documents/words";
@@ -202,9 +204,17 @@ class PptxEditor implements Editor, Pictures {
     }
   }
 
-  load(raw: unknown, person: Person): void {
+  load(raw: unknown, person: Person, sent: Sent): void {
     this.closeText();
     const deck = raw as Snapshot;
+    const shown = new Map(
+      deck.slides.flatMap((slide) =>
+        slide.shapes.map((shape) => [textKey(slide.id, shape.id), shape.text] as const),
+      ),
+    );
+    const unsent = unsentText(this.texts, (key) => shown.get(key));
+    const dropped = this.outbox.loaded(sent);
+    this.undoes.length = 0;
     this.deck = deck;
     this.canEdit = person.canEdit;
     this.showBar();
@@ -212,6 +222,7 @@ class PptxEditor implements Editor, Pictures {
     for (const slide of deck.slides) {
       for (const shape of slide.shapes) this.addText(slide.id, shape);
     }
+    if (unsent || dropped) this.status.kept(unsent);
     if (!deck.slides.some((slide) => slide.id === this.current)) {
       this.current = deck.slides[0]?.id ?? "";
     }

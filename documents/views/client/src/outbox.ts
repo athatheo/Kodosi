@@ -1,3 +1,5 @@
+import type { Sent } from "./client";
+
 /**
  * The batch on its way stays here until its answer comes, so a view can move it or send it
  * again.
@@ -24,6 +26,19 @@ export class Outbox<Change> {
 
   answered(): void {
     this.sent = [];
+  }
+
+  /**
+   * A snapshot holds the batch that the document took. A batch that it refused was made on a copy
+   * that went wrong, as were the changes after it, so they go, and the view says so.
+   */
+  loaded(sent: Sent): boolean {
+    if (sent === "taken") this.sent = [];
+    if (sent !== "refused") return false;
+    const dropped = this.sent.length + this.queued.length > 0;
+    this.sent = [];
+    this.queued = [];
+    return dropped;
   }
 
   move(move: (change: Change) => Change | null): void {
