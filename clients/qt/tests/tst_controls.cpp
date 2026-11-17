@@ -717,7 +717,7 @@ void ControlsTest::leavingTerminalsLeavesNoDeferredWork()
     };
     QTRY_VERIFY(tile());
     QTest::qWait(50);
-    QTest::failOnWarning(QRegularExpression(QStringLiteral(".")));
+    QTest::failOnWarning();
     desktop.setActiveView(kodosi::DesktopStateModel::Settings);
     QTRY_VERIFY(!tile());
     QTest::qWait(50);
