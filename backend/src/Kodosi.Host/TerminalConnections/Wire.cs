@@ -60,19 +60,15 @@ internal abstract record ServerMessage;
 
 internal sealed record ReadyNotice : ServerMessage;
 
-internal sealed record RefusedNotice(
-    string Reason,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Oldest = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Current = null) : ServerMessage;
+[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+internal sealed record RefusedNotice(string Reason, int? Oldest = null, int? Current = null) : ServerMessage;
 
 internal sealed record PongNotice : ServerMessage;
 
 internal sealed record UnhostedNotice(Guid SessionId, int Status, string Message) : ServerMessage;
 
-internal sealed record ChangedNotice(
-    string Surface,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? ProjectId = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? Sequence = null) : ServerMessage;
+[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+internal sealed record ChangedNotice(string Surface, Guid? ProjectId = null, long? Sequence = null) : ServerMessage;
 
 internal sealed record TerminalNotice(Guid SessionId, Guid IncarnationId, bool Online, TerminalStatus? Status) : ServerMessage;
 

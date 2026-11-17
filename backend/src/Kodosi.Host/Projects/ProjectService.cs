@@ -42,7 +42,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
     private async Task<HashSet<Guid>> TerminalPeopleAsync(Guid id, CancellationToken ct)
     {
         var terminals = TerminalsOf(id).Select(x => x.Id);
-        return (await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToListAsync(ct)).ToHashSet();
+        return await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToHashSetAsync(ct);
     }
 
     public async Task<object> ListAsync(Guid userId, CancellationToken ct)
