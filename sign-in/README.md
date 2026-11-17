@@ -28,6 +28,10 @@ folder and set the realm's login, account and e-mail themes to `kodosi`. Then:
   `--spi-events-listener--email--include-events` with the events that `keycloak.sh` names.
   The notice of a locked account asks the person to reply, so send the realm's mail from an
   address that someone reads.
+- With brute force detection on, set the realm's Maximum Secondary Authentication Failures
+  as `keycloak.sh` does, so that many wrong authenticator codes lock an account for good;
+  the notice of that lockout needs `USER_DISABLED_BY_PERMANENT_LOCKOUT` among the events of
+  the option above.
 - The pages show the person check of Keycloak's reCAPTCHA or of the Turnstile providers
   [keycloak-cloudflare-turnstile-provider](https://github.com/zymlabs/keycloak-cloudflare-turnstile-provider)
   and [keycloak-turnstile](https://github.com/panpaul/keycloak-turnstile); the realm's
