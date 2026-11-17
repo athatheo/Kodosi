@@ -752,8 +752,7 @@ pub(crate) async fn run(
                                 drop(notices.send(notice));
                             }
                         }
-                        Message::Ping(payload) => drop(control.send(Message::Pong(payload))),
-                        Message::Pong(_) => {}
+                        Message::Ping(_) | Message::Pong(_) => {}
                         Message::Close(_) => return Err(Error::Closed),
                         Message::Frame(_) => return Err(invalid("Unexpected device connection payload.")),
                     }
