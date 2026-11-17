@@ -90,5 +90,3 @@ var api = app.MapGroup("").AddEndpointFilter<AdmissionFilter>();
 api.MapAccounts(); api.MapDevices(); api.MapFriends(); api.MapSessions(); api.MapProjects(); api.MapPush();
 app.MapTerminalConnections();
 app.Run();
-
-public partial class Program;
