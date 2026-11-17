@@ -86,6 +86,14 @@ fn color_of(fill: Option<Xml<'_, '_>>) -> Option<String> {
         .map(|name| format!("scheme:{name}"))
 }
 
+pub(crate) fn names_of<'a, 'input>(shape: Xml<'a, 'input>) -> Option<Xml<'a, 'input>> {
+    shape
+        .children()
+        .filter(Xml::is_element)
+        .find(|child| child.tag_name().name().starts_with("nv"))
+        .and_then(|names| descendant(names, "cNvPr"))
+}
+
 fn placeholder_key(shape: Xml<'_, '_>) -> Option<String> {
     let placeholder = descendant(local(shape, "nvSpPr")?, "ph")?;
     let kind = placeholder.attribute("type").unwrap_or("body");
@@ -391,12 +399,7 @@ impl<'input> Reader<'_, '_, 'input> {
             "cxnSp" => "connector",
             _ => return Ok(None),
         };
-        let names = element
-            .children()
-            .filter(Xml::is_element)
-            .find(|child| child.tag_name().name().starts_with("nv"))
-            .and_then(|names| descendant(names, "cNvPr"));
-        let Some(names) = names else {
+        let Some(names) = names_of(element) else {
             return Ok(None);
         };
         let properties = local(element, "spPr").or_else(|| local(element, "grpSpPr"));

@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{collections::BTreeMap, io::Write as _};
 
 use document::{Assets, Format, Ordered, Refused};
 use package::Package;
@@ -222,6 +222,7 @@ fn a_view_sends_steps_for_text_and_fields_for_a_shape() {
                     "to": 7,
                     "slice": { "content": [{ "type": "text", "text": " slide" }] },
                 })],
+                keep: BTreeMap::new(),
             },
             Change::Shape {
                 slide: "257".to_owned(),
@@ -255,12 +256,14 @@ fn old_text_steps_are_behind_and_a_field_is_not() {
             slide: "256".to_owned(),
             shape: "2".to_owned(),
             steps: Vec::new(),
+            keep: BTreeMap::new(),
         },
     };
     let text = Change::Text {
         slide: "256".to_owned(),
         shape: "2".to_owned(),
         steps: Vec::new(),
+        keep: BTreeMap::new(),
     };
     assert!(matches!(
         Pptx::apply(
@@ -275,6 +278,7 @@ fn old_text_steps_are_behind_and_a_field_is_not() {
         slide: "256".to_owned(),
         shape: "3".to_owned(),
         steps: Vec::new(),
+        keep: BTreeMap::new(),
     };
     let result = Pptx::apply(
         &mut model,
@@ -480,6 +484,7 @@ fn a_slide_or_a_shape_takes_only_an_id_that_a_file_can_hold() {
     let change = Change::AddShape {
         slide: "256".to_owned(),
         shape: view_text_box("9e0a2c44-77b1-4c63-a1f5-0f6d4e2b8c13"),
+        keep: BTreeMap::new(),
     };
     assert!(matches!(
         apply_change(&mut model, change),
@@ -494,6 +499,7 @@ fn a_slide_or_a_shape_takes_only_an_id_that_a_file_can_hold() {
     let change = Change::AddShape {
         slide: slide.clone(),
         shape: view_text_box("402193877"),
+        keep: BTreeMap::new(),
     };
     apply_change(&mut model, change).unwrap();
     let with_slide = saved(&model, &file);
@@ -689,6 +695,7 @@ fn a_shape_that_a_save_took_away_comes_back_whole_and_can_again() {
     let back = Change::AddShape {
         slide: "256".to_owned(),
         shape: title,
+        keep: BTreeMap::new(),
     };
     Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
     let with = saved(&model, &without);
@@ -699,4 +706,208 @@ fn a_shape_that_a_save_took_away_comes_back_whole_and_can_again() {
     let returned = &again["slides"][0]["shapes"][1];
     assert_eq!(returned["placeholder"], "title:0");
     assert!(returned["source"].is_string());
+}
+
+#[test]
+fn a_change_that_the_file_could_not_save_is_refused_and_changes_nothing() {
+    let mut model = read(&deck());
+    let before = model.clone();
+    let title = |steps: Vec<Value>| Change::Text {
+        slide: "256".to_owned(),
+        shape: "2".to_owned(),
+        steps,
+        keep: BTreeMap::new(),
+    };
+    let typed = |node: Value| {
+        title(vec![json!({
+            "stepType": "replace",
+            "from": 1,
+            "to": 1,
+            "slice": { "content": [node] },
+        })])
+    };
+    let added = |shape: Value| Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep: BTreeMap::new(),
+    };
+    let unknown = "0123456789abcdef";
+    let mut picture = view_text_box("9");
+    picture["kind"] = json!("picture");
+    picture["asset"] = json!("ab".repeat(32));
+    let mut placeholder = view_text_box("10");
+    placeholder["placeholder"] = json!("title:0");
+    let mut stray = view_text_box("11");
+    stray["source"] = json!(unknown);
+    let mut styled = view_text_box("12");
+    styled["text"]["content"][0]["content"][0]["marks"] =
+        json!([{ "type": "run", "attrs": { "props": unknown } }]);
+    let mut borrowed = Pptx::snapshot(&model).0["slides"][0]["shapes"][1].clone();
+    borrowed["id"] = json!("13");
+    let mut shaped = view_text_box("14");
+    shaped["geometry"] = json!("bogus");
+    let framed = |fields: ShapeFields| Change::Shape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        fields,
+    };
+    for change in [
+        typed(json!({ "type": "inlineOpaque", "attrs": { "raw": null } })),
+        typed(json!({ "type": "inlineOpaque", "attrs": { "raw": unknown } })),
+        typed(json!({
+            "type": "text",
+            "text": "x",
+            "marks": [{ "type": "run", "attrs": { "props": unknown } }],
+        })),
+        title(vec![
+            json!({ "stepType": "attr", "pos": 0, "attr": "props", "value": unknown }),
+        ]),
+        typed(json!({ "type": "video" })),
+        added(picture),
+        added(placeholder),
+        added(stray),
+        added(styled),
+        added(borrowed),
+        added(shaped),
+        framed(ShapeFields {
+            width: Some(-1),
+            ..ShapeFields::default()
+        }),
+        framed(ShapeFields {
+            rotation: Some(3_000_000_000),
+            ..ShapeFields::default()
+        }),
+        Change::Group {
+            changes: vec![
+                framed(ShapeFields {
+                    x: Some(0),
+                    ..ShapeFields::default()
+                }),
+                typed(json!({ "type": "inlineOpaque", "attrs": { "raw": null } })),
+            ],
+        },
+    ] {
+        assert!(
+            matches!(
+                apply_change(&mut model, change.clone()),
+                Err(Refused::Invalid(_))
+            ),
+            "{change:?}"
+        );
+        assert_eq!(model, before);
+    }
+    let off_the_slide = framed(ShapeFields {
+        x: Some(-12_700),
+        width: Some(0),
+        ..ShapeFields::default()
+    });
+    assert!(apply_change(&mut model, off_the_slide).is_ok());
+    let broken = slide_xml("First").replace(r#"cx="127000""#, r#"cx="-127000""#);
+    let mut model = read(&with_parts(&deck(), &[("ppt/slides/slide1.xml", &broken)]));
+    let moved = framed(ShapeFields {
+        x: Some(0),
+        ..ShapeFields::default()
+    });
+    assert!(apply_change(&mut model, moved).is_ok());
+}
+
+#[test]
+fn a_person_or_an_agent_cannot_send_what_the_file_does_not_take() {
+    let pieces = BTreeMap::from([("0123456789abcdef".to_owned(), "<a:rPr/>".to_owned())]);
+    let fields = |fields: ShapeFields| Change::Shape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        fields,
+    };
+    let fill = |color: Option<&str>| {
+        fields(ShapeFields {
+            fill: Some(color.map(str::to_owned)),
+            ..ShapeFields::default()
+        })
+    };
+    let added = |shape: Value, keep: BTreeMap<String, String>| Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep,
+    };
+    let mut red = view_text_box("9");
+    red["fill"] = json!("red");
+    for change in [
+        Change::Text {
+            slide: "256".to_owned(),
+            shape: "2".to_owned(),
+            steps: Vec::new(),
+            keep: pieces.clone(),
+        },
+        added(view_text_box("9"), pieces),
+        added(red, BTreeMap::new()),
+        fields(ShapeFields {
+            line: Some(Some("FF0000".to_owned())),
+            ..ShapeFields::default()
+        }),
+        fields(ShapeFields {
+            order: Some(3),
+            ..ShapeFields::default()
+        }),
+        fill(None),
+        fill(Some("red")),
+        Change::Group {
+            changes: vec![fill(Some("00FF00")), fill(None)],
+        },
+    ] {
+        assert!(Pptx::sendable(&change).is_err(), "{change:?}");
+    }
+    for change in [
+        fields(ShapeFields {
+            x: Some(0),
+            y: Some(0),
+            width: Some(9),
+            height: Some(9),
+            rotation: Some(0),
+            ..ShapeFields::default()
+        }),
+        fill(Some("00FF00")),
+        fill(Some("scheme:accent1")),
+        added(view_text_box("9"), BTreeMap::new()),
+    ] {
+        assert!(Pptx::sendable(&change).is_ok(), "{change:?}");
+    }
+    let mut model = read(&deck());
+    let named = Change::Ops {
+        ops: vec![Op::SetFill {
+            slide: "256".to_owned(),
+            shape: "3".to_owned(),
+            color: "red".to_owned(),
+        }],
+    };
+    assert!(matches!(
+        apply_change(&mut model, named),
+        Err(Refused::Invalid(_))
+    ));
+}
+
+#[test]
+fn a_merge_brings_the_pieces_of_a_write_so_that_later_edits_still_save() {
+    let file = deck();
+    let mut model = read(&file);
+    let italic = slide_xml("First").replace(r#"b="1" dirty="0""#, r#"b="1" i="1" dirty="0""#);
+    let written = with_parts(&file, &[("ppt/slides/slide1.xml", &italic)]);
+    for change in Pptx::compare(&model, &read(&written)) {
+        apply_change(&mut model, change).unwrap();
+    }
+    let typed = Change::Text {
+        slide: "256".to_owned(),
+        shape: "2".to_owned(),
+        steps: vec![json!({
+            "stepType": "replace",
+            "from": 1,
+            "to": 1,
+            "slice": { "content": [{ "type": "text", "text": "The " }] },
+        })],
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, typed).unwrap();
+    let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
+    assert!(xml.contains("<a:t>The </a:t>"));
+    assert!(xml.contains(r#"<a:rPr lang="en-US" b="1" i="1" dirty="0"/><a:t>First</a:t>"#));
 }

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, ops::RangeInclusive, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::RangeInclusive,
+    sync::LazyLock,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -141,6 +145,9 @@ pub enum Change {
         slide: String,
         shape: String,
         steps: Vec<Value>,
+        /// Pieces of XML that came with a merge, so a replay of the journal has them too.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        keep: BTreeMap<String, String>,
     },
     MoveSlide {
         slide: String,
@@ -156,6 +163,9 @@ pub enum Change {
     AddShape {
         slide: String,
         shape: Value,
+        /// Pieces of XML that came with a merge, so a replay of the journal has them too.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        keep: BTreeMap<String, String>,
     },
     RemoveShape {
         slide: String,

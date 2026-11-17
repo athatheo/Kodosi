@@ -334,7 +334,11 @@ class PptxEditor implements Editor, Pictures {
     for (const shape of slide.shapes.toSorted((left, right) => left.order - right.order)) {
       this.drawShape(shape, this.canEdit);
     }
-    this.transformer = new Konva.Transformer({ keepRatio: false, ignoreStroke: true });
+    this.transformer = new Konva.Transformer({
+      keepRatio: false,
+      ignoreStroke: true,
+      flipEnabled: false,
+    });
     layer.add(this.transformer);
     const chosen = this.selected ? this.nodeOf(this.selected) : undefined;
     if (chosen && !this.textView) this.transformer.nodes([chosen]);

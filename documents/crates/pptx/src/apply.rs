@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, HashMap};
+
 use document::{Ordered, Refused};
 use serde_json::Value;
 use text::{Node, Step};
@@ -8,6 +10,7 @@ use crate::{
         schema,
     },
     ops,
+    writable::writable_change,
 };
 
 fn invalid(error: impl std::fmt::Display) -> Refused {
@@ -66,6 +69,7 @@ pub(crate) fn apply(
     };
     let mut copy = model.clone();
     apply_one(&mut copy, &change)?;
+    writable_change(model, &copy).map_err(Refused::Invalid)?;
     *model = copy;
     Ok(change)
 }
@@ -124,6 +128,7 @@ fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
             slide,
             shape,
             steps,
+            keep,
         } => {
             let target = shape_mut(model, slide, shape)?;
             let tree = target
@@ -131,6 +136,7 @@ fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
                 .as_ref()
                 .ok_or_else(|| Refused::Invalid(format!("The shape {shape} holds no text.")))?;
             target.text = Some(run_steps(tree, steps).map_err(invalid)?);
+            model.raws.extend(keep.clone());
         }
         Change::MoveSlide { slide, position } => {
             model
@@ -174,7 +180,8 @@ fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
             }
             model.slides.retain(|known| known.id != *slide);
         }
-        Change::AddShape { slide, shape } => {
+        Change::AddShape { slide, shape, keep } => {
+            model.raws.extend(keep.clone());
             let mut shape = Shape::from_snapshot(shape).map_err(Refused::Invalid)?;
             let number = number_in(&shape.id, &SHAPE_IDS).ok_or_else(|| {
                 Refused::Invalid(format!(
@@ -248,16 +255,54 @@ fn stacked_anew(old: &Slide, new: &Slide) -> bool {
         })
 }
 
-fn shape_changes(slide: &str, old: &Shape, new: &Shape, stacked: bool, out: &mut Vec<Change>) {
+/// The pieces of the new file that a merged shape or text names, which the change carries.
+fn pieces_in(json: &Value, raws: &HashMap<String, String>, keep: &mut BTreeMap<String, String>) {
+    match json {
+        Value::Object(fields) => {
+            for (name, value) in fields {
+                if let ("props" | "end" | "raw" | "source", Some(key)) =
+                    (name.as_str(), value.as_str())
+                    && let Some(xml) = raws.get(key)
+                {
+                    keep.insert(key.to_owned(), xml.clone());
+                }
+                pieces_in(value, raws, keep);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                pieces_in(value, raws, keep);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn added(slide: &str, shape: &Shape, raws: &HashMap<String, String>) -> Change {
+    let shape = shape.snapshot();
+    let mut keep = BTreeMap::new();
+    pieces_in(&shape, raws, &mut keep);
+    Change::AddShape {
+        slide: slide.to_owned(),
+        shape,
+        keep,
+    }
+}
+
+fn shape_changes(
+    slide: &str,
+    old: &Shape,
+    new: &Shape,
+    stacked: bool,
+    raws: &HashMap<String, String>,
+    out: &mut Vec<Change>,
+) {
     if !same_shape(old, new) {
         out.push(Change::RemoveShape {
             slide: slide.to_owned(),
             shape: old.id.clone(),
         });
-        out.push(Change::AddShape {
-            slide: slide.to_owned(),
-            shape: new.snapshot(),
-        });
+        out.push(added(slide, new, raws));
         return;
     }
     let mut fields = ShapeFields::default();
@@ -289,18 +334,22 @@ fn shape_changes(slide: &str, old: &Shape, new: &Shape, stacked: bool, out: &mut
         });
     }
     if let (true, Some(old_text), Some(new_text)) = (old.text != new.text, &old.text, &new.text) {
+        let steps = vec![
+            Step::Replace {
+                from: 0,
+                to: old_text.content().size(),
+                slice: text::Slice::new(new_text.content().clone(), 0, 0),
+                structure: false,
+            }
+            .to_json(schema()),
+        ];
+        let mut keep = BTreeMap::new();
+        pieces_in(&Value::from(steps.clone()), raws, &mut keep);
         out.push(Change::Text {
             slide: slide.to_owned(),
             shape: new.id.clone(),
-            steps: vec![
-                Step::Replace {
-                    from: 0,
-                    to: old_text.content().size(),
-                    slice: text::Slice::new(new_text.content().clone(), 0, 0),
-                    structure: false,
-                }
-                .to_json(schema()),
-            ],
+            steps,
+            keep,
         });
     }
 }
@@ -314,10 +363,7 @@ pub(crate) fn compare(from: &Model, to: &Model) -> Vec<Change> {
                 position: slide.position,
             });
             for shape in &slide.shapes {
-                changes.push(Change::AddShape {
-                    slide: slide.id.clone(),
-                    shape: shape.snapshot(),
-                });
+                changes.push(added(&slide.id, shape, &to.raws));
             }
             continue;
         };
@@ -330,11 +376,10 @@ pub(crate) fn compare(from: &Model, to: &Model) -> Vec<Change> {
         let stacked = stacked_anew(old, slide);
         for shape in &slide.shapes {
             match old.shapes.iter().find(|known| known.id == shape.id) {
-                Some(known) => shape_changes(&slide.id, known, shape, stacked, &mut changes),
-                None => changes.push(Change::AddShape {
-                    slide: slide.id.clone(),
-                    shape: shape.snapshot(),
-                }),
+                Some(known) => {
+                    shape_changes(&slide.id, known, shape, stacked, &to.raws, &mut changes);
+                }
+                None => changes.push(added(&slide.id, shape, &to.raws)),
             }
         }
         for shape in &old.shapes {
