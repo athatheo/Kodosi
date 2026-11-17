@@ -25,6 +25,15 @@ import { EditorView } from "@tiptap/pm/view";
 import Konva from "konva";
 import { Plus, TextCursorInput, Trash2, Undo2 } from "lucide";
 import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
+import {
+  type Change,
+  type Fields,
+  Fitting,
+  type Shape,
+  type Slide,
+  type Snapshot,
+  touches,
+} from "./deck";
 import { newId } from "./ids";
 import {
   colorIn,
@@ -35,62 +44,10 @@ import {
   linkTitle,
   type Measure,
   schema,
-  type TextLook,
-  type Theme,
   unsentText,
 } from "./text";
 import "./pptx.css";
 import { say } from "@documents/words";
-
-interface Shape {
-  id: string;
-  name: string;
-  kind: string;
-  placeholder: string | null;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  geometry: string | null;
-  fill: string | null;
-  line: string | null;
-  asset: string | null;
-  link: Link | null;
-  text: unknown;
-  look: TextLook | null;
-  order: number;
-  source: string | null;
-}
-
-interface Slide {
-  id: string;
-  position: number;
-  shapes: Shape[];
-  behind: Shape[];
-  background: string | null;
-}
-
-interface Snapshot {
-  width: number;
-  height: number;
-  slides: Slide[];
-  theme: Theme | null;
-}
-
-type Fields = Partial<
-  Pick<Shape, "x" | "y" | "width" | "height" | "rotation" | "fill" | "line" | "order">
->;
-
-type Change =
-  | { kind: "shape"; slide: string; shape: string; fields: Fields }
-  | { kind: "text"; slide: string; shape: string; steps: unknown[] }
-  | { kind: "moveSlide"; slide: string; position: number }
-  | { kind: "addSlide"; slide: string; position: number }
-  | { kind: "removeSlide"; slide: string }
-  | { kind: "addShape"; slide: string; shape: Shape }
-  | { kind: "removeShape"; slide: string; shape: string }
-  | { kind: "group"; changes: Change[] };
 
 interface Place {
   slide?: string;
@@ -214,6 +171,8 @@ class PptxEditor implements Editor, Pictures {
     );
     const unsent = unsentText(this.texts, (key) => shown.get(key));
     const dropped = this.outbox.loaded(sent);
+    const fitting = new Fitting(deck.slides);
+    this.outbox.move((change) => fitting.fit(change));
     this.undoes.length = 0;
     this.deck = deck;
     this.canEdit = person.canEdit;
@@ -223,7 +182,7 @@ class PptxEditor implements Editor, Pictures {
       for (const shape of slide.shapes) this.addText(slide.id, shape);
     }
     for (const change of this.outbox.unanswered()) this.showChange(change);
-    if (unsent || dropped) this.status.kept(unsent);
+    if (unsent || dropped || fitting.lost) this.status.kept(unsent);
     if (!deck.slides.some((slide) => slide.id === this.current)) {
       this.current = deck.slides[0]?.id ?? "";
     }
@@ -800,6 +759,13 @@ class PptxEditor implements Editor, Pictures {
     if (this.current === slide && this.textShape === shape) this.textView?.updateState(next);
   }
 
+  /** A collaborator took away what these changes touch, and the document would refuse them. */
+  private forget(touching: (change: Change) => boolean): void {
+    this.outbox.move((waiting) => (touching(waiting) ? null : waiting));
+    const kept = this.undoes.filter((undo) => !touching(undo));
+    this.undoes.splice(0, this.undoes.length, ...kept);
+  }
+
   /** A view's own change is on this copy already, but for its text. */
   private showChange(change: Change, own = false, author: string = this.clientKey): void {
     const deck = this.deck;
@@ -843,6 +809,7 @@ class PptxEditor implements Editor, Pictures {
       case "removeSlide":
         deck.slides = deck.slides.filter((known) => known.id !== change.slide);
         if (change.slide === this.current) this.current = deck.slides[0]?.id ?? "";
+        if (author !== this.clientKey) this.forget((waiting) => touches(waiting, change.slide));
         break;
       case "addShape":
         if (slide && !slide.shapes.some((known) => known.id === change.shape.id)) {
@@ -854,6 +821,9 @@ class PptxEditor implements Editor, Pictures {
         if (slide) slide.shapes = slide.shapes.filter((known) => known.id !== change.shape);
         this.texts.delete(textKey(change.slide, change.shape));
         if (this.current === change.slide && this.textShape === change.shape) this.closeText();
+        if (author !== this.clientKey) {
+          this.forget((waiting) => touches(waiting, change.slide, change.shape));
+        }
         break;
     }
   }
