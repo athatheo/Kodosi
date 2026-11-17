@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use specta_macros::Type;
+use specta::Type;
 
 pub(crate) mod crypto;
 pub(crate) mod providers;
