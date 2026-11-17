@@ -396,6 +396,9 @@ impl<F: Format> Document<F> {
                 return vec![refuse(pipe, seq, RefusedReason::Invalid, Some(detail))];
             }
         };
+        if let Err(detail) = F::sendable(&change) {
+            return vec![refuse(pipe, seq, RefusedReason::Invalid, Some(detail))];
+        }
         if base > self.rev {
             let detail = format!(
                 "The file opened again since rev {base} and is at rev {} now. Read again.",

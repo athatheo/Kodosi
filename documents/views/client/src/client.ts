@@ -230,8 +230,8 @@ export class Client {
     });
   }
 
-  hasAsset(hash: string): boolean {
-    return this.assets.has(hash);
+  heldAsset(hash: string): Uint8Array | undefined {
+    return this.assets.get(hash);
   }
 
   addAsset(hash: string, bytes: Uint8Array): void {

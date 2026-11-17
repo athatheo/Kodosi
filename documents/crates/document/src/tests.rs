@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A small format with both kinds of change: cells that a key names, and lines that a position
-/// names.
+/// names. Only the server makes a merged cell.
 struct Sheet;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,6 +25,7 @@ enum Change {
     Set { key: String, value: String },
     Insert { at: usize, line: String },
     Seal,
+    Merged { key: String, value: String },
 }
 
 impl Format for Sheet {
@@ -40,6 +41,13 @@ impl Format for Sheet {
         Snapshot(json!(model))
     }
 
+    fn sendable(change: &Change) -> Result<(), String> {
+        match change {
+            Change::Merged { .. } => Err("only the server merges".to_owned()),
+            _ => Ok(()),
+        }
+    }
+
     fn apply(
         model: &mut Model,
         change: Change,
@@ -47,7 +55,7 @@ impl Format for Sheet {
         _assets: &mut Assets,
     ) -> Result<Change, Refused> {
         match &change {
-            Change::Set { key, value } => {
+            Change::Set { key, value } | Change::Merged { key, value } => {
                 model.cells.insert(key.clone(), value.clone());
             }
             Change::Insert { at, line } => {
@@ -276,6 +284,25 @@ fn a_viewer_that_cannot_edit_is_refused() {
     });
     message_to(&mut document, 1, join_frame("ana", 0, 0));
     let effects = message_to(&mut document, 1, change_frame(1, 0, &set("a1", "x")));
+    assert!(matches!(
+        messages_for(1, &effects).as_slice(),
+        [ToClient::Refused {
+            reason: RefusedReason::Invalid,
+            ..
+        }]
+    ));
+    assert_eq!(document.rev(), 0);
+}
+
+#[test]
+fn a_change_that_only_the_server_makes_is_refused_from_a_sender() {
+    let mut document = opened();
+    connect(&mut document, 1, "ana");
+    let merged = Change::Merged {
+        key: "a1".to_owned(),
+        value: "x".to_owned(),
+    };
+    let effects = message_to(&mut document, 1, change_frame(1, 0, &merged));
     assert!(matches!(
         messages_for(1, &effects).as_slice(),
         [ToClient::Refused {
@@ -586,7 +613,7 @@ impl View {
     fn applied(&mut self, changed: &Changed) {
         let change: Change = serde_json::from_value(changed.body.clone()).unwrap();
         match change {
-            Change::Set { key, value } => {
+            Change::Set { key, value } | Change::Merged { key, value } => {
                 self.model.cells.insert(key, value);
             }
             Change::Insert { at, line } => {

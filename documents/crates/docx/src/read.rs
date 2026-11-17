@@ -10,6 +10,7 @@ use text::{Fragment, Mark, Node};
 use crate::{
     model::{Model, Source, schema},
     styles,
+    writable::MOST_SPAN,
     write::look_properties,
 };
 
@@ -560,11 +561,7 @@ impl<'input> Reader<'_, 'input> {
             let mut cells = Vec::new();
             for cell in row.children().filter(|child| is_word(*child, "tc")) {
                 let properties = word_child(cell, "tcPr");
-                let span = properties
-                    .and_then(|node| word_child(node, "gridSpan"))
-                    .and_then(|node| word_attribute(node, "val"))
-                    .and_then(|value| value.parse::<u32>().ok())
-                    .unwrap_or(1);
+                let span = span_of(cell);
                 let merged = properties
                     .and_then(|node| word_child(node, "vMerge"))
                     .is_some_and(|node| word_attribute(node, "val") != Some("restart"));
@@ -617,6 +614,14 @@ fn held_in_tree(child: Xml<'_, '_>) -> bool {
         || (is_word(child, "br") && matches!(word_attribute(child, "type"), None | Some("page")))
 }
 
+fn span_of(cell: Xml<'_, '_>) -> u64 {
+    word_child(cell, "tcPr")
+        .and_then(|node| word_child(node, "gridSpan"))
+        .and_then(|node| word_attribute(node, "val"))
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(1)
+}
+
 fn simple_table(element: Xml<'_, '_>) -> bool {
     let mut rows = 0;
     for child in element.children().filter(Xml::is_element) {
@@ -625,6 +630,9 @@ fn simple_table(element: Xml<'_, '_>) -> bool {
             let mut cells = 0;
             for cell in child.children().filter(Xml::is_element) {
                 if is_word(cell, "tc") {
+                    if span_of(cell) > MOST_SPAN {
+                        return false;
+                    }
                     cells += 1;
                 } else if !is_word(cell, "trPr") && !is_word(cell, "tblPrEx") {
                     return false;

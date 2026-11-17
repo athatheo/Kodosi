@@ -8,8 +8,19 @@ export interface Holding {
   held: ReadonlySet<string>;
   /** The pieces in the document now, which a paste of the same piece would copy. */
   present: ReadonlySet<string>;
-  /** Whether the document has the bytes of a picture. */
+  /** Whether the document has the bytes of a picture, in a kind that the server writes. */
   picture: (asset: string) => boolean;
+}
+
+const PICTURE_STARTS = [
+  [0x89, 0x50, 0x4e, 0x47],
+  [0xff, 0xd8, 0xff],
+  [0x47, 0x49, 0x46, 0x38],
+];
+
+/** The server writes a new picture into the file only as a PNG, a JPEG or a GIF. */
+export function writablePicture(bytes: Uint8Array | undefined): boolean {
+  return PICTURE_STARTS.some((start) => start.every((byte, index) => bytes?.[index] === byte));
 }
 
 function piecesIn(fragment: Fragment, into = new Set<string>()): Set<string> {

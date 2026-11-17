@@ -125,6 +125,12 @@ pub trait Format: 'static {
 
     fn snapshot(model: &Self::Model) -> Snapshot;
 
+    /// Whether a person or an agent may send this change. What only the server makes, such as the
+    /// merge of a write of another program, a sender could use to put anything in the file.
+    fn sendable(_change: &Self::Change) -> Result<(), String> {
+        Ok(())
+    }
+
     /// Puts a change in the model, or changes nothing and refuses. `since` holds what came after
     /// the sender's base. The result is the change as views must see it: a named op becomes
     /// steps or fields.
