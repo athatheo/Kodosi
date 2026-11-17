@@ -1,4 +1,4 @@
-use document::{Assets, Format, Ordered, Refused};
+use document::{Assets, Format, Ordered, Refused, hash_from_hex};
 use lopdf::{
     Dictionary, Document, Object, Stream, StringFormat,
     content::{Content, Operation},
@@ -347,11 +347,7 @@ fn page_work_gives_views_a_new_file_to_load() {
     };
     assert_eq!(asset, model.asset);
     assert_eq!(pages[0].rotation, 180);
-    let hash: Vec<u8> = (0..64)
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&asset[index..index + 2], 16).unwrap())
-        .collect();
-    assert!(assets.get(&<[u8; 32]>::try_from(hash).unwrap()).is_some());
+    assert!(assets.get(&hash_from_hex(&asset).unwrap()).is_some());
 }
 
 #[test]
