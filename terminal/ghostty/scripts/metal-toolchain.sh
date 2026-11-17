@@ -14,7 +14,7 @@ MOUNT_POINT="$TOOLCHAIN_ROOT/mount"
 
 unmount_toolchain() {
     if mount | grep -Fq " on $MOUNT_POINT "; then
-        hdiutil detach "$MOUNT_POINT" >/dev/null
+        diskutil eject "$MOUNT_POINT" >/dev/null
     fi
     rm -rf "$MOUNT_POINT"
 }
@@ -48,7 +48,7 @@ printf '%s  %s\n' "$METAL_TOOLCHAIN_DMG_SHA256" "$DMG" |
 
 unmount_toolchain
 mkdir -p "$MOUNT_POINT"
-hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_POINT" "$DMG" >/dev/null
+diskutil image attach --readOnly --nobrowse --mountPoint "$MOUNT_POINT" "$DMG" >/dev/null
 
 if [ ! -x "$MOUNT_POINT/Metal.xctoolchain/usr/bin/metal" ] ||
     [ ! -x "$MOUNT_POINT/Metal.xctoolchain/usr/bin/metallib" ]; then
