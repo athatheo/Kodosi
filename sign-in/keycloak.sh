@@ -8,6 +8,7 @@ mailbox=$rig-mailbox
 network=$rig
 port=${KODOSI_SIGN_IN_KEYCLOAK_PORT:-8284}
 mailbox_port=${KODOSI_SIGN_IN_MAILBOX_PORT:-8285}
+maven=maven:3.10.0-eclipse-temurin-21@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3
 image=quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0
 jar=dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar
 check_jar=dev/turnstile/build/kodosi-turnstile-stand-in.jar
@@ -113,7 +114,7 @@ if [ ! -f "$check_jar" ] || [ -n "$(find dev/turnstile/StandIn.java dev/turnstil
   docker rm "$rig-libraries" >/dev/null
   mkdir -p "$(dirname "$check_jar")"
   docker run --rm -v "$PWD/dev/turnstile:/src" -v "$libraries:/libraries:ro" \
-    maven:3.9-eclipse-temurin-21 sh -c 'set -e; mkdir -p /tmp/classes
+    "$maven" sh -c 'set -e; mkdir -p /tmp/classes
       javac --release 21 -cp "/libraries/main/*" -d /tmp/classes /src/StandIn.java
       cp -r /src/META-INF /tmp/classes/
       jar cf /src/build/kodosi-turnstile-stand-in.jar -C /tmp/classes .'
