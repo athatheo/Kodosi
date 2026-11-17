@@ -316,7 +316,7 @@ private:
     void activateLink(const QString& link);
     void updateHoverLink(const QPointF& position, Qt::KeyboardModifiers modifiers);
     void refreshHoverLink(const QKeyEvent* event);
-    void clearHoverLink();
+    void showTerminalPointer();
     [[nodiscard]] int wheelRows(QWheelEvent* event);
     [[nodiscard]] TerminalSelectionPointer selectionPointer(const QPoint& cell, const QPointF& position) const;
     void pressSelection(const QMouseEvent* event, const QPoint& cell);
