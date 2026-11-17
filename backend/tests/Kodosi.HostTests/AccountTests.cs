@@ -42,7 +42,7 @@ public sealed class AccountTests(PostgresFixture postgres)
         Assert.Equal((account.Id, "alice"), (again.Id, again.Handle));
         var taken = await Assert.ThrowsAsync<ApiException>(() => new CurrentUser(store.Db, TimeProvider.System).GetAsync(Context("other-subject", "alice"), ct));
         Assert.Equal(409, taken.Status);
-        foreach (var name in new[] { "", "al", "alice smith", "älice", new string('a', 65) })
+        foreach (var name in new[] { "", "al", "alice smith", "älice", "\u212Aodosi", new string('a', 65) })
         {
             var refused = await Assert.ThrowsAsync<ApiException>(() => new CurrentUser(store.Db, TimeProvider.System).GetAsync(Context($"subject-{name.Length}", name), ct));
             Assert.Equal(403, refused.Status);
