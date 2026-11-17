@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use rusqlite::{Connection, OpenFlags, config::DbConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -183,6 +184,17 @@ fn store_copy(store: &Path, working: &Path) -> Result<PathBuf, CopyError> {
         }
     }
     Ok(copy)
+}
+
+/// Opens a store of another program for reading. Any program of the person can write it, so
+/// its schema runs no function that SQLite does not mark as safe for any schema.
+fn open_store(store: &Path) -> rusqlite::Result<Connection> {
+    let connection = Connection::open_with_flags(
+        store,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    connection.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    Ok(connection)
 }
 
 /// Copies only the bytes of a file. macOS refuses a copy of the extended attributes of another

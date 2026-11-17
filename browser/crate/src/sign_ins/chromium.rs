@@ -11,12 +11,12 @@ use cbc::{
     Decryptor,
     cipher::{BlockModeDecrypt as _, KeyIvInit as _, block_padding::Pkcs7},
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use serde::Deserialize;
 #[cfg(unix)]
 use sha1::Sha1;
 
-use super::{Cookie, CopyError, Kind, SignInSource, store_copy};
+use super::{Cookie, CopyError, Kind, SignInSource, open_store, store_copy};
 
 #[cfg(unix)]
 const SALT: &[u8] = b"saltysalt";
@@ -332,9 +332,7 @@ struct BoundCookies {
 
 impl BoundCookies {
     fn read(profile: &Path) -> Self {
-        let store = profile.join("Device Bound Sessions");
-        let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-        let Ok(connection) = Connection::open_with_flags(store, flags) else {
+        let Ok(connection) = open_store(&profile.join("Device Bound Sessions")) else {
             return Self::default();
         };
         let sessions = bound_rows(&connection).unwrap_or_default();
@@ -405,7 +403,7 @@ fn read_store(
     opener: &dyn Opener,
     bound: &BoundCookies,
 ) -> Result<Vec<Cookie>, CopyError> {
-    let connection = Connection::open_with_flags(store, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let connection = open_store(store)?;
     let version: i64 = connection
         .query_row("SELECT value FROM meta WHERE key = 'version'", [], |row| {
             row.get::<_, String>(0)
