@@ -39,16 +39,29 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: rustup toolchain install
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: qt-tools
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: clients/qt/.tools
           key: qt-tools-${{ hashFiles('clients/qt/dependencies.lock.json') }}
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: runtime -> ../clients/qt/build/dev/runtime-library/x86_64-unknown-linux-gnu/dev/cargo
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - id: agent-browser
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/agent-browser
           key: agent-browser-linux-${{ hashFiles('AgentBrowser.lock', 'rust-toolchain.toml', 'scripts/build-agent-browser.py') }}
       - run: just linux-check
       - run: just release-test
+      - if: ${{ github.ref == 'refs/heads/main' && steps.qt-tools.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: clients/qt/.tools
+          key: ${{ steps.qt-tools.outputs.cache-primary-key }}
+      - if: ${{ github.ref == 'refs/heads/main' && steps.agent-browser.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/agent-browser
+          key: ${{ steps.agent-browser.outputs.cache-primary-key }}

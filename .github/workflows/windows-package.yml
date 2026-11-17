@@ -35,11 +35,13 @@ jobs:
           rustup toolchain install
           choco install nasm --version=3.2.0 --no-progress --yes
           echo 'C:\Program Files\NASM' >> "$GITHUB_PATH"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: qt-tools
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: clients/qt/.tools
           key: qt-tools-windows-${{ hashFiles('clients/qt/dependencies.lock.json') }}
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: agent-browser
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/agent-browser
           key: agent-browser-windows-release-${{ hashFiles('AgentBrowser.lock', 'rust-toolchain.toml', 'scripts/build-agent-browser.py') }}
@@ -70,3 +72,13 @@ jobs:
             throw "kodosi --version printed '$output'"
           }
           Get-AppxPackage com.kodosi.Kodosi | Remove-AppxPackage
+      - if: ${{ github.ref == 'refs/heads/main' && steps.qt-tools.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: clients/qt/.tools
+          key: ${{ steps.qt-tools.outputs.cache-primary-key }}
+      - if: ${{ github.ref == 'refs/heads/main' && steps.agent-browser.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/agent-browser
+          key: ${{ steps.agent-browser.outputs.cache-primary-key }}
