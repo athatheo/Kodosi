@@ -108,7 +108,8 @@ pub struct Slide {
     /// The highest id that a shape of the slide has held, in a group too, so that a new shape
     /// takes another one.
     pub last_shape: u64,
-    /// The pieces of the shapes that the slide held, by key.
+    /// The pieces of the shapes that the slide held, by key. A piece names the parts of the file
+    /// that its slide links to, so a shape comes back from it only there.
     pub sources: HashMap<String, Sourced>,
 }
 

@@ -973,3 +973,56 @@ fn a_shape_that_comes_back_keeps_the_turn_and_the_colour_of_its_piece() {
         r#"<a:solidFill><a:srgbClr val="FF0000"><a:lumMod val="75000"/></a:srgbClr></a:solidFill>"#
     ));
 }
+
+#[test]
+fn a_shape_comes_back_from_its_piece_only_on_the_slide_that_held_it() {
+    let mut model = read(&deck());
+    let title = Pptx::snapshot(&model).0["slides"][0]["shapes"][0].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "257".to_owned(),
+            shape: "2".to_owned(),
+        }],
+    );
+    let before = model.clone();
+    let elsewhere = Change::AddShape {
+        slide: "257".to_owned(),
+        shape: title,
+        keep: BTreeMap::new(),
+    };
+    assert!(matches!(
+        apply_change(&mut model, elsewhere),
+        Err(Refused::Invalid(_))
+    ));
+    assert_eq!(model, before);
+}
+
+#[test]
+fn a_shape_that_another_program_wrote_can_come_back_on_its_slide() {
+    let file = deck();
+    let mut model = read(&file);
+    let ellipse = r#"<p:sp><p:nvSpPr><p:cNvPr id="4" name="Mark"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="127000" cy="127000"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"#;
+    let marked = slide_xml("First").replace("</p:spTree>", ellipse);
+    let written = with_parts(&file, &[("ppt/slides/slide1.xml", &marked)]);
+    for change in Pptx::compare(&model, &read(&written)) {
+        apply_change(&mut model, change).unwrap();
+    }
+    let mark = Pptx::snapshot(&model).0["slides"][0]["shapes"][2].clone();
+    assert_eq!(mark["geometry"], "ellipse");
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "4".to_owned(),
+        }],
+    );
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: mark,
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, back).unwrap();
+    let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<a:prstGeom prst="ellipse">"#));
+}

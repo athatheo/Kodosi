@@ -5,7 +5,7 @@ use serde_json::Value;
 use text::Node;
 
 use crate::{
-    model::{Model, Shape, ShapeFields, schema},
+    model::{Model, Shape, ShapeFields, Slide, schema},
     read::names_of,
 };
 
@@ -51,16 +51,26 @@ pub(crate) fn writable_change(before: &Model, after: &Model) -> Result<(), Strin
             let kept = old.and_then(|old| old.shapes.iter().find(|known| known.id == shape.id));
             if kept != Some(shape) {
                 writable_frame(kept, shape)?;
-                writable_shape(shape, &after.raws)?;
+                writable_shape(slide, shape, &after.raws)?;
             }
         }
     }
     Ok(())
 }
 
-fn writable_shape(shape: &Shape, raws: &HashMap<String, String>) -> Result<(), String> {
+fn writable_shape(
+    slide: &Slide,
+    shape: &Shape,
+    raws: &HashMap<String, String>,
+) -> Result<(), String> {
     if let Some(source) = &shape.source {
         piece(raws, "shape", Some(source))?;
+        if !slide.sources.contains_key(source) {
+            return Err(format!(
+                "The piece {source} of the file is a shape of another slide than {}.",
+                slide.id
+            ));
+        }
         if raws.get(source).and_then(|piece| own_id(piece)).as_ref() != Some(&shape.id) {
             return Err(format!(
                 "The piece {source} of the file is another shape than {}.",
