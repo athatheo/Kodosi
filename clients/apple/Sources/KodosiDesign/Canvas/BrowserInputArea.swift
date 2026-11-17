@@ -169,22 +169,38 @@ extension BrowserKeys {
             true
         }
 
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: Self.cursor(feed.window.shape))
-        }
+        private static let cursors: [String: NSCursor] = [
+            "pointer": .pointingHand,
+            "text": .iBeam,
+            "vertical-text": .iBeamCursorForVerticalLayout,
+            "crosshair": .crosshair,
+            "cell": .crosshair,
+            "context-menu": .contextualMenu,
+            "alias": .dragLink,
+            "copy": .dragCopy,
+            "grab": .openHand,
+            "grabbing": .closedHand,
+            "not-allowed": .operationNotAllowed,
+            "col-resize": .columnResize,
+            "ew-resize": .columnResize,
+            "w-resize": .columnResize(directions: .left),
+            "e-resize": .columnResize(directions: .right),
+            "row-resize": .rowResize,
+            "ns-resize": .rowResize,
+            "n-resize": .rowResize(directions: .up),
+            "s-resize": .rowResize(directions: .down),
+            "ne-resize": .frameResize(position: .topRight, directions: .all),
+            "nesw-resize": .frameResize(position: .topRight, directions: .all),
+            "nw-resize": .frameResize(position: .topLeft, directions: .all),
+            "nwse-resize": .frameResize(position: .topLeft, directions: .all),
+            "se-resize": .frameResize(position: .bottomRight, directions: .all),
+            "sw-resize": .frameResize(position: .bottomLeft, directions: .all),
+            "zoom-in": .zoomIn,
+            "zoom-out": .zoomOut,
+        ]
 
-        private static func cursor(_ shape: String) -> NSCursor {
-            switch shape {
-            case "pointer": .pointingHand
-            case "text", "vertical-text": .iBeam
-            case "crosshair": .crosshair
-            case "grab": .openHand
-            case "grabbing": .closedHand
-            case "not-allowed": .operationNotAllowed
-            case "col-resize", "ew-resize", "e-resize", "w-resize": .resizeLeftRight
-            case "row-resize", "ns-resize", "n-resize", "s-resize": .resizeUpDown
-            default: .arrow
-            }
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: Self.cursors[feed.window.shape] ?? .arrow)
         }
 
         override func updateTrackingAreas() {
