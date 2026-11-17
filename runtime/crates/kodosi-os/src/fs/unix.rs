@@ -14,15 +14,6 @@ use rustix::{
 
 use super::invalid;
 
-pub(super) fn home_dir() -> io::Result<PathBuf> {
-    if let Some(home) = std::env::var_os("HOME").filter(|home| !home.is_empty()) {
-        return Ok(PathBuf::from(home));
-    }
-    directories::BaseDirs::new()
-        .map(|dirs| dirs.home_dir().to_path_buf())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "cannot find the home folder"))
-}
-
 #[expect(
     clippy::disallowed_methods,
     reason = "kodosi_os::fs::canonicalize owns path canonicalization"

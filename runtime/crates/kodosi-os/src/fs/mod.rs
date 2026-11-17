@@ -14,7 +14,8 @@ mod windows;
 use windows as imp;
 
 pub fn home_dir() -> io::Result<PathBuf> {
-    imp::home_dir()
+    std::env::home_dir()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "cannot find the home folder"))
 }
 
 pub fn default_data_root() -> io::Result<PathBuf> {

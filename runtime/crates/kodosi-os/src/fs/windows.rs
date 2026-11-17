@@ -42,18 +42,12 @@ use crate::win::{self, Descriptor};
 
 const SHARE_ALL: u32 = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
 
-pub(super) fn home_dir() -> io::Result<PathBuf> {
-    directories::BaseDirs::new()
-        .map(|dirs| dirs.home_dir().to_path_buf())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "cannot find the home folder"))
-}
-
 pub(super) fn canonicalize(path: &Path) -> io::Result<PathBuf> {
     dunce::canonicalize(path)
 }
 
 pub(super) fn default_data_root() -> io::Result<PathBuf> {
-    Ok(home_dir()?.join(".kodosi"))
+    Ok(super::home_dir()?.join(".kodosi"))
 }
 
 fn is_link(metadata: &fs::Metadata) -> bool {

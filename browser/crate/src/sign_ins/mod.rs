@@ -139,15 +139,12 @@ pub fn copied_sites(profiles: &Path, profile: &str) -> usize {
     sites(keys.iter().map(|key| key.domain.as_str()))
 }
 
-fn home() -> PathBuf {
-    let name = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
-    std::env::var_os(name).map_or_else(PathBuf::new, PathBuf::from)
-}
-
 /// Nothing here reads the data of a browser that macOS keeps from Kodosi, so looking never makes
 /// macOS refuse or warn.
 pub fn sign_in_sources() -> Vec<SignInSource> {
-    let home = home();
+    let Some(home) = std::env::home_dir() else {
+        return Vec::new();
+    };
     let mut sources = chromium::sources(&home);
     sources.extend(firefox::sources(&home));
     sources.extend(safari::sources(&home));
