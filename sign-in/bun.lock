@@ -6,7 +6,7 @@
       "name": "@kodosi/sign-in",
       "dependencies": {
         "@fontsource-variable/jetbrains-mono": "5.3.0",
-        "keycloak-js": "26.2.4",
+        "keycloak-js": "26.2.5",
         "keycloakify": "11.16.4",
         "lucide-react": "1.60.0",
         "react": "19.3.1",
@@ -222,7 +222,7 @@
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
 
-    "keycloak-js": ["keycloak-js@26.2.4", "", {}, "sha512-PnXpR3ubETGOt0B/Qt2lxmPbkZr5bc3vlQsOqDoTPPQsZRp7JjhTKxlJ187uWh8qJhvBab6Gsjb06a8ayOPfuw=="],
+    "keycloak-js": ["keycloak-js@26.2.5", "", {}, "sha512-iTR3hmYXlGZbBTskgr2PrGIfIzLrts8nwja2+D1gW6Q/S83C487rhM+WvPV9dxqXv81N0QwNG9BJAM60eDQ1Yw=="],
 
     "keycloakify": ["keycloakify@11.16.4", "", { "dependencies": { "tsafe": "^1.8.5" }, "bin": { "keycloakify": "bin/main.js" } }, "sha512-WZbV+U0Ai4hrftPCuSy2y4YpQ9G755fSQS8ibakCdQFedY7BLFCyvzXxaKfzti5Gj754WJrG8rbS1gK15yhnCg=="],
 
