@@ -103,3 +103,29 @@ test("only a PNG, a JPEG or a GIF can paste as a new picture", () => {
   ]);
   expect(writablePicture(undefined)).toBe(false);
 });
+
+test("the blocks around a paste take a new id and only the properties that the document holds", () => {
+  const cell = tableCell?.create({ span: 5000 }, paragraph?.create({ id: "p1", props: "spacing" }));
+  const row = cell && tableRow?.create({ props: "height" }, [cell, cell]);
+  const grid = row && table?.create({ id: "t1", props: "borders" }, row);
+  if (!grid) throw new Error("no table");
+  expect(pasted([grid], { held: new Set(["borders"]) })).toMatchObject([
+    {
+      type: "table",
+      attrs: { id: null, props: "borders" },
+      content: [
+        {
+          type: "tableRow",
+          attrs: { props: null },
+          content: [
+            {
+              attrs: { span: 1000 },
+              content: [{ type: "paragraph", attrs: { id: null, props: null } }],
+            },
+            {},
+          ],
+        },
+      ],
+    },
+  ]);
+});

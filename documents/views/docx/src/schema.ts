@@ -100,9 +100,16 @@ function pixels(element: HTMLElement, name: string): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
+/** HTML draws a cell across at most 1000 columns, and the server takes no more. */
+const MOST_SPAN = 1000;
+
+export function cellSpan(value: unknown): number {
+  const span = Number(value);
+  return Number.isInteger(span) && span > 0 ? Math.min(span, MOST_SPAN) : 1;
+}
+
 function columns(element: HTMLElement): number {
-  const value = Number(element.getAttribute("colspan"));
-  return Number.isInteger(value) && value > 0 ? value : 1;
+  return cellSpan(element.getAttribute("colspan"));
 }
 
 /** The nodes and marks of a document body, in the order of `crates/docx/schema.json`. */

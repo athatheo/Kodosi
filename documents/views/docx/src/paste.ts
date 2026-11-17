@@ -1,6 +1,7 @@
 import { Fragment, type Node as ProseNode, Slice } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReplaceAroundStep, ReplaceStep } from "@tiptap/pm/transform";
+import { cellSpan } from "./schema";
 
 /** What a document can take from a paste. */
 export interface Holding {
@@ -25,9 +26,28 @@ export function writablePicture(bytes: Uint8Array | undefined): boolean {
 
 function piecesIn(fragment: Fragment, into = new Set<string>()): Set<string> {
   fragment.descendants((node) => {
-    if (typeof node.attrs.raw === "string") into.add(node.attrs.raw);
+    for (const key of [node.attrs.raw, node.attrs.props]) {
+      if (typeof key === "string") into.add(key);
+    }
   });
   return into;
+}
+
+/**
+ * The blocks around a paste come from the clipboard as they were, with no parse rule between: a
+ * pasted block takes a new id, and the properties of the file only where the document holds them.
+ */
+function fittedAttrs(node: ProseNode, holding: Holding): ProseNode["attrs"] {
+  const { id, props, span } = node.attrs;
+  const keepsProps = typeof props !== "string" || holding.held.has(props);
+  const fits = (id === undefined || id === null) && keepsProps;
+  if (fits && (span === undefined || cellSpan(span) === span)) return node.attrs;
+  return {
+    ...node.attrs,
+    ...(id === undefined ? {} : { id: null }),
+    ...(keepsProps ? {} : { props: null }),
+    ...(span === undefined ? {} : { span: cellSpan(span) }),
+  };
 }
 
 /**
@@ -64,14 +84,16 @@ function fitted(fragment: Fragment, holding: Holding): Fragment {
         return;
       }
     }
+    const attrs = fittedAttrs(node, holding);
     if (node.isLeaf) {
-      kept.push(node);
+      kept.push(attrs === node.attrs ? node : node.type.create(attrs, null, node.marks));
       return;
     }
     const content = fitted(node.content, holding);
-    const fits = content.eq(node.content)
-      ? node
-      : node.type.createAndFill(node.attrs, content, node.marks);
+    const fits =
+      attrs === node.attrs && content.eq(node.content)
+        ? node
+        : node.type.createAndFill(attrs, content, node.marks);
     if (fits) kept.push(fits);
   });
   return Fragment.from(kept);
