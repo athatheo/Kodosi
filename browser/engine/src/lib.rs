@@ -99,6 +99,10 @@ fn start(sandbox: *mut u8) -> i32 {
         log_file: CefString::from(log.to_string_lossy().as_ref()),
         log_severity: LogSeverity::WARNING,
         background_color: engine::OPAQUE_WHITE,
+        // Chromium keeps the key of its cookies in the Mac's keychain under Chromium's names, so
+        // names of its own keep Kodosi Browser and an installed Chromium from sharing one key.
+        keychain_service_name: CefString::from("Kodosi Browser Safe Storage"),
+        keychain_account_name: CefString::from("Kodosi Browser"),
         ..Default::default()
     };
     if initialize(
