@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     ffi::{OsStr, OsString, c_void},
-    io,
+    io::{self, PipeReader, PipeWriter, Read as _, Write as _},
     os::windows::{
         ffi::{OsStrExt as _, OsStringExt as _},
         io::{AsRawHandle as _, FromRawHandle as _, OwnedHandle},
@@ -14,8 +14,7 @@ use std::{
 
 use tokio::sync::{mpsc, oneshot};
 use windows_sys::Win32::{
-    Foundation::{ERROR_BROKEN_PIPE, ERROR_MORE_DATA, HANDLE, WAIT_OBJECT_0},
-    Storage::FileSystem::{ReadFile, WriteFile},
+    Foundation::{ERROR_MORE_DATA, HANDLE, WAIT_OBJECT_0},
     System::{
         Console::{COORD, HPCON, SetConsoleCtrlHandler},
         JobObjects::{
@@ -28,7 +27,6 @@ use windows_sys::Win32::{
             GetProcAddress, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, LOAD_LIBRARY_SEARCH_SYSTEM32,
             LoadLibraryExW,
         },
-        Pipes::CreatePipe,
         Threading::{
             CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, CreateProcessW,
             DeleteProcThreadAttributeList, EXTENDED_STARTUPINFO_PRESENT,
@@ -211,8 +209,8 @@ impl KodosiPty {
         let (application, mut line) = command_line(&program, arguments)?;
         let environment = environment_block(std::env::vars_os(), environment);
         let job = create_job()?;
-        let (input_read, input_write) = pipe()?;
-        let (output_read, output_write) = pipe()?;
+        let (input_read, input_write) = io::pipe()?;
+        let (output_read, output_write) = io::pipe()?;
         let mut handle: HPCON = 0;
         hresult(unsafe {
             (api.create)(
@@ -540,20 +538,6 @@ impl PtyReader {
     }
 }
 
-fn pipe() -> io::Result<(OwnedHandle, OwnedHandle)> {
-    let mut read: HANDLE = ptr::null_mut();
-    let mut write: HANDLE = ptr::null_mut();
-    if unsafe { CreatePipe(&raw mut read, &raw mut write, ptr::null(), 0) } == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe {
-        (
-            OwnedHandle::from_raw_handle(read),
-            OwnedHandle::from_raw_handle(write),
-        )
-    })
-}
-
 fn create_job() -> io::Result<OwnedHandle> {
     let job = unsafe { CreateJobObjectW(ptr::null(), ptr::null()) };
     if job.is_null() {
@@ -673,13 +657,13 @@ fn start(
     Ok((process, information.dwProcessId))
 }
 
-fn spawn_writer(pipe: OwnedHandle, requests: std_mpsc::Receiver<Write>) -> io::Result<()> {
+fn spawn_writer(mut pipe: PipeWriter, requests: std_mpsc::Receiver<Write>) -> io::Result<()> {
     std::thread::Builder::new()
         .name("kodosi-pty-input".to_owned())
         .stack_size(THREAD_STACK)
         .spawn(move || {
             for request in requests {
-                let result = write_all(&pipe, &request.bytes).map(|()| request.bytes.len());
+                let result = pipe.write_all(&request.bytes).map(|()| request.bytes.len());
                 let failed = result.is_err();
                 if let Some(done) = request.done {
                     drop(done.send(result));
@@ -692,28 +676,9 @@ fn spawn_writer(pipe: OwnedHandle, requests: std_mpsc::Receiver<Write>) -> io::R
     Ok(())
 }
 
-fn write_all(pipe: &OwnedHandle, mut bytes: &[u8]) -> io::Result<()> {
-    while !bytes.is_empty() {
-        let mut written = 0u32;
-        let length = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
-        if unsafe {
-            WriteFile(
-                pipe.as_raw_handle(),
-                bytes.as_ptr(),
-                length,
-                &raw mut written,
-                ptr::null_mut(),
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        bytes = &bytes[written as usize..];
-    }
-    Ok(())
-}
-
-fn spawn_reader(pipe: OwnedHandle) -> io::Result<mpsc::Receiver<io::Result<Vec<u8>>>> {
+/// std reads a closed pipe as its end. The pinned `ConPTY` never writes zero bytes, so an empty
+/// read is the end of the console.
+fn spawn_reader(mut pipe: PipeReader) -> io::Result<mpsc::Receiver<io::Result<Vec<u8>>>> {
     let (sender, receiver) = mpsc::channel(8);
     std::thread::Builder::new()
         .name("kodosi-pty-output".to_owned())
@@ -721,29 +686,7 @@ fn spawn_reader(pipe: OwnedHandle) -> io::Result<mpsc::Receiver<io::Result<Vec<u
         .spawn(move || {
             let mut buffer = vec![0u8; READ_BYTES];
             loop {
-                let mut count = 0u32;
-                let succeeded = unsafe {
-                    ReadFile(
-                        pipe.as_raw_handle(),
-                        buffer.as_mut_ptr(),
-                        u32::try_from(buffer.len()).unwrap_or(u32::MAX),
-                        &raw mut count,
-                        ptr::null_mut(),
-                    )
-                } != 0;
-                let item = if succeeded {
-                    if count == 0 {
-                        continue;
-                    }
-                    Ok(buffer[..count as usize].to_vec())
-                } else {
-                    let error = io::Error::last_os_error();
-                    if error.raw_os_error() == Some(ERROR_BROKEN_PIPE.cast_signed()) {
-                        Ok(Vec::new())
-                    } else {
-                        Err(error)
-                    }
-                };
+                let item = pipe.read(&mut buffer).map(|count| buffer[..count].to_vec());
                 let last = !matches!(&item, Ok(bytes) if !bytes.is_empty());
                 if sender.blocking_send(item).is_err() || last {
                     break;
