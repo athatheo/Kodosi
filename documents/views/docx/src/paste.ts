@@ -1,6 +1,7 @@
 import { Fragment, type Node as ProseNode, Slice } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReplaceAroundStep, ReplaceStep } from "@tiptap/pm/transform";
+import { PICTURE_STARTS } from "./generated/writable";
 import { cellSpan } from "./schema";
 
 /** What a document can take from a paste. */
@@ -13,13 +14,7 @@ export interface Holding {
   picture: (asset: string) => boolean;
 }
 
-const PICTURE_STARTS = [
-  [0x89, 0x50, 0x4e, 0x47],
-  [0xff, 0xd8, 0xff],
-  [0x47, 0x49, 0x46, 0x38],
-];
-
-/** The server writes a new picture into the file only as a PNG, a JPEG or a GIF. */
+/** The server writes a new picture into the file only in a kind that it knows. */
 export function writablePicture(bytes: Uint8Array | undefined): boolean {
   return PICTURE_STARTS.some((start) => start.every((byte, index) => bytes?.[index] === byte));
 }

@@ -1,5 +1,6 @@
 import { cssColor, cssString } from "@documents/client";
 import { type Extensions, Mark, Node } from "@tiptap/core";
+import { MOST_SPAN } from "./generated/writable";
 import { cssAlign } from "./styles";
 
 /**
@@ -99,9 +100,6 @@ function pixels(element: HTMLElement, name: string): number | null {
   const value = Number(element.getAttribute(name));
   return Number.isFinite(value) && value > 0 ? value : null;
 }
-
-/** HTML draws a cell across at most 1000 columns, and the server takes no more. */
-const MOST_SPAN = 1000;
 
 export function cellSpan(value: unknown): number {
   const span = Number(value);

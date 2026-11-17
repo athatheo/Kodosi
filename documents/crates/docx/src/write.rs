@@ -1088,16 +1088,18 @@ fn hash_from_hex(text: &str) -> Option<Hash> {
     Some(hash)
 }
 
+/// The kinds that a new picture of the file takes, by how their bytes start.
+pub(crate) const PICTURES: [(&[u8], &str); 3] = [
+    (&[0x89, b'P', b'N', b'G'], "png"),
+    (&[0xff, 0xd8, 0xff], "jpeg"),
+    (b"GIF8", "gif"),
+];
+
 fn picture_extension(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-        Some("png")
-    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
-        Some("jpeg")
-    } else if bytes.starts_with(b"GIF8") {
-        Some("gif")
-    } else {
-        None
-    }
+    PICTURES
+        .iter()
+        .find(|(start, _)| bytes.starts_with(start))
+        .map(|(_, extension)| *extension)
 }
 
 fn picture_run(relation: &str, picture: u32, width: f64, height: f64) -> String {
