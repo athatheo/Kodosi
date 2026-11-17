@@ -112,8 +112,8 @@ ships next to the `kodosi` program, by its version and Git commit. Each app buil
 it from that commit with its own `Cargo.lock`, in `.tools/agent-browser/`. To move the
 pin, check the release and its tag first, change both lines and build each app.
 
-Kodosi Browser builds on the ready-built CEF that its `cef` crate pins, which the build
-downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
+Kodosi Browser builds on the ready-built CEF that its `cef-dll-sys` crate pins, which the
+build downloads and checks, so nothing compiles Chromium. `browser/build/build-engine.py
 --output-dir <folder>` builds it on each computer with `uv`, with its archive and its entry
 in the feed. `scripts/generate-engine-feed.py <folder>` writes the feed of the archives of all
 computers and signs it with the updates key from standard input; each update site carries

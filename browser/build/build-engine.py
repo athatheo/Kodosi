@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds Kodosi Browser: the engine in browser/engine on the CEF build that its `cef` crate pins.
+"""Builds Kodosi Browser: the engine in browser/engine on the CEF build that its `cef-dll-sys` pins.
 Nothing compiles Chromium; CEF comes ready-built and checked. A Mac build is a background app
 with no window, links or files of its own, signed and notarized when the signing variables are
 set. Leaves the program in <output-dir>/<platform>/ and writes
@@ -63,6 +63,7 @@ CEF_LEFT_OUT = {
     "bootstrap.exe",
     "bootstrapc.exe",
 }
+CEF_SYSTEMS = {"apple-darwin": "macos", "pc-windows-msvc": "windows", "unknown-linux-gnu": "linux"}
 LICENSE_TEXT = re.compile(r"^(?:licen[cs]e|copying|notice)", re.I)
 # The texts of crates whose packages carry none, from their source at the commit of the package.
 CRATE_LICENSES = HERE / "licenses"
@@ -119,7 +120,7 @@ def check() -> None:
     run("cargo", "clippy", "--locked", "--all-targets", *manifest, "--", "-D", "warnings", "-A", "clippy::unwrap_used", "-A", "clippy::expect_used", env=env)
     run("cargo", "test", "--locked", *manifest, env=env)
     with tempfile.TemporaryDirectory() as folder:
-        notices(newest_cef(), Path(folder) / "licenses")
+        notices(cef_folder(), Path(folder) / "licenses")
 
 
 def build(debug: bool) -> tuple[Path, Path]:
@@ -131,14 +132,18 @@ def build(debug: bool) -> tuple[Path, Path]:
         run("cargo", "rustc", "--locked", "--lib", "--crate-type", "cdylib", *profile, *manifest, env=environment_of_build)
     else:
         run("cargo", "build", "--locked", "--bins", *profile, *manifest, env=environment_of_build)
-    return ENGINE / "target" / ("debug" if debug else "release"), newest_cef()
+    return ENGINE / "target" / ("debug" if debug else "release"), cef_folder()
 
 
-def newest_cef() -> Path:
-    found = sorted(CEF_CACHE.glob("*/cef_*/archive.json"), key=lambda path: path.stat().st_mtime)
-    if not found:
-        raise SystemExit(f"No CEF in {CEF_CACHE}")
-    return found[-1].parent
+def cef_folder() -> Path:
+    """The CEF of the locked `cef-dll-sys`, where its build put it."""
+    lock = tomllib.loads((ENGINE / "Cargo.lock").read_text("utf-8"))
+    version = next(package["version"] for package in lock["package"] if package["name"] == "cef-dll-sys")
+    machine, system = host_target().split("-", 1)
+    folder = CEF_CACHE / version.partition("+")[2] / f"cef_{CEF_SYSTEMS[system]}_{machine}"
+    if not (folder / "archive.json").is_file():
+        raise SystemExit(f"No CEF in {folder}")
+    return folder
 
 
 def host_target() -> str:

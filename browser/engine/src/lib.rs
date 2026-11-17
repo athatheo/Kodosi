@@ -59,7 +59,7 @@ fn start(sandbox: *mut u8) -> i32 {
     if !mac::install_application() {
         return NO_FRAMEWORK;
     }
-    let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let _ = api_hash(cef_dll_sys::CEF_API_VERSION_LAST, 0);
     let args = Args::new();
     let mut app = engine::app();
     let code = execute_process(Some(args.as_main_args()), Some(&mut app), sandbox);
@@ -125,7 +125,7 @@ pub fn run_helper() -> i32 {
     let Some(_framework) = mac::load_framework(true) else {
         return NO_FRAMEWORK;
     };
-    let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let _ = api_hash(cef_dll_sys::CEF_API_VERSION_LAST, 0);
     let mut app = engine::app();
     execute_process(
         Some(args.as_main_args()),
