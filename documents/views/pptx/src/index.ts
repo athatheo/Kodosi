@@ -222,6 +222,7 @@ class PptxEditor implements Editor, Pictures {
     for (const slide of deck.slides) {
       for (const shape of slide.shapes) this.addText(slide.id, shape);
     }
+    for (const change of this.outbox.unanswered()) this.showChange(change);
     if (unsent || dropped) this.status.kept(unsent);
     if (!deck.slides.some((slide) => slide.id === this.current)) {
       this.current = deck.slides[0]?.id ?? "";
@@ -817,7 +818,7 @@ class PptxEditor implements Editor, Pictures {
       case "shape": {
         const shape = slide?.shapes.find((known) => known.id === change.shape);
         if (!shape) break;
-        const covered = this.covered(shape.id);
+        const covered = author === this.clientKey ? new Set<string>() : this.covered(shape.id);
         Object.assign(
           shape,
           Object.fromEntries(Object.entries(change.fields).filter(([name]) => !covered.has(name))),
@@ -829,6 +830,7 @@ class PptxEditor implements Editor, Pictures {
         deck.slides.sort((left, right) => left.position - right.position);
         break;
       case "addSlide":
+        if (slide) break;
         deck.slides.push({
           id: change.slide,
           position: change.position,
@@ -856,8 +858,29 @@ class PptxEditor implements Editor, Pictures {
     }
   }
 
+  /**
+   * The document can bring a shape back other than as it went, such as a box whose piece of the
+   * file went, and later steps in its text name only what the document holds.
+   */
+  private takeBack(change: Change): void {
+    if (change.kind === "group") {
+      for (const inner of change.changes) this.takeBack(inner);
+      return;
+    }
+    if (change.kind !== "addShape") return;
+    const slide = this.deck?.slides.find((known) => known.id === change.slide);
+    const index = slide?.shapes.findIndex((known) => known.id === change.shape.id) ?? -1;
+    if (!slide || index < 0 || slide.shapes[index]?.source === change.shape.source) return;
+    slide.shapes[index] = change.shape;
+    this.addText(slide.id, change.shape);
+    this.redraw();
+  }
+
   apply(changed: Changed, own: boolean): void {
-    if (own) this.outbox.answered();
+    if (own) {
+      this.outbox.answered();
+      this.takeBack(changed.body as Change);
+    }
     this.showChange(changed.body as Change, own, own ? this.clientKey : changed.client);
     if (own) return;
     this.drawList();
