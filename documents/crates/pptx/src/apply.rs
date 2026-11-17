@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use document::{Ordered, Refused};
 use serde_json::{Value, json};
@@ -67,12 +67,79 @@ pub(crate) fn apply(
     } else {
         change
     };
+    let change = past_removals(model, change, since);
     let change = returning(model, change);
     let mut copy = model.clone();
     apply_one(&mut copy, &change)?;
     writable_change(model, &copy).map_err(Refused::Invalid)?;
     *model = copy;
     Ok(change)
+}
+
+type Removed<'s> = (HashSet<&'s str>, HashSet<(&'s str, &'s str)>);
+
+fn removed_by<'s>(change: &'s Change, removed: &mut Removed<'s>) {
+    match change {
+        Change::RemoveSlide { slide } => {
+            removed.0.insert(slide);
+        }
+        Change::RemoveShape { slide, shape } => {
+            removed.1.insert((slide, shape));
+        }
+        Change::Group { changes } => {
+            for change in changes {
+                removed_by(change, removed);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A sender may change a slide or a shape that a change before it removed, which it had not seen
+/// yet. That change goes, as it would have gone with what it changes, and the rest of its batch
+/// stays. A change of what was never there is still refused.
+fn past_removals(model: &Model, change: Change, since: &[Ordered<Change>]) -> Change {
+    let mut removed = (HashSet::new(), HashSet::new());
+    for ordered in since {
+        removed_by(&ordered.change, &mut removed);
+    }
+    if removed.0.is_empty() && removed.1.is_empty() {
+        return change;
+    }
+    without_removed(model, change, &removed).unwrap_or(Change::Group {
+        changes: Vec::new(),
+    })
+}
+
+fn without_removed(model: &Model, change: Change, removed: &Removed<'_>) -> Option<Change> {
+    if let Change::Group { changes } = change {
+        return Some(Change::Group {
+            changes: changes
+                .into_iter()
+                .filter_map(|change| without_removed(model, change, removed))
+                .collect(),
+        });
+    }
+    let (slides, shapes) = removed;
+    let gone = match &change {
+        Change::Shape { slide, shape, .. }
+        | Change::Text { slide, shape, .. }
+        | Change::RemoveShape { slide, shape } => {
+            let there = model
+                .slide(slide)
+                .is_some_and(|known| known.shapes.iter().any(|known| known.id == *shape));
+            !there
+                && (slides.contains(slide.as_str())
+                    || shapes.contains(&(slide.as_str(), shape.as_str())))
+        }
+        Change::AddShape { slide, .. }
+        | Change::MoveSlide { slide, .. }
+        | Change::RemoveSlide { slide } => {
+            model.slide(slide).is_none() && slides.contains(slide.as_str())
+        }
+        Change::AddSlide { .. } | Change::Ops { .. } | Change::Group { .. } => false,
+    };
+    (!gone).then_some(change)
 }
 
 /// A box whose slide no longer holds its piece, as after the presentation opened again from its

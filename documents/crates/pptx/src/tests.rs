@@ -1071,3 +1071,43 @@ fn a_box_whose_piece_went_comes_back_as_a_new_box_with_its_words() {
     assert!(xml.contains(r#"sz="1400""#) && xml.contains("<a:t>Notes </a:t>"));
     assert!(xml.contains("<a:t>1</a:t>") && !xml.contains("slidenum"));
 }
+
+#[test]
+fn a_change_of_what_a_change_before_it_removed_goes_and_the_rest_of_its_batch_stays() {
+    let mut model = read(&deck());
+    let removal = Change::RemoveShape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+    };
+    apply_change(&mut model, removal.clone()).unwrap();
+    let since = [Ordered {
+        rev: 1,
+        author: "ben".to_owned(),
+        client: "ben".to_owned(),
+        seq: 1,
+        change: removal,
+    }];
+    let moved = |shape: &str| Change::Shape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        fields: ShapeFields {
+            x: Some(12_700),
+            ..ShapeFields::default()
+        },
+    };
+    let batch = Change::Group {
+        changes: vec![moved("3"), moved("2")],
+    };
+    let applied = Pptx::apply(&mut model, batch, &since, &mut Assets::default()).unwrap();
+    assert_eq!(
+        applied,
+        Change::Group {
+            changes: vec![moved("2")]
+        }
+    );
+    assert_eq!(model.slides[0].shapes[0].x, 12_700);
+    assert!(matches!(
+        Pptx::apply(&mut model, moved("77"), &since, &mut Assets::default()),
+        Err(Refused::Invalid(_))
+    ));
+}
