@@ -27,7 +27,7 @@ def build() -> None:
     bun = shutil.which("bun")
     if bun is None:
         sys.exit("Install Bun to build the document views.")
-    subprocess.run([bun, "install", "--frozen-lockfile"], cwd=VIEWS, check=True)
+    subprocess.run([bun, "ci"], cwd=VIEWS, check=True)
     subprocess.run([bun, "run", "build"], cwd=VIEWS, check=True)
 
 
