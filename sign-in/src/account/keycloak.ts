@@ -131,6 +131,7 @@ async function open(kcContext: KcContext): Promise<AccountService> {
       pkceMethod: "S256",
       checkLoginIframe: false,
       locale: kcContext.locale,
+      dpopConfig: { mode: "auto" },
     });
   } catch {
     throw new Unreachable();
@@ -149,7 +150,7 @@ async function open(kcContext: KcContext): Promise<AccountService> {
     }
     let response: Response;
     try {
-      response = await fetch(base + path, {
+      response = await keycloak.fetch(base + path, {
         method,
         headers: {
           Accept: "application/json",
