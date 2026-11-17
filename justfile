@@ -89,6 +89,11 @@ rust-deny-check: (rust-tool-check "cargo-deny")
 rust-advisories-check: (rust-tool-check "cargo-deny")
     cargo deny --manifest-path runtime/Cargo.toml --workspace --locked check --hide-inclusion-graph advisories
 
+# Check the Bun packages of the document views and the sign-in pages for security advisories.
+bun-advisories-check:
+    cd documents/views && bun audit
+    cd sign-in && bun audit
+
 # Find unused Rust dependencies with cargo-machete.
 [group('rust')]
 rust-machete-check: (rust-tool-check "cargo-machete")
