@@ -1,5 +1,15 @@
 use pulldown_cmark::{Options, Parser, html};
 
+/// The Markdown of GitHub, which agents write. Smart punctuation, math, sub- and superscript and
+/// wikilinks would change the flags, prices, paths and shell tests in their text.
+const MARKDOWN: Options = Options::ENABLE_TABLES
+    .union(Options::ENABLE_FOOTNOTES)
+    .union(Options::ENABLE_STRIKETHROUGH)
+    .union(Options::ENABLE_TASKLISTS)
+    .union(Options::ENABLE_GFM)
+    .union(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS)
+    .union(Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS);
+
 pub(super) fn page(name: &str, source: &[u8]) -> Vec<u8> {
     let text = String::from_utf8_lossy(source);
     let markdown = std::path::Path::new(name)
@@ -10,7 +20,7 @@ pub(super) fn page(name: &str, source: &[u8]) -> Vec<u8> {
         });
     let body = if markdown {
         let mut body = String::with_capacity(text.len() * 2);
-        html::push_html(&mut body, Parser::new_ext(&text, Options::all()));
+        html::push_html(&mut body, Parser::new_ext(&text, MARKDOWN));
         body
     } else {
         format!("<pre><code>{}</code></pre>", escape(&text))

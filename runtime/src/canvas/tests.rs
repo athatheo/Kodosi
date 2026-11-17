@@ -757,6 +757,16 @@ fn markdown_and_text_become_pages_with_the_template_look() {
 }
 
 #[test]
+fn a_markdown_page_keeps_the_flags_and_shell_tests_of_its_text() {
+    let page = String::from_utf8(page::page(
+        "notes.md",
+        b"Run it with --force when [[ -f file ]] holds.",
+    ))
+    .unwrap();
+    assert!(page.contains("<p>Run it with --force when [[ -f file ]] holds.</p>"));
+}
+
+#[test]
 fn a_page_that_loads_from_the_network_is_named() {
     assert_eq!(
         page::network_reference(br#"<script src="https://cdn.example/x.js"></script>"#),
