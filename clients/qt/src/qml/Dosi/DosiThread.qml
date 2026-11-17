@@ -29,7 +29,7 @@ Item {
         }
     }
     function prose(text: string): string {
-        let html = Mentions.escaped(text)
+        let html = Qt.escapeHtml(text)
         html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>")
         html = html.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
         html = html.replace(/(^|[^*\w])\*([^*\n]+)\*(?![\w*])/g, "$1<i>$2</i>")
