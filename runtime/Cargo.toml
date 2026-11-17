@@ -44,7 +44,7 @@ base64 = { version = "0.23.1", default-features = false, features = ["std"] }
 bytes = { version = "1.12.1", features = ["serde"] }
 futures-util = "0.3.34"
 reqwest = { version = "0.13.5", default-features = false, features = ["form", "json", "rustls", "stream"] }
-rustix = "1.1.5"
+rustix = "1.1.6"
 rustls-platform-verifier = "0.7.1"
 serde = "1.0.229"
 serde_json = "1.0.154"
@@ -79,7 +79,7 @@ documents = { path = "../documents/crates/documents", optional = true }
 documents-cli = { path = "../documents/crates/cli", optional = true }
 if-addrs = { version = "0.15", optional = true }
 shared-browser = { path = "../browser/crate", default-features = false, optional = true }
-tar = { version = "0.4.45", default-features = false, optional = true }
+tar = { version = "0.4.46", default-features = false, optional = true }
 sha2 = "0.11.1"
 aws-lc-rs = { workspace = true }
 base64 = { workspace = true }
