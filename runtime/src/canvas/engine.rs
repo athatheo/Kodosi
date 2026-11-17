@@ -7,7 +7,6 @@ use std::{
 
 use aws_lc_rs::signature::{ED25519, UnparsedPublicKey};
 use base64::Engine as _;
-use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use shared_browser::{Browsers, Settings};
@@ -399,7 +398,7 @@ async fn download(
     to: &Path,
     progress: impl Fn(u8) + Send,
 ) -> Result<(), Text> {
-    let response = client
+    let mut response = client
         .get(&engine.url)
         .send()
         .await
@@ -410,9 +409,7 @@ async fn download(
     let mut digest = Sha256::new();
     let mut got: u64 = 0;
     let mut told = 0;
-    let mut stream = response.bytes_stream();
-    while let Some(part) = stream.next().await {
-        let part = part.map_err(|_| no_engine())?;
+    while let Some(part) = response.chunk().await.map_err(|_| no_engine())? {
         got += part.len() as u64;
         if got > MOST_ARCHIVE {
             return Err(no_engine());

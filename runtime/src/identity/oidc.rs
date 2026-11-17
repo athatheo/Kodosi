@@ -419,18 +419,15 @@ pub(crate) fn validate_url(url: &Url) -> Result<()> {
     ))
 }
 
-pub(crate) async fn read_bounded(response: reqwest::Response, max: usize) -> Result<Vec<u8>> {
-    use futures_util::StreamExt as _;
+pub(crate) async fn read_bounded(mut response: reqwest::Response, max: usize) -> Result<Vec<u8>> {
     if response
         .content_length()
         .is_some_and(|len| len > max as u64)
     {
         return Err(invalid("Server response exceeds its size limit."));
     }
-    let mut stream = response.bytes_stream();
     let mut bytes = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
+    while let Some(chunk) = response.chunk().await? {
         if bytes.len().saturating_add(chunk.len()) > max {
             return Err(invalid("Server response exceeds its size limit."));
         }
