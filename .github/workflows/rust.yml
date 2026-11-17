@@ -19,6 +19,7 @@ on:
       - clients/qt/src/runtime/RuntimeBridge.hpp
       - clients/android/app/src/main/java/com/kodosi/mobile/runtime/NativeRuntime.kt
       - clients/qt/packaging/licenses/**
+      - clients/qt/scripts/release/canonical_json.py
       - clients/qt/scripts/release/generate-rust-license-inventory.py
       - README.md
       - docs/GETTING_STARTED.md
