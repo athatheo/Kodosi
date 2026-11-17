@@ -2019,7 +2019,6 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
- "sha2",
  "shared-browser",
  "specta",
  "tar",

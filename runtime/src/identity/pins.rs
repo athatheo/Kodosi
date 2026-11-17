@@ -3,9 +3,9 @@ use std::{
     path::PathBuf,
 };
 
+use aws_lc_rs::digest::{Context, SHA256};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 
 use super::{
@@ -43,10 +43,12 @@ pub struct IdentityBundle {
 pub(crate) type Root = [u8; 32];
 
 pub(crate) fn root_of(certificate_body: &[u8]) -> Root {
-    let mut hash = Sha256::new();
+    let mut hash = Context::new(&SHA256);
     hash.update(b"kodosi-identity-root-v1");
     hash.update(certificate_body);
-    hash.finalize().into()
+    let mut root = Root::default();
+    root.copy_from_slice(hash.finish().as_ref());
+    root
 }
 
 impl IdentityBundle {

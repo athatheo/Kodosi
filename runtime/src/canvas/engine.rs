@@ -5,10 +5,12 @@ use std::{
     time::Duration,
 };
 
-use aws_lc_rs::signature::{ED25519, UnparsedPublicKey};
+use aws_lc_rs::{
+    digest::{Context, SHA256},
+    signature::{ED25519, UnparsedPublicKey},
+};
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use shared_browser::{Browsers, Settings};
 use tokio::{io::AsyncWriteExt as _, sync::OnceCell};
 
@@ -406,7 +408,7 @@ async fn download(
         .map_err(|_| no_engine())?;
     let total = response.content_length().unwrap_or(0);
     let mut file = tokio::fs::File::create(to).await.map_err(|_| no_engine())?;
-    let mut digest = Sha256::new();
+    let mut digest = Context::new(&SHA256);
     let mut got: u64 = 0;
     let mut told = 0;
     while let Some(part) = response.chunk().await.map_err(|_| no_engine())? {
@@ -423,7 +425,7 @@ async fn download(
         }
     }
     file.flush().await.map_err(|_| no_engine())?;
-    let found = crate::hex::hex(&digest.finalize());
+    let found = crate::hex::hex(digest.finish().as_ref());
     (found == engine.sha256).ok_or_else(no_engine)
 }
 

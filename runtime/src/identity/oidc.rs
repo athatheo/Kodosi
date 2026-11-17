@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use aws_lc_rs::digest::{SHA256, digest};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use tokio_util::sync::CancellationToken;
 use zeroize::{Zeroize as _, Zeroizing};
 
@@ -362,7 +362,7 @@ impl Oidc {
 }
 
 fn challenge(verifier: &str) -> String {
-    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+    URL_SAFE_NO_PAD.encode(digest(&SHA256, verifier.as_bytes()))
 }
 
 fn random_text() -> Result<Zeroizing<String>> {

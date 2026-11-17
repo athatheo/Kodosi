@@ -1,6 +1,6 @@
+use aws_lc_rs::digest::{SHA256, digest};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 
 use crate::{Error, Result, hex::hex};
 
@@ -55,8 +55,10 @@ impl Picture {
         }
         let format = PictureFormat::of(&bytes)
             .ok_or_else(|| Error::Text(text!("Kodosi pastes PNG, JPEG, GIF and WebP pictures.")))?;
+        let mut sha256 = [0; 32];
+        sha256.copy_from_slice(digest(&SHA256, &bytes).as_ref());
         Ok(Self {
-            digest: Sha256::digest(&bytes).into(),
+            digest: sha256,
             bytes,
             format,
         })

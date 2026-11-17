@@ -1,12 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aws_lc_rs::{
-    aead, agreement, hkdf, kem, rand,
+    aead, agreement,
+    digest::SHA256,
+    hkdf, kem, rand,
     signature::{ML_DSA_65, VerificationAlgorithm as _},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -473,5 +474,5 @@ fn open(key: &[u8], context: &[u8], sealed: &Sealed) -> Result<Zeroizing<Vec<u8>
 }
 
 fn digest(bytes: &[u8]) -> String {
-    hex(&Sha256::digest(bytes))
+    hex(aws_lc_rs::digest::digest(&SHA256, bytes).as_ref())
 }
