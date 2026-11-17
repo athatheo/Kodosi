@@ -37,7 +37,8 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: rustup toolchain install
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - id: cef
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/cef
           key: cef-linux-${{ hashFiles('browser/engine/Cargo.lock') }}
@@ -47,7 +48,13 @@ jobs:
             documents
             browser/crate
             browser/engine
+          save-if: ${{ github.event_name != 'pull_request' }}
       - run: just documents-check browser-check
+      - if: ${{ github.event_name != 'pull_request' && steps.cef.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/cef
+          key: ${{ steps.cef.outputs.cache-primary-key }}
 
   app:
     if: ${{ !github.event.pull_request.draft }}
@@ -70,4 +77,5 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: documents/app
+          save-if: ${{ github.event_name != 'pull_request' }}
       - run: just documents-app-check
