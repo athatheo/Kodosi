@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 import urllib.request
 from pathlib import Path
 
@@ -28,7 +29,7 @@ ENGINE = ROOT / "browser/engine"
 TOOLS = ROOT / ".tools/browser-engine"
 CEF_CACHE = ROOT / ".tools/cef"
 # The CEF wrapper builds with Ninja and CMake, from these releases on the Python package index.
-BUILD_TOOLS = ("ninja==1.13.0", "cmake==4.1.2")
+BUILD_TOOLS = ("ninja==1.13.2", "cmake==4.4.4")
 APP_ID = "com.kodosi.browser"
 PRODUCT = "Kodosi Browser"
 HELPERS = {
@@ -206,8 +207,7 @@ def version_of(cef: Path) -> str:
     """The Chromium version and the engine's version, as the feed names a release."""
     name = json.loads((cef / "archive.json").read_text("utf-8"))["name"]
     chromium = name.split("+chromium-", 1)[1].split("_", 1)[0]
-    manifest = (ENGINE / "Cargo.toml").read_text("utf-8")
-    engine = next(line.split('"')[1] for line in manifest.splitlines() if line.startswith("version = "))
+    engine = tomllib.loads((ENGINE / "Cargo.toml").read_text("utf-8"))["package"]["version"]
     return f"{chromium}-{engine}"
 
 
@@ -331,7 +331,8 @@ def package(stage: Path, output: Path, version: str, program: str) -> Path:
     with tarfile.open(archive, "w:gz") as tar:
         for path in sorted(stage.iterdir()):
             tar.add(path, arcname=path.name)
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    with archive.open("rb") as file:
+        digest = hashlib.file_digest(file, "sha256").hexdigest()
     entry = {"version": version, "platform": name, "file": archive.name, "program": program, "sha256": digest}
     (output / f"{archive.name}.json").write_text(json.dumps(entry, indent=2) + "\n", "utf-8")
     return archive
