@@ -19,11 +19,11 @@ struct SettingsTests {
     }
 
     @Test func `the lock closes Kodosi only after a minute away`() {
-        let left = Date(timeIntervalSince1970: 1000)
-        #expect(!AppLock.locks(enabled: false, left: left, now: left.addingTimeInterval(600)))
+        let left = ContinuousClock.now
+        #expect(!AppLock.locks(enabled: false, left: left, now: left + .seconds(600)))
         #expect(!AppLock.locks(enabled: true, left: nil, now: left))
-        #expect(!AppLock.locks(enabled: true, left: left, now: left.addingTimeInterval(59)))
-        #expect(AppLock.locks(enabled: true, left: left, now: left.addingTimeInterval(60)))
+        #expect(!AppLock.locks(enabled: true, left: left, now: left + .seconds(59)))
+        #expect(AppLock.locks(enabled: true, left: left, now: left + .seconds(60)))
     }
 
     @Test func `with the lock on, Kodosi starts locked`() throws {
@@ -57,9 +57,9 @@ struct SettingsTests {
         await settle()
         #expect(questions == 1)
         #expect(lock.locked)
-        let left = Date()
+        let left = ContinuousClock.now
         lock.sceneChanged(to: .background, now: left)
-        lock.sceneChanged(to: .active, now: left.addingTimeInterval(1))
+        lock.sceneChanged(to: .active, now: left + .seconds(1))
         await settle()
         #expect(questions == 2)
     }
