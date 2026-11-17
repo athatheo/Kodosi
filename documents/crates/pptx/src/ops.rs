@@ -110,7 +110,7 @@ pub(crate) fn guide() -> Guide {
             ),
             op(
                 "setFill",
-                "Sets the color of a shape",
+                "Sets the color of a shape that is not a table or a chart",
                 vec![
                     slide(),
                     shape(),

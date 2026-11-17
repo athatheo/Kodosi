@@ -63,6 +63,12 @@ fn writable_shape(
     shape: &Shape,
     raws: &HashMap<String, String>,
 ) -> Result<(), String> {
+    if shape.kind == "graphic" && shape.fill.is_some() {
+        return Err(format!(
+            "The shape {} is a table, a chart or another graphic, and the file holds no fill for it.",
+            shape.id
+        ));
+    }
     if let Some(source) = &shape.source {
         piece(raws, "shape", Some(source))?;
         if !slide.sources.contains_key(source) {

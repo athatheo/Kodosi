@@ -1223,3 +1223,49 @@ fn a_group_without_a_frame_spans_its_shapes_and_a_move_takes_them_along() {
     )));
     assert!(xml.contains(r#"<p:xfrm><a:off x="12700" y="25400"/><a:ext cx="0" cy="0"/></p:xfrm>"#));
 }
+
+#[test]
+fn a_fill_goes_into_properties_that_hold_nothing_and_a_table_or_a_chart_takes_none() {
+    let file = framed_deck();
+    let mut model = read(&file);
+    apply_ops(
+        &mut model,
+        vec![
+            Op::SetFill {
+                slide: "256".to_owned(),
+                shape: "2".to_owned(),
+                color: "00FF00".to_owned(),
+            },
+            Op::MoveShape {
+                slide: "256".to_owned(),
+                shape: "2".to_owned(),
+                x: Some(1.0),
+                y: Some(2.0),
+                width: Some(3.0),
+                height: Some(4.0),
+            },
+        ],
+    );
+    let filled = saved(&model, &file);
+    assert!(part(&filled, "ppt/slides/slide1.xml").contains(concat!(
+        r#"<p:spPr><a:xfrm><a:off x="12700" y="25400"/><a:ext cx="38100" cy="50800"/></a:xfrm>"#,
+        r#"<a:solidFill><a:srgbClr val="00FF00"/></a:solidFill></p:spPr>"#,
+    )));
+    assert_eq!(
+        read(&filled).slides[0].shapes[0].fill.as_deref(),
+        Some("00FF00")
+    );
+    for graphic in ["7", "8"] {
+        let colored = Change::Ops {
+            ops: vec![Op::SetFill {
+                slide: "256".to_owned(),
+                shape: graphic.to_owned(),
+                color: "00FF00".to_owned(),
+            }],
+        };
+        assert!(matches!(
+            apply_change(&mut model, colored),
+            Err(Refused::Invalid(_))
+        ));
+    }
+}

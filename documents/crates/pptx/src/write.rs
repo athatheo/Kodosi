@@ -368,6 +368,37 @@ fn appended(xml: &str, element: Xml<'_, '_>, added: String) -> (std::ops::Range<
     (at..at, added)
 }
 
+/// The schema puts a frame first in the properties of a shape, and a fill after its frame and
+/// geometry.
+fn added_properties(
+    xml: &str,
+    properties: Xml<'_, '_>,
+    frame: Option<String>,
+    fill: Option<String>,
+) -> Vec<(std::ops::Range<usize>, String)> {
+    let Some(first) = properties.first_element_child() else {
+        let added: String = frame.into_iter().chain(fill).collect();
+        return if added.is_empty() {
+            Vec::new()
+        } else {
+            vec![appended(xml, properties, added)]
+        };
+    };
+    let start = first.range().start;
+    let after_outline = properties
+        .children()
+        .rfind(|child| {
+            child.is_element()
+                && matches!(child.tag_name().name(), "xfrm" | "custGeom" | "prstGeom")
+        })
+        .map_or(start, |outline| outline.range().end);
+    frame
+        .map(|frame| (start..start, frame))
+        .into_iter()
+        .chain(fill.map(|fill| (after_outline..after_outline, fill)))
+        .collect()
+}
+
 fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
     let body = match &shape.text {
         Some(tree) => format!(
@@ -408,33 +439,28 @@ fn patch_shape(
     let transform = properties
         .and_then(|properties| local(properties, "xfrm"))
         .or_else(|| local(element, "xfrm"));
+    let mut frame = None;
     if !same_frame {
-        if let Some(transform) = transform {
-            edits.push((transform.range(), moved_frame(xml, transform, new)));
-        } else if let Some(properties) = properties {
-            let frame = frame_xml(new, read::span_of(element).as_ref());
-            edits.push(match properties.first_element_child() {
-                Some(first) => (first.range().start..first.range().start, frame),
-                None => appended(xml, properties, frame),
-            });
+        match transform {
+            Some(transform) => edits.push((transform.range(), moved_frame(xml, transform, new))),
+            None => frame = Some(frame_xml(new, read::span_of(element).as_ref())),
         }
     }
+    let mut fill = None;
     if old.is_none_or(|old| old.fill != new.fill)
         && let Some(properties) = properties
         && let Some(color) = &new.fill
     {
-        let fill = properties
+        let held = properties
             .children()
             .find(|child| child.is_element() && FILLS.contains(&child.tag_name().name()));
-        if let Some(fill) = fill {
-            edits.push((fill.range(), fill_xml(color)));
-        } else if let Some(geometry) = local(properties, "prstGeom")
-            .or_else(|| local(properties, "custGeom"))
-            .or_else(|| local(properties, "xfrm"))
-        {
-            let at = geometry.range().end;
-            edits.push((at..at, fill_xml(color)));
+        match held {
+            Some(held) => edits.push((held.range(), fill_xml(color))),
+            None => fill = Some(fill_xml(color)),
         }
+    }
+    if let Some(properties) = properties {
+        edits.extend(added_properties(xml, properties, frame, fill));
     }
     if old.is_none_or(|old| old.text != new.text)
         && let (Some(body), Some(tree)) = (local(element, "txBody"), &new.text)
