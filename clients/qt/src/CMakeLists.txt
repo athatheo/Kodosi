@@ -145,7 +145,6 @@ target_link_libraries(kodosi-desktop-integration
 
 if(LINUX)
     qt_generate_wayland_protocol_client_sources(kodosi-desktop-integration
-        PRIVATE_CODE
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux/ext-idle-notify-v1.xml"
     )
 endif()
@@ -258,7 +257,6 @@ qt_add_executable(kodosi-qt
 qt_add_library(kodosi-ui STATIC)
 qt_add_qml_module(kodosi-ui
     URI Kodosi
-    RESOURCE_PREFIX /qt/qml
     OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Kodosi"
     VERSION 1.0
     DEPENDENCIES
