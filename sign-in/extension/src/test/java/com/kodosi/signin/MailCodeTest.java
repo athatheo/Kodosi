@@ -123,7 +123,7 @@ class MailCodeTest {
             now += MailCode.RESEND_SECONDS;
             codes.add(code(signIn));
         }
-        assertEquals(Check.WRONG, in(signIn).check(codes.get(0), MAYA));
+        assertEquals(Check.WRONG, in(signIn).check(codes.getFirst(), MAYA));
         assertEquals(Check.PASSED, in(signIn).check(codes.get(1), MAYA));
     }
 

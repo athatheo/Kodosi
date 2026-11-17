@@ -180,7 +180,10 @@ final class CodeStep {
 
     /** The address that codes go to, or null when there is none, as for a reset of no account. */
     private String recipient() {
-        return kind == Kind.RESET ? account == null ? null : normal(account.getEmail()) : address();
+        return switch (kind) {
+            case RESET -> account == null ? null : normal(account.getEmail());
+            case SIGN_UP, ACCOUNT -> address();
+        };
     }
 
     private String address() {
