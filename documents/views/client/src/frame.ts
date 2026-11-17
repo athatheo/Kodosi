@@ -6,7 +6,7 @@ const ASSET_FRAME = 2;
 const HASH_BYTES = 32;
 const GZIP_FROM = 16 * 1024;
 
-export type Frame =
+type Frame =
   | { kind: "message"; message: ToClient }
   | { kind: "asset"; hash: string; bytes: Uint8Array };
 

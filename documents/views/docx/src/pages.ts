@@ -3,13 +3,13 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 /** In CSS pixels. */
-export interface PageShape {
+interface PageShape {
   height: number;
   top: number;
   bottom: number;
 }
 
-export interface BlockRules {
+interface BlockRules {
   keepNext(block: ProseNode): boolean;
   startsPage(block: ProseNode): boolean;
 }

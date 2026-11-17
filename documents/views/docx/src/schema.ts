@@ -113,7 +113,7 @@ function columns(element: HTMLElement): number {
 }
 
 /** The nodes and marks of a document body, in the order of `crates/docx/schema.json`. */
-export const nodes = [
+const nodes = [
   Node.create({ name: "doc", topNode: true, content: "block+" }),
   Node.create({
     name: "paragraph",
@@ -264,7 +264,7 @@ export const nodes = [
   }),
 ];
 
-export const marks = [
+const marks = [
   Mark.create({
     name: "run",
     excludes: "",

@@ -143,7 +143,7 @@ export const schema = new Schema({
   marks: specOf<MarkSpec>(spec.marks as ({ name: string } & MarkSpec)[], MARK_DOM),
 });
 
-export interface Piece {
+interface Piece {
   text: string;
   x: number;
   width: number;
@@ -153,7 +153,7 @@ export interface Piece {
   link: Link | null;
 }
 
-export interface Line {
+interface Line {
   baseline: number;
   height: number;
   pieces: Piece[];
