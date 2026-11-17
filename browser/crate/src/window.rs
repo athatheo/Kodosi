@@ -13,7 +13,8 @@ use serde_json::json;
 use tokio::sync::{Notify, mpsc, oneshot, watch};
 
 use crate::{
-    Error, driver,
+    Error,
+    driver::{self, Driver},
     engine::Engine,
     flow::{self, Flow},
     input,
@@ -121,7 +122,7 @@ pub(crate) enum Event {
 
 #[derive(Clone)]
 pub struct Window {
-    driver: Arc<str>,
+    driver: Arc<Driver>,
     events: mpsc::Sender<Event>,
     state: watch::Receiver<State>,
     open: watch::Receiver<bool>,
@@ -154,7 +155,7 @@ impl Window {
         })
     }
 
-    pub fn driver(&self) -> &str {
+    pub fn driver(&self) -> &Driver {
         &self.driver
     }
 
@@ -296,7 +297,7 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
     });
     let (open_in, open) = watch::channel(true);
     let (used_in, used) = watch::channel(None);
-    let driver = Arc::from(driver.serve(Arc::clone(&engine), id, open.clone()));
+    let driver = Arc::new(driver.serve(Arc::clone(&engine), id, open.clone()));
     let window = Window {
         driver,
         events: events_in,

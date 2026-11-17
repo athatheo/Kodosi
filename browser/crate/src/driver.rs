@@ -42,12 +42,32 @@ const REFUSED: [&str; 6] = [
     "Target.disposeBrowserContext",
 ];
 
-/// Only the path with its token opens the driver port, so a page that finds the port gets
+const PATH: &str = "/devtools/browser";
+
+/// Where a driver reaches the tabs of its window, and the authorization that it shows there.
+/// The token is not a part of the address, because a driver prints the address of its browser.
+#[derive(Clone)]
+pub struct Driver {
+    address: String,
+    authorization: String,
+}
+
+impl Driver {
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// The value of the `Authorization` header of the driver's WebSocket handshake.
+    pub fn authorization(&self) -> &str {
+        &self.authorization
+    }
+}
+
+/// Only a driver that shows the token opens the driver port, so a page that finds the port gets
 /// nothing.
 pub(crate) struct Listener {
     tcp: TcpListener,
-    port: u16,
-    path: String,
+    driver: Driver,
 }
 
 impl Listener {
@@ -57,8 +77,10 @@ impl Listener {
         let port = tcp.local_addr()?.port();
         Ok(Self {
             tcp: TcpListener::from_std(tcp)?,
-            port,
-            path: format!("/devtools/browser/{}", socket::token()?),
+            driver: Driver {
+                address: format!("ws://127.0.0.1:{port}{PATH}"),
+                authorization: format!("Bearer {}", socket::token()?),
+            },
         })
     }
 
@@ -67,9 +89,9 @@ impl Listener {
         engine: Arc<Engine>,
         window: i64,
         mut open: watch::Receiver<bool>,
-    ) -> String {
-        let Self { tcp, port, path } = self;
-        let address = format!("ws://127.0.0.1:{port}{path}");
+    ) -> Driver {
+        let Self { tcp, driver } = self;
+        let authorization = driver.authorization.clone();
         tokio::spawn(async move {
             let mut drivers = JoinSet::new();
             let mut started: VecDeque<AbortHandle> = VecDeque::new();
@@ -88,7 +110,7 @@ impl Listener {
                         {
                             oldest.abort();
                         }
-                        started.push_back(drivers.spawn(serve(stream, Arc::clone(&engine), window, path.clone())));
+                        started.push_back(drivers.spawn(serve(stream, Arc::clone(&engine), window, authorization.clone())));
                     }
                     Some(_) = drivers.join_next(), if !drivers.is_empty() => {
                         started.retain(|driver| !driver.is_finished());
@@ -97,13 +119,16 @@ impl Listener {
                 }
             }
         });
-        address
+        driver
     }
 }
 
-async fn serve(stream: TcpStream, engine: Arc<Engine>, window: i64, path: String) {
-    let Ok(driver) = tokio_tungstenite::accept_hdr_async(stream, socket::Admission { path }).await
-    else {
+async fn serve(stream: TcpStream, engine: Arc<Engine>, window: i64, authorization: String) {
+    let admission = socket::Admission {
+        path: PATH.to_owned(),
+        authorization: Some(authorization),
+    };
+    let Ok(driver) = tokio_tungstenite::accept_hdr_async(stream, admission).await else {
         return;
     };
     let Ok((browser, _)) = tokio_tungstenite::connect_async(engine.address()).await else {
