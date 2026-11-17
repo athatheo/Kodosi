@@ -43,6 +43,32 @@ fn id_of(browser: Option<&mut Browser>) -> Option<i64> {
     browser.map(|browser| i64::from(browser.identifier()))
 }
 
+/// The crate's iterator over a string list never frees the copy of each string that it reads
+/// (cef-rs#516), so the first address is read and freed here.
+fn first_address(urls: &mut CefStringList) -> Option<String> {
+    let list: *mut cef_dll_sys::_cef_string_list_t = urls.into();
+    if list.is_null() {
+        return None;
+    }
+    let mut value = cef_dll_sys::cef_string_t {
+        str_: std::ptr::null_mut(),
+        length: 0,
+        dtor: None,
+    };
+    // SAFETY: CEF keeps the list valid for this call, and `value` owns the copy that
+    // `cef_string_list_value` makes until `cef_string_utf16_clear` frees it.
+    unsafe {
+        if cef_dll_sys::cef_string_list_size(list) == 0
+            || cef_dll_sys::cef_string_list_value(list, 0, &raw mut value) == 0
+        {
+            return None;
+        }
+        let address = CefString::from(&raw const value).to_string();
+        cef_dll_sys::cef_string_utf16_clear(&raw mut value);
+        Some(address)
+    }
+}
+
 wrap_client! {
     struct ClientBuilder {
         render: RenderHandler,
@@ -254,7 +280,7 @@ wrap_display_handler! {
         fn on_favicon_urlchange(&self, browser: Option<&mut Browser>, icon_urls: Option<&mut CefStringList>) {
             let Some(browser) = browser else { return };
             let tab = i64::from(browser.identifier());
-            let address = icon_urls.map(std::mem::take).and_then(|urls| urls.into_iter().next()).unwrap_or_default();
+            let address = icon_urls.and_then(first_address).unwrap_or_default();
             if engine::with(|engine| engine.icon_named(tab, &address)) == Some(true)
                 && let Some(host) = browser.host()
             {
