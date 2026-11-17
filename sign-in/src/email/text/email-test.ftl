@@ -1,4 +1,4 @@
 <#ftl output_format="plainText">
-${msg("emailTestSubject")}
+${subject}
 
 ${msg("kdsTestText", realmName)}

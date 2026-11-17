@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.jboss.logging.Logger;
+import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailTemplateProvider;
@@ -237,7 +238,7 @@ final class CodeStep {
     }
 
     private String realmName() {
-        return realm.getDisplayName() == null ? realm.getName() : realm.getDisplayName();
+        return realm.getDisplayName() == null ? ObjectUtil.capitalize(realm.getName()) : realm.getDisplayName();
     }
 
     private static String normal(String address) {

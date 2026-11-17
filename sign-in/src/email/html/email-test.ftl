@@ -1,2 +1,2 @@
 <#import "template.ftl" as layout>
-<@layout.message title=msg("emailTestSubject") text=msg("kdsTestText", realmName) />
+<@layout.message title=subject text=msg("kdsTestText", realmName) />
