@@ -332,6 +332,7 @@ async fn an_agent_that_stops_leaves_the_document_by_itself() {
         client: "ana".to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: true,
     };
     person
         .send(document::contract::encode_message(&join))
@@ -375,6 +376,7 @@ async fn selection_says_who_else_is_here() {
         client: "ana".to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: true,
     };
     person
         .send(document::contract::encode_message(&join))

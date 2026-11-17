@@ -254,7 +254,8 @@ impl<F: Format> Document<F> {
                 client,
                 epoch,
                 rev,
-            } if !joined => self.join(pipe, contract, client, epoch, rev),
+                fresh,
+            } if !joined => self.join(pipe, contract, client, epoch, rev, fresh),
             ToDocument::Change { seq, base, body } if joined => self.change(pipe, seq, base, body),
             ToDocument::Place { rev, body } if joined => self.place(pipe, rev, body),
             ToDocument::Query { id, body } if joined => self.query(pipe, id, body),
@@ -280,6 +281,7 @@ impl<F: Format> Document<F> {
         client: String,
         epoch: u64,
         rev: Rev,
+        fresh: bool,
     ) -> Vec<Effect> {
         if contract_number != contract::CONTRACT {
             let closed = ToClient::Closed {
@@ -305,7 +307,7 @@ impl<F: Format> Document<F> {
         };
         seat.client = Some(client.clone());
         let seq = self.seqs.get(&client).copied();
-        if seat.viewer.can_edit {
+        if seat.viewer.can_edit && fresh {
             self.seqs.entry(client.clone()).or_insert(0);
         }
         let joined = ToClient::Joined {

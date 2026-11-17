@@ -113,6 +113,7 @@ async fn joined(documents: &Documents, path: &Path, name: &str) -> Pipe {
         client: name.to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: true,
     };
     pipe.send(contract::encode_message(&join)).await.unwrap();
     assert!(matches!(message(&mut pipe).await, ToClient::Joined { .. }));
@@ -205,6 +206,7 @@ async fn after_a_clean_close_a_client_learns_that_the_document_took_its_batch() 
         client: "ana".to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: false,
     };
     again.send(contract::encode_message(&join)).await.unwrap();
     assert!(matches!(
@@ -221,6 +223,7 @@ async fn seq_of_ana(documents: &Documents, file: &Path) -> Option<u64> {
         client: "ana".to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: false,
     };
     ana.send(contract::encode_message(&join)).await.unwrap();
     match message(&mut ana).await {
@@ -277,6 +280,7 @@ fn a1_comes_back(state: &Path, file: &Path) {
             client: "ben".to_owned(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         };
         ben.send(contract::encode_message(&join)).await.unwrap();
         assert!(matches!(
@@ -376,6 +380,7 @@ async fn a_file_made_again_after_its_removal_opens_with_the_edits_that_waited() 
         client: "ben".to_owned(),
         epoch: 0,
         rev: 0,
+        fresh: true,
     };
     ben.send(contract::encode_message(&join)).await.unwrap();
     match message(&mut ben).await {

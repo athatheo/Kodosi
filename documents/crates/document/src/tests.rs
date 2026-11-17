@@ -152,11 +152,16 @@ fn frame(message: &ToDocument) -> Vec<u8> {
 }
 
 fn join_frame(client: &str, epoch: u64, rev: Rev) -> Vec<u8> {
+    join_frame_of(client, epoch, rev, true)
+}
+
+fn join_frame_of(client: &str, epoch: u64, rev: Rev, fresh: bool) -> Vec<u8> {
     frame(&ToDocument::Join {
         contract: CONTRACT,
         client: client.to_owned(),
         epoch,
         rev,
+        fresh,
     })
 }
 
@@ -328,6 +333,7 @@ fn another_contract_number_cannot_join() {
             client: "ana".to_owned(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         }),
     );
     assert!(matches!(
@@ -369,14 +375,19 @@ fn a_view_learns_whether_the_document_knows_its_client() {
         other => panic!("{other:?}"),
     };
     let mut document = opened();
-    assert_eq!(seq_of(1, &connect(&mut document, 1, "ana")), None);
-    document.step(Input::Left { pipe: 1 });
-    document.step(Input::Connected {
-        pipe: 2,
-        viewer: viewer("ana"),
-    });
-    let effects = message_to(&mut document, 2, join_frame("ana", 1, 0));
-    assert_eq!(seq_of(2, &effects), Some(0));
+    let mut join = |pipe: PipeId, client: &str, fresh: bool| {
+        document.step(Input::Connected {
+            pipe,
+            viewer: viewer(client),
+        });
+        let effects = message_to(&mut document, pipe, join_frame_of(client, 1, 0, fresh));
+        document.step(Input::Left { pipe });
+        seq_of(pipe, &effects)
+    };
+    assert_eq!(join(1, "ana", true), None);
+    assert_eq!(join(2, "ana", false), Some(0));
+    assert_eq!(join(3, "ben", false), None);
+    assert_eq!(join(4, "ben", false), None);
 }
 
 #[test]

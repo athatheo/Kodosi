@@ -75,12 +75,17 @@ export class Client {
     pipe.onMessage((frame) => {
       this.incoming = this.incoming.then(() => this.receive(frame)).catch(console.error);
     });
+    this.join();
+  }
+
+  private join(): void {
     this.send({
       type: "join",
       contract: CONTRACT,
       client: this.id,
       epoch: this.epoch,
       rev: this.rev,
+      fresh: this.lastSeq === 0 && this.waitingSeq === null,
     });
   }
 
@@ -207,13 +212,7 @@ export class Client {
   /** The document drops a pipe that joins twice, and the next pipe loads a snapshot. */
   private reload(): void {
     this.outOfStep();
-    this.send({
-      type: "join",
-      contract: CONTRACT,
-      client: this.id,
-      epoch: 0,
-      rev: 0,
-    });
+    this.join();
   }
 
   pull(): void {

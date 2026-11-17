@@ -303,6 +303,7 @@ fn an_outside_write_merges_from_the_saved_state_that_its_writer_read() {
             client: "ana".to_owned(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         },
     );
     let mut retitled = |seq, base, title: &str| {

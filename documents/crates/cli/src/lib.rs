@@ -349,6 +349,7 @@ impl Seat {
             client: client.clone(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         };
         send(&pipe, &join).await?;
         loop {

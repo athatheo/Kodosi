@@ -202,6 +202,25 @@ test("an answer that the view fails to take keeps its batch from going again", a
   expect(bodies(again)).toEqual(["join", "later"]);
 });
 
+test("a client is fresh to the document only while it sent nothing and has nothing on its way", async () => {
+  const editor = new OutboxEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await settled();
+  expect(pipe.sent[0]).toMatchObject({ type: "join", fresh: true });
+  await pipe.deliver(joined(0, null));
+  editor.outbox.add("first");
+  client.pull();
+  await settled();
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  await settled();
+  expect(again.sent[0]).toMatchObject({ type: "join", fresh: false });
+});
+
 test("a snapshot after a refused batch says so to the editor", async () => {
   const editor = new TestEditor();
   const client = new Client();

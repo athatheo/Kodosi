@@ -41,6 +41,9 @@ pub enum ToDocument {
         epoch: u64,
         #[ts(type = "number")]
         rev: Rev,
+        /// The client sent no batch yet and has none on its way, so a document that does not
+        /// know it took nothing from it.
+        fresh: bool,
     },
     Change {
         #[ts(type = "number")]
