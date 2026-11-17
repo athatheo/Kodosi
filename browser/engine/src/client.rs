@@ -313,7 +313,11 @@ wrap_download_image_callback! {
         fn on_download_image_finished(&self, image_url: Option<&CefString>, _http_status_code: c_int, image: Option<&mut Image>) {
             let address = image_url.map_or_default(CefString::to_string);
             let png = image
-                .and_then(|image| image.as_png(1.0, 1, None, None))
+                .and_then(|image| {
+                    // CEF gives no PNG unless it can write the size of the picture.
+                    let (mut width, mut height) = (0, 0);
+                    image.as_png(1.0, 1, Some(&mut width), Some(&mut height))
+                })
                 .map_or_default(|png| {
                     let mut bytes = vec![0; png.size()];
                     png.data(Some(&mut bytes), 0);
