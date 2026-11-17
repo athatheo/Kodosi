@@ -12,11 +12,11 @@ DOWNLOADS="$TOOLS/downloads"
 download() {
     local url=$1 sha256=$2 archive temporary
     archive="$DOWNLOADS/${url##*/}"
-    if [[ ! -f $archive ]] || ! printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+    if [[ ! -f $archive ]] || ! printf '%s  %s\n' "$sha256" "$archive" | sha256sum --strict -c - >/dev/null 2>&1; then
         mkdir -p "$DOWNLOADS"
         temporary="$archive.tmp.$$"
         curl -fsSL --retry 3 -o "$temporary" "$url"
-        if ! printf '%s  %s\n' "$sha256" "$temporary" | sha256sum -c - >/dev/null 2>&1; then
+        if ! printf '%s  %s\n' "$sha256" "$temporary" | sha256sum --strict -c - >/dev/null 2>&1; then
             rm -f "$temporary"
             echo "[!] $url does not have the pinned SHA-256." >&2
             exit 1
@@ -28,13 +28,14 @@ download() {
 
 # install_tool <name> <version> <url> <sha256> <program in its folder> <version argument>
 install_tool() {
-    local name=$1 version=$2 url=$3 sha256=$4 program=$5 asks=$6 root stage content
+    local name=$1 version=$2 url=$3 sha256=$4 program=$5 asks=$6 root archive stage content
     root="$TOOLS/$name"
     if [[ ! -x $root/$program ]] || [[ $("$root/$program" "$asks") != *"$version" ]]; then
         echo "[*] installing $name $version in $TOOLS" >&2
+        archive=$(download "$url" "$sha256")
         stage="$root.stage.$$"
         rm -rf "$stage"
-        unzip -q "$(download "$url" "$sha256")" -d "$stage"
+        unzip -q "$archive" -d "$stage"
         content=$stage
         if [[ -d $stage/$name ]]; then
             content=$stage/$name
