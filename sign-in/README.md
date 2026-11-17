@@ -34,7 +34,8 @@ the realm's login, account and e-mail themes to `kodosi`. Then:
 
 ## Work on the pages
 
-You need [Bun](https://bun.sh) 1.4 and Docker.
+You need [Bun](https://bun.sh), at the version of [.bun-version](../.bun-version), and
+Docker.
 
 - `bun run dev` serves every page with sample data at http://localhost:3184;
   `?scene=<name>` picks a page, `?sheet=0,12` shows twelve side by side, and `?lang=de`

@@ -14,7 +14,7 @@ downloads in `.tools/maven/`. Keep every tool and dependency inside the project.
 [Mac](../clients/macos/README.md), [Linux and Windows](../clients/qt/README.md),
 [iOS](../clients/ios/README.md) and [Android](../clients/android/README.md) guides list the
 native prerequisites; on Windows run the recipes in Git Bash. The apps need Bun for the
-document views.
+document views, at the version of [.bun-version](../.bun-version).
 
 ## Commands
 
