@@ -34,7 +34,7 @@ find_package(
     COMPONENTS Core Gui LinguistTools Qml Quick QuickControls2 Test WebChannelQuick WebEngineCore WebEngineQuick Widgets ${KODOSI_PLATFORM_QT_COMPONENTS}
 )
 find_package(Threads REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)
 
 set(KODOSI_RUNTIME_MANIFEST "${KODOSI_RUNTIME_ROOT}/runtime/Cargo.toml")
 set(KODOSI_RUNTIME_BUNDLE_ROOT "${CMAKE_CURRENT_BINARY_DIR}/runtime-library")

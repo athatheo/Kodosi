@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# Xcode runs this with its own Python 3.9.
 from __future__ import annotations
 
 import argparse
