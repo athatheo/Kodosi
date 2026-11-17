@@ -16,9 +16,12 @@ if ! command -v zig >/dev/null 2>&1; then
 fi
 
 rm -rf "$SOURCE_DIR/zig-pkg"
+# A --system build crashes on a global cache that holds package archives, so
+# the fetch keeps its own cache apart from the build cache.
+FETCH_CACHE_DIR="$PWD/build/cache/zig-fetch"
 (
     cd "$SOURCE_DIR"
-    zig build --fetch=all
+    ZIG_GLOBAL_CACHE_DIR="$FETCH_CACHE_DIR" zig build --fetch=all
 )
 
 if [ ! -d "$SOURCE_DIR/zig-pkg" ]; then

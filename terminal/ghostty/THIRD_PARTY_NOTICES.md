@@ -50,7 +50,7 @@ or application/runtime dependencies. The Android VT archive under
 - zig-objc commit `3352c12a868f8787ab71bf2ca6eab9fcfb635c52` — MIT.
 - JetBrains Mono 2.304 variable regular and italic fonts — SIL Open Font License 1.1.
 - Nerd Fonts Symbols Only 3.4.0 — MIT.
-- Zig 0.17.0 compiler runtime: Zig-authored MIT portions, LLVM-derived portions under
+- Zig 0.17.1 compiler runtime: Zig-authored MIT portions, LLVM-derived portions under
   Apache-2.0 WITH LLVM-exception and legacy permissive LLVM terms, and musl-derived
   math portions under musl's permissive notices.
 - Chromium-derived DOM keycode table data — BSD-3-Clause.

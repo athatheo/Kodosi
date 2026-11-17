@@ -1,0 +1,33 @@
+--- a/lib/std/Io/Threaded.zig
++++ b/lib/std/Io/Threaded.zig
+@@ -4,6 +4,12 @@
+ const native_os = builtin.os.tag;
+ const is_windows = native_os == .windows;
+ const is_darwin = native_os.isDarwin();
++/// The SDKs of these targets mark the working directory actions of
++/// posix_spawn unavailable, and App Store review refuses apps that use them.
++const posix_spawn_cwd_unavailable = switch (native_os) {
++    .ios, .maccatalyst, .visionos => true,
++    else => false,
++};
+ const is_debug = builtin.mode == .debug;
+ 
+ const std = @import("../std.zig");
+@@ -17581,7 +17587,7 @@
+     var cwd_buffer: [posix.PATH_MAX]u8 = undefined;
+     switch (cwd) {
+         .inherit => {},
+-        .dir => |dir| switch (@as(std.c.E, @fromBackingInt(@intCast(
++        .dir => |dir| if (posix_spawn_cwd_unavailable) return error.OperationUnsupported else switch (@as(std.c.E, @fromBackingInt(@intCast(
+             std.c.posix_spawn_file_actions_addfchdir_np(&fa, dir.handle),
+         )))) {
+             .SUCCESS => {},
+@@ -17590,7 +17596,7 @@
+             .NOMEM => return error.SystemResources,
+             else => |err| return posix.unexpectedErrno(err),
+         },
+-        .path => |path| switch (@as(std.c.E, @fromBackingInt(@intCast(
++        .path => |path| if (posix_spawn_cwd_unavailable) return error.OperationUnsupported else switch (@as(std.c.E, @fromBackingInt(@intCast(
+             std.c.posix_spawn_file_actions_addchdir_np(&fa, try pathToPosix(path, &cwd_buffer)),
+         )))) {
+             .SUCCESS => {},
