@@ -36,7 +36,7 @@ ColumnLayout {
                 return;
             }
             const holder = Models.Shortcuts.bind(recordingAction, sequence, recordingKey);
-            note = holder.length > 0 ? qsTr("%1 was %2.").arg(sequence).arg(holder) : "";
+            note = holder.length > 0 ? qsTr("%1 was %2.").arg(sequence, holder) : "";
             stop();
         }
     }

@@ -455,7 +455,7 @@ Item {
                                                 Accessible.name: session.name || qsTr("Terminal")
                                                 Accessible.role: Accessible.PageTab
                                                 Accessible.selected: selected
-                                                ToolTip.text: session.folderName ? qsTr("%1 on %2").arg(session.folderName).arg(session.hostLabel || "") : session.hostLabel || ""
+                                                ToolTip.text: session.folderName ? qsTr("%1 on %2").arg(session.folderName, session.hostLabel || "") : session.hostLabel || ""
                                                 ToolTip.visible: hovered && ToolTip.text.length > 0
                                                 ToolTip.delay: Tip.delay
 

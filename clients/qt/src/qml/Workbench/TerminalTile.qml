@@ -249,7 +249,7 @@ Item {
                     visible: host.length > 0 || place.length > 0
                     spacing: 4
                     Accessible.role: Accessible.StaticText
-                    Accessible.name: host.length > 0 && place.length > 0 ? qsTr("%1 on %2").arg(place).arg(host) : host + place
+                    Accessible.name: host.length > 0 && place.length > 0 ? qsTr("%1 on %2").arg(place, host) : host + place
                     ToolTip.text: root.projectEmbedded ? root.session.displayDirectory || host : root.session.placeLabel || host
                     ToolTip.visible: locationHover.hovered && ToolTip.text.length > 0
                     ToolTip.delay: Tip.delay

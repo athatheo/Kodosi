@@ -955,7 +955,7 @@ Item {
                             hoverEnabled: true
                             objectName: "sidebar.folder." + folder.group.key
                             Accessible.id: objectName
-                            Accessible.name: folder.group.host ? qsTr("%1 on %2").arg(folderLabel.text).arg(folder.group.host) : folderLabel.text
+                            Accessible.name: folder.group.host ? qsTr("%1 on %2").arg(folderLabel.text, folder.group.host) : folderLabel.text
                             contentItem: RowLayout {
                                 spacing: 6
                                 KIcon {
@@ -1006,7 +1006,7 @@ Item {
                                     objectName: "sidebar.folder.new." + folder.group.key
                                     Accessible.id: objectName
                                     Accessible.name: agent.length > 0
-                                        ? qsTr("New %1 in %2").arg(Models.DesktopSettings.agentLabel(agent)).arg(folder.group.name)
+                                        ? qsTr("New %1 in %2").arg(Models.DesktopSettings.agentLabel(agent), folder.group.name)
                                         : qsTr("New terminal in %1").arg(folder.group.name)
                                     onClicked: Models.SessionActions.createInFolder(folder.group.key)
                                 }

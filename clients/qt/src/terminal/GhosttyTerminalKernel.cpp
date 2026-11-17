@@ -28,7 +28,7 @@ GhosttyTerminalKernel::Failure ghosttyFailure(QString operation, const GhosttyRe
 {
     return {
         GhosttyTerminalKernel::Failure::Code::GhosttyRejected,
-        QStringLiteral("%1 failed with Ghostty result %2.").arg(operation).arg(result),
+        QStringLiteral("%1 failed with Ghostty result %2.").arg(operation, QString::number(result)),
     };
 }
 
