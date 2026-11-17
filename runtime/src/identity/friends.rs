@@ -15,7 +15,10 @@ use super::{
     pins::{Root, decode},
     wire_codec::ML_DSA_65_SIGNATURE_LEN,
 };
-use crate::network::{Error, Result, crypto, invalid, untrusted};
+use crate::{
+    hex::{hash_from_hex, hex},
+    network::{Error, Result, crypto, invalid, untrusted},
+};
 use kodosi_os::fs::write_private;
 
 const FRIEND_LIST_V1: &[u8] = b"kodosi-friend-list-v1";
@@ -34,7 +37,7 @@ pub(crate) struct Friend {
 
 impl Friend {
     pub(crate) fn root(&self) -> Option<Root> {
-        root_from_hex(self.root.as_deref()?)
+        hash_from_hex(self.root.as_deref()?)
     }
 }
 
@@ -160,10 +163,7 @@ fn signed(body: &[u8]) -> Vec<u8> {
 }
 
 fn body_digest(body: &[u8]) -> String {
-    let digest = digest(&SHA256, body);
-    let mut bytes = [0; 32];
-    bytes.copy_from_slice(digest.as_ref());
-    root_hex(&bytes)
+    hex(digest(&SHA256, body).as_ref())
 }
 
 pub(crate) fn broken() -> Error {
@@ -331,28 +331,8 @@ impl FriendLists {
     }
 }
 
-pub(crate) fn root_hex(root: &Root) -> String {
-    use std::fmt::Write as _;
-    root.iter()
-        .fold(String::with_capacity(64), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        })
-}
-
-fn root_from_hex(text: &str) -> Option<Root> {
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    let mut root = [0; 32];
-    for (byte, pair) in root.iter_mut().zip(text.as_bytes().as_chunks::<2>().0) {
-        *byte = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
-    }
-    Some(root)
-}
-
 pub(crate) fn invite(handle: &str, root: &Root) -> String {
-    format!("{INVITE}:{handle}:{}", root_hex(root))
+    format!("{INVITE}:{handle}:{}", hex(root))
 }
 
 pub(crate) fn parse_invite(text: &str) -> Option<(String, Root)> {
@@ -361,7 +341,7 @@ pub(crate) fn parse_invite(text: &str) -> Option<(String, Root)> {
     else {
         return None;
     };
-    (!handle.is_empty()).then_some((handle.to_ascii_lowercase(), root_from_hex(root)?))
+    (!handle.is_empty()).then_some((handle.to_ascii_lowercase(), hash_from_hex(root)?))
 }
 
 #[cfg(test)]
@@ -405,7 +385,7 @@ mod tests {
             "22222222-2222-2222-2222-222222222222".into(),
             Friend {
                 handle: "bob".into(),
-                root: Some(root_hex(&[9; 32])),
+                root: Some(hex(&[9; 32])),
                 verified: true,
             },
         );
@@ -581,7 +561,7 @@ mod tests {
             "33333333-3333-3333-3333-333333333333".into(),
             Friend {
                 handle: "carol".into(),
-                root: Some(root_hex(&[7; 32])),
+                root: Some(hex(&[7; 32])),
                 verified: false,
             },
         );

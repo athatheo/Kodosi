@@ -423,10 +423,7 @@ async fn download(
         }
     }
     file.flush().await.map_err(|_| no_engine())?;
-    let found = digest
-        .finalize()
-        .iter()
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"));
+    let found = crate::hex::hex(&digest.finalize());
     (found == engine.sha256).ok_or_else(no_engine)
 }
 

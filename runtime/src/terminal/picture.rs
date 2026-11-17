@@ -1,10 +1,8 @@
-use std::fmt::Write as _;
-
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
-use crate::{Error, Result};
+use crate::{Error, Result, hex::hex};
 
 pub const TERMINAL_PICTURE_MAX_BYTES: usize = 32 * 1024 * 1024;
 
@@ -90,27 +88,6 @@ impl Picture {
 #[cfg(feature = "host")]
 pub(crate) fn name(digest: &[u8; 32], format: PictureFormat) -> String {
     format!("picture-{}.{}", hex(&digest[..8]), format.extension())
-}
-
-#[cfg(feature = "host")]
-pub(crate) fn picture_digest(text: &str) -> Option<[u8; 32]> {
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    let mut digest = [0; 32];
-    for (byte, pair) in digest.iter_mut().zip(text.as_bytes().as_chunks::<2>().0) {
-        *byte = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
-    }
-    Some(digest)
-}
-
-pub(crate) fn hex(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .fold(String::with_capacity(bytes.len() * 2), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        })
 }
 
 /// A pasted path has no spaces, so on Unix the pictures are in the host's short private folder.

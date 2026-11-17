@@ -11,6 +11,7 @@ use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use crate::{
+    hex::hex,
     identity::{
         keys::{
             AGREEMENT_BYTES, DeviceKeys, PROJECT_KEM_PUBLIC_BYTES, PROJECT_PUBLIC_BYTES,
@@ -472,14 +473,5 @@ fn open(key: &[u8], context: &[u8], sealed: &Sealed) -> Result<Zeroizing<Vec<u8>
 }
 
 fn digest(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    Sha256::digest(bytes)
-        .iter()
-        .flat_map(|byte| {
-            [
-                char::from(HEX[usize::from(byte >> 4)]),
-                char::from(HEX[usize::from(byte & 15)]),
-            ]
-        })
-        .collect()
+    hex(&Sha256::digest(bytes))
 }

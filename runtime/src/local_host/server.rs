@@ -20,17 +20,13 @@ impl Drop for LocalServer {
 }
 
 pub(super) fn root_identity(root: &Path) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let hash = aws_lc_rs::digest::digest(
-        &aws_lc_rs::digest::SHA256,
-        root.as_os_str().as_encoded_bytes(),
-    );
-    let mut value = String::with_capacity(hash.as_ref().len() * 2);
-    for byte in hash.as_ref() {
-        value.push(char::from(HEX[usize::from(byte >> 4)]));
-        value.push(char::from(HEX[usize::from(byte & 0xf)]));
-    }
-    value
+    crate::hex::hex(
+        aws_lc_rs::digest::digest(
+            &aws_lc_rs::digest::SHA256,
+            root.as_os_str().as_encoded_bytes(),
+        )
+        .as_ref(),
+    )
 }
 pub(super) fn endpoint(root: &Path) -> Result<kodosi_os::ipc::Endpoint> {
     role_endpoint(root, "host")

@@ -28,8 +28,6 @@ pub(crate) const NO_AGENT: &str = "No agent in this terminal reports its state, 
 
 pub use context::{ContextPlace, PlaceKind, TerminalContext};
 #[cfg(feature = "host")]
-pub(crate) use picture::picture_digest;
-#[cfg(feature = "host")]
 pub(crate) use picture::pictures_root;
 pub use picture::{Picture, PictureFormat, TERMINAL_PICTURE_MAX_BYTES};
 pub(crate) use remote::RemoteTerminal;
