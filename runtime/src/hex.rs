@@ -8,15 +8,24 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
     text
 }
 
-pub(crate) fn hash_from_hex(text: &str) -> Option<[u8; 32]> {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    hex(aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, bytes).as_ref())
+}
+
+pub(crate) fn from_hex(text: &str) -> Option<Vec<u8>> {
     let (pairs, []) = text.as_bytes().as_chunks::<2>() else {
         return None;
     };
-    let pairs: &[[u8; 2]; 32] = pairs.try_into().ok()?;
-    let mut hash = [0; 32];
-    for (byte, [high, low]) in hash.iter_mut().zip(pairs) {
-        let digit = |digit: u8| char::from(digit).to_digit(16);
-        *byte = u8::try_from(digit(*high)? << 4 | digit(*low)?).ok()?;
+    let digit = |digit: u8| char::from(digit).to_digit(16);
+    pairs
+        .iter()
+        .map(|[high, low]| u8::try_from(digit(*high)? << 4 | digit(*low)?).ok())
+        .collect()
+}
+
+pub(crate) fn hash_from_hex(text: &str) -> Option<[u8; 32]> {
+    if text.len() != 64 {
+        return None;
     }
-    Some(hash)
+    from_hex(text)?.try_into().ok()
 }

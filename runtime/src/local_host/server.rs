@@ -20,13 +20,7 @@ impl Drop for LocalServer {
 }
 
 pub(super) fn root_identity(root: &Path) -> String {
-    crate::hex::hex(
-        aws_lc_rs::digest::digest(
-            &aws_lc_rs::digest::SHA256,
-            root.as_os_str().as_encoded_bytes(),
-        )
-        .as_ref(),
-    )
+    crate::hex::sha256_hex(root.as_os_str().as_encoded_bytes())
 }
 pub(super) fn endpoint(root: &Path) -> Result<kodosi_os::ipc::Endpoint> {
     role_endpoint(root, "host")

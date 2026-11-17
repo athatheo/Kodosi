@@ -144,6 +144,7 @@ pub(crate) fn terminal_close_preimage(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hex::from_hex;
     use aws_lc_rs::signature::{
         KeyPair as _, ML_DSA_65, ML_DSA_65_SIGNING, VerificationAlgorithm as _,
     };
@@ -179,10 +180,10 @@ mod tests {
             &text("userId"),
             &text("deviceId"),
             &Uuid::parse_str(&text("challengeId")).unwrap(),
-            &hex(&text("challengeHex")),
+            &from_hex(&text("challengeHex")).unwrap(),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     #[test]
@@ -200,7 +201,7 @@ mod tests {
             &text("deviceId"),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     #[test]
@@ -216,7 +217,7 @@ mod tests {
             &text("deviceId"),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     fn vector(name: &str) -> serde_json::Value {
@@ -225,15 +226,5 @@ mod tests {
         let manifest: serde_json::Value =
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         manifest["deviceProofPreimageVectors"][name].clone()
-    }
-
-    fn hex(value: &str) -> Vec<u8> {
-        value
-            .as_bytes()
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
-            .collect()
     }
 }

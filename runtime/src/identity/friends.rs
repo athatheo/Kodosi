@@ -3,10 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use aws_lc_rs::{
-    digest::{SHA256, digest},
-    signature::{ML_DSA_65, PqdsaKeyPair, VerificationAlgorithm},
-};
+use aws_lc_rs::signature::{ML_DSA_65, PqdsaKeyPair, VerificationAlgorithm};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +13,7 @@ use super::{
     wire_codec::ML_DSA_65_SIGNATURE_LEN,
 };
 use crate::{
-    hex::{hash_from_hex, hex},
+    hex::{hash_from_hex, hex, sha256_hex},
     network::{Error, Result, crypto, invalid, untrusted},
 };
 use kodosi_os::fs::write_private;
@@ -110,7 +107,7 @@ impl FriendList {
         let signature = crypto::sign(key, &signed(&body))?;
         let head = Head {
             revision: self.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         Ok((
             SignedFriendList {
@@ -126,7 +123,7 @@ impl FriendList {
         let list = Self::parse(&body, user_id)?;
         let head = Head {
             revision: list.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         Ok((list, head))
     }
@@ -160,10 +157,6 @@ impl FriendList {
 
 fn signed(body: &[u8]) -> Vec<u8> {
     [FRIEND_LIST_V1, body].concat()
-}
-
-fn body_digest(body: &[u8]) -> String {
-    hex(digest(&SHA256, body).as_ref())
 }
 
 pub(crate) fn broken() -> Error {
@@ -236,7 +229,7 @@ impl<'a> Chain<'a> {
         let list = FriendList::parse(&body, self.user_id)?;
         let next = Head {
             revision: list.revision,
-            digest: Some(body_digest(&body)),
+            digest: Some(sha256_hex(&body)),
         };
         match &self.head {
             Some(head) if *head == next => return Ok(()),

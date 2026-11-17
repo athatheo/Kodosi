@@ -1,9 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aws_lc_rs::{
-    aead, agreement,
-    digest::SHA256,
-    hkdf, kem, rand,
+    aead, agreement, hkdf, kem, rand,
     signature::{ML_DSA_65, VerificationAlgorithm as _},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -12,7 +10,7 @@ use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use crate::{
-    hex::hex,
+    hex::sha256_hex,
     identity::{
         keys::{
             AGREEMENT_BYTES, DeviceKeys, PROJECT_KEM_PUBLIC_BYTES, PROJECT_PUBLIC_BYTES,
@@ -249,7 +247,7 @@ pub(crate) fn verify_state(
         }
     }
     Ok(VerifiedState {
-        hash: digest(&bytes),
+        hash: sha256_hex(&bytes),
         state,
         identities,
     })
@@ -471,8 +469,4 @@ fn open(key: &[u8], context: &[u8], sealed: &Sealed) -> Result<Zeroizing<Vec<u8>
         decode(&sealed.ciphertext, 256 * 1024)?,
     )
     .ok_or_else(|| invalid("Project content could not be authenticated."))
-}
-
-fn digest(bytes: &[u8]) -> String {
-    hex(aws_lc_rs::digest::digest(&SHA256, bytes).as_ref())
 }
