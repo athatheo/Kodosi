@@ -297,6 +297,7 @@ class PdfEditor implements Editor, Pictures {
   load(raw: unknown, person: Person, sent: Sent): void {
     if (this.outbox.loaded(sent)) this.status.kept("");
     this.snapshot = raw as Snapshot;
+    for (const change of this.outbox.unanswered()) this.showChange(change);
     this.canEdit = person.canEdit;
     this.showBar();
     this.opened = this.openFile();

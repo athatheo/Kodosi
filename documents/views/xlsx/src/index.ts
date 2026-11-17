@@ -411,6 +411,10 @@ class XlsxEditor implements Editor, Pictures {
       this.sendPlace();
       this.client.pull();
     });
+    for (const change of this.outbox.unanswered()) {
+      this.show(change, true);
+      this.moveLinks(change);
+    }
     if (!person.canEdit) {
       made.univerAPI.getActiveWorkbook()?.setEditable(false);
     }
@@ -574,11 +578,13 @@ class XlsxEditor implements Editor, Pictures {
     this.remote = false;
   }
 
-  private showCells(sheet: string, cells: CellChange[]): void {
+  private showCells(sheet: string, cells: CellChange[], own: boolean): void {
     const cellValue: Record<number, Record<number, UniverCell>> = {};
     const unanswered = this.outbox.unanswered();
     for (const cell of cells) {
-      if (unanswered.some((change) => covers(change, sheet, cell.row, cell.column))) continue;
+      if (!own && unanswered.some((change) => covers(change, sheet, cell.row, cell.column))) {
+        continue;
+      }
       const shown: UniverCell = {};
       if (cell.value === null) Object.assign(shown, { v: null, t: null });
       else if (cell.value !== undefined) Object.assign(shown, cellOf({ value: cell.value }));
@@ -603,8 +609,14 @@ class XlsxEditor implements Editor, Pictures {
    * lines as that command names them, so this side rewrites its formulas and merges, and the
    * person's undo steps go.
    */
-  private showLines(kind: "rows" | "columns", sheet: string, at: number, count: number): void {
-    this.outbox.move((change) => moveChange(change, sheet, kind, at, count));
+  private showLines(
+    kind: "rows" | "columns",
+    sheet: string,
+    at: number,
+    count: number,
+    own: boolean,
+  ): void {
+    if (!own) this.outbox.move((change) => moveChange(change, sheet, kind, at, count));
     const worksheet = this.univer?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheet);
     const last = at + Math.abs(count) - 1;
     const range =
@@ -660,15 +672,16 @@ class XlsxEditor implements Editor, Pictures {
     }
   }
 
-  private show(change: Change): void {
+  /** A change of the person's own that waits shows again on a snapshot, over what it covers. */
+  private show(change: Change, own = false): void {
     const unit = { unitId: WORKBOOK };
     switch (change.kind) {
       case "cells":
-        this.showCells(change.sheet, change.cells);
+        this.showCells(change.sheet, change.cells, own);
         break;
       case "rows":
       case "columns":
-        this.showLines(change.kind, change.sheet, change.at, change.count);
+        this.showLines(change.kind, change.sheet, change.at, change.count, own);
         break;
       case "renameSheet":
         this.run([
@@ -735,7 +748,7 @@ class XlsxEditor implements Editor, Pictures {
         ]);
         break;
       case "group":
-        for (const inner of change.changes) this.show(inner);
+        for (const inner of change.changes) this.show(inner, own);
         break;
     }
   }
