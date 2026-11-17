@@ -671,3 +671,32 @@ fn a_link_on_a_run_or_a_shape_says_where_a_click_goes_and_a_save_keeps_it() {
     assert_eq!(shapes[1]["link"], json!({ "slide": "257" }));
     assert_eq!(saved(&model, &file), file);
 }
+
+#[test]
+fn a_shape_that_a_save_took_away_comes_back_whole_and_can_again() {
+    let file = deck();
+    let mut model = read(&file);
+    let title = Pptx::snapshot(&model).0["slides"][0]["shapes"][0].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "2".to_owned(),
+        }],
+    );
+    let without = saved(&model, &file);
+    assert!(!part(&without, "ppt/slides/slide1.xml").contains("<p:ph"));
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: title,
+    };
+    Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
+    let with = saved(&model, &without);
+    let xml = part(&with, "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<p:ph type="title"/>"#));
+    assert!(xml.contains("<a:t>First</a:t>"));
+    let again = Pptx::snapshot(&read(&with)).0;
+    let returned = &again["slides"][0]["shapes"][1];
+    assert_eq!(returned["placeholder"], "title:0");
+    assert!(returned["source"].is_string());
+}

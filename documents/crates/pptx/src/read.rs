@@ -436,7 +436,29 @@ impl<'input> Reader<'_, '_, 'input> {
             text,
             look,
             order,
+            source: self.whole(element),
         }))
+    }
+
+    /// The piece of a shape, which also declares the namespaces that it takes from its slide, so
+    /// that it reads alone and goes back into any slide.
+    fn whole(&mut self, element: Xml<'_, 'input>) -> Option<String> {
+        let piece = self.xml_of(element);
+        let own = own_namespaces(piece);
+        let declarations: String = element
+            .namespaces()
+            .filter(|namespace| namespace.name() != Some("xml"))
+            .filter_map(|namespace| {
+                let attribute = namespace
+                    .name()
+                    .map_or_else(|| "xmlns".to_owned(), |name| format!("xmlns:{name}"));
+                (!own.contains(&attribute.as_str()))
+                    .then(|| format!(r#" {attribute}="{}""#, package::escape(namespace.uri())))
+            })
+            .collect();
+        let name_end = name_end(piece)?;
+        let whole = format!("{}{declarations}{}", &piece[..name_end], &piece[name_end..]);
+        Document::parse(&whole).is_ok().then(|| self.keep(&whole))
     }
 
     /// The run or shape keeps its click in its own XML, so a save keeps it.
@@ -483,6 +505,45 @@ impl<'input> Reader<'_, '_, 'input> {
             }
         }
         Ok(shapes)
+    }
+}
+
+fn name_end(piece: &str) -> Option<usize> {
+    piece.find(|character: char| {
+        character.is_ascii_whitespace() || character == '/' || character == '>'
+    })
+}
+
+/// The namespaces that the start tag of a piece declares itself, as `xmlns` or `xmlns:a`.
+fn own_namespaces(piece: &str) -> Vec<&str> {
+    let mut names = Vec::new();
+    let Some(mut rest) = name_end(piece).map(|end| &piece[end..]) else {
+        return names;
+    };
+    loop {
+        rest = rest.trim_start();
+        if rest.starts_with('/') || rest.starts_with('>') {
+            return names;
+        }
+        let Some(equals) = rest.find('=') else {
+            return names;
+        };
+        let name = rest[..equals].trim_end();
+        rest = rest[equals + 1..].trim_start();
+        let Some(quote) = rest
+            .chars()
+            .next()
+            .filter(|quote| matches!(quote, '"' | '\''))
+        else {
+            return names;
+        };
+        let Some(close) = rest[1..].find(quote) else {
+            return names;
+        };
+        if name == "xmlns" || name.starts_with("xmlns:") {
+            names.push(name);
+        }
+        rest = &rest[close + 2..];
     }
 }
 

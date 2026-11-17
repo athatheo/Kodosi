@@ -54,6 +54,9 @@ pub struct Shape {
     pub look: Value,
     /// Where it stands among the shapes: higher is in front.
     pub order: u64,
+    /// The piece of the file that holds the shape, so that a shape that a save took away comes
+    /// back whole. A shape that the file never held has none.
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -200,6 +203,7 @@ impl Shape {
             "text": self.text.as_ref().map(|text| text.to_json(schema())),
             "look": self.look,
             "order": self.order,
+            "source": self.source,
         })
     }
 
@@ -228,6 +232,7 @@ impl Shape {
             text: tree,
             look: json.get("look").cloned().unwrap_or(Value::Null),
             order: json["order"].as_u64().unwrap_or(0),
+            source: text("source"),
         })
     }
 }

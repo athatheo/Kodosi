@@ -58,6 +58,7 @@ interface Shape {
   text: unknown;
   look: TextLook | null;
   order: number;
+  source: string | null;
 }
 
 interface Slide {
@@ -657,6 +658,7 @@ class PptxEditor implements Editor, Pictures {
       look: null,
       link: null,
       order: slide.shapes.length,
+      source: null,
     };
     slide.shapes.push(shape);
     this.addText(slide.id, shape);

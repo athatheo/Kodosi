@@ -329,16 +329,19 @@ fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
     ))
 }
 
+/// `old` is the shape as `xml` holds it. With none, the frame, fill and text all go in anew.
 fn patch_shape(
     out: &Out<'_>,
     xml: &str,
     element: Xml<'_, '_>,
-    old: &Shape,
+    old: Option<&Shape>,
     new: &Shape,
     edits: &mut Vec<(std::ops::Range<usize>, String)>,
 ) -> Result<(), String> {
-    let same_frame = (old.x, old.y, old.width, old.height, old.rotation)
-        == (new.x, new.y, new.width, new.height, new.rotation);
+    let same_frame = old.is_some_and(|old| {
+        (old.x, old.y, old.width, old.height, old.rotation)
+            == (new.x, new.y, new.width, new.height, new.rotation)
+    });
     let properties = local(element, "spPr");
     if !same_frame && let Some(properties) = properties {
         if let Some(transform) = local(properties, "xfrm") {
@@ -353,7 +356,7 @@ fn patch_shape(
             edits.push((range, format!("{tag}>{}</p:spPr>", frame_xml(new))));
         }
     }
-    if old.fill != new.fill
+    if old.is_none_or(|old| old.fill != new.fill)
         && let Some(properties) = properties
         && let Some(color) = &new.fill
     {
@@ -370,7 +373,7 @@ fn patch_shape(
             edits.push((at..at, fill_xml(color)));
         }
     }
-    if old.text != new.text
+    if old.is_none_or(|old| old.text != new.text)
         && let (Some(body), Some(tree)) = (local(element, "txBody"), &new.text)
     {
         let paragraphs: Vec<Xml<'_, '_>> = body
@@ -412,7 +415,7 @@ fn patch_slide(
         };
         match slide.shapes.iter().find(|shape| shape.id == old.id) {
             Some(new) if new == old => {}
-            Some(new) => patch_shape(out, xml, *element, old, new, &mut edits)?,
+            Some(new) => patch_shape(out, xml, *element, Some(old), new, &mut edits)?,
             None => edits.push((element.range(), String::new())),
         }
     }
@@ -422,12 +425,16 @@ fn patch_slide(
             .ok_or("the shapes are broken")?;
     for shape in &slide.shapes {
         if !elements.contains_key(&shape.id) {
-            edits.push((end..end, new_shape_xml(out, shape)?));
+            edits.push((end..end, shape_xml(out, shape)?));
         }
     }
     if edits.is_empty() {
         return Ok(None);
     }
+    Ok(Some(with_edits(xml, edits)))
+}
+
+fn with_edits(xml: &str, mut edits: Vec<(std::ops::Range<usize>, String)>) -> String {
     edits.sort_by_key(|(range, _)| (range.start, range.end));
     let mut new_xml = String::with_capacity(xml.len());
     let mut at = 0;
@@ -437,13 +444,26 @@ fn patch_slide(
         at = range.end;
     }
     new_xml.push_str(&xml[at..]);
-    Ok(Some(new_xml))
+    new_xml
+}
+
+/// A shape that the file held goes back as its piece holds it, with the frame, fill and text
+/// that it has now.
+fn shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
+    let Some(source) = &shape.source else {
+        return new_shape_xml(out, shape);
+    };
+    let piece = out.raw(source)?;
+    let parsed = Document::parse(piece).map_err(|error| error.to_string())?;
+    let mut edits = Vec::new();
+    patch_shape(out, piece, parsed.root_element(), None, shape, &mut edits)?;
+    Ok(with_edits(piece, edits))
 }
 
 fn new_slide_xml(out: &Out<'_>, slide: &Slide) -> Result<String, String> {
     let mut shapes = String::new();
     for shape in &slide.shapes {
-        shapes.push_str(&new_shape_xml(out, shape)?);
+        shapes.push_str(&shape_xml(out, shape)?);
     }
     Ok(format!(
         concat!(

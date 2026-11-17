@@ -470,6 +470,7 @@ pub(crate) fn to_changes(model: &Model, ops: &[Op]) -> Result<Vec<Change>, Strin
                     text: Some(plain_tree(text)?),
                     look: Value::Null,
                     order: order as u64,
+                    source: None,
                 };
                 changes.push(Change::AddShape {
                     slide: slide.clone(),
