@@ -568,11 +568,11 @@ impl Runtime {
         tokio::spawn(async move {
             let mut sequence = 0_u64;
             'frames: loop {
-                let frame = tokio::select! {
-                    () = lifetime.cancelled() => None,
-                    frame = receiver.recv() => frame,
-                };
-                let Some(frame) = frame else {
+                let Some(frame) = lifetime
+                    .run_until_cancelled(receiver.recv())
+                    .await
+                    .flatten()
+                else {
                     break;
                 };
                 let parts = frame.len().div_ceil(crate::canvas::PART_BYTES);

@@ -171,7 +171,7 @@ pub(crate) fn spawn_host(
     credentials: Credentials,
 ) {
     tokio::spawn(async move {
-        let _completion = publication.drained.clone().drop_guard();
+        let _completion = publication.drained.drop_guard_ref();
         let generation = credentials.generation;
         let Some(mut output) = publication.output.lock().await.take() else {
             return;

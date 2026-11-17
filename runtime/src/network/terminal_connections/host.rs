@@ -100,7 +100,7 @@ pub(super) async fn run(
     );
     let viewers = Viewers::default();
     let stop = credentials.cancel.child_token();
-    let _stop = stop.clone().drop_guard();
+    let _stop = stop.drop_guard_ref();
     let mut tasks = JoinSet::new();
     let mut trust = tokio::time::interval(TRUST_CHECK);
     trust.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -402,10 +402,19 @@ async fn viewer(
     cancel: CancellationToken,
 ) {
     let channel = pipe.id();
-    let result = tokio::select! {
-        () = cancel.cancelled() => Ok(()),
-        result = connect(&network, &publication, &credentials, output, pipe, (user, device), &viewers, &cancel) => result,
-    };
+    let result = cancel
+        .run_until_cancelled(connect(
+            &network,
+            &publication,
+            &credentials,
+            output,
+            pipe,
+            (user, device),
+            &viewers,
+            &cancel,
+        ))
+        .await
+        .unwrap_or(Ok(()));
     let admitted = viewers
         .lock()
         .ok()
@@ -1195,12 +1204,15 @@ impl<'a, T: Transport> Stream<'a, T> {
                 let response = self.submit(control).await?;
                 let authorization = self.controller.authorization.clone();
                 self.controls.push(Box::pin(async move {
-                    let result = tokio::select! {
-                        () = authorization.cancelled() => Err(text!("This terminal connection is no longer authorized.")),
-                        result = tokio::time::timeout(CONTROL_TIMEOUT, response) => match result {
-                            Ok(Ok(result)) => result,
-                            _ => Err(text!("The terminal did not confirm the operation, and Kodosi did not send it again.")),
-                        },
+                    let confirmed = authorization
+                        .run_until_cancelled(tokio::time::timeout(CONTROL_TIMEOUT, response))
+                        .await;
+                    let result = match confirmed {
+                        None => Err(text!("This terminal connection is no longer authorized.")),
+                        Some(Ok(Ok(result))) => result,
+                        Some(_) => Err(text!(
+                            "The terminal did not confirm the operation, and Kodosi did not send it again."
+                        )),
                     };
                     match result {
                         Ok(value) if answers && wire::answer_fits(&value) => {

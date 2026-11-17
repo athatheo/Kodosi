@@ -99,7 +99,7 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
 tokio-tungstenite = { workspace = true }
-tokio-util = { workspace = true, features = ["rt"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 unicode-properties = { version = "0.1.5", default-features = false, features = ["general-category"] }
 uuid = { workspace = true }
