@@ -108,9 +108,7 @@ export class Client {
     switch (message.type) {
       case "joined": {
         const sent = this.sentOf(message.seq);
-        this.waitingSeq = null;
         this.epoch = message.epoch;
-        this.lastSeq = message.seq ?? 0;
         this.peers.clear();
         for (const peer of message.peers) this.peers.set(peer.id, peer);
         try {
@@ -121,23 +119,37 @@ export class Client {
           } else {
             for (const changed of message.catchup.changes) this.applied(changed);
           }
-          editor?.peers([...this.peers.values()]);
-        } finally {
-          this.refused = false;
-          this.joining = false;
+        } catch (error) {
+          this.outOfStep();
           this.joined();
-          this.pull();
+          throw error;
         }
+        this.waitingSeq = null;
+        this.lastSeq = message.seq ?? 0;
+        this.refused = false;
+        this.joining = false;
+        this.joined();
+        this.pull();
+        editor?.peers([...this.peers.values()]);
         break;
       }
       case "changed":
-        this.applied(message);
+        if (this.joining) break;
+        try {
+          this.applied(message);
+        } catch (error) {
+          this.reload();
+          throw error;
+        }
         this.pull();
         break;
       case "refused":
         this.waitingSeq = null;
-        if (message.reason === "invalid") this.reload();
-        else this.pull();
+        if (message.reason === "invalid") {
+          // The document holds what this copy does not, so this copy went wrong.
+          this.refused = true;
+          this.reload();
+        } else this.pull();
         break;
       case "saved":
         editor?.saved(message.rev, message.waits);
@@ -158,12 +170,13 @@ export class Client {
     }
   }
 
+  /** Only a batch that the view took the answer to is done; else it could go again. */
   private applied(changed: Changed): void {
     const own = changed.client === this.id;
     this.rev = changed.rev;
+    this.editor?.apply(changed, own);
     if (own && changed.seq === this.waitingSeq) this.waitingSeq = null;
     if (own) this.lastSeq = Math.max(this.lastSeq, changed.seq);
-    this.editor?.apply(changed, own);
   }
 
   /**
@@ -180,12 +193,20 @@ export class Client {
     return seq === waiting - 1 ? "lost" : "unknown";
   }
 
-  /** A batch that the document calls invalid means that this copy went wrong: load again. */
-  private reload(): void {
-    this.rev = 0;
-    this.epoch = 0;
-    this.refused = true;
+  /**
+   * A view that failed to take in what the document holds may hold what it would send in the
+   * document already, so it sends nothing until a join loads a snapshot again. That join says
+   * again what became of the batch on its way.
+   */
+  private outOfStep(): void {
     this.joining = true;
+    this.epoch = 0;
+    this.rev = 0;
+  }
+
+  /** The document drops a pipe that joins twice, and the next pipe loads a snapshot. */
+  private reload(): void {
+    this.outOfStep();
     this.send({
       type: "join",
       contract: CONTRACT,

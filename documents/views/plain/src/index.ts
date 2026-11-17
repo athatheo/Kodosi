@@ -33,6 +33,8 @@ interface Snapshot {
 class PlainEditor implements ViewEditor, Pictures {
   private readonly client: Client;
   private view: EditorView | undefined;
+  /** The state of a view that a failed load took away, with the steps that still wait. */
+  private unloaded: EditorState | undefined;
   private readonly bar: Bar;
   private readonly status: Status;
   private readonly zoom: Zoom;
@@ -72,8 +74,10 @@ class PlainEditor implements ViewEditor, Pictures {
 
   load(raw: unknown, person: Person, sent: Sent): void {
     const snapshot = raw as Snapshot;
-    const before = this.view?.state;
+    const before = this.view?.state ?? this.unloaded;
+    this.unloaded = before;
     this.view?.destroy();
+    this.view = undefined;
     this.canEdit = person.canEdit;
     const doc = ProseNode.fromJSON(schema, snapshot.doc);
     const indent = indentOf(doc);
@@ -117,6 +121,7 @@ class PlainEditor implements ViewEditor, Pictures {
     this.numberLines();
     this.showBar();
     const carried = this.waiting.loaded(doc, before, sent);
+    this.unloaded = undefined;
     if (carried.steps.length > 0) {
       const transaction = this.view.state.tr.setMeta("addToHistory", false);
       for (const step of carried.steps) transaction.maybeStep(step);

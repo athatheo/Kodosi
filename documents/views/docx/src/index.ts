@@ -18,7 +18,7 @@ import { Editor, Extension } from "@tiptap/core";
 import { history, redo, undo } from "@tiptap/pm/history";
 import { keymap } from "@tiptap/pm/keymap";
 import type { Node as ProseNode } from "@tiptap/pm/model";
-import { Plugin } from "@tiptap/pm/state";
+import { type EditorState, Plugin } from "@tiptap/pm/state";
 import { Step } from "@tiptap/pm/transform";
 import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
 import { DocxBar } from "./bar";
@@ -85,6 +85,8 @@ class DocxEditor implements ViewEditor, Pictures {
   private readonly root: HTMLElement;
   private readonly client: Client;
   private editor: Editor | undefined;
+  /** The state of an editor that a failed load took away, with the steps that still wait. */
+  private unloaded: EditorState | undefined;
   private readonly bar: DocxBar;
   private readonly status: Status;
   private readonly page = document.createElement("div");
@@ -156,8 +158,10 @@ class DocxEditor implements ViewEditor, Pictures {
 
   load(raw: unknown, person: Person, sent: Sent): void {
     const snapshot = raw as Snapshot;
-    const before = this.editor?.state;
+    const before = this.editor?.state ?? this.unloaded;
+    this.unloaded = before;
     this.editor?.destroy();
+    this.editor = undefined;
     this.view = snapshot.view;
     this.look.textContent = styleSheet(snapshot.view);
     const client = this.client;
@@ -208,6 +212,7 @@ class DocxEditor implements ViewEditor, Pictures {
     this.sizing.observe(this.editor.view.dom);
     this.zoom.refit();
     const carried = this.waiting.loaded(this.editor.state.doc, before, sent);
+    this.unloaded = undefined;
     if (carried.steps.length > 0) {
       const transaction = this.editor.state.tr.setMeta("addToHistory", false);
       for (const step of carried.steps) transaction.maybeStep(step);

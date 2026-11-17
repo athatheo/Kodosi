@@ -1,5 +1,5 @@
 import { expect, spyOn, test } from "bun:test";
-import type { ToClient, ToDocument } from "@documents/contract";
+import type { Changed, ToClient, ToDocument } from "@documents/contract";
 import { Client, type Editor, type Pipe, type Sent } from "./client";
 import { batchOf, Outbox } from "./outbox";
 
@@ -50,14 +50,19 @@ class TestEditor implements Editor {
 
 class OutboxEditor implements Editor {
   readonly outbox = new Outbox<string>();
+  readonly others: unknown[] = [];
   dropped = false;
+  breaks = false;
 
   load(_snapshot: unknown, _person: unknown, sent: Sent): void {
+    if (this.breaks) throw new Error("The view broke.");
     this.dropped = this.outbox.loaded(sent) || this.dropped;
   }
 
-  apply(_changed: unknown, own: boolean): void {
+  apply(changed: Changed, own: boolean): void {
+    if (this.breaks) throw new Error("The view broke.");
     if (own) this.outbox.answered();
+    else this.others.push(changed.body);
   }
 
   batch(): unknown | null {
@@ -88,6 +93,21 @@ function kinds(pipe: TestPipe): string[] {
   return pipe.sent.map((message) => message.type);
 }
 
+function bodies(pipe: TestPipe): unknown[] {
+  return pipe.sent.map((message) => (message.type === "change" ? message.body : message.type));
+}
+
+async function quietly(run: () => Promise<void>): Promise<number> {
+  const logged = spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await run();
+    await settled();
+    return logged.mock.calls.length;
+  } finally {
+    logged.mockRestore();
+  }
+}
+
 test("an edit made while the client joins goes once the document took it in", async () => {
   const editor = new TestEditor();
   const client = new Client();
@@ -104,27 +124,82 @@ test("an edit made while the client joins goes once the document took it in", as
   expect(pipe.sent[1]).toMatchObject({ seq: 1, base: 3 });
 });
 
-test("a view that fails to load still joins, and its edits go", async () => {
-  const editor = new TestEditor();
-  editor.load = () => {
-    throw new Error("The view broke.");
-  };
+test("a view that fails to load shows but sends nothing until a join loads it again", async () => {
+  const editor = new OutboxEditor();
   let joins = 0;
   const client = new Client(() => joins++);
   client.use(editor);
   const pipe = new TestPipe();
   client.attach(pipe);
-  editor.edits = 1;
-  const logged = spyOn(console, "error").mockImplementation(() => {});
-  try {
-    await pipe.deliver(joined(3));
-    await settled();
-    expect(logged).toHaveBeenCalledTimes(1);
-  } finally {
-    logged.mockRestore();
-  }
-  expect(joins).toBe(1);
-  expect(kinds(pipe)).toEqual(["join", "change"]);
+  await pipe.deliver(joined(0));
+  editor.outbox.add("taken");
+  client.pull();
+  await settled();
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  editor.breaks = true;
+  const errors = await quietly(async () => {
+    await again.deliver(joined(1, 1, 8));
+    await again.deliver({
+      type: "changed",
+      rev: 2,
+      author: "Ben",
+      client: "ben",
+      seq: 1,
+      body: "b",
+    });
+    editor.outbox.add("later");
+    client.pull();
+  });
+  expect(errors).toBe(1);
+  expect(joins).toBe(2);
+  expect(bodies(again)).toEqual(["join"]);
+  expect(editor.others).toEqual([]);
+  editor.breaks = false;
+  client.detach();
+  const third = new TestPipe();
+  client.attach(third);
+  await settled();
+  expect(third.sent[0]).toMatchObject({ type: "join", epoch: 0, rev: 0 });
+  await third.deliver(joined(2, 1, 8));
+  await settled();
+  expect(bodies(third)).toEqual(["join", "later"]);
+  expect(third.sent[1]).toMatchObject({ seq: 2 });
+});
+
+test("an answer that the view fails to take keeps its batch from going again", async () => {
+  const editor = new OutboxEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await pipe.deliver(joined(0));
+  editor.outbox.add("taken");
+  client.pull();
+  await settled();
+  const id = (pipe.sent[0] as { client: string }).client;
+  editor.breaks = true;
+  await quietly(async () => {
+    await pipe.deliver({
+      type: "changed",
+      rev: 1,
+      author: "Ana",
+      client: id,
+      seq: 1,
+      body: "taken",
+    });
+    editor.outbox.add("later");
+    client.pull();
+  });
+  expect(bodies(pipe)).toEqual(["join", "taken", "join"]);
+  editor.breaks = false;
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  await again.deliver(joined(1, 1, 8));
+  await settled();
+  expect(bodies(again)).toEqual(["join", "later"]);
 });
 
 test("a snapshot after a refused batch says so to the editor", async () => {

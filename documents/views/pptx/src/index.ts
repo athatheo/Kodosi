@@ -162,17 +162,17 @@ class PptxEditor implements Editor, Pictures {
   }
 
   load(raw: unknown, person: Person, sent: Sent): void {
-    this.closeText();
     const deck = raw as Snapshot;
+    const dropped = this.outbox.loaded(sent);
+    const fitting = new Fitting(deck.slides);
+    this.outbox.move((change) => fitting.fit(change));
+    this.closeText();
     const shown = new Map(
       deck.slides.flatMap((slide) =>
         slide.shapes.map((shape) => [textKey(slide.id, shape.id), shape.text] as const),
       ),
     );
     const unsent = unsentText(this.texts, (key) => shown.get(key));
-    const dropped = this.outbox.loaded(sent);
-    const fitting = new Fitting(deck.slides);
-    this.outbox.move((change) => fitting.fit(change));
     this.undoes.length = 0;
     this.deck = deck;
     this.canEdit = person.canEdit;
