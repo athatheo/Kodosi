@@ -1,19 +1,31 @@
 //! A document can come from anyone, so reading limits the entries, the unpacked size and the
 //! compression ratio, and it checks each entry name. It refuses a package that another program
-//! could read as other parts: one with data before it, or with two entries of one name. Writing
-//! copies each part that did not change byte for byte.
+//! could read as other parts: one with data before it or entries hidden in it, one whose local
+//! headers disagree with its central directory, one that gives an entry a second name, or one
+//! with two entries whose names differ at most in case. Writing copies each part that did not
+//! change byte for byte.
 
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     io::{Cursor, Read as _, Write as _},
 };
 
-use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
+use zip::{CompressionMethod, ExtraField, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 const MOST_ENTRIES: usize = 16 * 1024;
 const MOST_UNPACKED: u64 = 512 * 1024 * 1024;
 const MOST_RATIO: u64 = 1000;
 const RATIO_FROM: u64 = 1024 * 1024;
+
+const TIME_IN_LOCAL_HEADER: usize = 10;
+const NAME_LENGTH_IN_LOCAL_HEADER: usize = 26;
+const EXTRA_LENGTH_IN_LOCAL_HEADER: usize = 28;
+const NAME_IN_LOCAL_HEADER: usize = 30;
+const TIME_IN_CENTRAL_HEADER: usize = 12;
+const TIME_BYTES: usize = 4;
+const EXTRA_FIELD_HEADER_BYTES: usize = 4;
+const EXTENDED_TIMESTAMP: u16 = 0x5455;
+const UNREAD_EXTRA_FIELD: u16 = 0xffff;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PackageError {
@@ -35,6 +47,42 @@ fn safe_name(name: &str) -> bool {
         && name.split('/').all(|part| part != "..")
 }
 
+fn u16_at(file: &[u8], at: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(file.get(at..at + 2)?.try_into().ok()?))
+}
+
+/// Word and `SharePoint` give a local header another time than its entry in the central directory,
+/// and Hancell writes local extended timestamps that zip cannot read. A time names no part and
+/// changes no bytes, so zip compares the headers of a copy in which each local header has the
+/// central directory's time and no extended timestamp.
+fn without_local_time(file: &[u8], local: usize, central: usize, copy: &mut Option<Vec<u8>>) {
+    let time = local + TIME_IN_LOCAL_HEADER..local + TIME_IN_LOCAL_HEADER + TIME_BYTES;
+    let central_time =
+        central + TIME_IN_CENTRAL_HEADER..central + TIME_IN_CENTRAL_HEADER + TIME_BYTES;
+    if let (Some(local_time), Some(central_time)) = (file.get(time.clone()), file.get(central_time))
+        && local_time != central_time
+    {
+        copy.get_or_insert_with(|| file.to_vec())[time].copy_from_slice(central_time);
+    }
+    let (Some(name), Some(extra)) = (
+        u16_at(file, local + NAME_LENGTH_IN_LOCAL_HEADER),
+        u16_at(file, local + EXTRA_LENGTH_IN_LOCAL_HEADER),
+    ) else {
+        return;
+    };
+    let mut at = local + NAME_IN_LOCAL_HEADER + usize::from(name);
+    let end = at + usize::from(extra);
+    while at + EXTRA_FIELD_HEADER_BYTES <= end
+        && let (Some(field), Some(length)) = (u16_at(file, at), u16_at(file, at + 2))
+    {
+        if field == EXTENDED_TIMESTAMP {
+            copy.get_or_insert_with(|| file.to_vec())[at..at + 2]
+                .copy_from_slice(&UNREAD_EXTRA_FIELD.to_le_bytes());
+        }
+        at += EXTRA_FIELD_HEADER_BYTES + usize::from(length);
+    }
+}
+
 pub struct Package<'a> {
     archive: ZipArchive<Cursor<&'a [u8]>>,
     names: HashSet<String>,
@@ -43,22 +91,28 @@ pub struct Package<'a> {
 impl<'a> Package<'a> {
     pub fn open(file: &'a [u8]) -> Result<Self, PackageError> {
         let mut archive = ZipArchive::new(Cursor::new(file)).map_err(broken)?;
-        if archive.offset() != 0 {
-            return Err(PackageError::Unsafe("data before the package".to_owned()));
-        }
-        if archive.has_duplicate_names() {
-            return Err(PackageError::Unsafe("two entries with one name".to_owned()));
-        }
         if archive.len() > MOST_ENTRIES {
             return Err(PackageError::Unsafe("too many entries".to_owned()));
         }
+        let mut start = archive.central_directory_start();
+        let mut copy = None;
         let mut unpacked = 0_u64;
         let mut names = HashSet::new();
+        let mut folded = HashSet::new();
         for index in 0..archive.len() {
             let entry = archive.by_index_raw(index).map_err(broken)?;
             let name = entry.name().map_err(broken)?.into_owned();
             if !safe_name(&name) {
                 return Err(PackageError::Unsafe(format!("the entry name {name}")));
+            }
+            if entry
+                .extra_data_fields()
+                .any(|field| matches!(field, ExtraField::UnicodePath(_)))
+            {
+                return Err(PackageError::Unsafe(format!("a second name of {name}")));
+            }
+            if !folded.insert(name.to_ascii_lowercase()) {
+                return Err(PackageError::Unsafe(format!("two entries named {name}")));
             }
             unpacked = unpacked.saturating_add(entry.size());
             if unpacked > MOST_UNPACKED {
@@ -69,8 +123,23 @@ impl<'a> Package<'a> {
             {
                 return Err(PackageError::Unsafe(format!("the ratio of {name}")));
             }
+            start = start.min(entry.header_start());
+            let local = usize::try_from(entry.header_start()).map_err(broken)?;
+            let central = usize::try_from(entry.central_header_start()).map_err(broken)?;
+            without_local_time(file, local, central, &mut copy);
             names.insert(name);
         }
+        if start != 0 {
+            return Err(PackageError::Unsafe("data before the package".to_owned()));
+        }
+        copy.map_or_else(
+            || archive.validate_header_consistency(),
+            |copy| {
+                ZipArchive::new(Cursor::new(copy.as_slice()))
+                    .and_then(|mut copy| copy.validate_header_consistency())
+            },
+        )
+        .map_err(|error| PackageError::Unsafe(error.to_string()))?;
         Ok(Self { archive, names })
     }
 
@@ -309,9 +378,43 @@ mod tests {
     }
 
     fn package_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
-        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        package_after(b"", entries)
+    }
+
+    /// The offsets count the data in front, as `zip -A` makes them.
+    fn package_after(front: &[u8], entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut file = Cursor::new(front.to_vec());
+        file.set_position(u64::try_from(front.len()).unwrap());
+        let mut writer = ZipWriter::new(file);
         let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
         for (name, bytes) in entries {
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        writer.finish().unwrap().into_inner()
+    }
+
+    fn crc32(bytes: &[u8]) -> u32 {
+        !bytes.iter().fold(!0, |crc, &byte| {
+            (0..8).fold(crc ^ u32::from(byte), |crc, _| {
+                (crc >> 1) ^ (0xedb8_8320 & (crc & 1).wrapping_neg())
+            })
+        })
+    }
+
+    /// Readers that take the Info-ZIP Unicode Path read each entry by its second name, and the
+    /// others by its first.
+    fn package_with_second_names(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        for (name, second, bytes) in entries {
+            let field = [
+                &[1][..],
+                &crc32(name.as_bytes()).to_le_bytes(),
+                second.as_bytes(),
+            ]
+            .concat();
+            let mut options = zip::write::FullFileOptions::default();
+            options.add_extra_field(0x7075, field, false).unwrap();
             writer.start_file(*name, options).unwrap();
             writer.write_all(bytes).unwrap();
         }
@@ -333,10 +436,65 @@ mod tests {
                 twice[at] = b'a';
             }
         }
-        let behind = [b"MZ".as_slice(), &file].concat();
-        for file in [twice, behind] {
-            assert!(matches!(Package::open(&file), Err(PackageError::Unsafe(_))));
+        let mut renamed = file.clone();
+        let central = renamed
+            .windows(4)
+            .rposition(|bytes| bytes == b"PK\x01\x02")
+            .unwrap();
+        renamed[central + 46..central + 51].copy_from_slice(b"c.xml");
+        let mut swapped = package_with_second_names(&[
+            ("word/document.xml", "word/documentä.xml", b"<a/>"),
+            ("word/documentä.xml", "word/document.xml", b"<b/>"),
+        ]);
+        // zip refuses a second name of an entry that says its name is UTF-8, so an attack leaves
+        // that flag off.
+        for (header, high_flags) in [(&b"PK\x03\x04"[..], 7), (b"PK\x01\x02", 9)] {
+            let at = swapped
+                .windows(4)
+                .rposition(|bytes| bytes == header)
+                .unwrap();
+            swapped[at + high_flags] &= !0x08;
         }
+        let cased = package_of(&[
+            ("word/document.xml", b"<a/>"),
+            ("word/Document.xml", b"<b/>"),
+        ]);
+        let behind = [b"MZ".as_slice(), &file].concat();
+        let counted = package_after(b"MZ", &[("a.xml", b"<a/>")]);
+        let mut hidden = package_of(&[("a.xml", b"<a/>"), ("c.xml", b"<c/>"), ("b.xml", b"<b/>")]);
+        let end = hidden.len() - 22;
+        hidden[end + 8..end + 12].copy_from_slice(&[2, 0, 2, 0]);
+        for (case, file) in [
+            ("two entries of one name", twice),
+            ("a local header with another name", renamed),
+            ("second names that swap two entries", swapped),
+            ("names that differ in case", cased),
+            ("data in front", behind),
+            ("data in front that the offsets count", counted),
+            ("an entry that the end record does not count", hidden),
+        ] {
+            assert!(
+                matches!(Package::open(&file), Err(PackageError::Unsafe(_))),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_local_header_with_its_own_time_opens() {
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        let mut options = zip::write::FullFileOptions::default();
+        let access_time_flag_with_three_times = [&[2][..], &[0; 12]].concat();
+        options
+            .add_extra_field(EXTENDED_TIMESTAMP, access_time_flag_with_three_times, false)
+            .unwrap();
+        writer.start_file("a.xml", options).unwrap();
+        writer.write_all(b"<a/>").unwrap();
+        let mut file = writer.finish().unwrap().into_inner();
+        file[TIME_IN_LOCAL_HEADER..TIME_IN_LOCAL_HEADER + TIME_BYTES]
+            .copy_from_slice(&[0, 0, 0x22, 0]);
+        let mut package = Package::open(&file).unwrap();
+        assert_eq!(package.bytes("a.xml").unwrap(), b"<a/>");
     }
 
     #[test]
