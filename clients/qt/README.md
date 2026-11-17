@@ -6,7 +6,7 @@ each platform on that platform.
 ## Linux
 
 You need Linux x86-64 (Ubuntu 24.04 recommended) with GCC 14 or later, the pinned Rust
-toolchain, Python 3, `uv`, `just`, a desktop D-Bus session and these libraries:
+toolchain, `uv`, `just`, a desktop D-Bus session and these libraries:
 
 ```sh
 sudo apt-get install build-essential g++-14 git curl unzip zstd pkg-config \
