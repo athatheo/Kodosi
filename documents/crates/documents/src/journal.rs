@@ -55,6 +55,20 @@ fn open_records(folder: &Path) -> io::Result<std::fs::File> {
         .open(folder.join(RECORDS))
 }
 
+/// The meta goes first: a folder without it is no journal, whatever a crash or a failure leaves of
+/// the rest.
+fn discard(folder: &Path) -> io::Result<()> {
+    if let Err(problem) = std::fs::remove_file(folder.join(META))
+        && problem.kind() != io::ErrorKind::NotFound
+    {
+        return Err(problem);
+    }
+    match std::fs::remove_dir_all(folder) {
+        Err(problem) if problem.kind() != io::ErrorKind::NotFound => Err(problem),
+        _ => Ok(()),
+    }
+}
+
 pub(crate) fn write_replacing(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temporary = path.with_extension("new");
     let mut file = std::fs::File::create(&temporary)?;
@@ -72,7 +86,7 @@ impl Journal {
         first_rev: Rev,
         seqs: HashMap<String, Seq>,
     ) -> io::Result<Self> {
-        drop(std::fs::remove_dir_all(folder));
+        discard(folder)?;
         private_folder(folder)?;
         write_replacing(&folder.join(ORIGINAL), file)?;
         let meta = Meta {
@@ -183,7 +197,9 @@ impl Journal {
 
     pub(crate) fn remove(&mut self) {
         self.records = None;
-        drop(std::fs::remove_dir_all(&self.folder));
+        if let Err(problem) = discard(&self.folder) {
+            tracing::warn!(%problem, "a journal did not go away completely");
+        }
     }
 }
 
@@ -243,6 +259,65 @@ mod tests {
         let folder = state.path().join("one");
         drop(Journal::start(&folder, Path::new("/a"), b"", 1, 0, HashMap::new()).unwrap());
         assert!(Journal::find(&folder, Path::new("/b")).is_none());
+    }
+
+    /// On APFS, which lists by a hash of the name, `zk` comes after the records and before the
+    /// rest, and `pc` before them all, so a folder of that name that cannot go stops a removal
+    /// there.
+    #[cfg(unix)]
+    fn stuck(folder: &Path, name: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let stuck = folder.join(name);
+        std::fs::create_dir(&stuck).unwrap();
+        std::fs::write(stuck.join("left"), b"").unwrap();
+        std::fs::set_permissions(&stuck, std::fs::Permissions::from_mode(0o500)).unwrap();
+        stuck
+    }
+
+    #[cfg(unix)]
+    fn loose(stuck: &Path) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(stuck, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_journal_that_goes_only_in_part_is_no_journal() {
+        let state = tempfile::tempdir().unwrap();
+        let folder = state.path().join("one");
+        let path = Path::new("/files/a.docx");
+        let mut journal = Journal::start(&folder, path, b"file", 7, 0, HashMap::new()).unwrap();
+        journal.append(b"change").unwrap();
+        journal.sync().unwrap();
+        let stuck = stuck(&folder, "zk");
+        journal.remove();
+        let found = Journal::find(&folder, path).is_some();
+        loose(&stuck);
+        assert!(!found);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_journal_never_takes_the_records_of_one_that_would_not_go() {
+        let state = tempfile::tempdir().unwrap();
+        let folder = state.path().join("one");
+        let path = Path::new("/files/a.docx");
+        let mut journal = Journal::start(&folder, path, b"file", 7, 0, HashMap::new()).unwrap();
+        journal.append(b"change").unwrap();
+        journal.sync().unwrap();
+        drop(journal);
+        let stuck = stuck(&folder, "pc");
+        drop(Journal::start(
+            &folder,
+            path,
+            b"saved",
+            8,
+            1,
+            HashMap::new(),
+        ));
+        let found = Journal::find(&folder, path);
+        loose(&stuck);
+        assert!(found.is_none_or(|(_, found)| found.records.is_empty()));
     }
 
     #[test]
