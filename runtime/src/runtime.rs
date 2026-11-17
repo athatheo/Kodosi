@@ -1207,11 +1207,7 @@ pub async fn start(config: Config) -> Result<RuntimeHandle> {
     let project_seen = project_seen::ProjectSeen::load(&config.data_root);
     let scope = Scope {
         user: None,
-        epoch: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |since| {
-                u64::try_from(since.as_millis()).unwrap_or_default()
-            }),
+        epoch: crate::identity::now_ms(),
         network_generation: network.generation(),
     };
     let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
