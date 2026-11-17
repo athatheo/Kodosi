@@ -94,7 +94,7 @@ impl Log {
     }
 
     fn line(&self, level: Level, target: &str, body: &str) -> String {
-        let time = time::OffsetDateTime::now_utc()
+        let time = time::UtcDateTime::now()
             .format(&Rfc3339)
             .unwrap_or_default();
         let mut end = body.len().min(MAX_RECORD_BYTES);

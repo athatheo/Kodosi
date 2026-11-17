@@ -215,7 +215,7 @@ pub(super) fn bounded(label: &str, value: usize, maximum: usize) -> Result<usize
 }
 
 pub(super) fn timestamp(value: SystemTime) -> Option<String> {
-    time::OffsetDateTime::from(value)
+    time::UtcDateTime::from(value)
         .format(&time::format_description::well_known::Rfc3339)
         .ok()
 }
