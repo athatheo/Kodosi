@@ -10,9 +10,6 @@ use serde::{Deserialize, Serialize};
 const ORIGINAL: &str = "original";
 const RECORDS: &str = "records";
 const META: &str = "meta.json";
-const TAKEN: &str = "taken.json";
-/// A client that the document took nothing from in this many closes no longer comes back.
-const MOST_QUIET_CLOSES: u32 = 32;
 const CHANGE: u8 = 0;
 const SAVED: u8 = 1;
 const HEADER: usize = 1 + 4;
@@ -26,44 +23,6 @@ struct Meta {
     seqs: HashMap<String, Seq>,
 }
 
-/// What a document keeps of a client after it closed: the last batch that it took, and how many
-/// closes went by since, so that a client that comes back learns what became of the batch that
-/// it sent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct Remembered {
-    seq: Seq,
-    quiet: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Taken {
-    path: PathBuf,
-    clients: HashMap<String, Remembered>,
-}
-
-/// What the document took of each client when it closes, from what it knew when it opened.
-pub(crate) fn remembered(
-    before: &HashMap<String, Remembered>,
-    seqs: HashMap<String, Seq>,
-) -> HashMap<String, Remembered> {
-    seqs.into_iter()
-        .filter_map(|(client, seq)| {
-            let quiet = before
-                .get(&client)
-                .filter(|old| old.seq == seq)
-                .map_or(0, |old| old.quiet + 1);
-            (quiet <= MOST_QUIET_CLOSES).then_some((client, Remembered { seq, quiet }))
-        })
-        .collect()
-}
-
-pub(crate) fn seqs_of(clients: &HashMap<String, Remembered>) -> HashMap<String, Seq> {
-    clients
-        .iter()
-        .map(|(client, remembered)| (client.clone(), remembered.seq))
-        .collect()
-}
-
 pub(crate) struct Found {
     pub original: Vec<u8>,
     pub restored: Restored,
@@ -72,15 +31,14 @@ pub(crate) struct Found {
 }
 
 /// A copy of the file as it was opened, and each change since. It lives in the host's state
-/// folder, only the user can read it, and a clean close deletes it and keeps only what the
-/// document took of each client.
+/// folder, only the user can read it, and a clean close deletes it.
 pub(crate) struct Journal {
     folder: PathBuf,
     records: Option<std::fs::File>,
     bytes: u64,
 }
 
-fn private_folder(folder: &Path) -> io::Result<()> {
+pub(crate) fn private_folder(folder: &Path) -> io::Result<()> {
     std::fs::create_dir_all(folder)?;
     #[cfg(unix)]
     {
@@ -97,7 +55,7 @@ fn open_records(folder: &Path) -> io::Result<std::fs::File> {
         .open(folder.join(RECORDS))
 }
 
-fn write_replacing(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn write_replacing(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temporary = path.with_extension("new");
     let mut file = std::fs::File::create(&temporary)?;
     file.write_all(bytes)?;
@@ -227,56 +185,11 @@ impl Journal {
         self.records = None;
         drop(std::fs::remove_dir_all(&self.folder));
     }
-
-    pub(crate) fn close(&mut self, path: &Path, clients: HashMap<String, Remembered>) {
-        self.remove();
-        if clients.is_empty() {
-            return;
-        }
-        let taken = Taken {
-            path: path.to_owned(),
-            clients,
-        };
-        let kept = private_folder(&self.folder)
-            .and_then(|()| write_replacing(&self.folder.join(TAKEN), &serde_json::to_vec(&taken)?));
-        if let Err(problem) = kept {
-            tracing::warn!(%problem, "what the document took of each client is gone");
-        }
-    }
-
-    /// What a document that closed cleanly took of each client.
-    pub(crate) fn taken(folder: &Path, path: &Path) -> HashMap<String, Remembered> {
-        std::fs::read(folder.join(TAKEN))
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<Taken>(&bytes).ok())
-            .filter(|taken| taken.path == path)
-            .map_or_default(|taken| taken.clients)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_client_that_sends_nothing_for_many_closes_is_forgotten() {
-        let mut clients = HashMap::new();
-        for close in 0..=u64::from(MOST_QUIET_CLOSES) + 1 {
-            let seqs = HashMap::from([("ana".to_owned(), close + 1), ("ben".to_owned(), 1)]);
-            clients = remembered(&clients, seqs);
-            assert_eq!(
-                clients.contains_key("ben"),
-                close <= u64::from(MOST_QUIET_CLOSES)
-            );
-        }
-        assert_eq!(
-            clients.get("ana"),
-            Some(&Remembered {
-                seq: u64::from(MOST_QUIET_CLOSES) + 2,
-                quiet: 0
-            })
-        );
-    }
 
     #[test]
     fn a_journal_comes_back_with_its_changes_and_saves() {

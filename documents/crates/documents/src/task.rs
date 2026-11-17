@@ -18,8 +18,9 @@ use tokio::{
 
 use crate::{
     OpenError,
-    journal::{self, Found, Journal, Remembered},
+    journal::{Found, Journal},
     live::{Live, Opener},
+    memory::{self, Memory, Remembered},
 };
 
 const SAVE_AFTER_LAST: Duration = Duration::from_secs(2);
@@ -103,11 +104,12 @@ pub(crate) async fn start(
     path: PathBuf,
     folder: PathBuf,
     format: Arc<dyn Opener>,
+    memory: Arc<Memory>,
 ) -> Result<mpsc::Sender<Command>, OpenError> {
     let file = tokio::fs::read(&path).await?;
     let stamp = stamp_of(&tokio::fs::metadata(&path).await?);
     let (document, journal, journaled, remembered) =
-        open_or_restore(&path, &folder, &file, format.as_ref())?;
+        open_or_restore(&path, &folder, &file, format.as_ref(), &memory)?;
     let (disk, stamp) = journaled.map_or((file, Some(stamp)), |original| (original, None));
     let unsaved = (document.rev() != document.saved_rev()).then(Instant::now);
     let (commands, incoming) = mpsc::channel(COMMANDS);
@@ -124,6 +126,7 @@ pub(crate) async fn start(
         retry_at: None,
         close_at: Some(Instant::now() + CLOSE_AFTER),
         sealing: false,
+        memory,
         remembered,
     };
     tokio::spawn(task.run(incoming));
@@ -137,6 +140,7 @@ fn open_or_restore(
     folder: &Path,
     disk: &[u8],
     format: &dyn Opener,
+    memory: &Memory,
 ) -> Result<Opened, OpenError> {
     if let Some((mut journal, found)) = Journal::find(folder, path) {
         let Found {
@@ -148,7 +152,10 @@ fn open_or_restore(
         let known = saved_hash.unwrap_or_else(|| hash_of(&original));
         let journaled = (hash_of(disk) != known).then(|| original.clone());
         match format.restore(original, restored, &records) {
-            Ok(document) => return Ok((document, journal, journaled, HashMap::new())),
+            Ok(document) => {
+                memory.forget(path);
+                return Ok((document, journal, journaled, HashMap::new()));
+            }
             Err(problem) => {
                 tracing::warn!(%problem, "the journal is not usable, so the file opens as it is");
                 journal.remove();
@@ -156,10 +163,11 @@ fn open_or_restore(
         }
     }
     let epoch = new_epoch()?;
-    let remembered = Journal::taken(folder, path);
-    let seqs = journal::seqs_of(&remembered);
+    let remembered = memory.recall(path);
+    let seqs = memory::seqs_of(&remembered);
     let document = format.open(disk.to_vec(), epoch, seqs.clone())?;
     let journal = Journal::start(folder, path, disk, epoch, 0, seqs)?;
+    memory.forget(path);
     Ok((document, journal, None, remembered))
 }
 
@@ -183,6 +191,7 @@ struct Task {
     retry_at: Option<Instant>,
     close_at: Option<Instant>,
     sealing: bool,
+    memory: Arc<Memory>,
     /// What the document took of each client when it opened.
     remembered: HashMap<String, Remembered>,
 }
@@ -469,8 +478,9 @@ impl Task {
         let effects = self.document.step(Input::Closing { reason });
         self.send_all(effects);
         if saved {
-            let clients = journal::remembered(&self.remembered, self.document.seqs());
-            self.journal.close(&self.path, clients);
+            let clients = memory::remembered(&self.remembered, self.document.seqs());
+            self.memory.keep(&self.path, clients);
+            self.journal.remove();
         }
     }
 }
