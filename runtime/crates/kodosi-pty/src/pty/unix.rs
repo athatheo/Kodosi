@@ -2,7 +2,7 @@ use std::{
     env,
     fs::File,
     io,
-    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
+    os::fd::{AsFd, AsRawFd, OwnedFd},
     path::{Path, PathBuf},
     sync::{Mutex, PoisonError},
     time::Duration,
@@ -33,12 +33,10 @@ pub struct PtyReader {
 
 impl PtyReader {
     fn new(fd: OwnedFd) -> io::Result<Self> {
-        let flags = fcntl(fd.as_fd(), FcntlArg::F_GETFL)
-            .map_err(|error| io::Error::from_raw_os_error(error as i32))?;
+        let flags = fcntl(fd.as_fd(), FcntlArg::F_GETFL)?;
         let mut oflags = OFlag::from_bits_truncate(flags);
         oflags.insert(OFlag::O_NONBLOCK);
-        fcntl(fd.as_fd(), FcntlArg::F_SETFL(oflags))
-            .map_err(|error| io::Error::from_raw_os_error(error as i32))?;
+        fcntl(fd.as_fd(), FcntlArg::F_SETFL(oflags))?;
 
         let file = File::from(fd);
         Ok(Self {
@@ -68,10 +66,7 @@ impl PtyReader {
         let async_fd = self.get_async_fd()?;
         loop {
             let mut guard = async_fd.readable().await?;
-            match guard.try_io(|inner| {
-                unistd::read(inner.get_ref(), buf)
-                    .map_err(|error| io::Error::from_raw_os_error(error as i32))
-            }) {
+            match guard.try_io(|inner| Ok(unistd::read(inner.get_ref(), buf)?)) {
                 Ok(Ok(bytes_read)) => return Ok(bytes_read),
                 Ok(Err(error)) => return Err(error),
                 Err(_would_block) => continue,
@@ -102,7 +97,7 @@ impl PtyReader {
                     }
                     Ok(count) => return Ok(Transfer::Wrote(count)),
                     Err(nix::errno::Errno::EINTR) => {}
-                    Err(error) => return Err(io::Error::from_raw_os_error(error as i32)),
+                    Err(error) => return Err(error.into()),
                 }
             }
             if ready.is_readable() {
@@ -110,7 +105,7 @@ impl PtyReader {
                     Ok(count) => return Ok(Transfer::Read(count)),
                     Err(nix::errno::Errno::EAGAIN) => guard.clear_ready_matching(Ready::READABLE),
                     Err(nix::errno::Errno::EINTR) => {}
-                    Err(error) => return Err(io::Error::from_raw_os_error(error as i32)),
+                    Err(error) => return Err(error.into()),
                 }
             }
         }
@@ -119,7 +114,7 @@ impl PtyReader {
 
 #[derive(Debug)]
 pub struct KodosiPty {
-    master_fd: RawFd,
+    master: OwnedFd,
     child_pid: u32,
     child: Child,
 }
@@ -139,21 +134,21 @@ impl KodosiPty {
             KodosiError::Spawn(format!("command not found: {}", program.display()))
         })?;
 
+        let size = Winsize {
+            ws_row: rows,
+            ws_col: cols,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
         let openpty_result = {
             let _serial = OPEN_PTY.lock().unwrap_or_else(PoisonError::into_inner);
-            openpty(None, &None).map_err(open_failure)?
+            openpty(&size, None).map_err(open_failure)?
         };
-        let master_raw = openpty_result.master.as_raw_fd();
         let slave_raw = openpty_result.slave.as_raw_fd();
-        set_terminal_size_using_fd(master_raw, cols, rows, None, None)?;
-
-        let reader_fd = unistd::dup(&openpty_result.master)
-            .map_err(|error| io::Error::from_raw_os_error(error as i32))?;
-        for descriptor in [&openpty_result.master, &openpty_result.slave, &reader_fd] {
-            fcntl(descriptor.as_fd(), FcntlArg::F_SETFD(FdFlag::FD_CLOEXEC))
-                .map_err(|error| io::Error::from_raw_os_error(error as i32))?;
+        for descriptor in [&openpty_result.master, &openpty_result.slave] {
+            fcntl(descriptor, FcntlArg::F_SETFD(FdFlag::FD_CLOEXEC)).map_err(io::Error::from)?;
         }
-        let reader = PtyReader::new(reader_fd)?;
+        let reader = PtyReader::new(openpty_result.master.try_clone()?)?;
 
         let mut command = Command::new(&resolved_program);
         command.args(arguments);
@@ -205,7 +200,7 @@ impl KodosiPty {
 
         Ok((
             Self {
-                master_fd: openpty_result.master.into_raw_fd(),
+                master: openpty_result.master,
                 child_pid,
                 child,
             },
@@ -214,21 +209,20 @@ impl KodosiPty {
     }
 
     pub fn working_directory(&self) -> Option<PathBuf> {
-        let pid = foreground_process_group(self.master_fd).unwrap_or(self.child_pid);
+        let pid = foreground_process_group(&self.master).unwrap_or(self.child_pid);
         process_directory(pid).or_else(|| process_directory(self.child_pid))
     }
 
     pub fn foreground_process_group(&self) -> Option<u32> {
-        foreground_process_group(self.master_fd)
+        foreground_process_group(&self.master)
     }
 
     pub fn foreground_is_child(&self) -> bool {
-        foreground_process_group(self.master_fd) == Some(self.child_pid)
+        foreground_process_group(&self.master) == Some(self.child_pid)
     }
 
     pub fn reads_keys(&self) -> bool {
-        let borrowed = unsafe { BorrowedFd::borrow_raw(self.master_fd) };
-        nix::sys::termios::tcgetattr(borrowed).is_ok_and(|attributes| {
+        nix::sys::termios::tcgetattr(&self.master).is_ok_and(|attributes| {
             !attributes
                 .local_flags
                 .contains(nix::sys::termios::LocalFlags::ICANON)
@@ -236,18 +230,18 @@ impl KodosiPty {
     }
 
     pub fn foreground_program(&self) -> Option<String> {
-        let pid = foreground_process_group(self.master_fd)?;
+        let pid = foreground_process_group(&self.master)?;
         let arguments = process_arguments(pid)?;
         program_identity(&arguments).map(str::to_owned)
     }
 
     pub fn foreground_variable(&self, name: &str) -> Option<String> {
-        let pid = foreground_process_group(self.master_fd)?;
+        let pid = foreground_process_group(&self.master)?;
         variable(&process_environment(pid)?, name)
     }
 
     pub fn foreground_arguments(&self) -> Vec<String> {
-        foreground_process_group(self.master_fd)
+        foreground_process_group(&self.master)
             .and_then(process_arguments)
             .unwrap_or_default()
     }
@@ -259,7 +253,7 @@ impl KodosiPty {
         width_pixels: Option<u16>,
         height_pixels: Option<u16>,
     ) -> Result<()> {
-        set_terminal_size_using_fd(self.master_fd, cols, rows, width_pixels, height_pixels)
+        set_terminal_size(&self.master, cols, rows, width_pixels, height_pixels)
     }
 
     pub fn request_shutdown(&mut self, stage: ShutdownStage) -> Result<()> {
@@ -269,8 +263,7 @@ impl KodosiPty {
         }
         signal_processes(session_processes(self.child_pid)?, |process| {
             if process_belongs_to_session(process, self.child_pid) {
-                nix::sys::signal::kill(Pid::from_raw(process), signal)
-                    .map_err(|error| io::Error::from_raw_os_error(error as i32))
+                Ok(nix::sys::signal::kill(Pid::from_raw(process), signal)?)
             } else {
                 Ok(())
             }
@@ -297,7 +290,7 @@ impl KodosiPty {
         let owner_group = unistd::getpgrp();
         let owner_pid = unistd::getpid();
         let shell_group = Pid::from_raw(self.child_pid as i32);
-        foreground_process_group(self.master_fd)
+        foreground_process_group(&self.master)
             .and_then(|pgid| i32::try_from(pgid).ok())
             .map(Pid::from_raw)
             .filter(|group| process_group_belongs_to_session(*group, shell_group))
@@ -337,7 +330,7 @@ fn open_failure(error: Errno) -> KodosiError {
     if error == NO_FREE_PTY {
         KodosiError::NoFreePty
     } else {
-        io::Error::from_raw_os_error(error as i32).into()
+        io::Error::from(error).into()
     }
 }
 
@@ -435,17 +428,11 @@ fn session_processes(session: u32) -> io::Result<Vec<i32>> {
         if !process_belongs_to_session(pid, session) {
             continue;
         }
-        let mut info = std::mem::MaybeUninit::<libc::proc_bsdinfo>::zeroed();
+        let mut info = libc::proc_bsdinfo::default();
         let size = i32::try_from(std::mem::size_of_val(&info))
             .map_err(|_| io::Error::other("invalid native process info size"))?;
         let read = unsafe {
-            libc::proc_pidinfo(
-                pid,
-                libc::PROC_PIDTBSDINFO,
-                0,
-                info.as_mut_ptr().cast(),
-                size,
-            )
+            libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, (&raw mut info).cast(), size)
         };
         if read != size {
             if process_belongs_to_session(pid, session) {
@@ -453,7 +440,7 @@ fn session_processes(session: u32) -> io::Result<Vec<i32>> {
             }
             continue;
         }
-        if unsafe { info.assume_init() }.pbi_status != libc::SZOMB {
+        if info.pbi_status != libc::SZOMB {
             processes.push(pid);
         }
     }
@@ -467,7 +454,7 @@ fn process_group_belongs_to_session(group: Pid, session: Pid) -> bool {
 fn signal_process_group(group: Pid, signal: Signal) -> Result<()> {
     match killpg(group, signal) {
         Ok(()) => Ok(()),
-        Err(error) => Err(KodosiError::Io(io::Error::from_raw_os_error(error as i32))),
+        Err(error) => Err(KodosiError::Io(error.into())),
     }
 }
 
@@ -487,26 +474,23 @@ fn signal_for_shutdown_stage(stage: ShutdownStage) -> Signal {
 impl Drop for KodosiPty {
     fn drop(&mut self) {
         let _ = self.request_shutdown(ShutdownStage::Force);
-        let _ = unsafe { OwnedFd::from_raw_fd(self.master_fd) };
     }
 }
 
-fn set_terminal_size_using_fd(
-    fd: RawFd,
+fn set_terminal_size(
+    terminal: impl AsFd,
     columns: u16,
     rows: u16,
     width_in_pixels: Option<u16>,
     height_in_pixels: Option<u16>,
 ) -> Result<()> {
-    let winsize = Winsize {
+    let size = rustix::termios::Winsize {
         ws_col: columns,
         ws_row: rows,
         ws_xpixel: width_in_pixels.unwrap_or(0),
         ws_ypixel: height_in_pixels.unwrap_or(0),
     };
-
-    let result = unsafe { libc::ioctl(fd, libc::TIOCSWINSZ, &winsize) };
-    (result != -1).ok_or_else(|| KodosiError::Io(io::Error::last_os_error()))
+    Ok(rustix::termios::tcsetwinsize(terminal, size).map_err(io::Error::from)?)
 }
 
 const LOGIN_SHELLS: [&str; 8] = ["bash", "csh", "dash", "fish", "ksh", "sh", "tcsh", "zsh"];
@@ -551,21 +535,21 @@ fn process_directory(pid: u32) -> Option<PathBuf> {
 
 #[cfg(target_os = "macos")]
 fn process_directory(pid: u32) -> Option<PathBuf> {
-    let mut info = std::mem::MaybeUninit::<libc::proc_vnodepathinfo>::zeroed();
+    let mut info = libc::proc_vnodepathinfo::default();
     let size = i32::try_from(std::mem::size_of_val(&info)).ok()?;
     let result = unsafe {
         libc::proc_pidinfo(
             i32::try_from(pid).ok()?,
             libc::PROC_PIDVNODEPATHINFO,
             0,
-            info.as_mut_ptr().cast(),
+            (&raw mut info).cast(),
             size,
         )
     };
     if result != size {
         return None;
     }
-    vnode_path(&unsafe { info.assume_init() }.pvi_cdir)
+    vnode_path(&info.pvi_cdir)
 }
 
 #[cfg(target_os = "macos")]
@@ -592,6 +576,7 @@ const PROC_PIDFDVNODEPATHINFO: i32 = 2;
 /// `struct vnode_fdinfowithpath` of `sys/proc_info.h`, after a file part that Kodosi does not
 /// read.
 #[cfg(target_os = "macos")]
+#[derive(Default)]
 #[repr(C)]
 struct VnodeFileInfo {
     _file: [u64; 3],
@@ -620,13 +605,7 @@ fn process_files(pid: i32) -> Vec<PathBuf> {
     let needed =
         unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDLISTFDS, 0, std::ptr::null_mut(), 0) };
     let entries = usize::try_from(needed).unwrap_or(0) / entry;
-    let mut descriptors = vec![
-        libc::proc_fdinfo {
-            proc_fd: 0,
-            proc_fdtype: 0,
-        };
-        entries.min(MAX_OPEN_FILES)
-    ];
+    let mut descriptors = vec![libc::proc_fdinfo::default(); entries.min(MAX_OPEN_FILES)];
     let Ok(bytes) = i32::try_from(std::mem::size_of_val(descriptors.as_slice())) else {
         return Vec::new();
     };
@@ -644,20 +623,18 @@ fn process_files(pid: i32) -> Vec<PathBuf> {
         .iter()
         .filter(|descriptor| i32::try_from(descriptor.proc_fdtype) == Ok(libc::PROX_FDTYPE_VNODE))
         .filter_map(|descriptor| {
-            let mut info = std::mem::MaybeUninit::<VnodeFileInfo>::zeroed();
+            let mut info = VnodeFileInfo::default();
             let size = i32::try_from(std::mem::size_of_val(&info)).ok()?;
             let read = unsafe {
                 libc::proc_pidfdinfo(
                     pid,
                     descriptor.proc_fd,
                     PROC_PIDFDVNODEPATHINFO,
-                    info.as_mut_ptr().cast(),
+                    (&raw mut info).cast(),
                     size,
                 )
             };
-            (read == size)
-                .then(|| vnode_path(&unsafe { info.assume_init() }.vnode))
-                .flatten()
+            (read == size).then(|| vnode_path(&info.vnode)).flatten()
         })
         .collect()
 }
@@ -782,9 +759,8 @@ pub fn process_group(pid: u32) -> Option<u32> {
         .and_then(|group| u32::try_from(group.as_raw()).ok())
 }
 
-fn foreground_process_group(fd: RawFd) -> Option<u32> {
-    let borrowed = unsafe { BorrowedFd::borrow_raw(fd) };
-    nix::unistd::tcgetpgrp(borrowed)
+fn foreground_process_group(terminal: impl AsFd) -> Option<u32> {
+    nix::unistd::tcgetpgrp(terminal)
         .ok()
         .map(Pid::as_raw)
         .filter(|pgid| *pgid > 0)
@@ -795,7 +771,7 @@ fn foreground_process_group(fd: RawFd) -> Option<u32> {
 mod tests {
     use super::{
         KodosiError, KodosiPty, PtyReader, ShutdownStage, Transfer, WaitOutcome, find_executable,
-        login_shell_name, resolve_program, set_terminal_size_using_fd, validate_working_dir,
+        login_shell_name, resolve_program, set_terminal_size, validate_working_dir,
     };
     use nix::fcntl::{FcntlArg, FdFlag, fcntl};
     use std::{
@@ -864,7 +840,7 @@ mod tests {
                     KodosiPty::spawn_program(Path::new("/bin/cat"), &[], None, 24, 80, &[], None)
                         .unwrap();
                 let reader_fd = reader.pending.as_ref().unwrap().as_raw_fd();
-                for descriptor in [pty.master_fd, reader_fd] {
+                for descriptor in [pty.master.as_raw_fd(), reader_fd] {
                     let descriptor = unsafe { BorrowedFd::borrow_raw(descriptor) };
                     let flags = fcntl(descriptor, FcntlArg::F_GETFD).unwrap();
                     assert!(FdFlag::from_bits_truncate(flags).contains(FdFlag::FD_CLOEXEC));
@@ -915,9 +891,10 @@ mod tests {
     }
 
     #[test]
-    fn resizing_an_invalid_pty_descriptor_reports_the_ioctl_failure() {
-        let error = set_terminal_size_using_fd(-1, 80, 24, None, None)
-            .expect_err("TIOCSWINSZ on an invalid descriptor must fail");
+    fn resizing_a_file_that_is_no_terminal_reports_the_failure() {
+        let file = tempfile::tempfile().unwrap();
+        let error = set_terminal_size(&file, 80, 24, None, None)
+            .expect_err("TIOCSWINSZ on a file that is no terminal must fail");
 
         assert!(error.to_string().contains("I/O failure"));
     }
