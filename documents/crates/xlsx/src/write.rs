@@ -730,14 +730,17 @@ fn workbook_edits(
     Ok(())
 }
 
+fn workbook_so_far(package: &mut Package<'_>, parts: &Parts) -> Result<String, String> {
+    if let Some(bytes) = parts.get(WORKBOOK_PART).and_then(Option::as_ref) {
+        return Ok(String::from_utf8_lossy(bytes).into_owned());
+    }
+    package
+        .text(WORKBOOK_PART)
+        .ok_or_else(|| "the workbook is missing".to_owned())
+}
+
 fn names_edit(model: &Model, package: &mut Package<'_>, parts: &mut Parts) -> Result<(), String> {
-    let edited = parts.get(WORKBOOK_PART).and_then(Option::as_ref);
-    let xml = match edited {
-        Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-        None => package
-            .text(WORKBOOK_PART)
-            .ok_or("the workbook is missing")?,
-    };
+    let xml = workbook_so_far(package, parts)?;
     let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
     let Some(names) = local(parsed.root_element(), "definedNames") else {
         return Ok(());
@@ -777,12 +780,7 @@ fn recalculation_edit(
         Recalculation::NotAsked => false,
         Recalculation::AsTheFileHasIt => return Ok(()),
     };
-    let xml = match parts.get(WORKBOOK_PART).and_then(Option::as_ref) {
-        Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-        None => package
-            .text(WORKBOOK_PART)
-            .ok_or("the workbook is missing")?,
-    };
+    let xml = workbook_so_far(package, parts)?;
     let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
     let root = parsed.root_element();
     let properties = local(root, "calcPr");
