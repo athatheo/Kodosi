@@ -8,8 +8,8 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 
 def fail(message: str) -> None:
@@ -21,14 +21,11 @@ def bytes_sha256(payload: bytes) -> str:
 
 
 def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
     try:
         with path.open("rb") as source:
-            for chunk in iter(lambda: source.read(1024 * 1024), b""):
-                digest.update(chunk)
+            return hashlib.file_digest(source, "sha256").hexdigest()
     except OSError as error:
         fail(f"cannot read {path}: {error.strerror}")
-    return digest.hexdigest()
 
 
 def artifact_paths(root: Path, prefix: str = "") -> Iterator[str]:
