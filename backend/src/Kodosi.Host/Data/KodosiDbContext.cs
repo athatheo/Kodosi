@@ -27,7 +27,7 @@ public sealed class KodosiDbContext(DbContextOptions<KodosiDbContext> options) :
     public DbSet<ProjectItem> ProjectItems => Set<ProjectItem>();
 
     public Task<User> LockUserAsync(Guid id, CancellationToken ct) =>
-        Users.FromSqlInterpolated($"SELECT * FROM users WHERE \"Id\" = {id} FOR UPDATE").SingleAsync(ct);
+        Users.FromSql($"SELECT * FROM users WHERE \"Id\" = {id} FOR UPDATE").SingleAsync(ct);
 
     protected override void OnModelCreating(ModelBuilder model)
     {

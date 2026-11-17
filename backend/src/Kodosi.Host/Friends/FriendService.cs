@@ -106,8 +106,8 @@ public sealed class FriendService(KodosiDbContext db, ConnectionDirectory connec
         if (other.Id == userId) throw ApiException.Invalid("Choose another person.");
         var (first, second) = Pair(userId, other.Id);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({FriendPairLocks}, {PairLock(first, second)})", ct);
-        var link = await db.Friendships.FromSqlInterpolated(
+        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({FriendPairLocks}, {PairLock(first, second)})", ct);
+        var link = await db.Friendships.FromSql(
             $"SELECT * FROM friendships WHERE \"FirstUserId\" = {first} AND \"SecondUserId\" = {second} FOR UPDATE").SingleOrDefaultAsync(ct);
         List<Session> shared = [];
         switch (action)
