@@ -26,7 +26,7 @@ a name, or with a name that another account has. `name` gives the display name.
 
 Build with the pinned .NET SDK, or build the image (below). On x86-64 the backend needs
 the x86-64-v2 instructions, also in a virtual machine.
-Use PostgreSQL 14 or later.
+Use PostgreSQL 15 or later.
 Set:
 
 | Variable | Value |
