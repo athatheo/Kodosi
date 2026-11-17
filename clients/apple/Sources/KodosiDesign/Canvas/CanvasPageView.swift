@@ -190,6 +190,7 @@ final class CanvasFrame {
         configuration.userContentController.addUserScript(WKUserScript(source: Self.watch, injectionTime: .atDocumentEnd,
                                                                        forMainFrameOnly: true, in: world))
         configuration.userContentController.add(watcher, contentWorld: world, name: "selection")
+        links.watch(configuration.userContentController)
         page = WebPage(configuration: configuration, navigationDecider: CanvasNavigation(links: links))
         watcher.seen = { [weak self] selection in
             if self?.selection != selection {
@@ -239,8 +240,29 @@ private final class SelectionWatcher: NSObject, WKScriptMessageHandler {
     }
 }
 
+/// A page's scripts can click its links, and WebKit does not tell the app who clicked. So a link
+/// opens only after a click, a tap or a key other than Escape of the person in the same page,
+/// which no script can make, within the time that WebKit gives such a gesture, and one link for
+/// each gesture.
 @MainActor
-final class CanvasLinks {
+final class CanvasLinks: NSObject, WKScriptMessageHandler {
+    private static let gestures = """
+    (() => {
+      if (window === top) {
+        webkit.messageHandlers.gesture.postMessage(false);
+      }
+      const seen = (event) => {
+        if (event.isTrusted && !(event.type === "keydown" && event.key === "Escape")) {
+          webkit.messageHandlers.gesture.postMessage(true);
+        }
+      };
+      for (const type of ["keydown", "mousedown", "pointerup", "click"]) {
+        addEventListener(type, seen, true);
+      }
+    })();
+    """
+    private static let gestureLasts = Duration.seconds(5)
+
     var open: (URL) -> Void = { _ in }
     var otherComputer: String?
     var review: (ClickedLink) -> Void = { link in
@@ -252,7 +274,21 @@ final class CanvasLinks {
         #endif
     }
 
+    private var gesture: ContinuousClock.Instant?
+
+    func watch(_ controller: WKUserContentController) {
+        let world = WKContentWorld.world(name: CanvasFrame.world)
+        controller.addUserScript(WKUserScript(source: Self.gestures, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: world))
+        controller.add(self, contentWorld: world, name: "gesture")
+    }
+
+    func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage) {
+        gesture = message.body as? Bool == true ? .now : nil
+    }
+
     func follow(_ url: URL) {
+        guard let gesture, gesture.duration(to: .now) < Self.gestureLasts else { return }
+        self.gesture = nil
         let link = ClickedLink(url.absoluteString, otherComputer: otherComputer)
         switch link.decision {
         case let .open(target):
