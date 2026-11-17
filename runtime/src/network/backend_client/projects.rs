@@ -547,7 +547,7 @@ impl BackendClient {
             &credentials.keys.device_id,
             credentials.keys.project_public(),
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &proof)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &proof)?;
         let _response: Value = self.inner.http.device(Method::PUT, "api/me/project-key", credentials,
             Some(json!({"publicKey":BASE64.encode(credentials.keys.project_public()),"signature":BASE64.encode(signature)}))).await?;
         self.inner.projects.lock().await.registered = Some(credentials.keys.device_id.clone());

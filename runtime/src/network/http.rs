@@ -292,7 +292,7 @@ impl Http {
             &challenge_id,
             &challenge_bytes,
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &preimage)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &preimage)?;
         let opened: Value = self
             .bearer(
                 Method::POST,

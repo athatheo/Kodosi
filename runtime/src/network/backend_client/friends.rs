@@ -148,7 +148,7 @@ impl BackendClient {
         let (signed, head) = list.sign(
             on,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
         )?;
         let _response: Value = self
             .inner

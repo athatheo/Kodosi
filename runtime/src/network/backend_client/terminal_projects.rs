@@ -22,7 +22,7 @@ impl BackendClient {
             sequence,
             device,
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &preimage)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &preimage)?;
         Ok(
             json!({"deviceId":device,"sequence":sequence,"signature":BASE64.encode(signature),"history":history}),
         )
@@ -152,8 +152,7 @@ mod tests {
         .unwrap();
         dto.project_choice = Some(ProjectChoice {
             device_id: keys.device_id.clone(),
-            signature: BASE64
-                .encode(crypto::sign_control_message(keys.signing_pkcs8(), &preimage).unwrap()),
+            signature: BASE64.encode(crypto::sign(keys.signing_key(), &preimage).unwrap()),
             history,
         });
         dto

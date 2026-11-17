@@ -377,7 +377,7 @@ mod tests {
             USER,
             &keys.device_id,
             "device",
-            &keys.signing_key().unwrap(),
+            keys.signing_key(),
             1000,
             None,
         )
@@ -428,7 +428,7 @@ mod tests {
                     digest: None,
                 },
                 &keys.device_id,
-                &keys.signing_key().unwrap(),
+                keys.signing_key(),
             )
             .unwrap();
         let opened = open(&signed_list, USER, &device(&keys)).unwrap();
@@ -466,11 +466,7 @@ mod tests {
         let keys = DeviceKeys::generate().unwrap();
         let mut list = list();
         let (signed_list, _) = list
-            .sign(
-                &Head::default(),
-                &keys.device_id,
-                &keys.signing_key().unwrap(),
-            )
+            .sign(&Head::default(), &keys.device_id, keys.signing_key())
             .unwrap();
         let mut lists = FriendLists::load(path.clone()).unwrap();
         assert_eq!(lists.get(USER).unwrap(), None);
@@ -495,12 +491,12 @@ mod tests {
     #[test]
     fn a_device_takes_only_friend_lists_that_continue_the_list_it_keeps() {
         let keys = DeviceKeys::generate().unwrap();
-        let (key, devices) = (keys.signing_key().unwrap(), device(&keys));
+        let (key, devices) = (keys.signing_key(), device(&keys));
         let mut first = list();
-        let (kept, head) = first.sign(&Head::default(), &keys.device_id, &key).unwrap();
+        let (kept, head) = first.sign(&Head::default(), &keys.device_id, key).unwrap();
         let mut second = first.clone();
         second.friends.clear();
-        let (newer, newer_head) = second.sign(&head, &keys.device_id, &key).unwrap();
+        let (newer, newer_head) = second.sign(&head, &keys.device_id, key).unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(kept.clone()).unwrap();
         chain.follow(kept.clone()).unwrap();
@@ -512,7 +508,7 @@ mod tests {
 
         let mut other = first.clone();
         carol(&mut other);
-        let (fork, _) = other.sign(&head, &keys.device_id, &key).unwrap();
+        let (fork, _) = other.sign(&head, &keys.device_id, key).unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(newer.clone()).unwrap();
         assert!(matches!(chain.follow(fork.clone()), Err(Error::Trust(_))));
@@ -523,7 +519,7 @@ mod tests {
 
         let (third, _) = second
             .clone()
-            .sign(&newer_head, &keys.device_id, &key)
+            .sign(&newer_head, &keys.device_id, key)
             .unwrap();
         let mut chain = Chain::new(USER, &devices, NO_REMOVED);
         chain.anchor(kept).unwrap();
@@ -536,15 +532,15 @@ mod tests {
             DeviceKeys::generate().unwrap(),
             DeviceKeys::generate().unwrap(),
         );
-        let (key, devices) = (keys.signing_key().unwrap(), device(&keys));
+        let (key, devices) = (keys.signing_key(), device(&keys));
         let gone = BTreeSet::from([removed.device_id.clone()]);
         let mut first = list();
-        let (kept, head) = first.sign(&Head::default(), &keys.device_id, &key).unwrap();
+        let (kept, head) = first.sign(&Head::default(), &keys.device_id, key).unwrap();
         let mut late = first.clone();
         carol(&mut late);
         let (unsigned, late_head) = late
             .clone()
-            .sign(&head, &removed.device_id, &removed.signing_key().unwrap())
+            .sign(&head, &removed.device_id, removed.signing_key())
             .unwrap();
         let mut chain = Chain::new(USER, &devices, &gone);
         chain.anchor(kept.clone()).unwrap();
@@ -562,7 +558,7 @@ mod tests {
             "a device that this device does not know may be a new one"
         );
 
-        let (mut forged, _) = late.sign(&head, &keys.device_id, &key).unwrap();
+        let (mut forged, _) = late.sign(&head, &keys.device_id, key).unwrap();
         forged.signature.clone_from(&unsigned.signature);
         let mut chain = Chain::new(USER, &devices, &gone);
         chain.anchor(kept).unwrap();

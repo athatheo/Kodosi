@@ -147,7 +147,7 @@ pub(crate) fn sign<T: Serialize>(
     signed.extend_from_slice(&body);
     Ok((
         BASE64.encode(&body),
-        BASE64.encode(crypto::sign_control_message(keys.signing_pkcs8(), &signed)?),
+        BASE64.encode(crypto::sign(keys.signing_key(), &signed)?),
     ))
 }
 

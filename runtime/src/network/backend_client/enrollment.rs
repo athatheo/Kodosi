@@ -740,7 +740,7 @@ impl BackendClient {
                 signing_public: &pending.signing_public_key,
             },
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
         )?;
         body["requestId"] = json!(pending.request_id);
         body["approvalProof"] = json!(BASE64.encode(approval));
@@ -816,7 +816,7 @@ impl BackendClient {
             &verified.list.entries,
             entries,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             issued,
             Some(issued + device_identity::DEVICE_LIST_LIFE_MS),
         )?;

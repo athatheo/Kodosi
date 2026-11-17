@@ -323,8 +323,8 @@ mod tests {
     fn signed_addition_and_removal_advance_from_a_future_predecessor() {
         let user = uuid::Uuid::now_v7().to_string();
         let keys = DeviceKeys::generate().unwrap();
-        let signer = keys.signing_key().unwrap();
-        let first = build_bootstrap_list(&user, &keys.device_id, &signer, 121_000, None).unwrap();
+        let signer = keys.signing_key();
+        let first = build_bootstrap_list(&user, &keys.device_id, signer, 121_000, None).unwrap();
         let mut entries = first.list().entries;
         entries.push(DeviceListEntry {
             device_id: "new-device".into(),
@@ -336,7 +336,7 @@ mod tests {
             &first.list().entries,
             entries,
             &keys.device_id,
-            &signer,
+            signer,
             first.list().successor_issued_at(1_000).unwrap(),
             None,
         )
@@ -352,7 +352,7 @@ mod tests {
             &verified.entries,
             first.list().entries,
             &keys.device_id,
-            &signer,
+            signer,
             verified.successor_issued_at(1_001).unwrap(),
             None,
         )

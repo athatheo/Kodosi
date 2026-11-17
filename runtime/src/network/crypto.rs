@@ -1,7 +1,4 @@
-use aws_lc_rs::{
-    aead, rand,
-    signature::{ML_DSA_65_SIGNING, PqdsaKeyPair},
-};
+use aws_lc_rs::{aead, rand, signature::PqdsaKeyPair};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -62,12 +59,6 @@ pub(crate) fn open(
         .len();
     bytes.truncate(len);
     Some(bytes)
-}
-
-pub fn sign_control_message(pkcs8: &[u8], preimage: &[u8]) -> Result<Vec<u8>> {
-    let key = PqdsaKeyPair::from_pkcs8(&ML_DSA_65_SIGNING, pkcs8)
-        .map_err(|_| invalid("Stored device signing key is invalid."))?;
-    sign(&key, preimage)
 }
 
 pub fn sign(key: &PqdsaKeyPair, preimage: &[u8]) -> Result<Vec<u8>> {
@@ -153,7 +144,9 @@ pub(crate) fn terminal_close_preimage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aws_lc_rs::signature::{KeyPair as _, ML_DSA_65, VerificationAlgorithm as _};
+    use aws_lc_rs::signature::{
+        KeyPair as _, ML_DSA_65, ML_DSA_65_SIGNING, VerificationAlgorithm as _,
+    };
 
     #[test]
     fn a_device_session_proof_holds_for_one_device_and_one_challenge() {
