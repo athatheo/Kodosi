@@ -111,9 +111,17 @@ pub struct Document<F: Format> {
 }
 
 impl<F: Format> Document<F> {
-    pub fn open(file: Vec<u8>, epoch: u64) -> Result<Self, Unreadable> {
+    /// `taken` holds the last batch of each client that the document took before it last closed,
+    /// so that a client that comes back learns what became of the batch that it sent.
+    pub fn open(
+        file: Vec<u8>,
+        epoch: u64,
+        taken: HashMap<String, Seq>,
+    ) -> Result<Self, Unreadable> {
         F::opens(&file)?;
-        Self::start(file, epoch)
+        let mut document = Self::start(file, epoch)?;
+        document.seqs = taken;
+        Ok(document)
     }
 
     fn start(file: Vec<u8>, epoch: u64) -> Result<Self, Unreadable> {

@@ -121,6 +121,23 @@ test("a snapshot after a refused batch says so to the editor", async () => {
   expect(editor.loads).toEqual(["none", "refused"]);
 });
 
+test("a first batch that never got there goes again on the snapshot", async () => {
+  const editor = new TestEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await pipe.deliver(joined(0));
+  editor.edits = 1;
+  client.pull();
+  await settled();
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  await again.deliver(joined(0, 0, 8));
+  expect(editor.loads).toEqual(["none", "lost"]);
+});
+
 test("a snapshot says what became of the batch on its way, as far as the document knows", async () => {
   for (const [seq, sent] of [
     [2, "taken"],

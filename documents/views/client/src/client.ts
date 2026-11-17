@@ -23,8 +23,8 @@ export interface Person {
 
 /**
  * What became of the batch that was on its way when a client joined again: none was on its way,
- * the document took it, it never got there, the document refused it, or the document opened again
- * since and no longer knows.
+ * the document took it, it never got there, the document refused it, or the document lost what it
+ * kept of the client and no longer knows.
  */
 export type Sent = "none" | "taken" | "lost" | "refused" | "unknown";
 
@@ -163,13 +163,16 @@ export class Client {
     this.editor?.apply(changed, own);
   }
 
-  /** A document that opened again knows no number of this client. */
+  /**
+   * The document keeps the number of the last batch of each client that it took, also when it
+   * closes and opens again, so only a number below the batch before this one means it lost that.
+   */
   private sentOf(seq: number): Sent {
     const waiting = this.waitingSeq;
     if (this.refused) return "refused";
     if (waiting === null) return "none";
     if (seq >= waiting) return "taken";
-    return seq > 0 && seq === waiting - 1 ? "lost" : "unknown";
+    return seq === waiting - 1 ? "lost" : "unknown";
   }
 
   /** A batch that the document calls invalid means that this copy went wrong: load again. */

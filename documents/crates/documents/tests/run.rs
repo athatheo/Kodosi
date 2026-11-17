@@ -183,8 +183,35 @@ async fn a_clean_close_saves_and_leaves_no_journal() {
     assert!(matches!(message(&mut ana).await, ToClient::Changed(_)));
     rig.documents.close().await;
     assert_eq!(file_value(&rig.file, "a1").as_deref(), Some("x"));
-    let left = std::fs::read_dir(&rig.state).unwrap().count();
-    assert_eq!(left, 0);
+    let left: Vec<String> = std::fs::read_dir(&rig.state)
+        .unwrap()
+        .flat_map(|folder| std::fs::read_dir(folder.unwrap().path()).unwrap())
+        .map(|file| file.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(left, ["taken.json"]);
+}
+
+#[tokio::test]
+async fn after_a_clean_close_a_client_learns_that_the_document_took_its_batch() {
+    let rig = rig();
+    let mut ana = joined(&rig.documents, &rig.file, "ana").await;
+    change(&ana, 1, 0, "a1", "x").await;
+    assert!(matches!(message(&mut ana).await, ToClient::Changed(_)));
+    rig.documents.close().await;
+    let documents = Documents::new(&rig.state, formats());
+    let mut again = documents.open(&rig.file, viewer("ana")).await.unwrap();
+    let join = ToDocument::Join {
+        contract: CONTRACT,
+        client: "ana".to_owned(),
+        epoch: 0,
+        rev: 0,
+    };
+    again.send(contract::encode_message(&join)).await.unwrap();
+    assert!(matches!(
+        message(&mut again).await,
+        ToClient::Joined { seq: 1, .. }
+    ));
+    documents.close().await;
 }
 
 fn a1_comes_back(state: &Path, file: &Path) {

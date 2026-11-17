@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, path::Path, sync::Arc};
 
-use document::{Document, Effect, Format, Input, Restored, Rev, Unreadable};
+use document::{Document, Effect, Format, Input, Restored, Rev, Seq, Unreadable};
 
 pub trait Live: Send {
     fn step(&mut self, input: Input) -> Vec<Effect>;
@@ -35,7 +35,12 @@ impl<F: Format> Live for Document<F> {
 pub trait Opener: Send + Sync {
     fn opens(&self, file: &[u8]) -> bool;
 
-    fn open(&self, file: Vec<u8>, epoch: u64) -> Result<Box<dyn Live>, Unreadable>;
+    fn open(
+        &self,
+        file: Vec<u8>,
+        epoch: u64,
+        taken: HashMap<String, Seq>,
+    ) -> Result<Box<dyn Live>, Unreadable>;
 
     fn restore(
         &self,
@@ -52,8 +57,13 @@ impl<F: Format> Opener for FormatOpener<F> {
         F::opens(file).is_ok()
     }
 
-    fn open(&self, file: Vec<u8>, epoch: u64) -> Result<Box<dyn Live>, Unreadable> {
-        let document = Document::<F>::open(file, epoch)?;
+    fn open(
+        &self,
+        file: Vec<u8>,
+        epoch: u64,
+        taken: HashMap<String, Seq>,
+    ) -> Result<Box<dyn Live>, Unreadable> {
+        let document = Document::<F>::open(file, epoch, taken)?;
         Ok(Box::new(document))
     }
 

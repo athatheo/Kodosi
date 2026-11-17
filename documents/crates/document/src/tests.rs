@@ -144,7 +144,7 @@ fn viewer(name: &str) -> Viewer {
 }
 
 fn opened() -> Document<Sheet> {
-    Document::open(file_of(&Model::default()), 1).unwrap()
+    Document::open(file_of(&Model::default()), 1, HashMap::new()).unwrap()
 }
 
 fn frame(message: &ToDocument) -> Vec<u8> {
@@ -739,7 +739,7 @@ impl World {
     fn new(seed: u64) -> Self {
         let file = file_of(&Model::default());
         Self {
-            document: Document::open(file.clone(), 1).unwrap(),
+            document: Document::open(file.clone(), 1, HashMap::new()).unwrap(),
             original: file.clone(),
             records: Vec::new(),
             saved: Vec::new(),
