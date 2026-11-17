@@ -230,6 +230,10 @@ export class Client {
     });
   }
 
+  hasAsset(hash: string): boolean {
+    return this.assets.has(hash);
+  }
+
   addAsset(hash: string, bytes: Uint8Array): void {
     this.assets.set(hash, bytes);
     this.pipe?.send(encodeAsset(hash, bytes));

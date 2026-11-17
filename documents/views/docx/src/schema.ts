@@ -2,7 +2,46 @@ import { cssColor, cssString } from "@documents/client";
 import { type Extensions, Mark, Node } from "@tiptap/core";
 import { cssAlign } from "./styles";
 
-const attribute = () => ({ default: null, rendered: false });
+/**
+ * A value that a paste does not take. Without parseHTML, Tiptap reads a value from the HTML
+ * attribute of the same name, such as the id or the style of any pasted element.
+ */
+const attribute = (empty: unknown = null) => ({
+  default: empty,
+  rendered: false,
+  parseHTML: () => null,
+});
+
+/** A key to a piece of the file, which a paste keeps only where the document holds that piece. */
+const pieceAttribute = () => ({
+  default: null,
+  rendered: false,
+  parseHTML: (element: HTMLElement) => element.getAttribute("data-raw"),
+});
+
+/** The text that a piece of the file shows. */
+const shownText = () => ({
+  default: "",
+  rendered: false,
+  parseHTML: (element: HTMLElement) => element.textContent ?? "",
+});
+
+const WHOLE = /^\d+$/;
+const SIGNED = /^-?\d+$/;
+const ALIGNS = new Set([
+  "left",
+  "start",
+  "center",
+  "right",
+  "end",
+  "both",
+  "distribute",
+  "mediumKashida",
+  "highKashida",
+  "lowKashida",
+  "thaiDistribute",
+  "numTab",
+]);
 
 /** A line of single spacing, as a multiple of the size of the letters, near what `normal` gives. */
 const SINGLE_LINE = 1.2;
@@ -27,15 +66,44 @@ const HIGHLIGHTS: Record<string, string> = {
   white: "#ffffff",
 };
 
-const dataAttribute = (name: string, data: string) => ({
+/**
+ * A value that a copy carries in a data attribute. A paste takes it back only in a form that the
+ * file allows, as pasted HTML can come from any page.
+ */
+const dataAttribute = (
+  name: string,
+  data: string,
+  allowed: (value: string) => boolean,
+  style?: (value: string) => string | null,
+) => ({
   default: null,
-  renderHTML: (attrs: Record<string, unknown>) => (attrs[name] ? { [data]: attrs[name] } : {}),
+  parseHTML: (element: HTMLElement) => {
+    const value = element.getAttribute(data);
+    return value !== null && allowed(value) ? value : null;
+  },
+  renderHTML: (attrs: Record<string, unknown>) => {
+    const value = attrs[name];
+    if (!value) return {};
+    const css = style?.(String(value));
+    return css ? { [data]: value, style: css } : { [data]: value };
+  },
 });
 
 const changeAttribute = (name: "inserted" | "deleted") => ({
   default: null,
+  parseHTML: () => null,
   renderHTML: (attrs: Record<string, unknown>) => (attrs[name] ? { [`data-${name}`]: "" } : {}),
 });
+
+function pixels(element: HTMLElement, name: string): number | null {
+  const value = Number(element.getAttribute(name));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function columns(element: HTMLElement): number {
+  const value = Number(element.getAttribute("colspan"));
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}
 
 /** The nodes and marks of a document body, in the order of `crates/docx/schema.json`. */
 export const nodes = [
@@ -46,30 +114,32 @@ export const nodes = [
     content: "inline*",
     addAttributes: () => ({
       id: attribute(),
-      style: dataAttribute("style", "data-style"),
-      align: {
-        default: null,
-        renderHTML: (attrs: Record<string, unknown>) =>
-          attrs.align
-            ? { "data-align": attrs.align, style: `text-align:${cssAlign(String(attrs.align))}` }
-            : {},
-      },
-      numId: dataAttribute("numId", "data-list"),
-      ilvl: dataAttribute("ilvl", "data-level"),
-      line: {
-        default: null,
-        renderHTML: (attrs: Record<string, unknown>) => {
-          const lines = Number(attrs.line) / 240;
-          return lines > 0 ? { style: `line-height:${lines * SINGLE_LINE}` } : {};
+      style: dataAttribute("style", "data-style", Boolean),
+      align: dataAttribute(
+        "align",
+        "data-align",
+        (value) => ALIGNS.has(value),
+        (value) => `text-align:${cssAlign(value)}`,
+      ),
+      numId: dataAttribute("numId", "data-list", (value) => WHOLE.test(value)),
+      ilvl: dataAttribute("ilvl", "data-level", (value) => WHOLE.test(value)),
+      line: dataAttribute(
+        "line",
+        "data-line",
+        (value) => SIGNED.test(value),
+        (value) => {
+          const lines = Number(value) / 240;
+          return lines > 0 ? `line-height:${lines * SINGLE_LINE}` : null;
         },
-      },
-      indent: {
-        default: null,
-        renderHTML: (attrs: Record<string, unknown>) =>
-          attrs.indent == null ? {} : { style: `margin-left:${Number(attrs.indent) / 20}pt` },
-      },
+      ),
+      indent: dataAttribute(
+        "indent",
+        "data-indent",
+        (value) => SIGNED.test(value),
+        (value) => `margin-left:${Number(value) / 20}pt`,
+      ),
       props: attribute(),
-      pageBreak: { default: false, rendered: false },
+      pageBreak: attribute(false),
       inserted: changeAttribute("inserted"),
       deleted: changeAttribute("deleted"),
     }),
@@ -98,8 +168,8 @@ export const nodes = [
     isolating: true,
     addAttributes: () => ({
       props: attribute(),
-      span: { default: 1, renderHTML: (attrs) => ({ colspan: attrs.span }) },
-      merged: { default: false, rendered: false },
+      span: { default: 1, parseHTML: columns, renderHTML: (attrs) => ({ colspan: attrs.span }) },
+      merged: attribute(false),
     }),
     parseHTML: () => [{ tag: "td" }],
     renderHTML: ({ HTMLAttributes }) => ["td", HTMLAttributes, 0],
@@ -110,11 +180,15 @@ export const nodes = [
     atom: true,
     addAttributes: () => ({
       id: attribute(),
-      raw: attribute(),
-      text: { default: "", rendered: false },
+      raw: pieceAttribute(),
+      text: shownText(),
     }),
     parseHTML: () => [{ tag: "div[data-opaque]" }],
-    renderHTML: ({ node }) => ["div", { "data-opaque": "" }, node.attrs.text || "…"],
+    renderHTML: ({ node }) => [
+      "div",
+      { "data-opaque": "", "data-raw": node.attrs.raw },
+      node.attrs.text,
+    ],
   }),
   Node.create({ name: "text", group: "inline" }),
   Node.create({
@@ -145,15 +219,20 @@ export const nodes = [
     inline: true,
     atom: true,
     addAttributes: () => ({
-      asset: { rendered: false },
-      width: { rendered: false },
-      height: { rendered: false },
-      raw: attribute(),
+      asset: { rendered: false, parseHTML: (element) => element.getAttribute("data-asset") },
+      width: { rendered: false, parseHTML: (element) => pixels(element, "width") },
+      height: { rendered: false, parseHTML: (element) => pixels(element, "height") },
+      raw: pieceAttribute(),
     }),
     parseHTML: () => [{ tag: "img[data-asset]" }],
     renderHTML: ({ node }) => [
       "img",
-      { "data-asset": node.attrs.asset, width: node.attrs.width, height: node.attrs.height },
+      {
+        "data-asset": node.attrs.asset,
+        "data-raw": node.attrs.raw,
+        width: node.attrs.width,
+        height: node.attrs.height,
+      },
     ],
   }),
   Node.create({
@@ -162,13 +241,17 @@ export const nodes = [
     inline: true,
     atom: true,
     addAttributes: () => ({
-      raw: { rendered: false },
-      text: { default: "", rendered: false },
+      raw: pieceAttribute(),
+      text: shownText(),
     }),
     parseHTML: () => [{ tag: "span[data-opaque]" }],
     renderHTML: ({ node }) => [
       "span",
-      { "data-opaque": "", ...(node.attrs.text.includes("\f") ? { "data-page-break": "" } : {}) },
+      {
+        "data-opaque": "",
+        "data-raw": node.attrs.raw,
+        ...(node.attrs.text.includes("\f") ? { "data-page-break": "" } : {}),
+      },
       node.attrs.text,
     ],
   }),
@@ -238,17 +321,21 @@ export const marks = [
   Mark.create({
     name: "link",
     addAttributes: () => ({
-      href: { rendered: false },
+      href: { rendered: false, parseHTML: (element) => element.getAttribute("data-href") },
       relation: attribute(),
     }),
-    parseHTML: () => [{ tag: "a[data-link]" }],
-    renderHTML: ({ mark }) => ["a", { "data-link": "", title: mark.attrs.href }, 0],
+    parseHTML: () => [{ tag: "a[data-link][data-href]" }],
+    renderHTML: ({ mark }) => [
+      "a",
+      { "data-link": "", "data-href": mark.attrs.href, title: mark.attrs.href },
+      0,
+    ],
   }),
   Mark.create({
     name: "insertion",
     addAttributes: () => ({
-      author: { default: "", rendered: false },
-      date: { default: "", rendered: false },
+      author: attribute(""),
+      date: attribute(""),
     }),
     parseHTML: () => [{ tag: "ins" }],
     renderHTML: ({ mark }) => ["ins", { title: mark.attrs.author }, 0],
@@ -256,8 +343,8 @@ export const marks = [
   Mark.create({
     name: "deletion",
     addAttributes: () => ({
-      author: { default: "", rendered: false },
-      date: { default: "", rendered: false },
+      author: attribute(""),
+      date: attribute(""),
     }),
     parseHTML: () => [{ tag: "del" }],
     renderHTML: ({ mark }) => ["del", { title: mark.attrs.author }, 0],

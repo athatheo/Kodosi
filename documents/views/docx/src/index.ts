@@ -24,6 +24,7 @@ import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
 import { DocxBar } from "./bar";
 import * as commands from "./commands";
 import { PAGE_GAP, pages } from "./pages";
+import { fitsPastes } from "./paste";
 import { extensions } from "./schema";
 import { type DocxView, pageSize, styleSheet } from "./styles";
 import "./docx.css";
@@ -177,6 +178,7 @@ class DocxEditor implements ViewEditor, Pictures {
             blockIds(),
             peersPlugin(),
             imagesPlugin(client),
+            fitsPastes((asset) => client.hasAsset(asset)),
             followsLinks(),
             pages(
               this.shape,
