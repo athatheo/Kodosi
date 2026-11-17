@@ -13,7 +13,7 @@ if [[ ! -f "$dmg" ]]; then
     exit 1
 fi
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/kodosi-cask.XXXXXX")
-trap 'hdiutil detach -quiet "$scratch/volume" 2>/dev/null || true; rm -rf "$scratch"' EXIT
+trap 'diskutil eject "$scratch/volume" >/dev/null 2>&1 || true; rm -rf "$scratch"' EXIT
 curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
     --output "$scratch/public.dmg" "$KODOSI_DOWNLOAD_URL"
 sha256=$(shasum -a 256 "$dmg" | cut -d' ' -f1)
@@ -21,10 +21,10 @@ if [[ "$(shasum -a 256 "$scratch/public.dmg" | cut -d' ' -f1)" != "$sha256" ]]; 
     echo "The disk image at $KODOSI_DOWNLOAD_URL differs from $dmg." >&2
     exit 1
 fi
-hdiutil attach -quiet -readonly -nobrowse -noautoopen -mountpoint "$scratch/volume" "$dmg"
+diskutil image attach --readOnly --nobrowse --mountPoint "$scratch/volume" "$dmg" >/dev/null
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
     "$scratch/volume/Kodosi.app/Contents/Info.plist")
-hdiutil detach -quiet "$scratch/volume"
+diskutil eject "$scratch/volume" >/dev/null
 if [[ $KODOSI_DOWNLOAD_URL != *"$version"* ]]; then
     echo "$KODOSI_DOWNLOAD_URL does not name version $version." >&2
     exit 1
