@@ -6,20 +6,23 @@ a shared library and draws each terminal from Ghostty's state. It hosts no termi
 See [PRODUCT.md](PRODUCT.md) for its behavior and [DESIGN.md](DESIGN.md) for its theme.
 
 You need JDK 21, the Android SDK in `~/Library/Android/sdk` (`ANDROID_HOME` names another)
-with the platform, build tools, NDK and CMake that
-[libs.versions.toml](gradle/libs.versions.toml) pins, the pinned Rust toolchain with the
-Android target and cargo-ndk (`just android-tools-install`), Bun for the document views,
-and `just` and Python 3. On Linux the default SDK is `.tools/android/sdk/` and the JDK is
-`.tools/java/`; `ANDROID_HOME` and `JAVA_HOME` override those paths. On a Mac:
+with the platform tools and the platform, build tools, NDK and CMake that
+[libs.versions.toml](gradle/libs.versions.toml) pins as `compileSdk`, `buildTools`, `ndk`
+and `cmake`, and the pinned Rust toolchain with the Android target and cargo-ndk
+(`just android-tools-install`). On Linux the default SDK is `.tools/android/sdk/` and the
+JDK is `.tools/java/`; `ANDROID_HOME` and `JAVA_HOME` override those paths. On a Mac, from
+the repository root:
 
 ```sh
 brew install openjdk@21
 brew install --cask android-commandlinetools
-android --sdk="$HOME/Library/Android/sdk" sdk install platform-tools platforms/android-37.2 \
-  build-tools/37.0.0 ndk/30.0.16248370 cmake/4.1.2 emulator \
-  system-images/android-37.0/google_apis/arm64-v8a
+pin() { sed -n "s/^$1 = \"\(.*\)\"\$/\1/p" clients/android/gradle/libs.versions.toml; }
+android --sdk="$HOME/Library/Android/sdk" sdk install platform-tools \
+  "platforms/android-$(pin compileSdk)" "build-tools/$(pin buildTools)" "ndk/$(pin ndk)" "cmake/$(pin cmake)"
 just android-tools-install
 ```
+
+To run the app in the emulator, also install `emulator` and an ARM64 system image.
 
 `just android-build` builds the runtime with cargo-ndk, then the Debug app; Gradle keeps
 its files in `.tools/gradle/`. `just android-run` installs the app on the device or
