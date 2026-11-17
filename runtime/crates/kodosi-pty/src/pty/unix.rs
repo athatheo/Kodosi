@@ -190,7 +190,7 @@ impl KodosiPty {
                 if libc::login_tty(slave_raw) != 0 {
                     return Err(io::Error::last_os_error());
                 }
-                close_fds::close_open_fds(3, &[]);
+                close_fds::set_fds_cloexec(3, &[]);
                 Ok(())
             });
         }
@@ -794,7 +794,7 @@ fn foreground_process_group(fd: RawFd) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::{
-        KodosiPty, PtyReader, ShutdownStage, Transfer, WaitOutcome, find_executable,
+        KodosiError, KodosiPty, PtyReader, ShutdownStage, Transfer, WaitOutcome, find_executable,
         login_shell_name, resolve_program, set_terminal_size_using_fd, validate_working_dir,
     };
     use nix::fcntl::{FcntlArg, FdFlag, fcntl};
@@ -1236,6 +1236,26 @@ mod tests {
         let file = directory.path().join("file");
         std::fs::write(&file, "not a directory").expect("write file");
         assert!(validate_working_dir(file.to_str()).is_err());
+    }
+
+    #[test]
+    fn a_program_that_cannot_start_fails_its_spawn() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let program = directory.path().join("program");
+        std::fs::write(&program, "#!/nonexistent/interpreter\n").unwrap();
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let _context = runtime.enter();
+        let error = KodosiPty::spawn_program(&program, &[], None, 24, 80, &[], None).unwrap_err();
+        assert!(
+            matches!(&error, KodosiError::Io(error) if error.kind() == std::io::ErrorKind::NotFound),
+            "{error}"
+        );
     }
 
     #[test]
