@@ -204,7 +204,7 @@ public struct AgentMark: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var light: some View {
         let width = max(1.5, size * 0.07)
         switch activity {
@@ -217,7 +217,7 @@ public struct AgentMark: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var glyph: some View {
         if let asset = kind.asset {
             Image(asset, bundle: .module).renderingMode(.template).resizable().scaledToFit().frame(width: size * 0.6, height: size * 0.6)
@@ -278,7 +278,7 @@ public struct StatusSign: View {
         .tip(verbatim: form.label)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var glyph: some View {
         switch form {
         case .changed:

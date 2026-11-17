@@ -23,7 +23,7 @@ ColumnLayout {
     readonly property var installation: Models.ProviderFiles.installation
     readonly property var files: installation.files || []
 
-    function inspect() {
+    function inspect(): void {
         if (provider)
             Models.ProviderFiles.inspect(agent, Models.DesktopSettings.effectiveWorkingDirectory);
     }

@@ -757,6 +757,16 @@ fn markdown_and_text_become_pages_with_the_template_look() {
 }
 
 #[test]
+fn a_markdown_page_keeps_the_flags_and_shell_tests_of_its_text() {
+    let page = String::from_utf8(page::page(
+        "notes.md",
+        b"Run it with --force when [[ -f file ]] holds.",
+    ))
+    .unwrap();
+    assert!(page.contains("<p>Run it with --force when [[ -f file ]] holds.</p>"));
+}
+
+#[test]
 fn a_page_that_loads_from_the_network_is_named() {
     assert_eq!(
         page::network_reference(br#"<script src="https://cdn.example/x.js"></script>"#),
@@ -816,6 +826,26 @@ fn the_browser_keeps_its_session_and_hides_what_an_agent_types() {
     );
     assert_eq!(words(&["fill", "@e3", "secret"]), "fill");
     assert_eq!(words(&["click", "@e2", "--new-tab"]), "click @e2");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_long_answer_of_agent_browser_is_cut_at_a_character_and_still_ends() {
+    let mut command = tokio::process::Command::new("sh");
+    command
+        .args([
+            "-c",
+            "yes 'a\u{1D11E}' | head -c 3000000 && printf problem >&2 && exit 3",
+        ])
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    let run = browser::finished(command, std::time::Duration::from_secs(20))
+        .await
+        .unwrap();
+    assert_eq!(run.code, 3);
+    assert!(run.output.ends_with("\n…"));
+    assert!(run.output.len() <= browser::MOST_OUTPUT + "\n…".len());
+    assert!(!run.output.contains(char::REPLACEMENT_CHARACTER));
 }
 
 #[tokio::test]

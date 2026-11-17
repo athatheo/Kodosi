@@ -3,7 +3,8 @@ function(kodosi_test name source)
     target_link_libraries(${name} PRIVATE
         kodosi-application kodosi-desktop-integration kodosi-terminal-kernel
         kodosi-ghostty-vt Qt6::Test Qt6::Widgets Qt6::QuickControls2)
-    add_test(NAME ${name} COMMAND ${KODOSI_TEST_LAUNCHER} "$<TARGET_FILE:${name}>")
+    set_target_properties(${name} PROPERTIES TEST_LAUNCHER "${KODOSI_TEST_LAUNCHER}")
+    add_test(NAME ${name} COMMAND ${name})
     set_tests_properties(${name} PROPERTIES
         ENVIRONMENT "${KODOSI_TEST_ENVIRONMENT}"
         ENVIRONMENT_MODIFICATION "${KODOSI_TEST_ENVIRONMENT_MODIFICATION}"

@@ -4,7 +4,6 @@ import KodosiBridge
 import KodosiKit
 import Testing
 
-@MainActor
 struct OpenedNotificationTests {
     private let model = AppModel()
     private let log = TerminalCommandLog()

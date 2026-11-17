@@ -5,7 +5,6 @@ import Darwin
 import KodosiDesign
 import SwiftUI
 
-@MainActor
 enum Privacy {
     enum Pane {
         case fullDiskAccess
@@ -74,12 +73,11 @@ enum Privacy {
 
 /// macOS puts no app in Full Disk Access by itself, and Kodosi in App Management only once it
 /// stopped a program of a terminal, so the person drags Kodosi's icon into the list.
-@MainActor
 final class PrivacyGuide {
     static let shared = PrivacyGuide()
 
     private var panel: GuidePanel?
-    private var activation: (any NSObjectProtocol)?
+    private var activation: any NSObjectProtocol?
 
     var isShowing: Bool {
         panel != nil

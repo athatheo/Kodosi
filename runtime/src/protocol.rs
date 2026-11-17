@@ -1,3 +1,8 @@
+#![expect(
+    clippy::empty_enums,
+    reason = "serde derives an enum without variants for a variant without fields that denies unknown fields, and Clippy lints derived code"
+)]
+
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -42,7 +47,7 @@ pub(crate) fn other_version() -> Text {
     text!("Update Kodosi on both computers.")
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandEnvelope {
     #[serde(deserialize_with = "account_user")]
@@ -58,7 +63,7 @@ pub struct CommandEnvelope {
     pub command: Command,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
     #[serde(rename = "auth.login.start")]
@@ -870,7 +875,7 @@ pub enum Command {
 }
 
 /// The grid of the view that will show a new terminal, so its program starts at its final width.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StartSize {
     pub cols: u16,
@@ -879,21 +884,21 @@ pub struct StartSize {
     pub cell_height_pixels: u32,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum PushPlatform {
     Apns,
     Fcm,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum PushEnvironment {
     Development,
     Production,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BrowserSource {
     pub name: String,
@@ -901,7 +906,7 @@ pub struct BrowserSource {
     pub protected: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ResizeIdentity {
     pub request_id: String,
@@ -917,7 +922,7 @@ pub struct ResizeIdentity {
     pub cell_height_pixels: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 #[expect(
     clippy::struct_excessive_bools,
@@ -1001,7 +1006,7 @@ pub struct SessionEntry {
     Eq,
     PartialOrd,
     Ord,
-    specta_macros::Type,
+    specta::Type,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum Presence {
@@ -1014,13 +1019,13 @@ pub enum Presence {
     Kodosi,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum SessionKind {
     Local,
     Remote,
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum SessionStatus {
     Running,
@@ -1028,7 +1033,7 @@ pub enum SessionStatus {
     Offline,
     Closing,
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum ConnectionState {
     Local,
@@ -1038,7 +1043,7 @@ pub enum ConnectionState {
     Blocked,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
     pub account_user_id: Option<String>,
@@ -1049,7 +1054,7 @@ pub struct Event {
     pub recipient: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type", rename_all_fields = "camelCase", deny_unknown_fields)]
 pub enum EventBody {
     #[serde(rename = "system.ready")]
@@ -1429,7 +1434,7 @@ pub enum EventBody {
 }
 
 /// How much of a notification its device shows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum Cue {
     /// A banner with a sound, for a person who can be at this device.
@@ -1439,7 +1444,7 @@ pub enum Cue {
     List,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum PictureState {
     Sending,
@@ -1447,7 +1452,7 @@ pub enum PictureState {
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "operation", content = "result", deny_unknown_fields)]
 pub enum ProviderReply {
     #[serde(rename = "provider.discoverConversations")]
@@ -1468,14 +1473,14 @@ pub enum ProviderReply {
     Choice(crate::agents::AgentChoice),
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum SignInBrowser {
     System,
     App,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthRequiredReason {
     SignedOut,
@@ -1485,7 +1490,7 @@ pub enum AuthRequiredReason {
     AccountBanned,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthRestoringReason {
     Offline,
@@ -1494,7 +1499,7 @@ pub enum AuthRestoringReason {
     Unreadable,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum CredentialStore {
     Keychain,
@@ -1502,7 +1507,7 @@ pub enum CredentialStore {
     PrivateFile,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum DeviceLinkOutcome {
     Approved,
@@ -1510,7 +1515,7 @@ pub enum DeviceLinkOutcome {
     Expired,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FriendEntry {
     pub user_id: String,
@@ -1521,14 +1526,14 @@ pub struct FriendEntry {
     pub invite_needed: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum FriendIdentityState {
     Fixed,
     Changed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FriendRequestEntry {
     pub user_id: String,
@@ -1537,7 +1542,7 @@ pub struct FriendRequestEntry {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BlockedEntry {
     pub user_id: String,
@@ -1545,7 +1550,7 @@ pub struct BlockedEntry {
     pub display_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeviceEntry {
     pub device_id: String,
@@ -1554,7 +1559,7 @@ pub struct DeviceEntry {
     pub recovery_key: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeviceReset {
     pub reset_id: String,
@@ -1564,7 +1569,7 @@ pub struct DeviceReset {
     pub ready_at_ms: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FolderList {
     pub path: String,
@@ -1574,7 +1579,7 @@ pub struct FolderList {
     pub recent: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SessionFolder {
     pub session_id: String,
@@ -1587,7 +1592,7 @@ impl SessionFolder {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum GitHubState {
     Ready,
@@ -1595,7 +1600,7 @@ pub enum GitHubState {
     Missing,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RepositoryChoice {
     pub name: String,
@@ -1605,21 +1610,21 @@ pub struct RepositoryChoice {
     pub private: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RepositoryList {
     pub github: GitHubState,
     pub repositories: Vec<RepositoryChoice>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeviceLinkRequest {
     pub request_id: String,
     pub device_label: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectEntry {
     pub id: String,
@@ -1629,7 +1634,7 @@ pub struct ProjectEntry {
     pub unread: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectInvitationEntry {
     pub id: String,
@@ -1640,7 +1645,7 @@ pub struct ProjectInvitationEntry {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectMemberEntry {
     pub user_id: String,
@@ -1649,7 +1654,7 @@ pub struct ProjectMemberEntry {
     pub is_owner: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FocusResult {
     pub session_id: String,
@@ -1660,7 +1665,7 @@ pub struct FocusResult {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta_macros::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ResizeResult {
     pub session_id: String,

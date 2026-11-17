@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -16,18 +16,18 @@ KDialog {
 
     signal added()
 
-    function handleIn(value) {
+    function handleIn(value: string): string {
         const trimmed = value.trim()
         const parts = trimmed.split(":")
         const found = parts.length === 3 && parts[0] === "kodosi" ? parts[1] : trimmed.startsWith("@") ? trimmed.slice(1) : trimmed
         return /^[A-Za-z0-9._-]{1,64}$/.test(found) ? found : ""
     }
-    function askToAdd(value) {
+    function askToAdd(value: string): void {
         request = null
         text = value
         open()
     }
-    function askToAccept(entry) {
+    function askToAccept(entry: var): void {
         request = entry
         text = ""
         open()

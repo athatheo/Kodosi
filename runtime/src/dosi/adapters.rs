@@ -184,8 +184,8 @@ impl Claude {
             Some("system") if value.get("subtype").and_then(Value::as_str) == Some("init") => {
                 text("session_id").map(Event::Session).into_iter().collect()
             }
-            Some("stream_event") => self.stream(value.get("event").unwrap_or(&Value::Null)),
-            Some("assistant") => self.assistant(value.get("message").unwrap_or(&Value::Null)),
+            Some("stream_event") => self.stream(value.get("event").unwrap_or_default()),
+            Some("assistant") => self.assistant(value.get("message").unwrap_or_default()),
             Some("user") => results(value.pointer("/message/content")),
             Some("result") => {
                 let failed = value.get("is_error").and_then(Value::as_bool) == Some(true)
@@ -288,7 +288,7 @@ impl Claude {
                 Some("tool_use") => events.push(Event::ToolStart {
                     id: field("id"),
                     name: field("name"),
-                    input: content.get("input").cloned().unwrap_or(Value::Null),
+                    input: content.get("input").cloned().unwrap_or_default(),
                 }),
                 _ => {}
             }
@@ -348,8 +348,8 @@ fn plain(content: Option<&Value>) -> String {
 }
 
 fn answer(request: &Value) -> String {
-    let id = request.get("request_id").cloned().unwrap_or(Value::Null);
-    let body = request.get("request").unwrap_or(&Value::Null);
+    let id = request.get("request_id").cloned().unwrap_or_default();
+    let body = request.get("request").unwrap_or_default();
     let response = if body.get("subtype").and_then(Value::as_str) == Some("can_use_tool") {
         json!({"subtype":"success","request_id":id,"response":{"behavior":"allow","updatedInput":body.get("input").cloned().unwrap_or_else(|| json!({}))}})
     } else {
@@ -401,8 +401,8 @@ impl Codex {
         };
         match value.get("type").and_then(Value::as_str) {
             Some("thread.started") => text("/thread_id").map(Event::Session).into_iter().collect(),
-            Some("item.started") => self.item(value.get("item").unwrap_or(&Value::Null), false),
-            Some("item.completed") => self.item(value.get("item").unwrap_or(&Value::Null), true),
+            Some("item.started") => self.item(value.get("item").unwrap_or_default(), false),
+            Some("item.completed") => self.item(value.get("item").unwrap_or_default(), true),
             Some("turn.completed") => {
                 self.finished = true;
                 vec![Event::TurnEnd {
@@ -465,7 +465,7 @@ impl Codex {
             Some("web_search") => ("web_search".to_owned(), json!({"query":text("query")})),
             Some("mcp_tool_call") => (
                 format!("mcp__{}__{}", text("server"), text("tool")),
-                item.get("arguments").cloned().unwrap_or(Value::Null),
+                item.get("arguments").cloned().unwrap_or_default(),
             ),
             Some("todo_list") => ("plan".to_owned(), Value::Null),
             Some("error") if completed => {

@@ -1,9 +1,9 @@
 #[cfg(feature = "host")]
 use std::{process::Stdio, time::Duration};
 
+use reqwest::{Client, Url};
 #[cfg(feature = "host")]
-use reqwest::Method;
-use reqwest::Url;
+use reqwest::{Method, header::USER_AGENT};
 #[cfg(feature = "host")]
 use serde_json::{Value, json};
 #[cfg(feature = "host")]
@@ -243,15 +243,16 @@ fn api_url(repo: &Repository, path: &str) -> Result<Url> {
 }
 
 #[cfg(feature = "host")]
-async fn api(repo: &Repository, method: Method, path: &str, body: Option<Value>) -> Result<Value> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(20))
-        .connect_timeout(Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::none())
-        .user_agent("Kodosi")
-        .build()?;
+async fn api(
+    client: &Client,
+    repo: &Repository,
+    method: Method,
+    path: &str,
+    body: Option<Value>,
+) -> Result<Value> {
     let mut request = client
         .request(method, api_url(repo, path)?)
+        .header(USER_AGENT, "Kodosi")
         .header("Accept", "application/json");
     if let Some(token) = token(repo).await? {
         request = request.bearer_auth(token.as_str());
@@ -328,7 +329,11 @@ fn issue(repo: &Repository, value: &Value) -> Result<Issue> {
 const LISTED_ISSUES: usize = 100;
 
 #[cfg(feature = "host")]
-pub(crate) async fn issues(repo: &Repository, number: Option<u64>) -> Result<Vec<Issue>> {
+pub(crate) async fn issues(
+    client: &Client,
+    repo: &Repository,
+    number: Option<u64>,
+) -> Result<Vec<Issue>> {
     let path = format!(
         "repos/{}/{}/issues{}",
         repo.owner,
@@ -336,7 +341,7 @@ pub(crate) async fn issues(repo: &Repository, number: Option<u64>) -> Result<Vec
         number.map_or_else(String::new, |n| format!("/{n}"))
     );
     if number.is_some() {
-        let value = api(repo, Method::GET, &path, None).await?;
+        let value = api(client, repo, Method::GET, &path, None).await?;
         return Ok(vec![issue(repo, &value)?]);
     }
     let size = if repo.provider == "github" {
@@ -345,6 +350,7 @@ pub(crate) async fn issues(repo: &Repository, number: Option<u64>) -> Result<Vec
         "limit"
     };
     let value = api(
+        client,
         repo,
         Method::GET,
         &format!("{path}?state=open&{size}={LISTED_ISSUES}"),
@@ -362,6 +368,7 @@ pub(crate) async fn issues(repo: &Repository, number: Option<u64>) -> Result<Vec
 
 #[cfg(feature = "host")]
 pub(crate) async fn update_issue(
+    client: &Client,
     repo: &Repository,
     number: u64,
     change: TaskChange,
@@ -371,7 +378,7 @@ pub(crate) async fn update_issue(
         TaskChange::Close => json!({"state":"closed"}),
         TaskChange::Reopen => json!({"state":"open"}),
         TaskChange::Claim => {
-            let user = api(repo, Method::GET, "user", None).await?;
+            let user = api(client, repo, Method::GET, "user", None).await?;
             let login = user["login"]
                 .as_str()
                 .ok_or_else(|| Error::Text(text!("Your provider account is unavailable.")))?;
@@ -379,16 +386,25 @@ pub(crate) async fn update_issue(
         }
         TaskChange::Release => json!({"assignees":[]}),
     };
-    issue(repo, &api(repo, Method::PATCH, &path, Some(change)).await?)
+    issue(
+        repo,
+        &api(client, repo, Method::PATCH, &path, Some(change)).await?,
+    )
 }
 
 #[cfg(feature = "host")]
-pub(crate) async fn create_issue(repo: &Repository, title: &str, body: &str) -> Result<Issue> {
+pub(crate) async fn create_issue(
+    client: &Client,
+    repo: &Repository,
+    title: &str,
+    body: &str,
+) -> Result<Issue> {
     if token(repo).await?.is_none() {
         return Err(Error::Text(connect_message(repo)));
     }
     let path = format!("repos/{}/{}/issues", repo.owner, repo.repository);
     let created = api(
+        client,
         repo,
         Method::POST,
         &path,
@@ -402,9 +418,9 @@ pub(crate) async fn create_issue(repo: &Repository, title: &str, body: &str) -> 
 const CHOICE_FOLDERS: usize = 16;
 
 #[cfg(feature = "host")]
-pub(crate) async fn choices(folders: Vec<String>) -> Result<RepositoryList> {
+pub(crate) async fn choices(client: &Client, folders: Vec<String>) -> Result<RepositoryList> {
     let mut repositories = folder_choices(folders).await;
-    let (github, account) = account_repositories().await;
+    let (github, account) = account_repositories(client).await;
     for choice in account {
         if !repositories
             .iter()
@@ -465,7 +481,7 @@ async fn origin(folder: &str) -> Option<String> {
 }
 
 #[cfg(feature = "host")]
-async fn account_repositories() -> (GitHubState, Vec<RepositoryChoice>) {
+async fn account_repositories(client: &Client) -> (GitHubState, Vec<RepositoryChoice>) {
     let Some(gh) = gh().await else {
         return (GitHubState::Missing, Vec::new());
     };
@@ -476,6 +492,7 @@ async fn account_repositories() -> (GitHubState, Vec<RepositoryChoice>) {
         return (GitHubState::Ready, Vec::new());
     };
     let listed = api(
+        client,
         &github,
         Method::GET,
         "user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member",
@@ -515,7 +532,12 @@ fn account_choices(items: &[Value]) -> Vec<RepositoryChoice> {
     clippy::unused_async,
     reason = "issues are created through the provider credentials of a computer"
 )]
-pub(crate) async fn create_issue(_repo: &Repository, _title: &str, _body: &str) -> Result<Issue> {
+pub(crate) async fn create_issue(
+    _client: &Client,
+    _repo: &Repository,
+    _title: &str,
+    _body: &str,
+) -> Result<Issue> {
     Err(Error::Text(text!("Create issues from a computer.")))
 }
 
@@ -524,7 +546,11 @@ pub(crate) async fn create_issue(_repo: &Repository, _title: &str, _body: &str) 
     clippy::unused_async,
     reason = "issues are read through the provider credentials of a computer"
 )]
-pub(crate) async fn issues(_repo: &Repository, _number: Option<u64>) -> Result<Vec<Issue>> {
+pub(crate) async fn issues(
+    _client: &Client,
+    _repo: &Repository,
+    _number: Option<u64>,
+) -> Result<Vec<Issue>> {
     Err(Error::Text(text!("Import issues from a computer.")))
 }
 
@@ -534,6 +560,7 @@ pub(crate) async fn issues(_repo: &Repository, _number: Option<u64>) -> Result<V
     reason = "linked issues change through the provider credentials of a computer"
 )]
 pub(crate) async fn update_issue(
+    _client: &Client,
     _repo: &Repository,
     _number: u64,
     _change: TaskChange,
@@ -595,12 +622,16 @@ mod tests {
     #[tokio::test]
     async fn a_viewer_leaves_issue_providers_to_a_computer() {
         let repository = repository("https://github.com/team/api", None).unwrap();
+        let client = Client::new();
         assert_eq!(
-            issues(&repository, None).await.unwrap_err().to_string(),
+            issues(&client, &repository, None)
+                .await
+                .unwrap_err()
+                .to_string(),
             "Import issues from a computer."
         );
         assert_eq!(
-            update_issue(&repository, 7, TaskChange::Close)
+            update_issue(&client, &repository, 7, TaskChange::Close)
                 .await
                 .unwrap_err()
                 .to_string(),

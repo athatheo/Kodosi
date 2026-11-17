@@ -27,8 +27,8 @@ public sealed class TerminalConnectionTests
             var frame = await socket.Frames.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
                 .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             if (frame.Type != WebSocketMessageType.Text) continue;
-            using var json = JsonDocument.Parse(frame.Bytes);
-            if (json.RootElement.GetProperty("type").GetString() == type) return json.RootElement.Clone();
+            var json = JsonElement.Parse(frame.Bytes);
+            if (json.GetProperty("type").GetString() == type) return json;
         }
     }
 

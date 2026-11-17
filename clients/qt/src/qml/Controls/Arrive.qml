@@ -12,7 +12,7 @@ Translate {
         NumberAnimation { target: root; property: "progress"; to: 1; duration: KodosiTheme.motionSoft; easing.type: Easing.BezierSpline; easing.bezierCurve: KodosiTheme.outCurve }
     }
 
-    function play() {
+    function play(): void {
         motion.stop()
         if (KodosiTheme.reduceMotion || !KodosiTheme.shown) {
             progress = 1

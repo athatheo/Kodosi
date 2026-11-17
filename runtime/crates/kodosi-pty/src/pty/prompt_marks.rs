@@ -134,7 +134,7 @@ mod tests {
         }
         pty.request_shutdown(ShutdownStage::Force).unwrap();
         pty.wait_within(Duration::from_secs(5)).await.unwrap();
-        String::from_utf8_lossy(&output).into_owned()
+        String::from_utf8_lossy_owned(output)
     }
 
     fn block_on<T>(future: impl Future<Output = T>) -> T {

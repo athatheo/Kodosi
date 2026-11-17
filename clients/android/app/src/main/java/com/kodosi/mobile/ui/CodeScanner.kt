@@ -48,7 +48,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.PlanarYUVLuminanceSource
@@ -70,8 +69,7 @@ fun CodeScanDialog(words: CodeScanWords, accepts: (String) -> String?, found: (S
     var camera by remember {
         mutableStateOf(
             true.takeIf {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                    PackageManager.PERMISSION_GRANTED
+                context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
             }
         )
     }
@@ -180,7 +178,7 @@ private fun CameraReader(read: (String) -> Unit, failed: () -> Unit, modifier: M
             failing()
             return@LaunchedEffect
         }
-        val main = ContextCompat.getMainExecutor(context)
+        val main = context.mainExecutor
         val decoding = Executors.newSingleThreadExecutor()
         val reader = QRCodeReader()
         val preview = Preview.Builder().build().apply { setSurfaceProvider { request = it } }

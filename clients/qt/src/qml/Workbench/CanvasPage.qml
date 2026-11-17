@@ -13,10 +13,10 @@ WebEngineView {
     property var place: null
     property string shown: ""
 
-    function selection(done) {
+    function selection(done: var): void {
         runJavaScript("getSelection().toString()", WebEngineScript.ApplicationWorld, result => done(String(result || "")));
     }
-    function show() {
+    function show(): void {
         if (root.address.length === 0 || root.address === root.shown)
             return;
         if (root.shown.length === 0) {
@@ -55,7 +55,7 @@ WebEngineView {
         if (page || (empty && !request.isMainFrame))
             return;
         request.reject();
-        if (request.navigationType === WebEngineNavigationRequest.LinkClickedNavigation)
+        if (request.navigationType === WebEngineNavigationRequest.LinkClickedNavigation && request.userInitiated)
             Models.Canvas.follow(root.sessionId, request.url);
     }
     onNewWindowRequested: request => {

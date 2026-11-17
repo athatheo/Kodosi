@@ -1069,9 +1069,9 @@ async fn friends_kept_at(
         .verify_bundle(&bundle, Some(bundle.root().unwrap()))
         .await
         .unwrap();
-    let key = keys.signing_key().unwrap();
+    let key = keys.signing_key();
     let mut list = FriendList::new(&bundle.user_id);
-    let (first, head) = list.sign(&Head::default(), &keys.device_id, &key).unwrap();
+    let (first, head) = list.sign(&Head::default(), &keys.device_id, key).unwrap();
     list.friends.insert(
         Uuid::now_v7().to_string(),
         Friend {
@@ -1080,7 +1080,7 @@ async fn friends_kept_at(
             verified: false,
         },
     );
-    let (second, _) = list.sign(&head, &keys.device_id, &key).unwrap();
+    let (second, _) = list.sign(&head, &keys.device_id, key).unwrap();
     network
         .inner
         .state
@@ -1192,7 +1192,7 @@ async fn a_device_refuses_a_friend_list_that_does_not_continue_its_own() {
         .sign(
             &head,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key().unwrap(),
+            credentials.keys.signing_key(),
         )
         .unwrap();
     let mut replies = vec![compatible_server()];
@@ -1649,14 +1649,12 @@ async fn a_device_uploads_its_kept_friend_list_only_to_a_server_without_one() {
         let address = format!("http://{}", listener.local_addr().unwrap());
         let (_root, network, user) = signed_in_at(&address).await;
         let credentials = network.credentials().unwrap();
-        let key = credentials.keys.signing_key().unwrap();
+        let key = credentials.keys.signing_key();
         let mut list = FriendList::new(&user);
         let (_, first) = list
-            .sign(&Head::default(), &credentials.keys.device_id, &key)
+            .sign(&Head::default(), &credentials.keys.device_id, key)
             .unwrap();
-        let (kept, _) = list
-            .sign(&first, &credentials.keys.device_id, &key)
-            .unwrap();
+        let (kept, _) = list.sign(&first, &credentials.keys.device_id, key).unwrap();
         network
             .inner
             .state

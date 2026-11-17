@@ -1,3 +1,8 @@
+if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14))
+    message(FATAL_ERROR "Build the Linux client with GCC 14 or later, not ${CMAKE_CXX_COMPILER_ID} "
+        "${CMAKE_CXX_COMPILER_VERSION}: remove ${CMAKE_BINARY_DIR} and build again with CC=gcc-14 and CXX=g++-14")
+endif()
+
 set(CMAKE_INSTALL_BINDIR "lib/kodosi/bin" CACHE PATH "" FORCE)
 set(CMAKE_INSTALL_LIBDIR "lib/kodosi/lib" CACHE PATH "" FORCE)
 set(QT_DEPLOY_BIN_DIR "lib/kodosi/bin" CACHE STRING "" FORCE)
@@ -23,6 +28,7 @@ set(KODOSI_GHOSTTY_REF "LinuxGhostty.ref")
 set(KODOSI_GHOSTTY_LAYOUT "linux-x86_64")
 set(KODOSI_GHOSTTY_VT_ARCHIVE_NAME "libghostty-vt.a")
 set(KODOSI_RUNTIME_SYSTEM_LIBRARIES Threads::Threads ${CMAKE_DL_LIBS} util rt m)
+set(KODOSI_RUNTIME_LINK_OPTIONS "")
 set(KODOSI_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Werror)
 set(KODOSI_PLATFORM_SOURCES
     platform/linux/FreedesktopNotificationDriver.cpp
@@ -49,8 +55,11 @@ function(kodosi_install app)
         OUTPUT_SCRIPT deploy_script
         NO_TRANSLATIONS
         NO_UNSUPPORTED_PLATFORM_ERROR
+        EXCLUDE_PLUGIN_TYPES position
     )
     set(private_deploy_script "${CMAKE_CURRENT_BINARY_DIR}/deploy-kodosi-private-runtime.cmake")
+    list(JOIN KODOSI_QT_LANGUAGES " " qt_languages)
+    list(JOIN KODOSI_CHROMIUM_LANGUAGES "|" chromium_languages)
     file(GENERATE
         OUTPUT "${private_deploy_script}"
         CONTENT "set(QT_DEPLOY_PLUGINS_DIR lib/kodosi/plugins)
@@ -71,9 +80,9 @@ foreach(folder bin libexec)
         TRANSLATIONS_DIR lib/kodosi/translations
     )
 endforeach()
-file(REMOVE_RECURSE \"\${QT_DEPLOY_PREFIX}/lib/kodosi/plugins/position\")
+qt_deploy_translations(LOCALES ${qt_languages} CATALOGS qtbase qtdeclarative)
 file(GLOB locales \"\${QT_DEPLOY_PREFIX}/lib/kodosi/translations/qtwebengine_locales/*.pak\")
-list(FILTER locales EXCLUDE REGEX \"/en-US[.]pak$\")
+list(FILTER locales EXCLUDE REGEX \"/(${chromium_languages})[.]pak$\")
 file(REMOVE \${locales})
 "
     )

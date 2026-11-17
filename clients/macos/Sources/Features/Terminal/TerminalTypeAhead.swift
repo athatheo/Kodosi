@@ -2,7 +2,6 @@ import AppKit
 
 /// Keeps the keys that a person types while a new terminal opens, so that they reach that
 /// terminal and not the one before it.
-@MainActor
 final class TerminalTypeAhead {
     private static let patience = Duration.seconds(2)
     private static let limit = 256

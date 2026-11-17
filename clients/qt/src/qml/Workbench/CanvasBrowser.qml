@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Shapes
 import Kodosi.Models 1.0 as Models
@@ -39,14 +39,14 @@ Item {
         }
     }
 
-    function open() {
+    function open(): void {
         const typed = address.text.trim();
         if (typed.length === 0)
             return;
         video.step({ kind: "open", address: typed });
         surface.forceActiveFocus();
     }
-    function cursor(shape) {
+    function cursor(shape: string): int {
         switch (shape) {
         case "pointer": return Qt.PointingHandCursor;
         case "text": return Qt.IBeamCursor;
@@ -62,7 +62,7 @@ Item {
         default: return Qt.ArrowCursor;
         }
     }
-    function press(mouse) {
+    function press(mouse: MouseEvent): void {
         const now = Date.now();
         const near = Math.abs(mouse.x - pressedPoint.x) < 5 && Math.abs(mouse.y - pressedPoint.y) < 5;
         clicks = now - pressedAt < 450 && near ? Math.min(3, clicks + 1) : 1;
@@ -279,7 +279,7 @@ Item {
                 readonly property string kind: Models.DesktopSettings.agentNamed(shown ? shown.agent : "")
                 readonly property color tint: Identity.kindTint(kind)
 
-                function place() {
+                function place(): void {
                     if (!doing || !doing.point)
                         return;
                     const at = video.viewPoint(doing.point.x, doing.point.y);
@@ -403,7 +403,7 @@ Item {
                 readonly property var context: list ? list.context || null : null
                 readonly property string shown: list ? JSON.stringify(list) : ""
 
-                function choose(choice) {
+                function choose(choice: var): void {
                     video.step(choice === undefined ? { kind: "choose", menu: list.id } : { kind: "choose", menu: list.id, choice: choice });
                 }
 

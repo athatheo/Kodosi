@@ -9,6 +9,8 @@
 #include <QStringList>
 #include <QVector>
 
+#include <utility>
+
 namespace kodosi {
 
 class TerminalTilingLayoutModel final : public QAbstractListModel {
@@ -17,18 +19,21 @@ class TerminalTilingLayoutModel final : public QAbstractListModel {
         qreal viewportWidth
         READ viewportWidth
         WRITE setViewportWidth
-        NOTIFY viewportChanged)
+        NOTIFY viewportChanged
+        FINAL)
     Q_PROPERTY(
         qreal viewportHeight
         READ viewportHeight
         WRITE setViewportHeight
-        NOTIFY viewportChanged)
-    Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY geometryChanged)
+        NOTIFY viewportChanged
+        FINAL)
+    Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY geometryChanged FINAL)
     Q_PROPERTY(
         qreal accessibilityTextScale
         READ accessibilityTextScale
         WRITE setAccessibilityTextScale
-        NOTIFY accessibilityTextScaleChanged)
+        NOTIFY accessibilityTextScaleChanged
+        FINAL)
 
 public:
     enum class EntryType {
@@ -83,7 +88,7 @@ public:
         int rowCount,
         qreal viewportHeight,
         qreal minimumTileHeight = 170);
-    [[nodiscard]] static QPair<qreal, qreal> adjustedPair(
+    [[nodiscard]] static std::pair<qreal, qreal> adjustedPair(
         qreal previous,
         qreal current,
         qreal deltaPixels,

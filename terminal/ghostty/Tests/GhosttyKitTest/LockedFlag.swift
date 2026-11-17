@@ -1,19 +1,14 @@
-import Foundation
+import Synchronization
 
-final class LockedFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage = false
+final class LockedFlag: Sendable {
+    private let storage = Mutex(false)
 
     var value: Bool {
         get {
-            lock.lock()
-            defer { lock.unlock() }
-            return storage
+            storage.withLock { $0 }
         }
         set {
-            lock.lock()
-            storage = newValue
-            lock.unlock()
+            storage.withLock { $0 = newValue }
         }
     }
 }

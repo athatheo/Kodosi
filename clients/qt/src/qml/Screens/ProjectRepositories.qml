@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi 1.0
 import Kodosi.Models 1.0 as Models
@@ -14,7 +14,7 @@ Item {
     readonly property var issues: Models.Projects.issueRepository === selected ? Models.Projects.issues : []
     property string requested: ""
 
-    function select(id) {
+    function select(id: string): void {
         Models.Projects.setPresentation("repository", id);
         requested = id;
         Models.Projects.act({ type: "issues", repositoryId: id });

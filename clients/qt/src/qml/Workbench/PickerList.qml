@@ -25,14 +25,14 @@ FocusScope {
     signal picked(string id)
     signal closed
 
-    function reset() {
+    function reset(): void {
         filter = ""
         hovering = false
         const current = rows.find(row => row.current) || rows.find(row => row.kind !== "note")
         highlighted = current ? current.id : ""
         forceActiveFocus()
     }
-    function move(step) {
+    function move(step: int): void {
         const choices = matches.filter(row => row.kind !== "note")
         if (choices.length === 0)
             return
@@ -42,10 +42,10 @@ FocusScope {
         hovering = false
         highlighted = choices[(index + step + choices.length) % choices.length].id
     }
-    function sync() {
+    function sync(): void {
         list.currentIndex = matches.findIndex(row => row.id === highlighted && row.kind !== "note")
     }
-    function pick() {
+    function pick(): void {
         if (matches.some(row => row.id === highlighted && row.kind !== "note"))
             picked(highlighted)
     }

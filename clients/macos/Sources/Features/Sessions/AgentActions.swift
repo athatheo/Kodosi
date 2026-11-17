@@ -198,7 +198,7 @@ struct AgentActions: View {
         .frame(width: 300)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func note(keeps: Bool) -> some View {
         let busy = session.working || session.needsUser
         if busy || keeps {
@@ -224,7 +224,7 @@ private struct FlyoutRow<Accessory: View>: View {
     var caution = false
     @Binding var open: Bool
     let identifier: String
-    @ViewBuilder let accessory: () -> Accessory
+    @ContentBuilder let accessory: () -> Accessory
     @State private var hovered = false
 
     var body: some View {

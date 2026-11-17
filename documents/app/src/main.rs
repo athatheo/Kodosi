@@ -15,7 +15,7 @@ use tauri::{
     WindowEvent, Wry,
     ipc::{Channel, InvokeBody, InvokeResponseBody, Request},
     menu::{Menu, MenuBuilder, MenuEvent, MenuItemBuilder, SubmenuBuilder},
-    webview::NewWindowResponse,
+    webview::{NewWindowResponse, PermissionKind, PermissionResponse},
 };
 use tauri_plugin_dialog::DialogExt as _;
 use tauri_plugin_opener::OpenerExt as _;
@@ -73,7 +73,7 @@ impl App {
 
 fn main() -> tauri::Result<()> {
     let files: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(
             |app, arguments, folder| {
                 let files: Vec<PathBuf> = arguments
@@ -85,7 +85,18 @@ fn main() -> tauri::Result<()> {
             },
         ))
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+        // Without a capability, the plugin's own script would catch a link and then fail to
+        // open it; a link goes to `on_new_window` instead.
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
+        // A document comes from anyone and needs no camera, microphone or place.
+        .on_permission_request(|_, kind| match kind {
+            PermissionKind::ClipboardRead => PermissionResponse::Default,
+            _ => PermissionResponse::Deny,
+        })
         .invoke_handler(tauri::generate_handler![open, send])
         .menu(menu)
         .on_menu_event(|app, event| chosen(app, &event))
@@ -98,8 +109,10 @@ fn main() -> tauri::Result<()> {
             app.manage(App::new(app.path().app_data_dir()?.join("documents")));
             launched(app.handle(), &files)?;
             Ok(())
-        })
-        .build(tauri::generate_context!())?;
+        });
+    #[cfg(target_os = "macos")]
+    let builder = builder.on_web_content_process_terminate(|webview| drop(webview.reload()));
+    let app = builder.build(tauri::generate_context!())?;
     app.run(|app, event| {
         if matches!(event, RunEvent::Exit) {
             tauri::async_runtime::block_on(app.state::<App>().documents.close());

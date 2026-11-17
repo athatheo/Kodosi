@@ -396,11 +396,13 @@ impl BackendClient {
         let pace = if scanned { LINK_POLL / 2 } else { LINK_POLL };
         let this = self.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    () = this.inner.shutdown.cancelled() => break,
-                    () = tokio::time::sleep(pace) => {}
-                }
+            while this
+                .inner
+                .shutdown
+                .run_until_cancelled(tokio::time::sleep(pace))
+                .await
+                .is_some()
+            {
                 let _operation = this.inner.operations.lock().await;
                 let current = this.inner.state.lock().await.link.clone();
                 if current.is_none_or(|link| link.device_code != watched.device_code) {
@@ -479,11 +481,9 @@ impl BackendClient {
             settled => {
                 self.inner.state.lock().await.link = None;
                 let current = settled.and_then(|()| {
-                    if self.identity().is_some_and(|identity| identity.enrolled) {
-                        Ok(())
-                    } else {
-                        Err(invalid("Device approval has not become current."))
-                    }
+                    self.identity()
+                        .is_some_and(|identity| identity.enrolled)
+                        .ok_or_else(|| invalid("Device approval has not become current."))
                 });
                 if let Err(error) = current {
                     resolved("cancelled");
@@ -630,11 +630,13 @@ impl BackendClient {
     fn watch_offer(&self, watched: Arc<LinkSecret>) {
         let this = self.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    () = this.inner.shutdown.cancelled() => break,
-                    () = tokio::time::sleep(LINK_POLL) => {}
-                }
+            while this
+                .inner
+                .shutdown
+                .run_until_cancelled(tokio::time::sleep(LINK_POLL))
+                .await
+                .is_some()
+            {
                 let _operation = this.inner.operations.lock().await;
                 let current = this.inner.state.lock().await.offer.clone();
                 let Some(current) = current.filter(|offer| Arc::ptr_eq(&offer.secret, &watched))
@@ -742,7 +744,7 @@ impl BackendClient {
                 signing_public: &pending.signing_public_key,
             },
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
         )?;
         body["requestId"] = json!(pending.request_id);
         body["approvalProof"] = json!(BASE64.encode(approval));
@@ -818,7 +820,7 @@ impl BackendClient {
             &verified.list.entries,
             entries,
             &credentials.keys.device_id,
-            &credentials.keys.signing_key()?,
+            credentials.keys.signing_key(),
             issued,
             Some(issued + device_identity::DEVICE_LIST_LIFE_MS),
         )?;

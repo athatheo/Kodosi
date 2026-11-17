@@ -35,7 +35,7 @@ internal static class Limits
         foreach (var rune in (value ?? "").EnumerateRunes())
         {
             if (System.Text.Rune.GetUnicodeCategory(rune) != System.Globalization.UnicodeCategory.Format || rune.Value is 0x200C or 0x200D)
-                visible.Append(rune.ToString());
+                visible.Append(rune);
         }
         return visible.ToString();
     }
@@ -47,14 +47,8 @@ internal static class Limits
     {
         if (string.IsNullOrEmpty(text) || text.Length > ((max + 2) / 3) * 4)
             throw ApiException.Invalid($"{field} has an invalid length.");
-        try
-        {
-            var bytes = Convert.FromBase64String(text);
-            return bytes.Length <= max ? bytes : throw ApiException.Invalid($"{field} is too large.");
-        }
-        catch (FormatException)
-        {
+        if (!System.Buffers.Text.Base64.IsValid(text, out var length))
             throw ApiException.Invalid($"{field} must be base64.");
-        }
+        return length <= max ? Convert.FromBase64String(text) : throw ApiException.Invalid($"{field} is too large.");
     }
 }

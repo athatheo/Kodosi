@@ -597,7 +597,7 @@ pub(crate) fn padded(length: usize) -> usize {
     if length <= 1024 {
         return length.div_ceil(64) * 64;
     }
-    let exponent = usize::BITS - 1 - length.leading_zeros();
+    let exponent = length.ilog2();
     let bits = exponent.bit_width();
     let mask = (1usize << (exponent - bits)) - 1;
     (length + mask) & !mask
@@ -627,11 +627,7 @@ fn read64(bytes: &[u8], at: usize) -> u64 {
 }
 
 fn exact(body: &[u8], length: usize) -> Result<()> {
-    if body.len() == length {
-        Ok(())
-    } else {
-        Err(invalid("Terminal frame has an invalid body."))
-    }
+    (body.len() == length).ok_or_else(|| invalid("Terminal frame has an invalid body."))
 }
 
 #[cfg(test)]

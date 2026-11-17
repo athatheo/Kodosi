@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -44,17 +44,17 @@ Item {
     signal shareSessionRequested(string sessionId)
     signal canvasRequested(string section)
 
-    function bindTerminal() {
+    function bindTerminal(): void {
         terminalError = "";
         terminalOperationError = "";
         if (!Models.TerminalSurfaces.bind(terminal, sessionId))
             terminalError = qsTr("This terminal is not available now.");
     }
-    function forceTerminalFocus() {
+    function forceTerminalFocus(): void {
         if (visible && enabled)
             terminal.forceActiveFocus(Qt.ShortcutFocusReason);
     }
-    function refreshSession() {
+    function refreshSession(): void {
         const before = viewers;
         session = Models.Sessions.presentationForSession(sessionId);
         const added = viewers.find(user => before.indexOf(user) < 0);
@@ -63,7 +63,7 @@ Item {
             join.restart();
         }
     }
-    function reportShown() {
+    function reportShown(): void {
         const id = shown ? sessionId : "";
         if (id === shownId)
             return;
@@ -73,10 +73,10 @@ Item {
         if (id !== "")
             Models.Sessions.setVisible(id, true);
     }
-    function select() {
+    function select(): void {
         Models.DesktopState.selectSession(sessionId);
     }
-    function endRename() {
+    function endRename(): void {
         renaming = false;
         forceTerminalFocus();
     }
@@ -249,7 +249,7 @@ Item {
                     visible: host.length > 0 || place.length > 0
                     spacing: 4
                     Accessible.role: Accessible.StaticText
-                    Accessible.name: host.length > 0 && place.length > 0 ? qsTr("%1 on %2").arg(place).arg(host) : host + place
+                    Accessible.name: host.length > 0 && place.length > 0 ? qsTr("%1 on %2").arg(place, host) : host + place
                     ToolTip.text: root.projectEmbedded ? root.session.displayDirectory || host : root.session.placeLabel || host
                     ToolTip.visible: locationHover.hovered && ToolTip.text.length > 0
                     ToolTip.delay: Tip.delay
@@ -1014,26 +1014,26 @@ Item {
         readonly property string keepingNote: note(live.keeps === true)
         readonly property string turnNote: note(false)
 
-        function outputLabel(id) {
+        function outputLabel(id: string): string {
             return id === "quiet" ? qsTr("Quiet") : id === "detailed" ? qsTr("Detailed") : id === "standard" ? qsTr("Standard") : ""
         }
 
-        function loadModels() {
+        function loadModels(): void {
             if (local)
                 Models.Launcher.loadModels(agent)
         }
-        function modelLabel(id) {
+        function modelLabel(id: string): string {
             if (id.length === 0)
                 return qsTr("Default")
             return ((models ? models.models || [] : []).find(option => option.id === id) || { label: id }).label
         }
-        function permissionLabel(id) {
+        function permissionLabel(id: string): string {
             return id === "unrestricted" ? qsTr("Unrestricted") : id === "auto" ? qsTr("Auto") : id === "ask" ? qsTr("Ask") : ""
         }
-        function shownValue(value, waits) {
+        function shownValue(value: string, waits: bool): string {
             return waits ? qsTr("%1, after this turn").arg(value) : value
         }
-        function note(keeps) {
+        function note(keeps: bool): string {
             if (!shown)
                 return ""
             const label = Models.DesktopSettings.agentLabel(agent)

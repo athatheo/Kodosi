@@ -7,7 +7,7 @@ import KodosiTerminalSessions
 import Observation
 import Testing
 
-@Test @MainActor func `created session has incarnation before presentation constructs renderer`() async throws {
+@Test func `created session has incarnation before presentation constructs renderer`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "CreatedRenderer"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -44,7 +44,7 @@ import Testing
     try app.receive(runtimeEvent("session.result", epoch: 0, userId: nil, fields: [
         "requestId": .string(request), "sessionId": .string(id), "operation": .string("session.create"),
     ]))
-    try await creating.value
+    _ = try await creating.value
     let managed = try #require(renderer)
     #expect(managed.runtimeIncarnationId == incarnation)
     #expect(managed.token.isActive)
@@ -52,7 +52,7 @@ import Testing
     #expect(app.terminalManager.session(for: id) === managed)
 }
 
-@Test @MainActor func `a terminal list that says the same changes nothing on screen`() throws {
+@Test func `a terminal list that says the same changes nothing on screen`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "SpinnerFrame"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -81,7 +81,7 @@ import Testing
     #expect(app.sessions.first?.activity == "Ship the release")
 }
 
-@Test @MainActor func `releasing renderer cancels its connection without closing the session`() throws {
+@Test func `releasing renderer cancels its connection without closing the session`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "RendererRelease"))
     let runtime = RuntimeHandle(inbox: RuntimeEventInbox())
     let commands = CommandSink { _ in Issue.record("Renderer release must not send session.close"); return 0 }
@@ -103,7 +103,7 @@ import Testing
     manager.releaseSession(for: id)
 }
 
-@Test @MainActor func `a new terminal asks for the grid of the tile that it takes`() {
+@Test func `a new terminal asks for the grid of the tile that it takes`() {
     let style = KodosiTerminalStyle.make(settings: .defaults)
     let cell = DesktopSettings.TerminalCell(width: 17, height: 41, scale: 2)
     let grid = { tiles in
@@ -116,7 +116,7 @@ import Testing
     #expect(AppDependencies.startGrid(room: CGSize(width: 1240, height: 841), tiles: 1, scale: 2, cell: empty, style: style) != nil)
 }
 
-@Test @MainActor func `terminal tiles fill the stage without changing session order`() {
+@Test func `terminal tiles fill the stage without changing session order`() {
     for size in [CGSize(width: 960, height: 660), CGSize(width: 1400, height: 800), CGSize(width: 700, height: 500)] {
         for count in 1 ... 6 {
             let bounds = CGRect(origin: .zero, size: size)

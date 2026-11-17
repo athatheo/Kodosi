@@ -11,12 +11,12 @@ use cbc::{
     Decryptor,
     cipher::{BlockModeDecrypt as _, KeyIvInit as _, block_padding::Pkcs7},
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use serde::Deserialize;
 #[cfg(unix)]
 use sha1::Sha1;
 
-use super::{Cookie, CopyError, Kind, SignInSource, store_copy};
+use super::{Cookie, CopyError, Kind, SignInSource, open_store, store_copy};
 
 #[cfg(unix)]
 const SALT: &[u8] = b"saltysalt";
@@ -28,6 +28,12 @@ const KEY_BYTES: usize = 16;
 const KEY_ROUNDS: u32 = 1003;
 #[cfg(all(unix, not(target_os = "macos")))]
 const KEY_ROUNDS: u32 = 1;
+/// The Secret Service of KDE refuses about one session in 256, whose key secret-service sends
+/// without its leading zero byte (secret-service-rs#127). Each session draws a new key.
+#[cfg(all(unix, not(target_os = "macos")))]
+const SECRET_SERVICE_OPENINGS: usize = 3;
+#[cfg(all(unix, not(target_os = "macos")))]
+const REFUSED_ARGUMENTS: &str = "org.freedesktop.DBus.Error.InvalidArgs";
 const HOST_HASH_BYTES: usize = 32;
 /// From this version of the store, each value starts with a hash of its host.
 const HASHED_FROM: i64 = 24;
@@ -213,18 +219,14 @@ struct SealKeys {
 
 #[cfg(unix)]
 fn key_of(password: &[u8]) -> [u8; KEY_BYTES] {
-    let mut key = [0; KEY_BYTES];
-    pbkdf2::pbkdf2_hmac::<Sha1>(password, SALT, KEY_ROUNDS, &mut key);
-    key
+    pbkdf2::pbkdf2_hmac_array::<Sha1, KEY_BYTES>(password, SALT, KEY_ROUNDS)
 }
 
 #[cfg(unix)]
 fn opened(key: &[u8; KEY_BYTES], sealed: &[u8]) -> Option<Vec<u8>> {
-    let mut buffer = sealed.to_vec();
-    let plain = Decryptor::<Aes128>::new(key.into(), (&IV).into())
-        .decrypt_padded::<Pkcs7>(&mut buffer)
-        .ok()?;
-    Some(plain.to_vec())
+    Decryptor::<Aes128>::new(key.into(), (&IV).into())
+        .decrypt_padded_vec::<Pkcs7>(sealed)
+        .ok()
 }
 
 #[cfg(unix)]
@@ -260,11 +262,21 @@ fn opener_of(family: &Family, _folder: &Path) -> Result<Box<dyn Opener>, CopyErr
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn system_password(application: &str) -> Option<Vec<u8>> {
-    use secret_service::{EncryptionType, SecretService};
+    use secret_service::{EncryptionType, Error, SecretService};
 
     let runtime = tokio::runtime::Handle::try_current().ok()?;
     runtime.block_on(async {
-        let service = SecretService::connect(EncryptionType::Dh).await.ok()?;
+        let mut openings = 1;
+        let service = loop {
+            match SecretService::connect(EncryptionType::Dh).await {
+                Err(Error::Zbus(zbus::Error::MethodError(name, ..)))
+                    if openings < SECRET_SERVICE_OPENINGS && name == REFUSED_ARGUMENTS =>
+                {
+                    openings += 1;
+                }
+                connected => break connected.ok()?,
+            }
+        };
         let found = service
             .search_items(std::collections::HashMap::from([(
                 "application",
@@ -316,9 +328,7 @@ struct BoundCookies {
 
 impl BoundCookies {
     fn read(profile: &Path) -> Self {
-        let store = profile.join("Device Bound Sessions");
-        let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-        let Ok(connection) = Connection::open_with_flags(store, flags) else {
+        let Ok(connection) = open_store(&profile.join("Device Bound Sessions")) else {
             return Self::default();
         };
         let sessions = bound_rows(&connection).unwrap_or_default();
@@ -389,7 +399,7 @@ fn read_store(
     opener: &dyn Opener,
     bound: &BoundCookies,
 ) -> Result<Vec<Cookie>, CopyError> {
-    let connection = Connection::open_with_flags(store, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let connection = open_store(store)?;
     let version: i64 = connection
         .query_row("SELECT value FROM meta WHERE key = 'version'", [], |row| {
             row.get::<_, String>(0)
@@ -467,11 +477,9 @@ mod tests {
     const FAR_PAST: i64 = 10_000_000_000_000_000;
 
     fn sealed(key: &[u8; KEY_BYTES], prefix: &[u8], plain: &[u8]) -> Vec<u8> {
-        let mut buffer = vec![0; plain.len() + KEY_BYTES];
-        let written = Encryptor::<Aes128>::new(key.into(), (&IV).into())
-            .encrypt_padded_b2b::<Pkcs7>(plain, &mut buffer)
-            .unwrap();
-        [prefix, written].concat()
+        let written =
+            Encryptor::<Aes128>::new(key.into(), (&IV).into()).encrypt_padded_vec::<Pkcs7>(plain);
+        [prefix, &written].concat()
     }
 
     fn store(folder: &Path, version: u32, rows: &[(&str, &str, &str, &[u8], i64)]) -> PathBuf {

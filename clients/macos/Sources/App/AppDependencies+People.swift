@@ -4,7 +4,7 @@ import KodosiDesign
 
 extension AppDependencies {
     func copyInvite() {
-        inviteRequested = Date()
+        inviteRequested = .now
         people.requestInvite()
     }
 
@@ -30,7 +30,7 @@ extension AppDependencies {
     }
 
     func start(_ agent: String, in session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await mutateSession("session.run", session: session, fields: ["agent": AgentStart(agent: agent).json])
             } catch { errorMessage = error.localizedDescription }
@@ -38,7 +38,7 @@ extension AppDependencies {
     }
 
     func changeAgent(_ change: AgentSettings, in session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await mutateSession("session.agent", session: session, fields: ["change": change.json])
             } catch { errorMessage = error.localizedDescription }
@@ -60,7 +60,7 @@ extension AppDependencies {
     func rename(_ session: RuntimeSession, to name: String) {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard ProductInput.validName(name), name != session.name else { return }
-        Task { @MainActor in
+        Task {
             do {
                 try await mutateSession("session.rename", session: session, fields: ["name": .string(name)])
             } catch { errorMessage = error.localizedDescription }
@@ -79,13 +79,13 @@ extension AppDependencies {
 
     func close(_ sessions: [RuntimeSession]) {
         for session in sessions {
-            Task { @MainActor in await close(session) }
+            Task { await close(session) }
         }
     }
 
     func hide(_ sessions: [RuntimeSession]) {
         for session in sessions {
-            Task { @MainActor in
+            Task {
                 do {
                     try await mutateSession("session.hide", session: session)
                 } catch { errorMessage = error.localizedDescription }

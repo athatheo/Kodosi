@@ -465,7 +465,7 @@
             let focusChanged = view.requestedFocus != shouldFocus
             view.requestedFocus = shouldFocus
             guard focusChanged else { return }
-            Task { @MainActor [weak view] in
+            Task { [weak view] in
                 await Task.yield()
                 guard let view,
                       view.requestedFocus == shouldFocus,

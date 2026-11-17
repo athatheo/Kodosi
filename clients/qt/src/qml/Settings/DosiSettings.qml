@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -22,18 +22,18 @@ ColumnLayout {
     property bool saved: false
     readonly property bool changed: instructions.loaded === true && draft !== instructions.text
 
-    function effortsFor(id) {
+    function effortsFor(id: var): var {
         if (!modelSet)
             return []
         const allowed = ((modelSet.models || []).find(entry => entry.id === id) || {}).efforts || []
         return (modelSet.efforts || []).filter(entry => allowed.length === 0 || allowed.indexOf(entry.id) >= 0)
     }
-    function chooseModel(id) {
+    function chooseModel(id: string): void {
         const kept = effortsFor(id).some(entry => entry.id === setup.effort)
         choose({ model: id, effort: (kept || !modelSet) ? setup.effort || "" : "" })
     }
 
-    function choose(next) {
+    function choose(next: var): void {
         Models.Dosi.choose(Object.assign({ type: "pick", agent: agent, account: setup.account || "", model: setup.model || "", effort: setup.effort || "" }, next))
     }
 

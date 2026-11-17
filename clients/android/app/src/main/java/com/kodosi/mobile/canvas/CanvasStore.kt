@@ -23,8 +23,8 @@ class CanvasStore(private val commands: CommandSink, private val words: Words) {
     private val links = mutableSetOf<DocumentLink>()
     private val opened = mutableMapOf<String, Long>()
     private val started = System.currentTimeMillis()
-    private val mutableNews = MutableStateFlow<Map<String, String>>(emptyMap())
-    val news: StateFlow<Map<String, String>> = mutableNews
+    val news: StateFlow<Map<String, String>>
+        field = MutableStateFlow<Map<String, String>>(emptyMap())
     private var generation = 0
 
     fun reset() {
@@ -32,14 +32,14 @@ class CanvasStore(private val commands: CommandSink, private val words: Words) {
         links.toList().forEach(DocumentLink::close)
         cache.clear()
         opened.clear()
-        mutableNews.value = emptyMap()
+        news.value = emptyMap()
     }
 
     fun observe(sessions: List<RuntimeSession>) {
         val present = sessions.map { it.id }.toSet()
         cache.keys.removeAll { it.session !in present }
         opened.keys.retainAll(present)
-        mutableNews.value = sessions.mapNotNull { session ->
+        news.value = sessions.mapNotNull { session ->
             val show = session.canvas?.latestNotice ?: return@mapNotNull null
             if (show.at > (opened[session.id] ?: started)) session.id to show.key else null
         }.toMap()
@@ -47,7 +47,7 @@ class CanvasStore(private val commands: CommandSink, private val words: Words) {
 
     fun saw(session: RuntimeSession) {
         session.canvas?.latestNotice?.let { opened[session.id] = it.at }
-        mutableNews.value = mutableNews.value - session.id
+        news.value = news.value - session.id
     }
 
     fun newShow(session: RuntimeSession): CanvasOpen? =

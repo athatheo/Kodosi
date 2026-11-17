@@ -404,8 +404,7 @@ fn marks_at(doc: &Node, position: usize) -> Vec<Mark> {
     doc.node_at(position)
         .ok()
         .flatten()
-        .map(|node| node.marks().to_vec())
-        .unwrap_or_default()
+        .map_or_default(|node| node.marks().to_vec())
 }
 
 fn replace_text_steps(
@@ -909,7 +908,7 @@ pub(crate) fn merge_steps(doc: &Node, ops: &[Op]) -> Result<Vec<Value>, String> 
 
 fn block_json(node: &Node) -> Value {
     let kind = schema().node_name(node.kind());
-    let id = node.attrs().get("id").cloned().unwrap_or(Value::Null);
+    let id = node.attrs().get("id").cloned().unwrap_or_default();
     match kind {
         "table" => {
             let rows: Vec<Vec<String>> = node

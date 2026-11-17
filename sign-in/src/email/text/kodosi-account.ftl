@@ -1,5 +1,5 @@
 <#ftl output_format="plainText">
-${msg("kdsAccountSubject", realmName)}
+${subject}
 
 ${msg("kdsAccountText", realmName, username)}
 

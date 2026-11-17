@@ -126,7 +126,7 @@ final class MailCode {
 
     int waitSeconds() {
         String last = notes.get(LAST);
-        return last == null ? 0 : (int) Math.max(0, number(last) + RESEND_SECONDS - now);
+        return last == null ? 0 : Math.clamp(number(last) + RESEND_SECONDS - now, 0, RESEND_SECONDS);
     }
 
     boolean tooOften() {

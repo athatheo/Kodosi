@@ -121,7 +121,7 @@ QString DosiWords::summary(const QVariantList& tools)
         ? (active ? deed(actions.first()).doing : deed(actions.first()).done)
         : (active ? Phrase { tr("working on"), tr("working on %1") } : Phrase { tr("worked on"), tr("worked on %1") });
     const auto shown = phrase(names.mid(0, 2).join(QStringLiteral(", ")));
-    return names.size() > 2 ? QStringLiteral("%1 +%2").arg(shown).arg(names.size() - 2) : shown;
+    return names.size() > 2 ? QStringLiteral("%1 +%2").arg(shown, QString::number(names.size() - 2)) : shown;
 }
 
 QString DosiWords::day(const QDateTime& date, const QDateTime& now)

@@ -132,7 +132,7 @@ fn platform_roots() -> Result<(PathBuf, PathBuf)> {
             )
         })?;
     let production = resolve_existing(&production)?;
-    let home = std::env::var_os("HOME").map_or_else(|| production.clone(), PathBuf::from);
+    let home = kodosi_os::fs::home_dir().unwrap_or_else(|_| production.clone());
     Ok((home, production))
 }
 

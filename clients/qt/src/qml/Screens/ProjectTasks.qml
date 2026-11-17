@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi 1.0
 import Kodosi.Models 1.0 as Models
@@ -17,13 +17,13 @@ Item {
     readonly property string issueRepository: presentation.taskIssueRepository || ""
     readonly property bool adding: composer.activeFocus || (presentation.taskDescription || "").length > 0 || chosen.length > 0 || issueRepository.length > 0
 
-    function change(task, action, note) {
+    function change(task: var, action: string, note: string): void {
         let value = { type: "updateTask", taskId: task.id, change: action };
         if (note && note.trim().length)
             value.note = note;
         Models.Projects.act(value);
     }
-    function add() {
+    function add(): void {
         const title = (root.presentation.taskTitle || "").trim();
         if (title.length === 0 || Models.Projects.busy)
             return;
@@ -33,7 +33,7 @@ Item {
             action.issueRepositoryId = root.issueRepository;
         Models.Projects.act(action);
     }
-    function toggle(id) {
+    function toggle(id: string): void {
         const next = root.chosen.indexOf(id) >= 0 ? root.chosen.filter(entry => entry !== id) : root.chosen.concat([id]);
         Models.Projects.setPresentation("taskRepositories", next);
     }

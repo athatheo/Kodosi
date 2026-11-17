@@ -1,6 +1,6 @@
 import Foundation
 
-enum Presence: String, Sendable {
+nonisolated enum Presence: String, Sendable {
     case kodosi, here, idle, away
 }
 
@@ -13,7 +13,6 @@ struct PresenceSource {
     var nextInput: @MainActor (@escaping @MainActor () -> Void) -> Cancel
 }
 
-@MainActor
 final class PresenceReporter {
     enum Absence: Hashable {
         case locked, screensAsleep, asleep, switchedOut

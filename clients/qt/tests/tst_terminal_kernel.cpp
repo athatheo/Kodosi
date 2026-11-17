@@ -526,6 +526,7 @@ private slots:
     void terminalViewOpensAWebAddressInTheTextWithControlClick();
     void terminalViewShowsTheHandAsSoonAsControlIsPressedOverAWebAddress();
     void aProgramThatTracksTheMouseGetsControlClicksAndShiftOpensLinks();
+    void terminalViewShowsThePointerThatTheProgramAsksFor();
     void terminalViewCannotActivateLinkFromUndisplayedFrame();
     void terminalViewCancelsLinkReleaseOutsideBounds();
     void terminalViewCopySelectionStillUsesHostClipboard();
@@ -2092,10 +2093,10 @@ void TerminalKernelTest::qmlConstructionEnrollsTerminalInAccessibleTree()
     }
     QVERIFY(attached != nullptr);
     QCOMPARE(
-        attached->property(QByteArrayLiteral("role")).toInt(),
+        attached->property("role").toInt(),
         static_cast<int>(QAccessible::Terminal));
     QCOMPARE(
-        attached->property(QByteArrayLiteral("name")).toString(),
+        attached->property("name").toString(),
         QStringLiteral("Terminal"));
 }
 
@@ -3390,6 +3391,61 @@ void TerminalKernelTest::aProgramThatTracksTheMouseGetsControlClicksAndShiftOpen
     QCOMPARE(capture.values.constFirst(), QUrl(QStringLiteral("https://example.com/page")));
     QCOMPARE(dispatcher.inputCommands.size(), 2);
     QDesktopServices::unsetUrlHandler(QStringLiteral("https"));
+}
+
+void TerminalKernelTest::terminalViewShowsThePointerThatTheProgramAsksFor()
+{
+    kodosi::TerminalSessionRegistry registry;
+    FakeTerminalDispatcher dispatcher;
+    kodosi::TerminalView view(m_window.contentItem());
+    const kodosi::TerminalSubscription subscription {
+        QStringLiteral("pointer"),
+        QStringLiteral("pointer-subscription"),
+        23,
+    };
+    view.setWidth(400);
+    view.setHeight(160);
+    view.setTerminalInteraction(true, false);
+    QVERIFY(view.attach(registry, dispatcher, subscription, QStringLiteral("pointer-incarnation")));
+    QVERIFY(registry.installCheckpoint({
+        subscription,
+        1,
+        4,
+        40,
+        checkpointFor(QByteArrayLiteral("go https://example.com/page now"), 40, 4),
+    }));
+    registry.receiveConnectResult({subscription, ffiOk});
+    QCoreApplication::processEvents();
+    QCOMPARE(view.cursor().shape(), Qt::IBeamCursor);
+
+    std::uint64_t sequence = 1;
+    const auto receive = [&](const QByteArray& bytes) {
+        registry.receiveData({subscription, sequence++, bytes});
+    };
+    receive(QByteArrayLiteral("\x1b]22;pointer\x1b\\"));
+    QTRY_COMPARE(view.cursor().shape(), Qt::PointingHandCursor);
+    receive(QByteArrayLiteral("\x1b]22;col-resize\x1b\\"));
+    QTRY_COMPARE(view.cursor().shape(), Qt::SplitHCursor);
+    receive(QByteArrayLiteral("\x1b]22;text\x1b\\\x1b[?1000h"));
+    QTRY_COMPARE(view.cursor().shape(), Qt::ArrowCursor);
+
+    view.setTerminalInteraction(false, false);
+    QCOMPARE(view.cursor().shape(), Qt::IBeamCursor);
+    view.setTerminalInteraction(true, false);
+    QCOMPARE(view.cursor().shape(), Qt::ArrowCursor);
+
+    const auto cell = view.terminalCellSize() * view.viewportScale();
+    const QPointF link(cell.width() * 8.5, cell.height() * 0.5);
+    const auto hover = [&](const Qt::KeyboardModifiers modifiers) {
+        QHoverEvent event(QEvent::HoverMove, link, link, link, modifiers);
+        QCoreApplication::sendEvent(&view, &event);
+        return view.cursor().shape();
+    };
+    QCOMPARE(hover(Qt::ControlModifier | Qt::ShiftModifier), Qt::PointingHandCursor);
+    QCOMPARE(hover(Qt::NoModifier), Qt::ArrowCursor);
+
+    receive(QByteArrayLiteral("\x1b[?1000l"));
+    QTRY_COMPARE(view.cursor().shape(), Qt::IBeamCursor);
 }
 
 void TerminalKernelTest::terminalViewCannotActivateLinkFromUndisplayedFrame()

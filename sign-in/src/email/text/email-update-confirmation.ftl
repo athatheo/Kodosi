@@ -1,5 +1,5 @@
 <#ftl output_format="plainText">
-${msg("emailUpdateConfirmationSubject")}
+${subject}
 
 ${msg("kdsNewEmailText", realmName, newEmail)}
 

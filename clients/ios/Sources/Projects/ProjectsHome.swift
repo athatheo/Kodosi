@@ -53,9 +53,7 @@ struct ProjectsHome: View {
         .sheet(isPresented: $showsNewProject, onDismiss: openCreated) {
             ProjectCreateSheet { created = $0 }
         }
-        .confirmationDialog(
-            confirmationTitle, isPresented: confirmationShown, titleVisibility: .visible, presenting: confirming,
-        ) { project in
+        .confirmationDialog(confirmationTitle, item: $confirming, titleVisibility: .visible) { project in
             if projects.isOwner(of: project.id) {
                 Button("Delete project", role: .destructive) { projects.run { try await projects.delete(project.id) } }
                     .accessibilityIdentifier("projects.delete.confirm")
@@ -75,7 +73,7 @@ struct ProjectsHome: View {
         .navigationDestination(item: $opened) { ProjectScreen(projectId: $0.projectId) }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var invitationsSection: some View {
         if query.isEmpty, !projects.invitations.isEmpty {
             ForEach(projects.invitations) { invitation in
@@ -85,7 +83,7 @@ struct ProjectsHome: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func projectsSection(_ shown: [ProjectEntry]) -> some View {
         ForEach(shown) { project in
             projectCard(project)
@@ -143,7 +141,7 @@ struct ProjectsHome: View {
             .accessibilityIdentifier("projects.row.\(AccessibilityIdentifier.token(project.id))")
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var placeholder: some View {
         if !projects.listed {
             ProjectListSkeleton()
@@ -171,14 +169,6 @@ struct ProjectsHome: View {
         guard let created else { return }
         self.created = nil
         opened = ProjectRoute(projectId: created)
-    }
-
-    private var confirmationShown: Binding<Bool> {
-        Binding(get: { confirming != nil }, set: {
-            if !$0 {
-                confirming = nil
-            }
-        })
     }
 
     private var confirmationTitle: String {

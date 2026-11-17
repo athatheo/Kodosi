@@ -5,15 +5,16 @@ each platform on that platform.
 
 ## Linux
 
-You need Linux x86-64 (Ubuntu 24.04 recommended) with a C++23 compiler, the pinned Rust
-toolchain, Python 3, `uv`, `just`, a desktop D-Bus session and these libraries:
+You need Linux x86-64 (Ubuntu 24.04 recommended) with GCC 14 or later, the pinned Rust
+toolchain, `uv`, `just`, a desktop D-Bus session and these libraries:
 
 ```sh
-sudo apt-get install build-essential git curl unzip zstd pkg-config \
+sudo apt-get install build-essential g++-14 git curl unzip zstd pkg-config \
   libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libfontconfig1-dev \
   libglib2.0-dev libdbus-1-3 dbus-x11 libxcb-cursor0 libxkbcommon-x11-0 \
   libnss3 libasound2t64 libgbm1 libxcb-dri3-0 libxcomposite1 libxdamage1 \
   libxrandr2 libxtst6 libxkbfile1 libwayland-dev libxext-dev
+export CC=gcc-14 CXX=g++-14
 just linux-build
 ./clients/qt/build/dev/src/kodosi-qt
 ```

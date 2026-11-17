@@ -26,7 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -67,7 +66,6 @@ import com.kodosi.mobile.terminals.NewTerminalRequest
 import com.kodosi.mobile.terminals.NewTerminalSheet
 import com.kodosi.mobile.terminals.TerminalScreen
 import com.kodosi.mobile.terminals.TerminalsScreen
-import com.kodosi.mobile.ui.AppIcon
 import com.kodosi.mobile.ui.AppSymbol
 import com.kodosi.mobile.ui.KodosiButton
 import com.kodosi.mobile.ui.KodosiNavigation
@@ -211,7 +209,7 @@ private fun Home(model: AppModel) {
         if (opening != null) {
             opening = id
             openingTab = at
-        } else if (Build.VERSION.SDK_INT >= 37 && !networkAsked &&
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN && !networkAsked &&
             context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED
         ) {
             networkAsked = true
@@ -333,7 +331,7 @@ private fun Home(model: AppModel) {
             }
         )
     }
-    val adaptive = currentWindowAdaptiveInfo()
+    val adaptive = currentWindowAdaptiveInfoV2()
     val compact = !adaptive.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
     val destination = (stack.lastOrNull() as? Destination)?.kind
     val fullScreen = destination in setOf("terminal", "canvas") || (destination == "project" && compact)

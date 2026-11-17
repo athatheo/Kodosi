@@ -1,7 +1,6 @@
 package com.kodosi.mobile.projects
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -21,6 +19,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -245,7 +245,7 @@ internal fun projectTime(stamp: String): String {
 
 @Composable
 private fun NewProjectDialog(model: AppModel, dismiss: () -> Unit, open: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
+    val name = rememberTextFieldState()
     var inviting by remember { mutableStateOf<Set<String>>(emptySet()) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
@@ -257,9 +257,11 @@ private fun NewProjectDialog(model: AppModel, dismiss: () -> Unit, open: (String
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    KodosiField(name, {
-                        name = it
-                    }, label = stringResource(R.string.name), singleLine = true)
+                    KodosiField(
+                        name,
+                        label = stringResource(R.string.name),
+                        lineLimits = TextFieldLineLimits.SingleLine
+                    )
                 }
                 if (people.friends.isNotEmpty()) item { SectionTitle(stringResource(R.string.invite_friends)) }
                 items(people.friends, key = { it.userId }) { person ->
@@ -273,12 +275,14 @@ private fun NewProjectDialog(model: AppModel, dismiss: () -> Unit, open: (String
         },
         confirmButton = {
             KodosiButton(
-                enabled = name.isNotBlank() && name.trim().encodeToByteArray().size <= 128 && !busy,
+                enabled = name.text.isNotBlank() &&
+                    name.text.toString().trim().encodeToByteArray().size <= 128 &&
+                    !busy,
                 onClick = {
                     busy = true
                     scope.launch {
                         try {
-                            val id = model.projects.create(name)
+                            val id = model.projects.create(name.text.toString())
                             for (friend in inviting) {
                                 model.runAction {
                                     model.commands.request(

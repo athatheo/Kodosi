@@ -47,7 +47,7 @@ struct BrowserPartsLayer: View {
                     if let context = menu.context {
                         contextRows(menu, context)
                     } else {
-                        ForEach(Array(menu.items.enumerated()), id: \.offset) { index, item in
+                        ForEach(menu.items.enumerated(), id: \.offset) { index, item in
                             row(MenuRow(title: item.label, selected: item.chosen), enabled: item.enabled) {
                                 feed.send(.choose(menu: menu.id, choice: index))
                             }
@@ -62,7 +62,7 @@ struct BrowserPartsLayer: View {
             .accessibilityIdentifier("canvas.browser.menu")
         }
 
-        @ViewBuilder
+        @ContentBuilder
         private func contextRows(_ menu: BrowserWindow.Menu, _ context: BrowserWindow.MenuContext) -> some View {
             row(MenuRow(title: String(localized: "Copy", bundle: .module), symbol: "doc.on.doc"), enabled: !context.selection.isEmpty) {
                 feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copySelection))
@@ -72,12 +72,20 @@ struct BrowserPartsLayer: View {
                     feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copyLink))
                 }
             }
-            row(MenuRow(title: String(localized: "Paste", bundle: .module), symbol: "doc.on.clipboard"), enabled: UIPasteboard.general.hasStrings) {
-                feed.send(.choose(menu: menu.id, choice: nil))
-                if let words = UIPasteboard.general.string, !words.isEmpty {
-                    feed.send(.text(words))
+            PasteButton(payloadType: String.self) { [feed, id = menu.id] words in
+                Task {
+                    feed.send(.choose(menu: id, choice: nil))
+                    if let text = words.first, !text.isEmpty {
+                        feed.send(.text(text))
+                    }
                 }
             }
+            .labelStyle(.titleAndIcon)
+            .buttonBorderShape(.roundedRectangle(radius: Radius.sm))
+            .tint(theme.colors.accent)
+            .padding(.horizontal, 4)
+            .frame(minHeight: 32)
+            .accessibilityIdentifier("canvas.browser.paste")
             if let ask {
                 row(MenuRow(title: ask.title, symbol: "text.bubble")) {
                     feed.send(.choose(menu: menu.id, choice: nil))

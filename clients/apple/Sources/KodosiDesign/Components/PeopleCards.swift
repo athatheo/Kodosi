@@ -18,7 +18,7 @@ public struct FriendCard<Trailing: View, Footer: View>: View {
     public init(
         friend: FriendEntry, shared: [RuntimeSession], open: (() -> Void)? = nil, openTerminal: ((RuntimeSession) -> Void)? = nil,
         trust: (() -> Void)? = nil, verify: (() -> Void)? = nil,
-        @ViewBuilder trailing: () -> Trailing, @ViewBuilder footer: () -> Footer,
+        @ContentBuilder trailing: () -> Trailing, @ContentBuilder footer: () -> Footer,
     ) {
         self.friend = friend
         self.shared = shared
@@ -64,7 +64,7 @@ public struct FriendCard<Trailing: View, Footer: View>: View {
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var status: some View {
         if friend.identityChanged {
             HStack(spacing: 8) {
@@ -180,7 +180,7 @@ public struct FriendRequestCard: View {
             .accessibilityIdentifier("\(identifier).accept")
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func blockKey(wide: Bool) -> some View {
         if let block {
             Button(action: block) { Text("Block…", bundle: .module).frame(maxWidth: wide ? .infinity : nil) }
@@ -189,7 +189,7 @@ public struct FriendRequestCard: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func reportKey(wide: Bool) -> some View {
         if let report {
             Button(action: report) { Text("Report…", bundle: .module).frame(maxWidth: wide ? .infinity : nil) }
@@ -301,7 +301,7 @@ public struct OutgoingRequestCard: View {
         Tag(text: String(localized: "Waiting for them", bundle: .module))
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var key: some View {
         if busy {
             Spinner(size: 14)

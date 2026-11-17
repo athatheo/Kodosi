@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi 1.0
 import Kodosi.Models 1.0 as Models
 
@@ -36,10 +37,10 @@ Item {
     signal shareSessionRequested(string sessionId)
     signal newTerminalRequested(string projectId)
 
-    function newTerminal() {
+    function newTerminal(): void {
         root.newTerminalRequested(Models.Projects.selectedProjectId);
     }
-    function placeTab() {
+    function placeTab(): void {
         if (!selectedTab || !projectStage.visible) {
             tabRect = Qt.rect(0, 0, 0, 0);
             return;
@@ -47,9 +48,9 @@ Item {
         const place = selectedTab.mapToItem(projectStage, 0, 0, selectedTab.width, selectedTab.height);
         tabRect = Qt.rect(place.x, place.y, place.width, place.height);
     }
-    function openTerminalMenu(sessionId) {
+    function openTerminalMenu(sessionId: string, source: Item, position: point): void {
         terminalMenu.sessionId = sessionId
-        terminalMenu.popup()
+        terminalMenu.popupFor(source, position)
     }
 
     objectName: "project"
@@ -455,7 +456,7 @@ Item {
                                                 Accessible.name: session.name || qsTr("Terminal")
                                                 Accessible.role: Accessible.PageTab
                                                 Accessible.selected: selected
-                                                ToolTip.text: session.folderName ? qsTr("%1 on %2").arg(session.folderName).arg(session.hostLabel || "") : session.hostLabel || ""
+                                                ToolTip.text: session.folderName ? qsTr("%1 on %2").arg(session.folderName, session.hostLabel || "") : session.hostLabel || ""
                                                 ToolTip.visible: hovered && ToolTip.text.length > 0
                                                 ToolTip.delay: Tip.delay
 
@@ -503,11 +504,9 @@ Item {
                                                     visible: tab.selected
                                                 }
                                                 onClicked: Models.SessionActions.activateInProject(sessionId)
-
-                                                TapHandler {
-                                                    acceptedButtons: Qt.RightButton
-                                                    enabled: tab.session.isOwner === true
-                                                    onTapped: root.openTerminalMenu(tab.sessionId)
+                                                T.ContextMenu.onRequested: position => {
+                                                    if (tab.session.isOwner === true)
+                                                        root.openTerminalMenu(tab.sessionId, tab, position)
                                                 }
                                             }
                                         }
@@ -725,11 +724,9 @@ Item {
                                                     AvatarStack { Layout.rightMargin: 12; visible: card.viewers.length > 0; userIds: card.viewers; size: 20; limit: 2; ring: KodosiTheme.raised }
                                                 }
                                                 onClicked: Models.SessionActions.activateInProject(modelData)
-
-                                                TapHandler {
-                                                    acceptedButtons: Qt.RightButton
-                                                    enabled: card.session.isOwner === true
-                                                    onTapped: root.openTerminalMenu(card.modelData)
+                                                T.ContextMenu.onRequested: position => {
+                                                    if (card.session.isOwner === true)
+                                                        root.openTerminalMenu(card.modelData, card, position)
                                                 }
                                             }
                                         }

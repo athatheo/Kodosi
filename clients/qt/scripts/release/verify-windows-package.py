@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-from package_evidence import verify_rust_licenses, verify_source_identity
+from package_evidence import translation_files, verify_rust_licenses, verify_source_identity
 from release_source import source_identity
 
 
@@ -176,9 +176,12 @@ def verify_manifest(manifest: bytes, configured: bytes, arch: str) -> list[str]:
     return [name.replace("\\", "/") for name in logos]
 
 
-def verify_payload(files: dict[str, zipfile.ZipInfo], read: Reader, logos: list[str], arch: str) -> None:
+def verify_payload(
+    files: dict[str, zipfile.ZipInfo], read: Reader, logos: list[str], arch: str, qt_root: Path
+) -> None:
     machine = dict(MACHINES.values())[arch]
-    for name in (*REQUIRED_FILES, *logos):
+    translations = [f"translations/{name}" for name in translation_files(ROOT / "i18n", qt_root / "translations")]
+    for name in (*REQUIRED_FILES, *logos, *translations):
         if name not in files:
             fail(f"missing {name}")
     for name in files:
@@ -285,7 +288,7 @@ def main() -> None:
             arguments.build_dir / "Kodosi.appinstaller"
         ).read_bytes():
             fail("Kodosi.appinstaller is missing or differs from the configured file")
-        verify_payload(files, read, logos, arch)
+        verify_payload(files, read, logos, arch, arguments.qt_root)
         verify_qml_modules(files)
         verify_home(read)
         verify_imports(files, read, windows_library)

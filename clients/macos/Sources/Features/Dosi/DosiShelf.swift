@@ -3,7 +3,7 @@ import KodosiBridge
 import KodosiDesign
 import SwiftUI
 
-enum DosiShelfFit {
+nonisolated enum DosiShelfFit {
     static let spacing: CGFloat = 4
     static let nameWidth: CGFloat = 112
 
@@ -111,16 +111,16 @@ private struct DosiShelfRow<Item: Identifiable, Chip: View, More: View, Trailing
     let items: [Item]
     let widths: [CGFloat]
     let estimate: CGFloat
-    @ViewBuilder let chip: (Item, Int, CGFloat) -> Chip
-    @ViewBuilder let more: ([Item], Int) -> More
-    @ViewBuilder let trailing: () -> Trailing
+    @ContentBuilder let chip: (Item, Int, CGFloat) -> Chip
+    @ContentBuilder let more: ([Item], Int) -> More
+    @ContentBuilder let trailing: () -> Trailing
     @State private var room: CGFloat = 0
 
     var body: some View {
         let shown = DosiShelfFit.shown(widths, in: room > 0 ? room : estimate)
         HStack(spacing: 4) {
             HStack(spacing: DosiShelfFit.spacing) {
-                ForEach(Array(items.prefix(shown).enumerated()), id: \.element.id) { order, item in
+                ForEach(items.prefix(shown).enumerated(), id: \.element.id) { order, item in
                     chip(item, order, widths[order])
                 }
                 if shown < items.count {

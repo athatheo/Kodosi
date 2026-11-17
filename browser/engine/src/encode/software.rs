@@ -13,7 +13,10 @@ use openh264::{
     },
     formats::{BgraSliceU8, YUVBuffer},
 };
-use openh264_sys2::{ENCODER_OPTION_BITRATE, SBitrateInfo, SPATIAL_LAYER_ALL};
+use openh264_sys2::{
+    ENCODER_OPTION, ENCODER_OPTION_BITRATE, ENCODER_OPTION_MAX_BITRATE, LAYER_NUM, SBitrateInfo,
+    SPATIAL_LAYER_0, SPATIAL_LAYER_ALL, cmResultSuccess,
+};
 use shared_browser::link::{EncodedFrame, FromEngine};
 
 use super::{FRAME_RATE, REDRAW_AFTER_MS};
@@ -141,17 +144,28 @@ fn start(width: usize, height: usize, bitrate: u32) -> Option<Running> {
     })
 }
 
-fn set_bitrate(encoder: &mut H264, bitrate: u32) {
+/// `OpenH264` refuses a bitrate above the highest of its layer, which starts as the first bitrate,
+/// so a rise moves the highest first and a cut moves it last.
+fn set_bitrate(encoder: &mut H264, from: u32, to: u32) -> bool {
+    let highest = (ENCODER_OPTION_MAX_BITRATE, SPATIAL_LAYER_0);
+    let target = (ENCODER_OPTION_BITRATE, SPATIAL_LAYER_ALL);
+    let order = if to > from {
+        [highest, target]
+    } else {
+        [target, highest]
+    };
+    order
+        .into_iter()
+        .all(|(option, layer)| set_option(encoder, option, layer, to))
+}
+
+fn set_option(encoder: &mut H264, option: ENCODER_OPTION, layer: LAYER_NUM, bitrate: u32) -> bool {
     let mut info = SBitrateInfo {
-        iLayer: SPATIAL_LAYER_ALL,
+        iLayer: layer,
         iBitrate: c_int::try_from(bitrate).unwrap_or(c_int::MAX),
     };
-    // SAFETY: the option takes an `SBitrateInfo`, which lives for the call.
-    unsafe {
-        encoder
-            .raw_api()
-            .set_option(ENCODER_OPTION_BITRATE, (&raw mut info).cast());
-    }
+    // SAFETY: both options take an `SBitrateInfo`, which lives for the call.
+    unsafe { encoder.raw_api().set_option(option, (&raw mut info).cast()) == cmResultSuccess }
 }
 
 fn work(window: i64, mut bitrate: u32, link: &Link, shared: &Shared) {
@@ -174,13 +188,16 @@ fn work(window: i64, mut bitrate: u32, link: &Link, shared: &Shared) {
             )
         };
         let Some(picture) = picture else { continue };
+        let previous = bitrate;
         if let Some(changed) = changed {
             bitrate = changed;
         }
         let mut key = asked || lost;
-        if running.as_ref().is_none_or(|running| {
-            (running.width, running.height) != (picture.width, picture.height)
-        }) {
+        let fits = running.as_mut().is_some_and(|running| {
+            (running.width, running.height) == (picture.width, picture.height)
+                && (bitrate == previous || set_bitrate(&mut running.encoder, previous, bitrate))
+        });
+        if !fits {
             running = start(picture.width, picture.height, bitrate);
             key = true;
             if running.is_none() {
@@ -190,10 +207,6 @@ fn work(window: i64, mut bitrate: u32, link: &Link, shared: &Shared) {
                 });
                 return;
             }
-        } else if changed.is_some()
-            && let Some(running) = running.as_mut()
-        {
-            set_bitrate(&mut running.encoder, bitrate);
         }
         let Some(running) = running.as_mut() else {
             continue;

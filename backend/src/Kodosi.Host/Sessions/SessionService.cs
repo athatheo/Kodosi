@@ -240,7 +240,7 @@ public sealed class SessionService(KodosiDbContext db, ConnectionDirectory conne
 
     // FOR SHARE: an unfriend at the same time waits, and then removes this share too.
     private async Task<List<Guid>> LockFriendshipsAsync(Guid userId, Guid[] people, CancellationToken ct) =>
-        (await db.Friendships.FromSqlInterpolated($"""
+        (await db.Friendships.FromSql($"""
             SELECT * FROM friendships WHERE "Accepted"
               AND (("FirstUserId" = {userId} AND "SecondUserId" = ANY({people})) OR ("SecondUserId" = {userId} AND "FirstUserId" = ANY({people})))
             FOR SHARE

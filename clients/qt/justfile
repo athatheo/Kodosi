@@ -103,7 +103,7 @@ release-package: tools-install
     SOURCE_DATE_EPOCH={{ source_date_epoch }} "{{ cmake }}" --preset release
     SOURCE_DATE_EPOCH={{ source_date_epoch }} "{{ cmake }}" --build --preset release
     "{{ cmake }}" --build build/release --target test_prep/all
-    QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software "{{ ctest }}" --preset release
+    "{{ ctest }}" --preset release
     ./scripts/release/package-linux.sh build/release build/release
     ./scripts/release/package-linux.sh build/release build/second-packages
     for package in {{ linux_packages }}; do \

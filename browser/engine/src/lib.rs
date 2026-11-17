@@ -59,7 +59,7 @@ fn start(sandbox: *mut u8) -> i32 {
     if !mac::install_application() {
         return NO_FRAMEWORK;
     }
-    let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let _ = api_hash(cef_dll_sys::CEF_API_VERSION_LAST, 0);
     let args = Args::new();
     let mut app = engine::app();
     let code = execute_process(Some(args.as_main_args()), Some(&mut app), sandbox);
@@ -99,6 +99,10 @@ fn start(sandbox: *mut u8) -> i32 {
         log_file: CefString::from(log.to_string_lossy().as_ref()),
         log_severity: LogSeverity::WARNING,
         background_color: engine::OPAQUE_WHITE,
+        // Chromium keeps the key of its cookies in the Mac's keychain under Chromium's names, so
+        // names of its own keep Kodosi Browser and an installed Chromium from sharing one key.
+        keychain_service_name: CefString::from("Kodosi Browser Safe Storage"),
+        keychain_account_name: CefString::from("Kodosi Browser"),
         ..Default::default()
     };
     if initialize(
@@ -125,7 +129,7 @@ pub fn run_helper() -> i32 {
     let Some(_framework) = mac::load_framework(true) else {
         return NO_FRAMEWORK;
     };
-    let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let _ = api_hash(cef_dll_sys::CEF_API_VERSION_LAST, 0);
     let mut app = engine::app();
     execute_process(
         Some(args.as_main_args()),

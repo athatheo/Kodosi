@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -12,7 +12,7 @@ KPopover {
     readonly property bool hasList: history.busy || history.conversations.length > 0
     readonly property string selectedId: history.selectedConversation.nativeConversationId || ""
 
-    function openModal(provider) {
+    function openModal(provider: string): void {
         Models.ConversationHistory.open(provider || "claude", "");
         open();
     }

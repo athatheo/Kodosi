@@ -51,7 +51,7 @@ private struct KodosiThemeModifier: ViewModifier {
 
         final class Probe: NSView {
             private let changed: (Bool) -> Void
-            private var observer: (any NSObjectProtocol)?
+            private var observer: any NSObjectProtocol?
 
             init(changed: @escaping (Bool) -> Void) {
                 self.changed = changed

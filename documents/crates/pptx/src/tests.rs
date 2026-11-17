@@ -358,6 +358,25 @@ fn slides_can_be_added_moved_and_removed() {
 }
 
 #[test]
+fn a_slide_keeps_its_id_when_the_list_names_its_part_first() {
+    let presentation = format!(
+        r#"<?xml version="1.0"?><p:presentation xmlns:r="{RELATIONSHIP}" xmlns:p="{MAIN}"><p:sldIdLst><p:sldId r:id="rId1" id="256"/><p:sldId r:id="rId2" id="257"/></p:sldIdLst><p:sldSz cx="9144000" cy="6858000"/></p:presentation>"#
+    );
+    let file = with_parts(&deck(), &[("ppt/presentation.xml", &presentation)]);
+    let mut model = read(&file);
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveSlide {
+            slide: "256".to_owned(),
+        }],
+    );
+    let list = listing(&read(&saved(&model, &file)));
+    assert_eq!(list["slides"].as_array().unwrap().len(), 1);
+    assert_eq!(list["slides"][0]["id"], "257");
+    assert_eq!(list["slides"][0]["shapes"][0]["text"], "Second");
+}
+
+#[test]
 fn a_compare_finds_only_what_a_write_changed() {
     let file = deck();
     let base = read(&file);

@@ -9,16 +9,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Bundle
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import androidx.core.os.bundleOf
 import com.kodosi.mobile.AppPreferences
 import com.kodosi.mobile.MainActivity
 import com.kodosi.mobile.R
 import com.kodosi.mobile.notifications.PushedTerminal
 import com.kodosi.mobile.runtime.RuntimeJson
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 
 class TerminalNotifications(private val application: Context, private val preferences: AppPreferences) {
     @Serializable
@@ -173,7 +172,7 @@ class TerminalNotifications(private val application: Context, private val prefer
             .setContentIntent(pending(open))
             .setAutoCancel(true)
             .setVisibility(visibility())
-            .addExtras(bundleOf(COMPUTER_NAME to computer))
+            .addExtras(Bundle().apply { putString(COMPUTER_NAME, computer) })
             // A channel has one sound. Android mutes a group child that leaves the alert to its summary,
             // and a summary of Kodosi never alerts.
             .setGroup(group ?: QUIET.takeUnless { entry.sound })

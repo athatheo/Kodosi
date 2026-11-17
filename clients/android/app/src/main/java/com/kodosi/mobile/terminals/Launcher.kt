@@ -81,8 +81,8 @@ data class LauncherState(
 }
 
 class Launcher(private val commands: CommandSink, val computer: String) {
-    private val mutableState = MutableStateFlow(LauncherState())
-    val state: StateFlow<LauncherState> = mutableState
+    val state: StateFlow<LauncherState>
+        field = MutableStateFlow(LauncherState())
     private var picks: List<AgentPick> = emptyList()
     private var changes = 0
 
@@ -92,17 +92,17 @@ class Launcher(private val commands: CommandSink, val computer: String) {
         val agents = result.objects("agents").map {
             RuntimeJson.decodeFromJsonElement(AgentInfo.serializer(), it)
         }.filter { it.installed }
-        mutableState.update { it.copy(loaded = true, agents = agents) }
+        state.update { it.copy(loaded = true, agents = agents) }
         val choice = RuntimeJson.decodeFromJsonElement(AgentChoice.serializer(), result.getValue("choice"))
         if (changes == asOf) {
-            mutableState.update { it.copy(agent = choice.agent?.takeIf { id -> agents.any { it.agent == id } }) }
+            state.update { it.copy(agent = choice.agent?.takeIf { id -> agents.any { it.agent == id } }) }
             adopt(choice, asOf)
         }
         models(state.value.agent)
     }
 
     suspend fun models(agent: String?) {
-        mutableState.update { it.copy(models = emptyList(), efforts = emptyList(), modelsLoaded = agent == null) }
+        state.update { it.copy(models = emptyList(), efforts = emptyList(), modelsLoaded = agent == null) }
         if (agent == null) return
         val asOf = changes
         val result = commands.request(
@@ -111,7 +111,7 @@ class Launcher(private val commands: CommandSink, val computer: String) {
         ).value<JsonObject>("result")
         if (state.value.agent != agent) return
         adopt(RuntimeJson.decodeFromJsonElement(AgentChoice.serializer(), result.getValue("choice")), asOf)
-        mutableState.update {
+        state.update {
             it.copy(
                 modelsLoaded = true,
                 models = result.objects("models").map { entry ->
@@ -124,7 +124,7 @@ class Launcher(private val commands: CommandSink, val computer: String) {
 
     suspend fun chooseAgent(agent: String?) {
         val asOf = ++changes
-        mutableState.update {
+        state.update {
             it.copy(
                 agent = agent,
                 pick = picks.firstOrNull { pick -> pick.agent == agent },
@@ -147,7 +147,7 @@ class Launcher(private val commands: CommandSink, val computer: String) {
 
     suspend fun choose(pick: AgentPick) {
         val asOf = ++changes
-        mutableState.update { it.copy(pick = pick) }
+        state.update { it.copy(pick = pick) }
         picks = picks.filter { it.agent != pick.agent } + pick
         val choice = commands.request(
             "provider.choose",
@@ -162,22 +162,22 @@ class Launcher(private val commands: CommandSink, val computer: String) {
     private fun adopt(choice: AgentChoice, asOf: Int) {
         if (asOf != changes) return
         picks = choice.picks
-        mutableState.update { it.copy(pick = picks.firstOrNull { pick -> pick.agent == it.agent }) }
+        state.update { it.copy(pick = picks.firstOrNull { pick -> pick.agent == it.agent }) }
     }
 
     suspend fun folders(path: String? = null): FolderList {
         val fields = fields("computer" to computer)
         val reply = commands.request("folders.list", if (path == null) fields else fields + fields("path" to path))
-        return reply.value<FolderList>("folders").also { folders -> mutableState.update { it.copy(folders = folders) } }
+        return reply.value<FolderList>("folders").also { folders -> state.update { it.copy(folders = folders) } }
     }
 
     suspend fun usage() {
-        mutableState.update { it.copy(readingUsage = true) }
+        state.update { it.copy(readingUsage = true) }
         try {
             val result = commands.request("provider.usage", fields("computer" to computer)).value<JsonObject>("result")
-            mutableState.update { it.copy(usage = result.objects("accounts"), usageRead = true) }
+            state.update { it.copy(usage = result.objects("accounts"), usageRead = true) }
         } finally {
-            mutableState.update { it.copy(readingUsage = false) }
+            state.update { it.copy(readingUsage = false) }
         }
     }
 

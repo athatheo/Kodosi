@@ -499,7 +499,7 @@ private slots:
                     { QStringLiteral("clearedPosition"), cleared } } } }, 1);
         };
         const auto shown = [&] {
-            QList<QPair<int, bool>> messages;
+            QList<std::pair<int, bool>> messages;
             for (const auto& value : projects.content().value(QStringLiteral("messages")).toList()) {
                 const auto entry = value.toMap();
                 messages.append({ entry.value(QStringLiteral("position")).toInt(), entry.value(QStringLiteral("deleted")).toBool() });
@@ -509,10 +509,10 @@ private slots:
         const auto unread = [&] { return projects.presentation().value(QStringLiteral("unread")).toInt(); };
         project({ message(5), message(6) });
         project({ message(7), message(8, true) }, { message(5, true), message(2, true) });
-        QCOMPARE(shown(), (QList<QPair<int, bool>> { { 5, true }, { 6, false }, { 7, false }, { 8, true } }));
+        QCOMPARE(shown(), (QList<std::pair<int, bool>> { { 5, true }, { 6, false }, { 7, false }, { 8, true } }));
         QCOMPARE(unread(), 1);
         project({ message(9) }, {}, 7);
-        QCOMPARE(shown(), (QList<QPair<int, bool>> { { 8, true }, { 9, false } }));
+        QCOMPARE(shown(), (QList<std::pair<int, bool>> { { 8, true }, { 9, false } }));
         QCOMPARE(unread(), 1);
     }
 

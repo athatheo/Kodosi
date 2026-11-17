@@ -69,7 +69,7 @@ public struct CautionNote<Actions: View>: View {
     let actions: Actions
 
     public init(
-        message: String, lines: Int = 2, identifier: String, dismiss: @escaping () -> Void, @ViewBuilder actions: () -> Actions,
+        message: String, lines: Int = 2, identifier: String, dismiss: @escaping () -> Void, @ContentBuilder actions: () -> Actions,
     ) {
         self.message = message
         self.lines = lines

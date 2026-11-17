@@ -97,7 +97,7 @@ struct ProjectTasks: View {
         .raised(Radius.xl)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func lane(_ lane: ProjectTaskLaneTitle.Lane, tasks: [ProjectTask]) -> some View {
         if !tasks.isEmpty {
             ProjectTaskLaneTitle(lane, count: tasks.count)
@@ -108,7 +108,7 @@ struct ProjectTasks: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func done(_ tasks: [ProjectTask], state: ProjectViewState) -> some View {
         if !tasks.isEmpty {
             ProjectDoneTasksKey(state: state, count: tasks.count, identifier: "projects.tasks.done.toggle")
@@ -189,7 +189,7 @@ struct ProjectTaskRow: View {
         .contextMenu { menu }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var check: some View {
         let closed = pending.map { $0 == .close } ?? task.closed
         if linked {
@@ -212,7 +212,7 @@ struct ProjectTaskRow: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var trailing: some View {
         if let person = task.assignedName {
             PersonAvatar(name: person, key: task.assignedTo, size: 24, isSelf: mine)
@@ -228,7 +228,7 @@ struct ProjectTaskRow: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var menu: some View {
         if !linked {
             if task.closed {

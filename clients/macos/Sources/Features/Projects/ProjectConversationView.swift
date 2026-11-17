@@ -93,7 +93,7 @@ struct ProjectConversationView: View {
                     } else if deps.projects.snapshots[projectId]?.historyTrimmed == true, !messages.isEmpty {
                         ProjectTrimmedNote().padding(.bottom, 10)
                     }
-                    ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                    ForEach(messages.enumerated(), id: \.element.id) { index, message in
                         let previous = index > 0 ? messages[index - 1] : nil
                         ProjectMessageRow(
                             projectId: projectId, message: message, previous: previous, targets: targets, state: state, workspace: workspace,
@@ -148,7 +148,7 @@ struct ProjectConversationView: View {
     }
 
     private func clear() {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.clearConversation(projectId)
             } catch { state.failure = error.localizedDescription }

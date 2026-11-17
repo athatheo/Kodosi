@@ -15,21 +15,21 @@ class Workspace;
 
 class ProjectsModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(QVariantMap content READ content NOTIFY contentChanged)
-    Q_PROPERTY(QVariantMap presentation READ presentation NOTIFY presentationChanged)
-    Q_PROPERTY(QString issueRepository READ issueRepository NOTIFY contentChanged)
-    Q_PROPERTY(QVariantList issues READ issues NOTIFY contentChanged)
-    Q_PROPERTY(QVariantMap issuesByRepository READ issuesByRepository NOTIFY contentChanged)
-    Q_PROPERTY(QVariantMap repositoryChoices READ repositoryChoices NOTIFY repositoryChoicesChanged)
-    Q_PROPERTY(QVariantList projects READ projects NOTIFY catalogChanged)
-    Q_PROPERTY(QVariantList invitations READ invitations NOTIFY catalogChanged)
-    Q_PROPERTY(bool catalogTruncated READ catalogTruncated NOTIFY catalogChanged)
-    Q_PROPERTY(QVariantMap selectedProject READ selectedProject NOTIFY selectionChanged)
-    Q_PROPERTY(QVariantList members READ members NOTIFY selectionChanged)
-    Q_PROPERTY(QStringList sessionIds READ sessionIds NOTIFY selectionChanged)
-    Q_PROPERTY(QString selectedProjectId READ selectedProjectId NOTIFY selectionChanged)
-    Q_PROPERTY(QStringList unreadProjects READ unreadProjects NOTIFY catalogChanged)
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
+    Q_PROPERTY(QVariantMap content READ content NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QVariantMap presentation READ presentation NOTIFY presentationChanged FINAL)
+    Q_PROPERTY(QString issueRepository READ issueRepository NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QVariantList issues READ issues NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QVariantMap issuesByRepository READ issuesByRepository NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QVariantMap repositoryChoices READ repositoryChoices NOTIFY repositoryChoicesChanged FINAL)
+    Q_PROPERTY(QVariantList projects READ projects NOTIFY catalogChanged FINAL)
+    Q_PROPERTY(QVariantList invitations READ invitations NOTIFY catalogChanged FINAL)
+    Q_PROPERTY(bool catalogTruncated READ catalogTruncated NOTIFY catalogChanged FINAL)
+    Q_PROPERTY(QVariantMap selectedProject READ selectedProject NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QVariantList members READ members NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QStringList sessionIds READ sessionIds NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QString selectedProjectId READ selectedProjectId NOTIFY selectionChanged FINAL)
+    Q_PROPERTY(QStringList unreadProjects READ unreadProjects NOTIFY catalogChanged FINAL)
 
 public:
     ProjectsModel(Workspace& workspace, SessionCatalogModel& sessions);

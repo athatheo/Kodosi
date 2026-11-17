@@ -43,7 +43,7 @@ struct NewBranchPopover: View {
         guard !starting, !name.isEmpty else { return }
         starting = true
         error = nil
-        Task { @MainActor in
+        Task {
             defer { starting = false }
             do {
                 try await deps.createSession(name: name, directory: directory, branch: name)

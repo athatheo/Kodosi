@@ -93,7 +93,7 @@ download() {
     local name=$1 url=$2 sha256=$3 archive temporary
     archive="$DOWNLOAD_ROOT/$name"
     if [ ! -f "$archive" ] ||
-        ! printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+        ! printf '%s  %s\n' "$sha256" "$archive" | sha256sum --strict -c - >/dev/null 2>&1; then
         temporary="$archive.tmp.$$"
         curl -fL \
             --retry 5 \
@@ -102,7 +102,7 @@ download() {
             --connect-timeout 20 \
             -o "$temporary" \
             "$url" >&2
-        if ! printf '%s  %s\n' "$sha256" "$temporary" | sha256sum -c - >&2; then
+        if ! printf '%s  %s\n' "$sha256" "$temporary" | sha256sum --strict -c - >&2; then
             rm -f "$temporary"
             return 1
         fi

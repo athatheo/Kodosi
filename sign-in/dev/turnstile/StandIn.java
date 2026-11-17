@@ -39,7 +39,7 @@ public final class StandIn {
             new ProviderConfigProperty("site.key", "Site key", "A Cloudflare test site key.",
                     ProviderConfigProperty.STRING_TYPE, "1x00000000000000000000AA"),
             new ProviderConfigProperty("secret.key", "Secret key", "A Cloudflare test secret key.",
-                    ProviderConfigProperty.STRING_TYPE, "1x0000000000000000000000000000000AA"));
+                    ProviderConfigProperty.STRING_TYPE, "1x0000000000000000000000000000000AA", true));
 
     private StandIn() {}
 

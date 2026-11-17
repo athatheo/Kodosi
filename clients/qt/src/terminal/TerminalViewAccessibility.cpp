@@ -51,7 +51,7 @@ int TerminalView::accessibleCursorPosition() const
     return offset;
 }
 
-QPair<int, int> TerminalView::accessibleSelection() const
+std::pair<int, int> TerminalView::accessibleSelection() const
 {
     if (!m_frame) {
         return {-1, -1};

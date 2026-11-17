@@ -314,7 +314,7 @@ fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
         ),
         None => String::new(),
     };
-    let fill = shape.fill.as_deref().map(fill_xml).unwrap_or_default();
+    let fill = shape.fill.as_deref().map_or_default(fill_xml);
     Ok(format!(
         concat!(
             r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{name}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>"#,
@@ -480,7 +480,7 @@ fn slide_list(
     let entries: HashMap<&str, Xml<'_, '_>> = list
         .children()
         .filter(Xml::is_element)
-        .filter_map(|entry| Some((entry.attribute("id")?, entry)))
+        .filter_map(|entry| Some((read::slide_id(entry)?, entry)))
         .collect();
     let relations_xml = package
         .text(PRESENTATION_RELATIONS)

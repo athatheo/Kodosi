@@ -27,7 +27,7 @@ public struct CanvasFilesBar<Actions: View>: View {
     }
 
     public init(session: RuntimeSession, store: CanvasStore, chosen: String?, pick: @escaping (String) -> Void,
-                remove: @escaping (CanvasItem) -> Void, @ViewBuilder actions: @escaping (CanvasItem) -> Actions)
+                remove: @escaping (CanvasItem) -> Void, @ContentBuilder actions: @escaping (CanvasItem) -> Actions)
     {
         self.session = session
         self.store = store
@@ -157,7 +157,7 @@ public struct CanvasShelf<Actions: View>: View {
     let actions: (CanvasItem) -> Actions
 
     public init(session: RuntimeSession, store: CanvasStore, pick: @escaping (String) -> Void,
-                remove: @escaping (CanvasItem) -> Void, @ViewBuilder actions: @escaping (CanvasItem) -> Actions)
+                remove: @escaping (CanvasItem) -> Void, @ContentBuilder actions: @escaping (CanvasItem) -> Actions)
     {
         self.session = session
         self.store = store
@@ -241,7 +241,7 @@ struct CanvasCard: View {
         let stored: Bool
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var sheet: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
         Color.clear.overlay {
@@ -279,7 +279,7 @@ struct CanvasCard: View {
     }
 }
 
-enum CanvasPreview: @unchecked Sendable {
+enum CanvasPreview: Sendable {
     case picture(CGImage)
     case title(String)
 

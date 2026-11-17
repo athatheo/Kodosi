@@ -71,11 +71,13 @@ export interface Program {
 }
 
 export class Refused extends Error {
-  constructor(
-    readonly problems: Problem[],
-    readonly fields: string[],
-  ) {
+  readonly problems: Problem[];
+  readonly fields: string[];
+
+  constructor(problems: Problem[], fields: string[]) {
     super("refused");
+    this.problems = problems;
+    this.fields = fields;
   }
 }
 
@@ -85,7 +87,10 @@ export interface Problem {
 }
 
 export class Unreachable extends Error {
-  constructor(readonly denied = false) {
+  readonly denied: boolean;
+
+  constructor(denied = false) {
     super("unreachable");
+    this.denied = denied;
   }
 }

@@ -105,11 +105,11 @@ impl Step {
             "attr" => Self::Attr {
                 pos: number(json, "pos")?,
                 attr: text(json, "attr")?,
-                value: json.get("value").cloned().unwrap_or(Value::Null),
+                value: json.get("value").cloned().unwrap_or_default(),
             },
             "docAttr" => Self::DocAttr {
                 attr: text(json, "attr")?,
-                value: json.get("value").cloned().unwrap_or(Value::Null),
+                value: json.get("value").cloned().unwrap_or_default(),
             },
             other => return failed(format!("No step type {other} defined")),
         })

@@ -23,15 +23,15 @@ class SessionCatalogModel;
 
 class CanvasModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(int revision READ revision NOTIFY changed)
-    Q_PROPERTY(bool browserKnown READ browserKnown NOTIFY browserChanged)
-    Q_PROPERTY(QStringList browserSources READ browserSources NOTIFY browserChanged)
-    Q_PROPERTY(int browserSites READ browserSites NOTIFY browserChanged)
-    Q_PROPERTY(QString browserEngine READ browserEngine NOTIFY browserChanged)
-    Q_PROPERTY(int browserGetting READ browserGetting NOTIFY browserChanged)
-    Q_PROPERTY(QString browserWork READ browserWork NOTIFY browserChanged)
-    Q_PROPERTY(QVariantMap browserDone READ browserDone NOTIFY browserChanged)
-    Q_PROPERTY(QString browserProblem READ browserProblem NOTIFY browserChanged)
+    Q_PROPERTY(int revision READ revision NOTIFY changed FINAL)
+    Q_PROPERTY(bool browserKnown READ browserKnown NOTIFY browserChanged FINAL)
+    Q_PROPERTY(QStringList browserSources READ browserSources NOTIFY browserChanged FINAL)
+    Q_PROPERTY(int browserSites READ browserSites NOTIFY browserChanged FINAL)
+    Q_PROPERTY(QString browserEngine READ browserEngine NOTIFY browserChanged FINAL)
+    Q_PROPERTY(int browserGetting READ browserGetting NOTIFY browserChanged FINAL)
+    Q_PROPERTY(QString browserWork READ browserWork NOTIFY browserChanged FINAL)
+    Q_PROPERTY(QVariantMap browserDone READ browserDone NOTIFY browserChanged FINAL)
+    Q_PROPERTY(QString browserProblem READ browserProblem NOTIFY browserChanged FINAL)
 
 public:
     struct BrowserKey {

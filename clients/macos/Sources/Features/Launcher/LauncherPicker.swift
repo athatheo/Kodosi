@@ -34,8 +34,8 @@ struct PickerKey<Glyph: View, Accessory: View>: View {
     let identifier: String
     let label: String
     var help: String?
-    @ViewBuilder let glyph: () -> Glyph
-    @ViewBuilder let accessory: () -> Accessory
+    @ContentBuilder let glyph: () -> Glyph
+    @ContentBuilder let accessory: () -> Accessory
     let action: () -> Void
 
     var body: some View {
@@ -72,7 +72,7 @@ struct PickerKey<Glyph: View, Accessory: View>: View {
 extension PickerKey where Accessory == EmptyView {
     init(
         title: String, quiet: Bool = false, loading: Bool = false, open: Bool, identifier: String, label: String,
-        help: String? = nil, @ViewBuilder glyph: @escaping () -> Glyph, action: @escaping () -> Void,
+        help: String? = nil, @ContentBuilder glyph: @escaping () -> Glyph, action: @escaping () -> Void,
     ) {
         self.init(
             title: title, quiet: quiet, loading: loading, open: open, identifier: identifier, label: label, help: help,

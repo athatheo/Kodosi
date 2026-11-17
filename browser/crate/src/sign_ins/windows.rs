@@ -30,9 +30,10 @@ struct GcmKey(Aes256Gcm);
 
 impl Opener for GcmKey {
     fn open(&self, sealed: &[u8]) -> Option<Vec<u8>> {
-        let rest = sealed.strip_prefix(WITH_KEY)?;
-        let (nonce, body) = rest.split_at_checked(NONCE_BYTES)?;
-        self.0.decrypt(nonce.try_into().ok()?, body).ok()
+        let (nonce, body) = sealed
+            .strip_prefix(WITH_KEY)?
+            .split_first_chunk::<NONCE_BYTES>()?;
+        self.0.decrypt(nonce.into(), body).ok()
     }
 }
 

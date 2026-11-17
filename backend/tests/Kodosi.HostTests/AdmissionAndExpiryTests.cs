@@ -55,7 +55,7 @@ public sealed class AdmissionAndExpiryTests(PostgresFixture postgres)
         using var result = await slow;
         var bytes = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.True(bytes.Length > 64 * 1024);
-        Assert.Equal(128, JsonDocument.Parse(bytes).RootElement.GetArrayLength());
+        Assert.Equal(128, JsonElement.Parse(bytes).GetArrayLength());
     }
 
     [Fact]

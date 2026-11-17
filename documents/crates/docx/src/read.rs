@@ -1,10 +1,9 @@
-use std::{collections::HashMap, fmt::Write as _};
+use std::collections::HashMap;
 
-use document::{Assets, Unreadable};
+use document::{Assets, Unreadable, hex, short_hash};
 use package::{Package, Relation, relation_id};
 use roxmltree::Node as Xml;
 use serde_json::{Value, json};
-use sha2::{Digest as _, Sha256};
 use text::{Fragment, Mark, Node};
 
 use crate::{
@@ -19,7 +18,6 @@ const STRICT_MAIN: &str = "http://purl.oclc.org/ooxml/wordprocessingml/main";
 const DRAWING_MAIN: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const WORD_DRAWING: &str = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
 const EMU_PER_PIXEL: f64 = 9525.0;
-const SHORT_HASH: usize = 16;
 /// Stands in the text of a run that holds a page break, so that a view can start a new page.
 const PAGE_BREAK: char = '\u{c}';
 
@@ -45,15 +43,6 @@ pub(crate) fn word_attribute<'a>(node: Xml<'a, '_>, name: &str) -> Option<&'a st
     node.attributes()
         .find(|attribute| attribute.name() == name && is_word_attribute(attribute))
         .map(|attribute| attribute.value())
-}
-
-fn hash_of(text: &str) -> String {
-    let digest = Sha256::digest(text.as_bytes());
-    let mut hash = String::with_capacity(SHORT_HASH);
-    for byte in &digest[..SHORT_HASH / 2] {
-        let _ = write!(hash, "{byte:02x}");
-    }
-    hash
 }
 
 fn truth(value: Option<&str>) -> bool {
@@ -289,7 +278,7 @@ impl<'input> Reader<'_, 'input> {
     }
 
     fn keep(&mut self, xml: &str) -> String {
-        let hash = hash_of(xml);
+        let hash = short_hash(xml);
         self.raws
             .entry(hash.clone())
             .or_insert_with(|| xml.to_owned());
@@ -303,7 +292,7 @@ impl<'input> Reader<'_, 'input> {
     /// Gives a top-level block an id that stays the same for the same XML, and only one block
     /// in the document holds it.
     fn next_id(&mut self, xml: &str) -> String {
-        let hash = hash_of(xml);
+        let hash = short_hash(xml);
         let count = self.seen.entry(hash.clone()).or_insert(0);
         *count += 1;
         format!("{hash}-{count}")
@@ -344,7 +333,7 @@ impl<'input> Reader<'_, 'input> {
         id: Option<&str>,
     ) -> Result<Node, text::Failed> {
         let properties = word_child(element, "pPr");
-        let look = properties.map(paragraph_look).unwrap_or_default();
+        let look = properties.map_or_default(paragraph_look);
         let props = properties
             .and_then(|node| own_properties(node, self.xml_of(node)))
             .filter(|own| *own != look_properties(&look))
@@ -506,10 +495,7 @@ impl<'input> Reader<'_, 'input> {
             );
         };
         let hash = self.assets.put(&bytes);
-        let asset = hash.iter().fold(String::new(), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        });
+        let asset = hex(&hash);
         let kind = schema().node_id("image").unwrap_or_default();
         Node::new(
             schema(),

@@ -9,9 +9,9 @@
 namespace kodosi {
 class ProviderFilesModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QVariantMap installation READ installation NOTIFY installationChanged)
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(QString error READ error NOTIFY errorChanged)
+    Q_PROPERTY(QVariantMap installation READ installation NOTIFY installationChanged FINAL)
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
+    Q_PROPERTY(QString error READ error NOTIFY errorChanged FINAL)
 
 public:
     explicit ProviderFilesModel(CommandDispatcher& commands, QObject* parent = nullptr);

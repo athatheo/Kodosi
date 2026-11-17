@@ -671,7 +671,7 @@ void TerminalView::hoverMoveEvent(QHoverEvent* event)
 void TerminalView::hoverLeaveEvent(QHoverEvent* event)
 {
     m_hoverPosition.reset();
-    clearHoverLink();
+    showTerminalPointer();
     event->accept();
 }
 
@@ -1081,7 +1081,7 @@ void TerminalView::updateHoverLink(const QPointF& position, const Qt::KeyboardMo
     if (cell && linkAtCell(*cell, false)) {
         setCursor(Qt::PointingHandCursor);
     } else {
-        unsetCursor();
+        showTerminalPointer();
     }
 }
 
@@ -1109,9 +1109,16 @@ void TerminalView::refreshHoverLink(const QKeyEvent* event)
     updateHoverLink(*m_hoverPosition, modifiers);
 }
 
-void TerminalView::clearHoverLink()
+void TerminalView::showTerminalPointer()
 {
-    unsetCursor();
+    if (!m_frame) {
+        unsetCursor();
+    } else if (m_frame->programPointer) {
+        setCursor(*m_frame->programPointer);
+    } else {
+        // The clicks of a person who can type go to a program that tracks the mouse.
+        setCursor(m_frame->mouseTracking && m_canSendInput ? Qt::ArrowCursor : Qt::IBeamCursor);
+    }
 }
 
 int TerminalView::wheelRows(QWheelEvent* event)

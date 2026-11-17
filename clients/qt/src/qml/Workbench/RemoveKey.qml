@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 AbstractButton {
     id: root

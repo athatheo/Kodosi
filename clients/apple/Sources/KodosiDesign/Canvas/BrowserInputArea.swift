@@ -81,7 +81,7 @@ extension BrowserKeys {
             if let shownMenu {
                 shownMenu.cancelTracking()
             } else if let menu {
-                Task { @MainActor [weak self] in self?.pop(menu) }
+                Task { [weak self] in self?.pop(menu) }
             }
         }
 
@@ -103,7 +103,7 @@ extension BrowserKeys {
                     feed.send(.choose(menu: menu.id, choice: nil))
                 }
             } else if let next = pageMenu {
-                Task { @MainActor [weak self] in self?.pop(next) }
+                Task { [weak self] in self?.pop(next) }
             }
         }
 
@@ -132,14 +132,11 @@ extension BrowserKeys {
                     feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copyLink))
                 })
             }
-            let pasteboard = NSPasteboard.general
-            let pastes = pasteboard.string(forType: .string)?.isEmpty == false
-            native.addItem(MenuAction.item(String(localized: "Paste", bundle: .module), enabled: pastes) {
-                feed.send(.choose(menu: menu.id, choice: nil))
-                if let words = pasteboard.string(forType: .string), !words.isEmpty {
-                    feed.send(.text(words))
-                }
-            })
+            let paste = NSMenuItem(title: String(localized: "Paste", bundle: .module), action: #selector(paste(_:)), keyEquivalent: "")
+            paste.target = self
+            paste.representedObject = menu.id
+            paste.isEnabled = NSPasteboard.general.availableType(from: [.string]) != nil
+            native.addItem(paste)
             if let ask {
                 native.addItem(.separator())
                 native.addItem(MenuAction.item(ask.title) {
@@ -172,22 +169,38 @@ extension BrowserKeys {
             true
         }
 
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: Self.cursor(feed.window.shape))
-        }
+        private static let cursors: [String: NSCursor] = [
+            "pointer": .pointingHand,
+            "text": .iBeam,
+            "vertical-text": .iBeamCursorForVerticalLayout,
+            "crosshair": .crosshair,
+            "cell": .crosshair,
+            "context-menu": .contextualMenu,
+            "alias": .dragLink,
+            "copy": .dragCopy,
+            "grab": .openHand,
+            "grabbing": .closedHand,
+            "not-allowed": .operationNotAllowed,
+            "col-resize": .columnResize,
+            "ew-resize": .columnResize,
+            "w-resize": .columnResize(directions: .left),
+            "e-resize": .columnResize(directions: .right),
+            "row-resize": .rowResize,
+            "ns-resize": .rowResize,
+            "n-resize": .rowResize(directions: .up),
+            "s-resize": .rowResize(directions: .down),
+            "ne-resize": .frameResize(position: .topRight, directions: .all),
+            "nesw-resize": .frameResize(position: .topRight, directions: .all),
+            "nw-resize": .frameResize(position: .topLeft, directions: .all),
+            "nwse-resize": .frameResize(position: .topLeft, directions: .all),
+            "se-resize": .frameResize(position: .bottomRight, directions: .all),
+            "sw-resize": .frameResize(position: .bottomLeft, directions: .all),
+            "zoom-in": .zoomIn,
+            "zoom-out": .zoomOut,
+        ]
 
-        private static func cursor(_ shape: String) -> NSCursor {
-            switch shape {
-            case "pointer": .pointingHand
-            case "text", "vertical-text": .iBeam
-            case "crosshair": .crosshair
-            case "grab": .openHand
-            case "grabbing": .closedHand
-            case "not-allowed": .operationNotAllowed
-            case "col-resize", "ew-resize", "e-resize", "w-resize": .resizeLeftRight
-            case "row-resize", "ns-resize", "n-resize", "s-resize": .resizeUpDown
-            default: .arrow
-            }
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: Self.cursors[feed.window.shape] ?? .arrow)
         }
 
         override func updateTrackingAreas() {
@@ -255,7 +268,12 @@ extension BrowserKeys {
             key(event, down: false)
         }
 
-        @objc func paste(_: Any?) {
+        /// macOS asks the person before an app reads the pasteboard, unless one of their pastes
+        /// reads it, so a menu looks only at the type and its Paste is the paste action.
+        @objc func paste(_ sender: Any?) {
+            if let menu = (sender as? NSMenuItem)?.representedObject as? Int {
+                feed.send(.choose(menu: menu, choice: nil))
+            }
             if let text = NSPasteboard.general.string(forType: .string), !text.isEmpty {
                 feed.send(.text(text))
             }

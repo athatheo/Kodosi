@@ -326,9 +326,8 @@ fn read_text(path: &Path) -> Result<String, Failed> {
 }
 
 fn random_client() -> Result<String, Failed> {
-    let mut bytes = [0_u8; 8];
-    getrandom::fill(&mut bytes).map_err(|error| Failed::Io(std::io::Error::other(error)))?;
-    Ok(format!("agent-{}", u64::from_be_bytes(bytes)))
+    let number = getrandom::u64().map_err(|error| Failed::Io(error.into()))?;
+    Ok(format!("agent-{number}"))
 }
 
 struct Seat {

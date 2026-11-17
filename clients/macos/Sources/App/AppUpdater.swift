@@ -3,7 +3,6 @@ import KodosiBridge
 import os
 import Sparkle
 
-@MainActor
 @Observable
 final class AppUpdater: NSObject, SPUUpdaterDelegate {
     private(set) var started = false

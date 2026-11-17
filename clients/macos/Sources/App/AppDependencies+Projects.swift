@@ -16,7 +16,7 @@ extension AppDependencies {
     }
 
     func connectGitHub() {
-        Task { @MainActor in
+        Task {
             do {
                 try await createSession(name: String(localized: "GitHub sign-in"), directory: settings.lastWorkingDir, command: "gh auth login")
             } catch { errorMessage = error.localizedDescription }

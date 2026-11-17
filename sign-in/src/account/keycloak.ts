@@ -115,7 +115,20 @@ export function openAccount(kcContext: KcContext): Promise<AccountService> {
   return opened;
 }
 
+async function clockSkew(realmUrl: string): Promise<number | null> {
+  try {
+    const asked = Date.now();
+    const answer = await fetch(`${realmUrl}/kodosi-time`, { cache: "no-store" });
+    const { now } = (await answer.json()) as { now?: unknown };
+    if (!answer.ok || typeof now !== "number" || !Number.isFinite(now)) return null;
+    return Math.round(((asked + Date.now()) / 2 - now) / 1000);
+  } catch {
+    return null;
+  }
+}
+
 async function open(kcContext: KcContext): Promise<AccountService> {
+  const realmUrl = `${kcContext.authServerUrl.replace(/\/+$/, "")}/realms/${encodeURIComponent(kcContext.realm.name)}`;
   const keycloak = new Keycloak({
     url: kcContext.authServerUrl,
     realm: kcContext.realm.name,
@@ -125,18 +138,23 @@ async function open(kcContext: KcContext): Promise<AccountService> {
   keycloak.onActionUpdate = (status, action) => {
     came = { status, action: action ?? "" };
   };
+  // Keycloak accepts a DPoP proof only within seconds of its own clock, and keycloak-js dates the first
+  // proof of a page by the device's clock alone: without Keycloak's time, a device whose clock is off
+  // could not open the page.
+  const skew = await clockSkew(realmUrl);
   try {
     await keycloak.init({
       onLoad: "login-required",
       pkceMethod: "S256",
       checkLoginIframe: false,
       locale: kcContext.locale,
+      ...(skew === null ? {} : { timeSkew: skew, dpopConfig: { mode: "auto" } }),
     });
   } catch {
     throw new Unreachable();
   }
 
-  const base = `${kcContext.authServerUrl.replace(/\/+$/, "")}/realms/${encodeURIComponent(kcContext.realm.name)}/account`;
+  const base = `${realmUrl}/account`;
   const away = <T>() => new Promise<T>(() => {});
 
   async function call<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -149,7 +167,7 @@ async function open(kcContext: KcContext): Promise<AccountService> {
     }
     let response: Response;
     try {
-      response = await fetch(base + path, {
+      response = await keycloak.fetch(base + path, {
         method,
         headers: {
           Accept: "application/json",

@@ -9,7 +9,7 @@ ARG RUST_VERSION
 RUN rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy,rustfmt,llvm-tools-preview \
         --target x86_64-pc-windows-msvc,aarch64-pc-windows-msvc \
     && rustup default "$RUST_VERSION" \
-    && cargo install --locked cargo-xwin --version 0.23.1
+    && cargo install cargo-xwin --version 0.23.1
 
 ENV CARGO_TARGET_DIR=/src/runtime/target/windows-cross \
     XWIN_CACHE_DIR=/cache/xwin \

@@ -504,6 +504,7 @@ __ZSt21__glibcxx_assert_failPKciS0_S0_
 __ZTVN7simdutf14implementationE
 __ZTVN7simdutf5arm6414implementationE
 __ZTVN7simdutf8internal26unsupported_implementationE
+___aarch64_cpu_features
 ___absvdi2
 ___absvsi2
 ___absvti2
@@ -754,6 +755,7 @@ ___gthf2
 ___gtsf2
 ___gttf2
 ___gtxf2
+___init_cpu_features_resolver
 ___isPlatformVersionAtLeast
 ___ledf2
 ___lehf2

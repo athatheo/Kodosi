@@ -6,7 +6,7 @@ public final class ResizeDeliveryState: Sendable {
     private struct PendingResize: Sendable {
         let key: String
         let request: TerminalResizeIdentity
-        let admittedAtNanoseconds: UInt64
+        let admittedAt: SuspendingClock.Instant
     }
 
     private struct State: Sendable {
@@ -14,26 +14,26 @@ public final class ResizeDeliveryState: Sendable {
         var pending: [String: PendingResize] = [:]
     }
 
-    private static let pendingLeaseNanoseconds: UInt64 = 5_000_000_000
+    private static let pendingLease = Duration.seconds(5)
 
     private let state = Mutex(State())
 
     public init() {}
 
     public func begin(_ request: TerminalResizeIdentity, key: String) -> TerminalResizeIdentity? {
-        let nowNanoseconds = DispatchTime.now().uptimeNanoseconds
+        let now = SuspendingClock.now
         return state.withLock {
             $0.pending = $0.pending.filter {
-                nowNanoseconds &- $0.value.admittedAtNanoseconds < Self.pendingLeaseNanoseconds
+                $0.value.admittedAt.duration(to: now) < Self.pendingLease
             }
-            let latest = $0.pending.values.max { $0.admittedAtNanoseconds < $1.admittedAtNanoseconds }
+            let latest = $0.pending.values.max { $0.admittedAt < $1.admittedAt }
             guard latest?.key != key,
                   latest != nil || key != $0.applied
             else { return nil }
             $0.pending[request.requestId] = PendingResize(
                 key: key,
                 request: request,
-                admittedAtNanoseconds: nowNanoseconds,
+                admittedAt: now,
             )
             return request
         }

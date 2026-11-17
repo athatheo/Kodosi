@@ -18,7 +18,7 @@
   },
   "accountDeletion": {
     "signInService": "with Auth:AccountDeletion set, GET /api/me gives deletionUri: the Keycloak action delete_account through the issuer's account-console client with a fresh PKCE challenge that nobody redeems; the person confirms there and Keycloak deletes the sign-in account",
-    "feed": "every 15 seconds the server reads DELETE_ACCOUNT user events and DELETE USER admin events of the last day with a client that has only the realm-management role view-events, and deletes the Kodosi account of each subject; after a start it reads 30 days",
+    "feed": "every 15 seconds the server reads DELETE_ACCOUNT user events and DELETE USER admin events of the last day with a client that has only the realm-management role view-events and asks for the scope kc-admin-api of Keycloak's Admin API, and deletes the Kodosi account of each subject; after a start it reads 30 days",
     "direct": "without Auth:AccountDeletion, deletionUri is null and DELETE /api/me deletes the account after a sign-in of at most 15 minutes; with it, DELETE /api/me answers 409",
     "recentSignIn": "DELETE /api/me and a new reset with POST /api/me/identity/reset need a sign-in of at most 15 minutes, which is the auth_time claim of the token; a refreshed token keeps the time of its sign-in, and the server refuses a token without auth_time with 403",
     "removed": "the account, its devices and their push tokens, device lists, links and recovery data, its friend list and friendships, its terminals and their sharing, the projects it owns with their content, its project memberships and invitations",

@@ -12,8 +12,8 @@ class CanvasModel;
 // runs as root, pages do not show here.
 class CanvasWeb final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool available READ available CONSTANT)
-    Q_PROPERTY(QQuickWebEngineProfile* profile READ profile CONSTANT)
+    Q_PROPERTY(bool available READ available CONSTANT FINAL)
+    Q_PROPERTY(QQuickWebEngineProfile* profile READ profile CONSTANT FINAL)
 
 public:
     explicit CanvasWeb(CanvasModel& canvas, QObject* parent = nullptr);

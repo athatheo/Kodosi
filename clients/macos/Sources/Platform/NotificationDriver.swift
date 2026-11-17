@@ -6,12 +6,12 @@ protocol DesktopNotificationDriving: Sendable {
         _ completion: @escaping @Sendable (UNAuthorizationStatus) -> Void,
     )
     func requestAuthorization() async throws -> Bool
-    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (Error?) -> Void)
+    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (any Error?) -> Void)
     func getIdentifiers(_ completion: @escaping @Sendable ([String]) -> Void)
     func remove(identifiers: [String])
 }
 
-struct SystemNotificationDriver: DesktopNotificationDriving {
+nonisolated struct SystemNotificationDriver: DesktopNotificationDriving {
     let center = UNUserNotificationCenter.current()
 
     func getAuthorizationStatus(
@@ -24,7 +24,7 @@ struct SystemNotificationDriver: DesktopNotificationDriving {
         try await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (Error?) -> Void) {
+    func add(_ request: UNNotificationRequest, completion: @escaping @Sendable (any Error?) -> Void) {
         center.add(request, withCompletionHandler: completion)
     }
 

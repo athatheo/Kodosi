@@ -1,6 +1,7 @@
 import Foundation
+import Synchronization
 
-public final class TerminalSubscriptionRegistry: @unchecked Sendable {
+public final class TerminalSubscriptionRegistry: Sendable {
     public typealias ConnectionResult = @Sendable (Bool, String?) -> Void
     public typealias CheckpointHandler = @Sendable (_ snapshot: Data, _ console: Bool) -> Int32
 
@@ -29,7 +30,7 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
         }
     }
 
-    public struct Removal {
+    public struct Removal: Sendable {
         public let pendingCompletion: ConnectionResult?
 
         public init(pendingCompletion: ConnectionResult?) {
@@ -42,12 +43,11 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
         var completionPending = true
     }
 
-    private let lock = NSLock()
-    private var connections: [String: Entry] = [:]
+    private let connections = Mutex<[String: Entry]>([:])
 
     @discardableResult
     public func install(_ connection: Connection, sessionId: String) -> Bool {
-        lock.withLock {
+        connections.withLock { connections in
             if let current = connections[sessionId]?.connection,
                current.subscriptionGeneration >= connection.subscriptionGeneration
             {
@@ -63,7 +63,7 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
         subscriptionId: String,
         subscriptionGeneration: UInt64,
     ) -> Connection? {
-        lock.withLock {
+        connections.withLock { connections in
             guard let connection = connections[sessionId]?.connection,
                   connection.subscriptionId == subscriptionId,
                   connection.subscriptionGeneration == subscriptionGeneration
@@ -91,7 +91,7 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
         subscriptionId: String,
         subscriptionGeneration: UInt64,
     ) -> Removal? {
-        lock.withLock {
+        connections.withLock { connections in
             guard let entry = connections[sessionId],
                   entry.connection.subscriptionId == subscriptionId,
                   entry.connection.subscriptionGeneration == subscriptionGeneration
@@ -114,7 +114,7 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
         subscriptionGeneration: UInt64,
         keepConnection: Bool,
     ) -> ConnectionResult? {
-        lock.withLock {
+        connections.withLock { connections in
             guard var entry = connections[sessionId],
                   entry.connection.subscriptionId == subscriptionId,
                   entry.connection.subscriptionGeneration == subscriptionGeneration,
@@ -134,7 +134,7 @@ public final class TerminalSubscriptionRegistry: @unchecked Sendable {
     }
 
     public func removeAll() -> [ConnectionResult] {
-        lock.withLock {
+        connections.withLock { connections in
             let pending = connections.values.compactMap { entry in
                 entry.completionPending ? entry.connection.onConnectionResult : nil
             }

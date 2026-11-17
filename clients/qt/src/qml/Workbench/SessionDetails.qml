@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -19,12 +19,12 @@ KPopover {
 
     signal shareRequested(string sessionId)
 
-    function openSession(id) {
+    function openSession(id: string): void {
         sessionId = id;
         refresh();
         open();
     }
-    function refresh() {
+    function refresh(): void {
         session = Models.Sessions.presentationForSession(sessionId);
     }
 

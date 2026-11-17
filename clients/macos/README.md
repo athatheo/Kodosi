@@ -4,8 +4,10 @@ This is the native Swift app. It embeds the Rust runtime and Ghostty.
 
 ## Build and run
 
-You need Apple silicon with macOS 26 or later, Xcode with the matching SDK, the pinned
-Rust toolchain, and `just`, Python 3, `xcodegen`, `swiftformat` and `swiftlint`.
+Besides the [shared tools](../../docs/DEVELOPMENT.md#toolchains), you need Apple silicon
+with macOS 26.6 or later, Xcode 27.2 or later and the pinned Rust toolchain. The first
+build puts the SwiftLint, SwiftFormat and XcodeGen that [Tools.env](../apple/Tools.env)
+pins in `clients/apple/.tools/`.
 
 ```sh
 just mac-build

@@ -73,7 +73,7 @@ struct SessionTileHeader: View {
         .padding(.leading, 11).padding(.trailing, canvasOpen ? 6 + CanvasBody.clearance : 6).frame(height: Self.height)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var status: some View {
         if deps.unreachable(session), session.isConnected {
             Text("Offline").appTextStyle(.caption).foregroundStyle(theme.colors.caution).lineLimit(1)
@@ -254,7 +254,7 @@ private struct TerminalActions: View {
                 PanelMenuRow(Text("Remove from project"), icon: .symbol("rectangle.portrait.and.arrow.right"),
                              identifier: "\(stageId).removeFromProject", destructive: true)
                 {
-                    Task { @MainActor in
+                    Task {
                         do {
                             try await deps.removeFromProject(session)
                         } catch { deps.errorMessage = error.localizedDescription }

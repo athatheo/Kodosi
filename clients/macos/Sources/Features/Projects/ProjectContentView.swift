@@ -49,7 +49,7 @@ private struct ProjectTerminals: View {
     @State private var tabFrame: CGRect?
     @State private var stageFrame = CGRect.zero
 
-    private static let space = "project.terminals"
+    private nonisolated static let space = "project.terminals"
 
     private var sessions: [RuntimeSession] {
         deps.projectSessions(projectId)
@@ -126,7 +126,7 @@ private struct ProjectTerminals: View {
         .coordinateSpace(.named(Self.space))
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func pair(_ current: RuntimeSession) -> some View {
         let open = workspace.showsCanvas && deps.canvas.showsSomething(current)
         CanvasStage(canvas: open ? current : nil, front: current.id, wide: $workspace.canvasWide,
@@ -212,7 +212,7 @@ private struct ProjectTerminals: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func removeButton(_ session: RuntimeSession) -> some View {
         if session.isOwner {
             Button("Remove from project") { remove(session) }
@@ -220,7 +220,7 @@ private struct ProjectTerminals: View {
     }
 
     private func remove(_ session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.removeFromProject(session)
             } catch { state.failure = error.localizedDescription }
@@ -263,7 +263,7 @@ private struct ProjectTerminals: View {
     }
 
     private func share(_ session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.mutateSession("session.attachProject", session: session, fields: ["projectId": .string(projectId)])
                 workspace.shownSection = 0; deps.activateSession(session.id, inProject: projectId)
