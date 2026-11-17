@@ -15,7 +15,7 @@ host = ["kodosi-runtime/host"]
 
 [dependencies]
 kodosi-runtime = {path = "../..", default-features = false}
-kodosi-os = {path = "../kodosi-os"}
+kodosi-os = {workspace = true}
 bytes = {workspace = true}
 uuid = {workspace = true}
 
@@ -30,7 +30,7 @@ tracing = {workspace = true}
 openh264 = "0.9.10"
 
 [target.'cfg(target_os = "android")'.dependencies]
-jni = { version = "0.22.4", default-features = false }
+jni = { workspace = true }
 rustls-platform-verifier = { workspace = true }
 
 [dev-dependencies]
