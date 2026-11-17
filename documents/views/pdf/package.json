@@ -11,6 +11,6 @@
     "@documents/contract": "workspace:*",
     "@documents/words": "workspace:*",
     "lucide": "catalog:",
-    "pdfjs-dist": "6.4.299"
+    "pdfjs-dist": "6.5.438"
   }
 }
