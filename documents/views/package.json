@@ -4,20 +4,25 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "workspaces": [
-    "bar",
-    "client",
-    "contract",
-    "xlsx",
-    "kit",
-    "words",
-    "pdf",
-    "pptx",
-    "text-parity",
-    "docx",
-    "peers",
-    "plain"
-  ],
+  "workspaces": {
+    "packages": [
+      "bar",
+      "client",
+      "contract",
+      "xlsx",
+      "kit",
+      "words",
+      "pdf",
+      "pptx",
+      "text-parity",
+      "docx",
+      "peers",
+      "plain"
+    ],
+    "catalog": {
+      "lucide": "1.72.0"
+    }
+  },
   "scripts": {
     "build": "tsc && vite build",
     "tsc": "tsc",
