@@ -30,17 +30,11 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
-      - name: Install Rust, NASM and python3
+      - name: Install Rust and NASM
         run: |
           rustup toolchain install
           choco install nasm --version=3.2.0 --no-progress --yes
           echo 'C:\Program Files\NASM' >> "$GITHUB_PATH"
-          # The runner's Git Bash has python, not python3.
-          tools="$(cygpath -u "$RUNNER_TEMP")/kodosi-tools"
-          mkdir -p "$tools"
-          printf '#!/bin/sh\nexec python "$@"\n' > "$tools/python3"
-          chmod +x "$tools/python3"
-          cygpath -w "$tools" >> "$GITHUB_PATH"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: clients/qt/.tools
