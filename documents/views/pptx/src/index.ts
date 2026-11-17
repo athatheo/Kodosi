@@ -707,7 +707,10 @@ class PptxEditor implements Editor, Pictures {
     if (!slide) return;
     if (this.selected) {
       const shape = slide.shapes.find((known) => known.id === this.selected);
-      if (shape) this.undoes.push({ kind: "addShape", slide: slide.id, shape });
+      if (shape) {
+        const text = this.texts.get(textKey(slide.id, shape.id))?.doc.toJSON() ?? shape.text;
+        this.undoes.push({ kind: "addShape", slide: slide.id, shape: { ...shape, text } });
+      }
       const change: Change = { kind: "removeShape", slide: slide.id, shape: this.selected };
       this.selected = null;
       this.showChange(change);
