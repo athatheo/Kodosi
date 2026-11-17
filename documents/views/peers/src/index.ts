@@ -8,12 +8,12 @@ import "./peers.css";
 
 export { Waiting } from "./waiting";
 
-export interface Place {
+interface Place {
   from: number;
   to: number;
 }
 
-export function placeOf(body: unknown): Place | null {
+function placeOf(body: unknown): Place | null {
   const place = body as Partial<Place> | null;
   if (typeof place?.from !== "number" || typeof place.to !== "number") return null;
   return { from: place.from, to: place.to };

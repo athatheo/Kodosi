@@ -6,9 +6,11 @@ mod blank;
 mod model;
 mod ops;
 mod read;
+mod writable;
 mod write;
 
 use document::{Answer, Assets, Format, Guide, Ordered, Refused, Snapshot, Unreadable, Unwritable};
+use serde_json::Value;
 
 pub use blank::new_file;
 pub use model::{Change, Model, Pptx, Query, Shape, ShapeFields, Slide};
@@ -25,6 +27,24 @@ impl Format for Pptx {
 
     fn snapshot(model: &Model) -> Snapshot {
         Snapshot(model.snapshot())
+    }
+
+    /// A view and an agent send what a person or an agent did. Pieces of XML come only with the
+    /// merge of a write of another program, and a fill, a line or a stacking order that a sender
+    /// names must be one that the writer can put in the file.
+    fn sendable(change: &Change) -> Result<(), String> {
+        match change {
+            Change::Text { keep, .. } | Change::AddShape { keep, .. } if !keep.is_empty() => {
+                Err("Only the server merges a write of another program.".to_owned())
+            }
+            Change::Shape { fields, .. } => writable::sendable_fields(fields),
+            Change::AddShape { shape, .. } => shape
+                .get("fill")
+                .and_then(Value::as_str)
+                .map_or(Ok(()), writable::writable_fill),
+            Change::Group { changes } => changes.iter().try_for_each(Self::sendable),
+            _ => Ok(()),
+        }
     }
 
     fn apply(

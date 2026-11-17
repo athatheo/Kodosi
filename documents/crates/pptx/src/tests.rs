@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{collections::BTreeMap, io::Write as _};
 
 use document::{Assets, Format, Ordered, Refused};
 use package::Package;
@@ -222,6 +222,7 @@ fn a_view_sends_steps_for_text_and_fields_for_a_shape() {
                     "to": 7,
                     "slice": { "content": [{ "type": "text", "text": " slide" }] },
                 })],
+                keep: BTreeMap::new(),
             },
             Change::Shape {
                 slide: "257".to_owned(),
@@ -255,12 +256,14 @@ fn old_text_steps_are_behind_and_a_field_is_not() {
             slide: "256".to_owned(),
             shape: "2".to_owned(),
             steps: Vec::new(),
+            keep: BTreeMap::new(),
         },
     };
     let text = Change::Text {
         slide: "256".to_owned(),
         shape: "2".to_owned(),
         steps: Vec::new(),
+        keep: BTreeMap::new(),
     };
     assert!(matches!(
         Pptx::apply(
@@ -275,6 +278,7 @@ fn old_text_steps_are_behind_and_a_field_is_not() {
         slide: "256".to_owned(),
         shape: "3".to_owned(),
         steps: Vec::new(),
+        keep: BTreeMap::new(),
     };
     let result = Pptx::apply(
         &mut model,
@@ -499,6 +503,7 @@ fn a_slide_or_a_shape_takes_only_an_id_that_a_file_can_hold() {
     let change = Change::AddShape {
         slide: "256".to_owned(),
         shape: view_text_box("9e0a2c44-77b1-4c63-a1f5-0f6d4e2b8c13"),
+        keep: BTreeMap::new(),
     };
     assert!(matches!(
         apply_change(&mut model, change),
@@ -513,6 +518,7 @@ fn a_slide_or_a_shape_takes_only_an_id_that_a_file_can_hold() {
     let change = Change::AddShape {
         slide: slide.clone(),
         shape: view_text_box("402193877"),
+        keep: BTreeMap::new(),
     };
     apply_change(&mut model, change).unwrap();
     let with_slide = saved(&model, &file);
@@ -689,4 +695,596 @@ fn a_link_on_a_run_or_a_shape_says_where_a_click_goes_and_a_save_keeps_it() {
     );
     assert_eq!(shapes[1]["link"], json!({ "slide": "257" }));
     assert_eq!(saved(&model, &file), file);
+}
+
+#[test]
+fn a_shape_that_a_save_took_away_comes_back_whole_and_can_again() {
+    let file = deck();
+    let mut model = read(&file);
+    let title = Pptx::snapshot(&model).0["slides"][0]["shapes"][0].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "2".to_owned(),
+        }],
+    );
+    let without = saved(&model, &file);
+    assert!(!part(&without, "ppt/slides/slide1.xml").contains("<p:ph"));
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: title,
+        keep: BTreeMap::new(),
+    };
+    Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
+    let with = saved(&model, &without);
+    let xml = part(&with, "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr/>"#));
+    assert!(xml.contains("<a:t>First</a:t>"));
+    let again = Pptx::snapshot(&read(&with)).0;
+    let returned = &again["slides"][0]["shapes"][1];
+    assert_eq!(returned["placeholder"], "title:0");
+    assert!(returned["source"].is_string());
+}
+
+#[test]
+fn a_change_that_the_file_could_not_save_is_refused_and_changes_nothing() {
+    let mut model = read(&deck());
+    let before = model.clone();
+    let title = |steps: Vec<Value>| Change::Text {
+        slide: "256".to_owned(),
+        shape: "2".to_owned(),
+        steps,
+        keep: BTreeMap::new(),
+    };
+    let typed = |node: Value| {
+        title(vec![json!({
+            "stepType": "replace",
+            "from": 1,
+            "to": 1,
+            "slice": { "content": [node] },
+        })])
+    };
+    let added = |shape: Value| Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep: BTreeMap::new(),
+    };
+    let unknown = "0123456789abcdef";
+    let mut picture = view_text_box("9");
+    picture["kind"] = json!("picture");
+    picture["asset"] = json!("ab".repeat(32));
+    let mut placeholder = view_text_box("10");
+    placeholder["placeholder"] = json!("title:0");
+    let mut stray = view_text_box("11");
+    stray["source"] = json!(unknown);
+    stray["geometry"] = json!("ellipse");
+    let mut styled = view_text_box("12");
+    styled["text"]["content"][0]["content"][0]["marks"] =
+        json!([{ "type": "run", "attrs": { "props": unknown } }]);
+    let mut borrowed = Pptx::snapshot(&model).0["slides"][0]["shapes"][1].clone();
+    borrowed["id"] = json!("13");
+    let mut shaped = view_text_box("14");
+    shaped["geometry"] = json!("bogus");
+    let framed = |fields: ShapeFields| Change::Shape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        fields,
+    };
+    for change in [
+        typed(json!({ "type": "inlineOpaque", "attrs": { "raw": null } })),
+        typed(json!({ "type": "inlineOpaque", "attrs": { "raw": unknown } })),
+        typed(json!({
+            "type": "text",
+            "text": "x",
+            "marks": [{ "type": "run", "attrs": { "props": unknown } }],
+        })),
+        title(vec![
+            json!({ "stepType": "attr", "pos": 0, "attr": "props", "value": unknown }),
+        ]),
+        typed(json!({ "type": "video" })),
+        added(picture),
+        added(placeholder),
+        added(stray),
+        added(styled),
+        added(borrowed),
+        added(shaped),
+        framed(ShapeFields {
+            width: Some(-1),
+            ..ShapeFields::default()
+        }),
+        framed(ShapeFields {
+            rotation: Some(3_000_000_000),
+            ..ShapeFields::default()
+        }),
+        Change::Group {
+            changes: vec![
+                framed(ShapeFields {
+                    x: Some(0),
+                    ..ShapeFields::default()
+                }),
+                typed(json!({ "type": "inlineOpaque", "attrs": { "raw": null } })),
+            ],
+        },
+    ] {
+        assert!(
+            matches!(
+                apply_change(&mut model, change.clone()),
+                Err(Refused::Invalid(_))
+            ),
+            "{change:?}"
+        );
+        assert_eq!(model, before);
+    }
+    let off_the_slide = framed(ShapeFields {
+        x: Some(-12_700),
+        width: Some(0),
+        ..ShapeFields::default()
+    });
+    assert!(apply_change(&mut model, off_the_slide).is_ok());
+    let broken = slide_xml("First").replace(r#"cx="127000""#, r#"cx="-127000""#);
+    let mut model = read(&with_parts(&deck(), &[("ppt/slides/slide1.xml", &broken)]));
+    let moved = framed(ShapeFields {
+        x: Some(0),
+        ..ShapeFields::default()
+    });
+    assert!(apply_change(&mut model, moved).is_ok());
+}
+
+#[test]
+fn a_person_or_an_agent_cannot_send_what_the_file_does_not_take() {
+    let pieces = BTreeMap::from([("0123456789abcdef".to_owned(), "<a:rPr/>".to_owned())]);
+    let fields = |fields: ShapeFields| Change::Shape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        fields,
+    };
+    let fill = |color: Option<&str>| {
+        fields(ShapeFields {
+            fill: Some(color.map(str::to_owned)),
+            ..ShapeFields::default()
+        })
+    };
+    let added = |shape: Value, keep: BTreeMap<String, String>| Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep,
+    };
+    let mut red = view_text_box("9");
+    red["fill"] = json!("red");
+    for change in [
+        Change::Text {
+            slide: "256".to_owned(),
+            shape: "2".to_owned(),
+            steps: Vec::new(),
+            keep: pieces.clone(),
+        },
+        added(view_text_box("9"), pieces),
+        added(red, BTreeMap::new()),
+        fields(ShapeFields {
+            line: Some(Some("FF0000".to_owned())),
+            ..ShapeFields::default()
+        }),
+        fields(ShapeFields {
+            order: Some(3),
+            ..ShapeFields::default()
+        }),
+        fill(None),
+        fill(Some("red")),
+        Change::Group {
+            changes: vec![fill(Some("00FF00")), fill(None)],
+        },
+    ] {
+        assert!(Pptx::sendable(&change).is_err(), "{change:?}");
+    }
+    for change in [
+        fields(ShapeFields {
+            x: Some(0),
+            y: Some(0),
+            width: Some(9),
+            height: Some(9),
+            rotation: Some(0),
+            ..ShapeFields::default()
+        }),
+        fill(Some("00FF00")),
+        fill(Some("scheme:accent1")),
+        added(view_text_box("9"), BTreeMap::new()),
+    ] {
+        assert!(Pptx::sendable(&change).is_ok(), "{change:?}");
+    }
+    let mut model = read(&deck());
+    let named = Change::Ops {
+        ops: vec![Op::SetFill {
+            slide: "256".to_owned(),
+            shape: "3".to_owned(),
+            color: "red".to_owned(),
+        }],
+    };
+    assert!(matches!(
+        apply_change(&mut model, named),
+        Err(Refused::Invalid(_))
+    ));
+}
+
+#[test]
+fn a_merge_brings_the_pieces_of_a_write_so_that_later_edits_still_save() {
+    let file = deck();
+    let mut model = read(&file);
+    let italic = slide_xml("First").replace(r#"b="1" dirty="0""#, r#"b="1" i="1" dirty="0""#);
+    let written = with_parts(&file, &[("ppt/slides/slide1.xml", &italic)]);
+    for change in Pptx::compare(&model, &read(&written)) {
+        apply_change(&mut model, change).unwrap();
+    }
+    let typed = Change::Text {
+        slide: "256".to_owned(),
+        shape: "2".to_owned(),
+        steps: vec![json!({
+            "stepType": "replace",
+            "from": 1,
+            "to": 1,
+            "slice": { "content": [{ "type": "text", "text": "The " }] },
+        })],
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, typed).unwrap();
+    let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
+    assert!(xml.contains("<a:t>The </a:t>"));
+    assert!(xml.contains(r#"<a:rPr lang="en-US" b="1" i="1" dirty="0"/><a:t>First</a:t>"#));
+}
+
+fn turned_deck() -> Vec<u8> {
+    let slide = slide_xml("First")
+        .replace("<a:xfrm><a:off", r#"<a:xfrm flipH="1"><a:off"#)
+        .replace(
+            r#"<a:srgbClr val="FF0000"/>"#,
+            r#"<a:srgbClr val="FF0000"><a:lumMod val="75000"/></a:srgbClr>"#,
+        );
+    with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)])
+}
+
+fn box_moved_to(x: f64) -> Op {
+    Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        x: Some(x),
+        y: None,
+        width: None,
+        height: None,
+    }
+}
+
+#[test]
+fn a_move_keeps_a_shape_turned_over() {
+    let file = turned_deck();
+    let mut model = read(&file);
+    apply_ops(&mut model, vec![box_moved_to(10.0)]);
+    let xml = part(&saved(&model, &file), "ppt/slides/slide1.xml");
+    assert!(xml.contains(
+        r#"<a:xfrm flipH="1"><a:off x="127000" y="25400"/><a:ext cx="127000" cy="254000"/></a:xfrm>"#
+    ));
+}
+
+#[test]
+fn a_shape_that_comes_back_keeps_the_turn_and_the_colour_of_its_piece() {
+    let file = turned_deck();
+    let mut model = read(&file);
+    apply_ops(&mut model, vec![box_moved_to(10.0)]);
+    let moved = saved(&model, &file);
+    let shape = Pptx::snapshot(&model).0["slides"][0]["shapes"][1].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "3".to_owned(),
+        }],
+    );
+    let without = saved(&model, &moved);
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep: BTreeMap::new(),
+    };
+    Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
+    let xml = part(&saved(&model, &without), "ppt/slides/slide1.xml");
+    assert!(xml.contains(
+        r#"<a:xfrm flipH="1"><a:off x="127000" y="25400"/><a:ext cx="127000" cy="254000"/></a:xfrm>"#
+    ));
+    assert!(xml.contains(
+        r#"<a:solidFill><a:srgbClr val="FF0000"><a:lumMod val="75000"/></a:srgbClr></a:solidFill>"#
+    ));
+}
+
+#[test]
+fn a_shape_comes_back_from_its_piece_only_on_the_slide_that_held_it() {
+    let mut model = read(&deck());
+    let title = Pptx::snapshot(&model).0["slides"][0]["shapes"][0].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "257".to_owned(),
+            shape: "2".to_owned(),
+        }],
+    );
+    let before = model.clone();
+    let elsewhere = Change::AddShape {
+        slide: "257".to_owned(),
+        shape: title,
+        keep: BTreeMap::new(),
+    };
+    assert!(matches!(
+        apply_change(&mut model, elsewhere),
+        Err(Refused::Invalid(_))
+    ));
+    assert_eq!(model, before);
+}
+
+#[test]
+fn a_shape_that_another_program_wrote_can_come_back_on_its_slide() {
+    let file = deck();
+    let mut model = read(&file);
+    let ellipse = r#"<p:sp><p:nvSpPr><p:cNvPr id="4" name="Mark"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="127000" cy="127000"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"#;
+    let marked = slide_xml("First").replace("</p:spTree>", ellipse);
+    let written = with_parts(&file, &[("ppt/slides/slide1.xml", &marked)]);
+    for change in Pptx::compare(&model, &read(&written)) {
+        apply_change(&mut model, change).unwrap();
+    }
+    let mark = Pptx::snapshot(&model).0["slides"][0]["shapes"][2].clone();
+    assert_eq!(mark["geometry"], "ellipse");
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "4".to_owned(),
+        }],
+    );
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: mark,
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, back).unwrap();
+    let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<a:prstGeom prst="ellipse">"#));
+}
+
+#[test]
+fn a_box_whose_piece_went_comes_back_as_a_new_box_with_its_words() {
+    let note = concat!(
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="5" name="Note"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>"#,
+        r#"<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="127000" cy="127000"/></a:xfrm>"#,
+        r#"<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>"#,
+        r#"<a:p><a:r><a:rPr lang="fr-FR" sz="1400" b="1"/><a:t>Notes </a:t></a:r>"#,
+        r#"<a:fld id="{1}" type="slidenum"><a:rPr lang="fr-FR"/><a:t>1</a:t></a:fld>"#,
+        r#"<a:endParaRPr lang="fr-FR"/></a:p><a:p><a:r><a:rPr lang="fr-FR"/><a:t>A</a:t></a:r>"#,
+        r#"<a:r><a:rPr lang="de-DE"/><a:t>B</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"#,
+    );
+    let slide = slide_xml("First").replace("</p:spTree>", note);
+    let file = with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)]);
+    let mut model = read(&file);
+    let shapes = Pptx::snapshot(&model).0["slides"][0]["shapes"].clone();
+    let removed = |shape: &str| Op::RemoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+    };
+    apply_ops(&mut model, vec![removed("2"), removed("5")]);
+    let saved_without = saved(&model, &file);
+    let mut reopened = read(&saved_without);
+    let back = |shape: &Value| Change::AddShape {
+        slide: "256".to_owned(),
+        shape: shape.clone(),
+        keep: BTreeMap::new(),
+    };
+    assert!(matches!(
+        apply_change(&mut reopened, back(&shapes[0])),
+        Err(Refused::Invalid(_))
+    ));
+    let applied = serde_json::to_value(apply_change(&mut reopened, back(&shapes[2])).unwrap());
+    let applied = applied.unwrap()["shape"].clone();
+    assert!(applied["source"].is_null());
+    assert_eq!(
+        applied["text"]["content"][1]["content"],
+        json!([{ "type": "text", "text": "AB", "marks": [{ "type": "run", "attrs": { "props": null } }] }])
+    );
+    let xml = part(&saved(&reopened, &saved_without), "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<p:cNvPr id="5" name="Note"/>"#));
+    assert!(xml.contains(r#"sz="1400""#) && xml.contains("<a:t>Notes </a:t>"));
+    assert!(xml.contains("<a:t>1</a:t>") && !xml.contains("slidenum"));
+}
+
+#[test]
+fn a_change_of_what_a_change_before_it_removed_goes_and_the_rest_of_its_batch_stays() {
+    let mut model = read(&deck());
+    let removal = Change::RemoveShape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+    };
+    apply_change(&mut model, removal.clone()).unwrap();
+    let since = [Ordered {
+        rev: 1,
+        author: "ben".to_owned(),
+        client: "ben".to_owned(),
+        seq: 1,
+        change: removal,
+    }];
+    let moved = |shape: &str| Change::Shape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        fields: ShapeFields {
+            x: Some(12_700),
+            ..ShapeFields::default()
+        },
+    };
+    let batch = Change::Group {
+        changes: vec![moved("3"), moved("2")],
+    };
+    let applied = Pptx::apply(&mut model, batch, &since, &mut Assets::default()).unwrap();
+    assert_eq!(
+        applied,
+        Change::Group {
+            changes: vec![moved("2")]
+        }
+    );
+    assert_eq!(model.slides[0].shapes[0].x, 12_700);
+    assert!(matches!(
+        Pptx::apply(&mut model, moved("77"), &since, &mut Assets::default()),
+        Err(Refused::Invalid(_))
+    ));
+}
+
+fn framed_deck() -> Vec<u8> {
+    let group = concat!(
+        r#"<p:grpSp><p:nvGrpSpPr><p:cNvPr id="5" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"#,
+        r#"<p:grpSpPr><a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/>"#,
+        r#"<a:chOff x="1000" y="2000"/><a:chExt cx="3000" cy="4000"/></a:xfrm></p:grpSpPr>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="6" name="Inner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/></a:xfrm>"#,
+        r#"<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:grpSp>"#,
+    );
+    let table = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="7" name="Table"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="5000" y="6000"/><a:ext cx="7000" cy="8000"/>"#,
+        r#"</p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">"#,
+        r#"<a:tbl><a:tblGrid><a:gridCol w="7000"/></a:tblGrid><a:tr h="8000"><a:tc><a:txBody><a:bodyPr/>"#,
+        r#"<a:p><a:r><a:t>cell</a:t></a:r></a:p></a:txBody></a:tc></a:tr></a:tbl></a:graphicData></a:graphic>"#,
+        r#"</p:graphicFrame>"#,
+    );
+    let chart = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="8" name="Chart"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="9000" y="10000"/><a:ext cx="11000" cy="12000"/>"#,
+        r#"</p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">"#,
+        r#"<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId9"/>"#,
+        r#"</a:graphicData></a:graphic></p:graphicFrame>"#,
+    );
+    let slide =
+        slide_xml("First").replace("</p:spTree>", &format!("{group}{table}{chart}</p:spTree>"));
+    with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)])
+}
+
+#[test]
+fn a_move_of_a_group_a_table_or_a_chart_reaches_the_file_and_comes_back_with_it() {
+    let file = framed_deck();
+    let mut model = read(&file);
+    let moved = |shape: &str| Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        x: Some(1.0),
+        y: Some(2.0),
+        width: None,
+        height: None,
+    };
+    apply_ops(&mut model, vec![moved("5"), moved("7"), moved("8")]);
+    let with_moves = saved(&model, &file);
+    for shape in &read(&with_moves).slides[0].shapes[2..] {
+        assert_eq!((shape.x, shape.y), (12_700, 25_400), "{}", shape.name);
+    }
+    let group = concat!(
+        r#"<a:xfrm><a:off x="12700" y="25400"/><a:ext cx="3000" cy="4000"/>"#,
+        r#"<a:chOff x="1000" y="2000"/><a:chExt cx="3000" cy="4000"/></a:xfrm>"#,
+    );
+    assert!(part(&with_moves, "ppt/slides/slide1.xml").contains(group));
+    let moved_group = Pptx::snapshot(&model).0["slides"][0]["shapes"][2].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "5".to_owned(),
+        }],
+    );
+    let without = saved(&model, &with_moves);
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape: moved_group,
+        keep: BTreeMap::new(),
+    };
+    apply_change(&mut model, back).unwrap();
+    assert!(part(&saved(&model, &without), "ppt/slides/slide1.xml").contains(group));
+}
+
+#[test]
+fn a_group_without_a_frame_spans_its_shapes_and_a_move_takes_them_along() {
+    let group = concat!(
+        r#"<p:grpSp><p:nvGrpSpPr><p:cNvPr id="5" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="6" name="Left"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="1000" y="2000"/><a:ext cx="3000" cy="4000"/></a:xfrm></p:spPr></p:sp>"#,
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="7" name="Right"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>"#,
+        r#"<a:xfrm><a:off x="6000" y="1000"/><a:ext cx="2000" cy="2000"/></a:xfrm></p:spPr></p:sp></p:grpSp>"#,
+    );
+    let chart = concat!(
+        r#"<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="8" name="Chart"/><p:cNvGraphicFramePr/>"#,
+        r#"<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="9000" y="10000"/></p:xfrm><a:graphic>"#,
+        r#"<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">"#,
+        r#"<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId9"/>"#,
+        r#"</a:graphicData></a:graphic></p:graphicFrame>"#,
+    );
+    let slide = slide_xml("First").replace("</p:spTree>", &format!("{group}{chart}</p:spTree>"));
+    let file = with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)]);
+    let mut model = read(&file);
+    let frame = |model: &Model, at: usize| {
+        let shape = &model.slides[0].shapes[at];
+        (shape.x, shape.y, shape.width, shape.height)
+    };
+    assert_eq!(frame(&model, 2), (1000, 1000, 7000, 5000));
+    let moved = |shape: &str| Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+        x: Some(1.0),
+        y: Some(2.0),
+        width: None,
+        height: None,
+    };
+    apply_ops(&mut model, vec![moved("5"), moved("8")]);
+    let with_moves = saved(&model, &file);
+    assert_eq!(frame(&read(&with_moves), 2), (12_700, 25_400, 7000, 5000));
+    let xml = part(&with_moves, "ppt/slides/slide1.xml");
+    assert!(xml.contains(concat!(
+        r#"<p:grpSpPr><a:xfrm><a:off x="12700" y="25400"/><a:ext cx="7000" cy="5000"/>"#,
+        r#"<a:chOff x="1000" y="1000"/><a:chExt cx="7000" cy="5000"/></a:xfrm></p:grpSpPr>"#,
+    )));
+    assert!(xml.contains(r#"<p:xfrm><a:off x="12700" y="25400"/><a:ext cx="0" cy="0"/></p:xfrm>"#));
+}
+
+#[test]
+fn a_fill_goes_into_properties_that_hold_nothing_and_a_table_or_a_chart_takes_none() {
+    let file = framed_deck();
+    let mut model = read(&file);
+    apply_ops(
+        &mut model,
+        vec![
+            Op::SetFill {
+                slide: "256".to_owned(),
+                shape: "2".to_owned(),
+                color: "00FF00".to_owned(),
+            },
+            Op::MoveShape {
+                slide: "256".to_owned(),
+                shape: "2".to_owned(),
+                x: Some(1.0),
+                y: Some(2.0),
+                width: Some(3.0),
+                height: Some(4.0),
+            },
+        ],
+    );
+    let filled = saved(&model, &file);
+    assert!(part(&filled, "ppt/slides/slide1.xml").contains(concat!(
+        r#"<p:spPr><a:xfrm><a:off x="12700" y="25400"/><a:ext cx="38100" cy="50800"/></a:xfrm>"#,
+        r#"<a:solidFill><a:srgbClr val="00FF00"/></a:solidFill></p:spPr>"#,
+    )));
+    assert_eq!(
+        read(&filled).slides[0].shapes[0].fill.as_deref(),
+        Some("00FF00")
+    );
+    for graphic in ["7", "8"] {
+        let colored = Change::Ops {
+            ops: vec![Op::SetFill {
+                slide: "256".to_owned(),
+                shape: graphic.to_owned(),
+                color: "00FF00".to_owned(),
+            }],
+        };
+        assert!(matches!(
+            apply_change(&mut model, colored),
+            Err(Refused::Invalid(_))
+        ));
+    }
 }

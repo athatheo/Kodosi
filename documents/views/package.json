@@ -4,20 +4,36 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "workspaces": [
-    "bar",
-    "client",
-    "contract",
-    "xlsx",
-    "kit",
-    "words",
-    "pdf",
-    "pptx",
-    "text-parity",
-    "docx",
-    "peers",
-    "plain"
-  ],
+  "workspaces": {
+    "packages": [
+      "bar",
+      "client",
+      "contract",
+      "xlsx",
+      "kit",
+      "words",
+      "pdf",
+      "pptx",
+      "text-parity",
+      "docx",
+      "peers",
+      "plain"
+    ],
+    "catalog": {
+      "@tiptap/core": "3.34.0",
+      "@tiptap/pm": "3.34.0",
+      "lucide": "1.72.0",
+      "prosemirror-collab": "1.3.1",
+      "prosemirror-model": "1.25.13",
+      "prosemirror-schema-basic": "1.2.5",
+      "prosemirror-schema-list": "1.6.0",
+      "prosemirror-transform": "1.12.5"
+    }
+  },
+  "overrides": {
+    "prosemirror-model": "catalog:",
+    "prosemirror-transform": "catalog:"
+  },
   "scripts": {
     "build": "tsc && vite build",
     "tsc": "tsc",
@@ -26,9 +42,9 @@
     "format:check": "biome check ."
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
-    "@types/bun": "1.3.0",
+    "@biomejs/biome": "2.6.7",
+    "@types/bun": "1.4.4",
     "typescript": "7.0.2",
-    "vite": "8.3.4"
+    "vite": "8.3.8"
   }
 }

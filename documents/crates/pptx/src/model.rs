@@ -1,10 +1,14 @@
-use std::{collections::HashMap, ops::RangeInclusive, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::RangeInclusive,
+    sync::LazyLock,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use text::{Node, Schema, SchemaSpec};
 
-use crate::Op;
+use crate::{Op, read::Frame};
 
 static SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
     let spec: SchemaSpec = serde_json::from_str(include_str!("../schema.json"))
@@ -54,6 +58,39 @@ pub struct Shape {
     pub look: Value,
     /// Where it stands among the shapes: higher is in front.
     pub order: u64,
+    /// The piece of the file that holds the shape, so that a shape that a save took away comes
+    /// back whole. A shape that the file never held has none.
+    pub source: Option<String>,
+}
+
+/// What the piece of a shape gave it where its slide read it, so that a shape that comes back from
+/// its piece changes in the file only in what changed since.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Sourced {
+    pub(crate) frame: Frame,
+    pub(crate) fill: Option<String>,
+}
+
+impl Sourced {
+    pub(crate) fn of(shape: &Shape) -> Self {
+        Self {
+            frame: Frame {
+                x: shape.x,
+                y: shape.y,
+                width: shape.width,
+                height: shape.height,
+                rotation: shape.rotation,
+            },
+            fill: shape.fill.clone(),
+        }
+    }
+
+    pub(crate) fn by_piece(shapes: &[Shape]) -> HashMap<String, Self> {
+        shapes
+            .iter()
+            .filter_map(|shape| Some((shape.source.clone()?, Self::of(shape))))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +108,9 @@ pub struct Slide {
     /// The highest id that a shape of the slide has held, in a group too, so that a new shape
     /// takes another one.
     pub last_shape: u64,
+    /// The pieces of the shapes that the slide held, by key. A piece names the parts of the file
+    /// that its slide links to, so a shape comes back from it only there.
+    pub sources: HashMap<String, Sourced>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -138,6 +178,9 @@ pub enum Change {
         slide: String,
         shape: String,
         steps: Vec<Value>,
+        /// Pieces of XML that came with a merge, so a replay of the journal has them too.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        keep: BTreeMap<String, String>,
     },
     MoveSlide {
         slide: String,
@@ -153,6 +196,9 @@ pub enum Change {
     AddShape {
         slide: String,
         shape: Value,
+        /// Pieces of XML that came with a merge, so a replay of the journal has them too.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        keep: BTreeMap<String, String>,
     },
     RemoveShape {
         slide: String,
@@ -200,6 +246,7 @@ impl Shape {
             "text": self.text.as_ref().map(|text| text.to_json(schema())),
             "look": self.look,
             "order": self.order,
+            "source": self.source,
         })
     }
 
@@ -228,6 +275,7 @@ impl Shape {
             text: tree,
             look: json.get("look").cloned().unwrap_or_default(),
             order: json["order"].as_u64().unwrap_or(0),
+            source: text("source"),
         })
     }
 }

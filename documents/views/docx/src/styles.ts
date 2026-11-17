@@ -1,3 +1,5 @@
+import { cssColor, cssString } from "@documents/client";
+
 export interface StyleLook {
   name?: string;
   kind?: string;
@@ -72,23 +74,19 @@ function bulletOf(text: string | undefined): string {
   return !text || (code >= 0xe000 && code <= 0xf8ff) ? "•" : text;
 }
 
-function cssText(text: string): string {
-  return `"${text.replace(/["\\]/g, "\\$&").replace(/[\n\r\f]/g, " ")}"`;
-}
-
 function counterOf(list: string, level: number): string {
   return `list-${list.replace(/[^\w-]/g, "")}-${level}`;
 }
 
 function markerOf(list: string, levels: readonly Level[], index: number): string {
   const level = levels[index];
-  if (level?.format === "bullet") return cssText(bulletOf(level.text));
+  if (level?.format === "bullet") return cssString(bulletOf(level.text));
   const parts = (level?.text ?? `%${index + 1}.`)
     .split(/(%[1-9])/)
     .filter(Boolean)
     .map((part) => {
       const at = /^%([1-9])$/.exec(part)?.[1];
-      if (at === undefined) return cssText(part);
+      if (at === undefined) return cssString(part);
       const depth = Number(at) - 1;
       const style = COUNTER_STYLES[levels[depth]?.format ?? "decimal"] ?? "decimal";
       return `counter(${counterOf(list, depth)},${style})`;
@@ -109,12 +107,13 @@ export function cssAlign(align: string): string {
 }
 
 function rules(look: StyleLook): string {
+  const color = cssColor(look.color);
   const parts = [
     look.bold === undefined ? "" : `font-weight:${look.bold ? 700 : 400}`,
     look.italic === undefined ? "" : `font-style:${look.italic ? "italic" : "normal"}`,
     look.size ? `font-size:${look.size}pt` : "",
-    look.color ? `color:#${look.color}` : "",
-    look.font ? `font-family:"${look.font}",sans-serif` : "",
+    color ? `color:${color}` : "",
+    look.font ? `font-family:${cssString(look.font)},sans-serif` : "",
     look.align ? `text-align:${cssAlign(look.align)}` : "",
     look.before === undefined ? "" : `margin-top:${look.before}pt`,
     look.after === undefined ? "" : `margin-bottom:${look.after}pt`,

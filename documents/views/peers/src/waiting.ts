@@ -4,7 +4,7 @@ import type { EditorState } from "@tiptap/pm/state";
 import { Mapping, ReplaceStep, type Step, Transform } from "@tiptap/pm/transform";
 import { sendableSteps } from "prosemirror-collab";
 
-export interface Carried {
+interface Carried {
   steps: Step[];
   /** The text of the edits that stay off the snapshot, when they change what shows. */
   lost: string | undefined;

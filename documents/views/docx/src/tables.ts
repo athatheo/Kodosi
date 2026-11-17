@@ -111,7 +111,7 @@ export function columnAdded(state: EditorState, right: boolean): Transaction | n
   if (!at) return null;
   const column = right ? at.cell.start + at.cell.span : at.cell.start;
   const tr = state.tr;
-  for (const row of [...at.rows].reverse()) {
+  for (const row of at.rows.toReversed()) {
     const across = row.cells.find((cell) => cell.start < column && column < cell.start + cell.span);
     if (across) {
       tr.setNodeMarkup(across.pos, undefined, { ...across.node.attrs, span: across.span + 1 });
@@ -132,7 +132,7 @@ export function rowRemoved(state: EditorState): Transaction | null {
   if (at.rows.length === 1) return tableRemoved(state);
   const next = at.rows[at.row + 1];
   const tr = state.tr;
-  for (const cell of [...row.cells].reverse()) {
+  for (const cell of row.cells.toReversed()) {
     const below = cellAt(next, cell.start);
     if (merged(cell) || !below || !merged(below)) continue;
     const starts = below.node.type.create(
@@ -159,7 +159,7 @@ export function columnRemoved(state: EditorState): Transaction | null {
       tr.delete(row.pos, row.pos + row.node.nodeSize);
       continue;
     }
-    for (const cell of [...row.cells].reverse()) {
+    for (const cell of row.cells.toReversed()) {
       const shared = Math.min(cell.start + cell.span, to) - Math.max(cell.start, from);
       if (shared <= 0) continue;
       if (shared >= cell.span) tr.delete(cell.pos, cell.pos + cell.node.nodeSize);

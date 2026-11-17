@@ -8,7 +8,7 @@ export type Align = "left" | "center" | "right" | "both";
 export type MarkName = "bold" | "italic" | "underline" | "strike" | "superscript" | "subscript";
 
 /** A color is hex, and a size is in half points. */
-export interface TextLook {
+interface TextLook {
   color?: string | null;
   size?: string | null;
   font?: string | null;

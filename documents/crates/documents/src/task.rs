@@ -9,7 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer, hex};
+use document::{ClosedReason, Effect, Hash, Input, PipeId, Rev, Viewer};
 use sha2::{Digest as _, Sha256};
 use tokio::{
     sync::{mpsc, oneshot},
@@ -20,6 +20,7 @@ use crate::{
     OpenError,
     journal::{Found, Journal},
     live::{Live, Opener},
+    memory::{self, Memory, Remembered},
 };
 
 const SAVE_AFTER_LAST: Duration = Duration::from_secs(2);
@@ -102,10 +103,12 @@ pub(crate) async fn start(
     path: PathBuf,
     folder: PathBuf,
     format: Arc<dyn Opener>,
+    memory: Arc<Memory>,
 ) -> Result<mpsc::Sender<Command>, OpenError> {
     let file = tokio::fs::read(&path).await?;
     let stamp = stamp_of(&tokio::fs::metadata(&path).await?);
-    let (document, journal, journaled) = open_or_restore(&path, &folder, &file, format.as_ref())?;
+    let (document, journal, journaled, remembered) =
+        open_or_restore(&path, &folder, &file, format.as_ref(), &memory)?;
     let (disk, stamp) = journaled.map_or((file, Some(stamp)), |original| (original, None));
     let unsaved = (document.rev() != document.saved_rev()).then(Instant::now);
     let (commands, incoming) = mpsc::channel(COMMANDS);
@@ -122,6 +125,8 @@ pub(crate) async fn start(
         retry_at: None,
         close_at: Some(Instant::now() + CLOSE_AFTER),
         sealing: false,
+        memory,
+        remembered,
     };
     tokio::spawn(task.run(incoming));
     Ok(commands)
@@ -134,19 +139,22 @@ fn open_or_restore(
     folder: &Path,
     disk: &[u8],
     format: &dyn Opener,
-) -> Result<(Box<dyn Live>, Journal, Option<Vec<u8>>), OpenError> {
+    memory: &Memory,
+) -> Result<Opened, OpenError> {
     if let Some((mut journal, found)) = Journal::find(folder, path) {
         let Found {
             original,
             restored,
             records,
-            assets,
             saved_hash,
         } = found;
         let known = saved_hash.unwrap_or_else(|| hash_of(&original));
         let journaled = (hash_of(disk) != known).then(|| original.clone());
-        match format.restore(original, restored, &records, assets) {
-            Ok(document) => return Ok((document, journal, journaled)),
+        match format.restore(original, restored, &records) {
+            Ok(document) => {
+                memory.forget(path)?;
+                return Ok((document, journal, journaled, HashMap::new()));
+            }
             Err(problem) => {
                 tracing::warn!(%problem, "the journal is not usable, so the file opens as it is");
                 journal.remove();
@@ -154,10 +162,20 @@ fn open_or_restore(
         }
     }
     let epoch = new_epoch()?;
-    let document = format.open(disk.to_vec(), epoch)?;
-    let journal = Journal::start(folder, path, disk, epoch, 0, HashMap::new())?;
-    Ok((document, journal, None))
+    let remembered = memory.recall(path);
+    let seqs = memory::seqs_of(&remembered);
+    let document = format.open(disk.to_vec(), epoch, seqs.clone())?;
+    let journal = Journal::start(folder, path, disk, epoch, 0, seqs)?;
+    memory.forget(path)?;
+    Ok((document, journal, None, remembered))
 }
+
+type Opened = (
+    Box<dyn Live>,
+    Journal,
+    Option<Vec<u8>>,
+    HashMap<String, Remembered>,
+);
 
 struct Task {
     document: Box<dyn Live>,
@@ -172,6 +190,9 @@ struct Task {
     retry_at: Option<Instant>,
     close_at: Option<Instant>,
     sealing: bool,
+    memory: Arc<Memory>,
+    /// What the document took of each client when it opened.
+    remembered: HashMap<String, Remembered>,
 }
 
 impl Task {
@@ -286,13 +307,6 @@ impl Task {
                         tracing::warn!(%problem, "the journal cannot grow");
                     }
                     appended = true;
-                }
-                Effect::KeepAsset(hash) => {
-                    if let Some(bytes) = self.document.asset(&hash)
-                        && let Err(problem) = self.journal.keep_asset(&hex(&hash), &bytes)
-                    {
-                        tracing::warn!(%problem, "an asset stays only in memory");
-                    }
                 }
                 Effect::Unsaved => {
                     let now = Instant::now();
@@ -463,7 +477,13 @@ impl Task {
         let effects = self.document.step(Input::Closing { reason });
         self.send_all(effects);
         if saved {
-            self.journal.remove();
+            let clients = memory::remembered(&self.remembered, self.document.seqs());
+            match self.memory.keep(&self.path, clients) {
+                Ok(()) => self.journal.remove(),
+                Err(problem) => {
+                    tracing::warn!(%problem, "the journal stays, as only it knows what the document took");
+                }
+            }
         }
     }
 }

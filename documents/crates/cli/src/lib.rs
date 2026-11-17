@@ -348,6 +348,7 @@ impl Seat {
             client: client.clone(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         };
         send(&pipe, &join).await?;
         loop {
@@ -362,7 +363,7 @@ impl Seat {
                         pipe,
                         client,
                         rev,
-                        seq,
+                        seq: seq.unwrap_or(0),
                         next_query: 1,
                         used_at: Instant::now(),
                     });
@@ -408,7 +409,12 @@ impl Seat {
         let seq = self.seq;
         send(&self.pipe, &ToDocument::Change { seq, base, body }).await?;
         loop {
-            match message(&mut self.pipe).await? {
+            let answer = message(&mut self.pipe).await.map_err(|failed| {
+                Failed::Says(format!(
+                    "{failed} The change may have gone in. Read again before you send it again."
+                ))
+            })?;
+            match answer {
                 ToClient::Changed(changed)
                     if changed.client == self.client && changed.seq == seq =>
                 {

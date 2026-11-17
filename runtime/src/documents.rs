@@ -185,6 +185,7 @@ mod tests {
             client: "ana".to_owned(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         });
         ends.sender.send(join).await.unwrap();
         let frame = ends.receiver.recv().await.unwrap();

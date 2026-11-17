@@ -10,7 +10,7 @@
     "@documents/client": "workspace:*",
     "@documents/contract": "workspace:*",
     "@documents/words": "workspace:*",
-    "lucide": "1.61.0",
-    "pdfjs-dist": "6.4.299"
+    "lucide": "catalog:",
+    "pdfjs-dist": "6.5.438"
   }
 }

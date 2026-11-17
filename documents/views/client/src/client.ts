@@ -6,7 +6,7 @@ import {
   type ToClient,
   type ToDocument,
 } from "@documents/contract";
-import { decodeFrame, encodeAsset, encodeMessage } from "./frame";
+import { decodeFrame, encodeAssetRequest, encodeMessage } from "./frame";
 
 const PLACE_EVERY = 100;
 
@@ -23,8 +23,8 @@ export interface Person {
 
 /**
  * What became of the batch that was on its way when a client joined again: none was on its way,
- * the document took it, it never got there, the document refused it, or the document opened again
- * since and no longer knows.
+ * the document took it, it never got there, the document refused it, or the document lost what it
+ * kept of the client and no longer knows.
  */
 export type Sent = "none" | "taken" | "lost" | "refused" | "unknown";
 
@@ -59,8 +59,11 @@ export class Client {
   private placeTimer: ReturnType<typeof setTimeout> | undefined;
   private nextPlace: { rev: number; body: ToDocumentBody } | undefined;
   private placeSentAt = 0;
+  private readonly joined: () => void;
 
-  constructor(private readonly joined: () => void = () => {}) {}
+  constructor(joined: () => void = () => {}) {
+    this.joined = joined;
+  }
 
   use(editor: Editor): void {
     this.editor = editor;
@@ -72,12 +75,17 @@ export class Client {
     pipe.onMessage((frame) => {
       this.incoming = this.incoming.then(() => this.receive(frame)).catch(console.error);
     });
+    this.join();
+  }
+
+  private join(): void {
     this.send({
       type: "join",
       contract: CONTRACT,
       client: this.id,
       epoch: this.epoch,
       rev: this.rev,
+      fresh: this.lastSeq === 0 && this.waitingSeq === null,
     });
   }
 
@@ -105,33 +113,48 @@ export class Client {
     switch (message.type) {
       case "joined": {
         const sent = this.sentOf(message.seq);
-        this.waitingSeq = null;
         this.epoch = message.epoch;
-        this.lastSeq = message.seq;
-        if (message.catchup.kind === "snapshot") {
-          this.rev = message.rev;
-          const person = { id: message.id, name: message.name, canEdit: message.canEdit };
-          editor?.load(message.catchup.snapshot, person, sent);
-        } else {
-          for (const changed of message.catchup.changes) this.applied(changed);
-        }
-        this.refused = false;
-        this.joining = false;
         this.peers.clear();
         for (const peer of message.peers) this.peers.set(peer.id, peer);
-        editor?.peers([...this.peers.values()]);
+        try {
+          if (message.catchup.kind === "snapshot") {
+            this.rev = message.rev;
+            const person = { id: message.id, name: message.name, canEdit: message.canEdit };
+            editor?.load(message.catchup.snapshot, person, sent);
+          } else {
+            for (const changed of message.catchup.changes) this.applied(changed);
+          }
+        } catch (error) {
+          this.outOfStep();
+          this.joined();
+          throw error;
+        }
+        this.waitingSeq = null;
+        this.lastSeq = message.seq ?? 0;
+        this.refused = false;
+        this.joining = false;
         this.joined();
         this.pull();
+        editor?.peers([...this.peers.values()]);
         break;
       }
       case "changed":
-        this.applied(message);
+        if (this.joining) break;
+        try {
+          this.applied(message);
+        } catch (error) {
+          this.reload();
+          throw error;
+        }
         this.pull();
         break;
       case "refused":
         this.waitingSeq = null;
-        if (message.reason === "invalid") this.reload();
-        else this.pull();
+        if (message.reason === "invalid") {
+          // The document holds what this copy does not, so this copy went wrong.
+          this.refused = true;
+          this.reload();
+        } else this.pull();
         break;
       case "saved":
         editor?.saved(message.rev, message.waits);
@@ -152,36 +175,44 @@ export class Client {
     }
   }
 
+  /** Only a batch that the view took the answer to is done; else it could go again. */
   private applied(changed: Changed): void {
     const own = changed.client === this.id;
     this.rev = changed.rev;
+    this.editor?.apply(changed, own);
     if (own && changed.seq === this.waitingSeq) this.waitingSeq = null;
     if (own) this.lastSeq = Math.max(this.lastSeq, changed.seq);
-    this.editor?.apply(changed, own);
   }
 
-  /** A document that opened again knows no number of this client. */
-  private sentOf(seq: number): Sent {
+  /**
+   * The document keeps the number of the last batch of each client that it took, also when it
+   * closes and opens again, and gives none for a client that it does not know. So the batch goes
+   * again only when the document knows that it took the batch before it and not this one.
+   */
+  private sentOf(seq: number | null): Sent {
     const waiting = this.waitingSeq;
     if (this.refused) return "refused";
     if (waiting === null) return "none";
+    if (seq === null) return "unknown";
     if (seq >= waiting) return "taken";
-    return seq > 0 && seq === waiting - 1 ? "lost" : "unknown";
+    return seq === waiting - 1 ? "lost" : "unknown";
   }
 
-  /** A batch that the document calls invalid means that this copy went wrong: load again. */
-  private reload(): void {
-    this.rev = 0;
-    this.epoch = 0;
-    this.refused = true;
+  /**
+   * A view that failed to take in what the document holds may hold what it would send in the
+   * document already, so it sends nothing until a join loads a snapshot again. That join says
+   * again what became of the batch on its way.
+   */
+  private outOfStep(): void {
     this.joining = true;
-    this.send({
-      type: "join",
-      contract: CONTRACT,
-      client: this.id,
-      epoch: 0,
-      rev: 0,
-    });
+    this.epoch = 0;
+    this.rev = 0;
+  }
+
+  /** The document drops a pipe that joins twice, and the next pipe loads a snapshot. */
+  private reload(): void {
+    this.outOfStep();
+    this.join();
   }
 
   pull(): void {
@@ -223,13 +254,12 @@ export class Client {
         return;
       }
       this.assetWaiters.set(hash, [resolve]);
-      this.pipe?.send(encodeAsset(hash));
+      this.pipe?.send(encodeAssetRequest(hash));
     });
   }
 
-  addAsset(hash: string, bytes: Uint8Array): void {
-    this.assets.set(hash, bytes);
-    this.pipe?.send(encodeAsset(hash, bytes));
+  heldAsset(hash: string): Uint8Array | undefined {
+    return this.assets.get(hash);
   }
 }
 

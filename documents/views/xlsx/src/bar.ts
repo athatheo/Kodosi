@@ -23,6 +23,7 @@ import {
   swatchesOf,
   wellOf,
 } from "@documents/bar";
+import { cssString } from "@documents/client";
 import { say } from "@documents/words";
 import {
   ALargeSmall,
@@ -133,11 +134,10 @@ export class XlsxBar {
   private readonly bar: Bar;
   private refresh: (() => void) | undefined;
   private pending = 0;
+  private readonly status: HTMLElement;
 
-  constructor(
-    root: HTMLElement,
-    private readonly status: HTMLElement,
-  ) {
+  constructor(root: HTMLElement, status: HTMLElement) {
+    this.status = status;
     this.bar = new Bar(root, say("Format"));
   }
 
@@ -389,7 +389,7 @@ export class XlsxBar {
         return names.map((name) => ({
           label: name,
           checked: name === current,
-          look: { fontFamily: `"${name}", sans-serif` },
+          look: { fontFamily: `${cssString(name)}, sans-serif` },
           run: () => {
             control.setFont(name);
             font.show(name);

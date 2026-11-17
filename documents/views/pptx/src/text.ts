@@ -1,6 +1,9 @@
+import { cssColor, cssString } from "@documents/client";
 import { say } from "@documents/words";
-import type { Mark, MarkSpec, NodeSpec, Node as ProseNode } from "@tiptap/pm/model";
-import { Schema } from "@tiptap/pm/model";
+import type { Mark, MarkSpec, NodeSpec } from "@tiptap/pm/model";
+import { Node as ProseNode, Schema } from "@tiptap/pm/model";
+import type { EditorState } from "@tiptap/pm/state";
+import { sendableSteps } from "prosemirror-collab";
 import spec from "../../../crates/pptx/schema.json";
 
 const POINTS_PER_SIZE_UNIT = 0.01;
@@ -10,7 +13,10 @@ const DEFAULT_POINTS = 18;
 const LINE_HEIGHT = 1.2;
 const INDENT_PIXELS = 24;
 const BULLET_GAP = 16;
-const DEFAULT_FONT = "Calibri, Carlito, sans-serif";
+const DEFAULT_FONT = "Calibri";
+const SCHEME_NAMES: Record<string, string> = { bg1: "lt1", tx1: "dk1", bg2: "lt2", tx2: "dk2" };
+
+export type Theme = Record<string, string>;
 
 export interface Level {
   size?: string;
@@ -43,6 +49,25 @@ interface TextStyle {
   points: number;
   font: string;
   link: Link | null;
+}
+
+function own(names: Record<string, string> | null | undefined, name: string): string | undefined {
+  return names && Object.hasOwn(names, name) ? names[name] : undefined;
+}
+
+/** A colour of the file as CSS, where `scheme:` and a name stand for a colour of the theme. */
+export function colorIn(
+  theme: Theme | null | undefined,
+  value: string | null | undefined,
+): string | undefined {
+  if (!value?.startsWith("scheme:")) return cssColor(value);
+  const name = value.slice("scheme:".length);
+  return cssColor(own(theme, own(SCHEME_NAMES, name) ?? name));
+}
+
+/** A font of the file as CSS families, where the theme has the fonts that +mj-lt and +mn-lt name. */
+export function familyIn(theme: Theme | null | undefined, font: string): string {
+  return `${cssString(own(theme, font) ?? font)}, Carlito, sans-serif`;
 }
 
 /** A link takes the link color of the theme and an underline, as presentation programs draw it. */
@@ -92,12 +117,14 @@ const MARK_DOM: Record<string, MarkSpec["toDOM"]> = {
   link: (mark) => ["a", { "data-link": "", title: linkTitle(mark.attrs as Link) }, 0],
   textStyle: (mark) => {
     const look = styleOf([mark]);
-    const color = look.color?.startsWith("scheme:") === false ? `color:#${look.color};` : "";
-    return [
-      "span",
-      { style: `${color}font-size:${look.points * PIXELS_PER_POINT}px;font-family:${look.font}` },
-      0,
+    const color = colorIn(null, look.color);
+    const parts = [
+      color ? `color:${color}` : "",
+      `font-size:${look.points * PIXELS_PER_POINT}px`,
+      // Only the slide knows its theme, so a font of the theme is left to the look of the paragraph.
+      look.font.startsWith("+") ? "" : `font-family:${familyIn(null, look.font)}`,
     ];
+    return ["span", { style: parts.filter(Boolean).join(";") }, 0];
   },
 };
 
@@ -116,7 +143,7 @@ export const schema = new Schema({
   marks: specOf<MarkSpec>(spec.marks as ({ name: string } & MarkSpec)[], MARK_DOM),
 });
 
-export interface Piece {
+interface Piece {
   text: string;
   x: number;
   width: number;
@@ -126,7 +153,7 @@ export interface Piece {
   link: Link | null;
 }
 
-export interface Line {
+interface Line {
   baseline: number;
   height: number;
   pieces: Piece[];
@@ -198,11 +225,7 @@ function wrapped(words: TextWord[], width: number): TextWord[][] {
   return lines;
 }
 
-export function levelRules(
-  look: TextLook | null,
-  measure: Measure,
-  color: (value: string | null) => string | undefined,
-): string {
+export function levelRules(look: TextLook | null, theme: Theme | null): string {
   const scale = look?.scale ?? 1;
   return (look?.levels ?? [])
     .map((level, index) => {
@@ -210,11 +233,11 @@ export function levelRules(
       const margin =
         level.margin === undefined ? index * INDENT_PIXELS : level.margin / EMU_PER_PIXEL;
       const rules = [
-        `font:${cssFont({ ...style, font: measure.face(style.font) })}`,
+        `font:${cssFont({ ...style, font: familyIn(theme, style.font) })}`,
         `line-height:${LINE_HEIGHT}`,
         `margin:0 0 0 ${margin}px`,
         `text-align:${alignOf(level.align ?? "l")}`,
-        `color:${color(style.color) ?? "inherit"}`,
+        `color:${colorIn(theme, style.color) ?? "inherit"}`,
       ];
       const selector = `.slides-text p[data-level="${index}"]`;
       const bullet = level.bullet
@@ -261,7 +284,7 @@ export function layOut(
             text: "•",
             x: Math.max(0, indent - BULLET_GAP),
             width: BULLET_GAP,
-            font: words[0]?.font ?? `${DEFAULT_POINTS}px ${DEFAULT_FONT}`,
+            font: words[0]?.font ?? `${DEFAULT_POINTS}px ${measure.face(DEFAULT_FONT)}`,
             color: words[0]?.color ?? null,
             underline: false,
             link: null,
@@ -280,4 +303,23 @@ export function layOut(
   const free = Math.max(0, height - top);
   const shift = look?.anchor === "ctr" ? free / 2 : look?.anchor === "b" ? free : 0;
   return out.map((line) => ({ ...line, baseline: line.baseline + shift }));
+}
+
+/**
+ * The words of each text whose steps wait for the document and that a snapshot does not show. A
+ * new snapshot takes their place, so the person sees what they wrote, to write it again.
+ */
+export function unsentText(
+  texts: ReadonlyMap<string, EditorState>,
+  shown: (key: string) => unknown,
+): string {
+  const words: string[] = [];
+  for (const [key, state] of texts) {
+    if (!sendableSteps(state)) continue;
+    const json = shown(key);
+    if (json && ProseNode.fromJSON(schema, json).eq(state.doc)) continue;
+    const text = state.doc.textBetween(0, state.doc.content.size, "\n").trim();
+    if (text) words.push(text);
+  }
+  return words.join("\n\n");
 }

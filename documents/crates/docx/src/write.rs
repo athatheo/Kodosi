@@ -523,21 +523,29 @@ impl Out<'_> {
         attributes
     }
 
+    /// A link keeps the relation that it came with while that relation still goes to its address.
     fn link_open(&mut self, link: &Mark) -> String {
-        let id = if let Some(relation) = mark_text(link, "relation") {
-            relation.to_owned()
-        } else {
-            let href = mark_text(link, "href").unwrap_or_default().to_owned();
-            let (id, new) = self.relation_to(HYPERLINK_KIND, &href, true);
-            if new {
-                self.links.push((id.clone(), href));
+        let href = mark_text(link, "href").unwrap_or_default().to_owned();
+        let id = match mark_text(link, "relation") {
+            Some(relation) if self.links_to(relation, &href) => relation.to_owned(),
+            _ => {
+                let (id, new) = self.relation_to(HYPERLINK_KIND, &href, true);
+                if new {
+                    self.links.push((id.clone(), href));
+                }
+                id
             }
-            id
         };
         format!(
             r#"<w:hyperlink xmlns:r="{RELATIONSHIPS}" r:id="{}">"#,
             escape(&id)
         )
+    }
+
+    fn links_to(&self, relation: &str, href: &str) -> bool {
+        self.relations.get(relation).is_some_and(|known| {
+            known.kind == HYPERLINK_KIND && known.external && known.target == href
+        })
     }
 
     fn relation_to(&mut self, kind: &str, target: &str, external: bool) -> (String, bool) {
@@ -819,12 +827,8 @@ impl Out<'_> {
 
     fn new_image(&mut self, node: &Node) -> Result<String, String> {
         let asset = text_attr(node, "asset").ok_or("an image has no asset")?;
-        let hash = hash_from_hex(asset).ok_or("the asset name is not a hash")?;
-        let bytes = self
-            .assets
-            .get(&hash)
-            .ok_or_else(|| format!("the asset {asset} is missing"))?;
-        let extension = picture_extension(bytes).ok_or("this kind of picture cannot go in")?;
+        let (hash, extension) = new_picture(self.assets, asset)
+            .ok_or_else(|| format!("the asset {asset} is no picture that can go in"))?;
         let number = |name: &str| {
             node.attrs()
                 .get(name)
@@ -1068,16 +1072,18 @@ fn media_of(hash: &Hash, extension: &str) -> String {
     format!("media/{}.{extension}", hex(&hash[..8]))
 }
 
+/// The kinds that a new picture of the file takes, by how their bytes start.
+pub(crate) const PICTURES: [(&[u8], &str); 3] = [
+    (&[0x89, b'P', b'N', b'G'], "png"),
+    (&[0xff, 0xd8, 0xff], "jpeg"),
+    (b"GIF8", "gif"),
+];
+
 fn picture_extension(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-        Some("png")
-    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
-        Some("jpeg")
-    } else if bytes.starts_with(b"GIF8") {
-        Some("gif")
-    } else {
-        None
-    }
+    PICTURES
+        .iter()
+        .find(|(start, _)| bytes.starts_with(start))
+        .map(|(_, extension)| *extension)
 }
 
 fn picture_run(relation: &str, picture: u32, width: f64, height: f64) -> String {
@@ -1097,4 +1103,11 @@ fn picture_run(relation: &str, picture: u32, width: f64, height: f64) -> String 
         relationship = RELATIONSHIPS,
         relation = relation,
     )
+}
+
+/// The hash of a picture that can go in as a new part of the file, and the extension of that part.
+pub(crate) fn new_picture(assets: &Assets, asset: &str) -> Option<(Hash, &'static str)> {
+    let hash = hash_from_hex(asset)?;
+    let extension = picture_extension(assets.get(&hash)?)?;
+    Some((hash, extension))
 }

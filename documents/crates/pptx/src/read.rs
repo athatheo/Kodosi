@@ -6,7 +6,7 @@ use roxmltree::{Document, Node as Xml};
 use serde_json::{Map, Value, json};
 use text::{Fragment, Mark, Node};
 
-use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
+use crate::model::{Model, SHAPE_IDS, Shape, Slide, Sourced, number_in, schema};
 
 pub(crate) const PRESENTATION: &str = "ppt/presentation.xml";
 const LAYOUT_KIND: &str = "slideLayout";
@@ -67,6 +67,47 @@ pub(crate) fn frame_of(properties: Option<Xml<'_, '_>>) -> Option<Frame> {
     })
 }
 
+fn given_frame(element: Xml<'_, '_>) -> Option<Frame> {
+    frame_of(local(element, "spPr").or_else(|| local(element, "grpSpPr")))
+        .or_else(|| frame_of(Some(element)))
+}
+
+/// A group without a frame of its own leaves its shapes in the space of its parent, so it spans
+/// them there.
+pub(crate) fn span_of(group: Xml<'_, '_>) -> Option<Frame> {
+    if group.tag_name().name() != "grpSp" {
+        return None;
+    }
+    let mut frames = Vec::new();
+    let mut groups = vec![group];
+    while let Some(group) = groups.pop() {
+        for child in group.children().filter(Xml::is_element) {
+            match given_frame(child) {
+                Some(frame) => frames.push(frame),
+                None if child.tag_name().name() == "grpSp" => groups.push(child),
+                None => {}
+            }
+        }
+    }
+    let left = frames.iter().map(|frame| frame.x).min()?;
+    let top = frames.iter().map(|frame| frame.y).min()?;
+    let right = frames
+        .iter()
+        .map(|frame| frame.x.saturating_add(frame.width))
+        .max()?;
+    let bottom = frames
+        .iter()
+        .map(|frame| frame.y.saturating_add(frame.height))
+        .max()?;
+    Some(Frame {
+        x: left,
+        y: top,
+        width: right.saturating_sub(left),
+        height: bottom.saturating_sub(top),
+        rotation: 0,
+    })
+}
+
 fn color_of(fill: Option<Xml<'_, '_>>) -> Option<String> {
     let solid = fill.and_then(|node| local(node, "solidFill"))?;
     if let Some(color) = local(solid, "srgbClr") {
@@ -75,6 +116,14 @@ fn color_of(fill: Option<Xml<'_, '_>>) -> Option<String> {
     local(solid, "schemeClr")
         .and_then(|color| color.attribute("val"))
         .map(|name| format!("scheme:{name}"))
+}
+
+pub(crate) fn names_of<'a, 'input>(shape: Xml<'a, 'input>) -> Option<Xml<'a, 'input>> {
+    shape
+        .children()
+        .filter(Xml::is_element)
+        .find(|child| child.tag_name().name().starts_with("nv"))
+        .and_then(|names| descendant(names, "cNvPr"))
 }
 
 fn placeholder_key(shape: Xml<'_, '_>) -> Option<String> {
@@ -382,18 +431,13 @@ impl<'input> Reader<'_, '_, 'input> {
             "cxnSp" => "connector",
             _ => return Ok(None),
         };
-        let names = element
-            .children()
-            .filter(Xml::is_element)
-            .find(|child| child.tag_name().name().starts_with("nv"))
-            .and_then(|names| descendant(names, "cNvPr"));
-        let Some(names) = names else {
+        let Some(names) = names_of(element) else {
             return Ok(None);
         };
         let properties = local(element, "spPr").or_else(|| local(element, "grpSpPr"));
         let placeholder = placeholder_key(element);
-        let frame = frame_of(properties)
-            .or_else(|| frame_of(Some(element)))
+        let frame = given_frame(element)
+            .or_else(|| span_of(element))
             .or_else(|| placeholder.as_ref().and_then(|key| inherited.frame(key)))
             .unwrap_or_default();
         let body = local(element, "txBody");
@@ -427,7 +471,29 @@ impl<'input> Reader<'_, '_, 'input> {
             text,
             look,
             order,
+            source: self.whole(element),
         }))
+    }
+
+    /// The piece of a shape, which also declares the namespaces that it takes from its slide, so
+    /// that it reads alone and goes back into any slide.
+    fn whole(&mut self, element: Xml<'_, 'input>) -> Option<String> {
+        let piece = self.xml_of(element);
+        let own = own_namespaces(piece);
+        let declarations: String = element
+            .namespaces()
+            .filter(|namespace| namespace.name() != Some("xml"))
+            .filter_map(|namespace| {
+                let attribute = namespace
+                    .name()
+                    .map_or_else(|| "xmlns".to_owned(), |name| format!("xmlns:{name}"));
+                (!own.contains(&attribute.as_str()))
+                    .then(|| format!(r#" {attribute}="{}""#, package::escape(namespace.uri())))
+            })
+            .collect();
+        let name_end = name_end(piece)?;
+        let whole = format!("{}{declarations}{}", &piece[..name_end], &piece[name_end..]);
+        Document::parse(&whole).is_ok().then(|| self.keep(&whole))
     }
 
     /// The run or shape keeps its click in its own XML, so a save keeps it.
@@ -477,6 +543,45 @@ impl<'input> Reader<'_, '_, 'input> {
     }
 }
 
+pub(crate) fn name_end(piece: &str) -> Option<usize> {
+    piece.find(|character: char| {
+        character.is_ascii_whitespace() || character == '/' || character == '>'
+    })
+}
+
+/// The namespaces that the start tag of a piece declares itself, as `xmlns` or `xmlns:a`.
+fn own_namespaces(piece: &str) -> Vec<&str> {
+    let mut names = Vec::new();
+    let Some(mut rest) = name_end(piece).map(|end| &piece[end..]) else {
+        return names;
+    };
+    loop {
+        rest = rest.trim_start();
+        if rest.starts_with('/') || rest.starts_with('>') {
+            return names;
+        }
+        let Some(equals) = rest.find('=') else {
+            return names;
+        };
+        let name = rest[..equals].trim_end();
+        rest = rest[equals + 1..].trim_start();
+        let Some(quote) = rest
+            .chars()
+            .next()
+            .filter(|quote| matches!(quote, '"' | '\''))
+        else {
+            return names;
+        };
+        let Some(close) = rest[1..].find(quote) else {
+            return names;
+        };
+        if name == "xmlns" || name.starts_with("xmlns:") {
+            names.push(name);
+        }
+        rest = &rest[close + 2..];
+    }
+}
+
 fn placeholders(xml: &str) -> HashMap<String, Placeholder> {
     let Ok(parsed) = Document::parse(xml) else {
         return HashMap::new();
@@ -519,6 +624,12 @@ fn text_styles(xml: &str) -> [Levels; 3] {
         }
     }
     styles
+}
+
+fn dimension(size: Option<Xml<'_, '_>>, name: &str) -> i64 {
+    size.and_then(|size| size.attribute(name))
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0)
 }
 
 fn background_of(root: Xml<'_, '_>) -> Option<String> {
@@ -616,14 +727,9 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
     let presentation = Document::parse(&presentation_xml).map_err(broken)?;
     let root = presentation.root_element();
     let size = local(root, "sldSz");
-    let number = |name: &str| {
-        size.and_then(|size| size.attribute(name))
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(0)
-    };
     let mut model = Model {
-        width: number("cx"),
-        height: number("cy"),
+        width: dimension(size, "cx"),
+        height: dimension(size, "cy"),
         ..Model::default()
     };
     let list = local(root, "sldIdLst");
@@ -666,6 +772,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
         let shapes = reader
             .shapes(parsed.root_element(), &inherited)
             .map_err(broken)?;
+        let sources = Sourced::by_piece(&shapes);
         let background = background_of(parsed.root_element());
         let mut behind = Vec::new();
         for (source, relations) in [
@@ -703,6 +810,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
             background,
             text_look: inherited.text_look(None, None),
             last_shape: last_shape(parsed.root_element()),
+            sources,
         });
     }
     model.theme = theme_of(&mut package, first_master.as_deref());

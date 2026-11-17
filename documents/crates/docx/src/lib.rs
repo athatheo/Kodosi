@@ -8,6 +8,7 @@ mod ops;
 mod place;
 mod read;
 mod styles;
+mod writable;
 mod write;
 
 use document::{Answer, Assets, Format, Guide, Ordered, Refused, Snapshot, Unreadable, Unwritable};
@@ -33,13 +34,25 @@ impl Format for Docx {
         }))
     }
 
+    /// A view sends steps and an agent sends ops. Pieces of XML and the blocks that they make come
+    /// only with the merge of a write of another program, which the server makes itself.
+    fn sendable(change: &Change) -> Result<(), String> {
+        match change {
+            Change::Steps { keep, sources, .. } if keep.is_empty() && sources.is_empty() => Ok(()),
+            Change::Ops { .. } => Ok(()),
+            Change::Steps { .. } | Change::Merge { .. } => {
+                Err("Only the server merges a write of another program.".to_owned())
+            }
+        }
+    }
+
     fn apply(
         model: &mut Model,
         change: Change,
         since: &[Ordered<Change>],
-        _assets: &mut Assets,
+        assets: &mut Assets,
     ) -> Result<Change, Refused> {
-        apply::apply(model, change, since)
+        apply::apply(model, change, since, assets)
     }
 
     fn compare(from: &Model, to: &Model) -> Vec<Change> {
