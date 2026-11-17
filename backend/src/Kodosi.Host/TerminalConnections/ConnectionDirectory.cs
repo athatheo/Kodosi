@@ -108,11 +108,11 @@ public sealed class ConnectionDirectory
                 DetachLocked(previous, afterUnlock, removed: false);
                 devices = accounts.GetValueOrDefault(connection.UserId);
             }
-            if (devices is null) accounts[connection.UserId] = devices = new Dictionary<string, Entry>(StringComparer.Ordinal);
+            if (devices is null) accounts[connection.UserId] = devices = [with(StringComparer.Ordinal)];
             var entry = new Entry(connection);
             devices[connection.DeviceId] = entry;
             entries[connection] = entry;
-            if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = null;
+            present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId)?.Lost = null;
         }
         afterUnlock.Apply(this);
     }
@@ -139,7 +139,7 @@ public sealed class ConnectionDirectory
             else
             {
                 if (!present.TryGetValue(connection.UserId, out var devices))
-                    present[connection.UserId] = devices = new Dictionary<string, DevicePresence>(StringComparer.Ordinal);
+                    present[connection.UserId] = devices = [with(StringComparer.Ordinal)];
                 devices[connection.DeviceId] = new DevicePresence(presence, clock.GetUtcNow());
             }
             PresenceChangedLocked(connection.UserId, away, afterUnlock);
@@ -361,7 +361,7 @@ public sealed class ConnectionDirectory
             }
         entries.Remove(connection);
         if (removed) ForgetPresenceLocked(connection.UserId, connection.DeviceId);
-        else if (present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId) is { } kept) kept.Lost = clock.GetUtcNow();
+        else present.GetValueOrDefault(connection.UserId)?.GetValueOrDefault(connection.DeviceId)?.Lost = clock.GetUtcNow();
         if (accounts.TryGetValue(connection.UserId, out var devices) && devices.GetValueOrDefault(connection.DeviceId) == entry)
         {
             devices.Remove(connection.DeviceId);
