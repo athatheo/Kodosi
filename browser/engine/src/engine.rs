@@ -11,7 +11,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cef::*;
 use shared_browser::{
     Dialog, MenuItem, Size,
-    link::{EngineTab, FromEngine, ToEngine},
+    link::{EngineTab, FromEngine, MOST_ICON, ToEngine},
 };
 
 use crate::{client, encode::Encoder, link::Link, renderer};
@@ -20,8 +20,6 @@ const REPORT_DELAY_MS: i64 = 50;
 /// How long the browsers may take to close when the engine quits. The host waits longer.
 const QUIT_LIMIT_MS: i64 = 3000;
 const PAGE_SCALE: f32 = 1.0;
-/// The host bounds what a page says, so a bigger icon shows as none.
-const MOST_ICON: usize = 12 * 1024;
 /// A tab whose page process ends loads its page again, once in this time.
 const RELOAD_WAIT: Duration = Duration::from_mins(1);
 /// A page with no ground of its own shows white, as in a browser, not see-through.
