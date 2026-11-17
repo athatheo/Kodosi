@@ -5,7 +5,8 @@ This folder is the Keycloak theme `kodosi`, built with
 sign-in pages, one account page in place of Keycloak's account console, and the e-mails.
 `extension/` is a Keycloak extension that checks a mail address with a typed code: before a
 new account exists, when a password is forgotten, and for an account whose address is not
-confirmed. Its mails have no links.
+confirmed. Its mails have no links. It also gives the account page Keycloak's time, which the
+page needs to bind its tokens to the browser.
 
 ## Use it in Keycloak
 

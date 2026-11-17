@@ -8,7 +8,7 @@
   <artifactId>kodosi-mail-code</artifactId>
   <version>1</version>
   <name>Kodosi mail code</name>
-  <description>The mail code of the Kodosi sign-up, password reset and address check, for Keycloak.</description>
+  <description>Kodosi's additions to Keycloak: the mail code of the sign-up, password reset and address check, and Keycloak's time for the account page.</description>
   <licenses>
     <license>
       <name>Apache-2.0</name>
