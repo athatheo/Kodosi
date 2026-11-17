@@ -26,6 +26,8 @@ import { Plus, TextCursorInput, Trash2, Undo2 } from "lucide";
 import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
 import { newId } from "./ids";
 import {
+  colorIn,
+  familyIn,
   type Link,
   layOut,
   levelRules,
@@ -33,6 +35,7 @@ import {
   type Measure,
   schema,
   type TextLook,
+  type Theme,
 } from "./text";
 import "./pptx.css";
 import { say } from "@documents/words";
@@ -69,7 +72,7 @@ interface Snapshot {
   width: number;
   height: number;
   slides: Slide[];
-  theme: Record<string, string> | null;
+  theme: Theme | null;
 }
 
 type Fields = Partial<
@@ -94,7 +97,6 @@ interface Place {
 const EMU_PER_PIXEL = 9525;
 const ROTATION_UNITS = 60000;
 const TEXT_INSET = 9;
-const SCHEME_NAMES: Record<string, string> = { bg1: "lt1", tx1: "dk1", bg2: "lt2", tx2: "dk2" };
 const TEXT_BOX_WIDTH = 3_000_000;
 const TEXT_BOX_HEIGHT = 900_000;
 const TEXT_BOX_AT = 1_000_000;
@@ -239,11 +241,7 @@ class PptxEditor implements Editor, Pictures {
   }
 
   private color(value: string | null | undefined): string | undefined {
-    if (!value) return undefined;
-    if (!value.startsWith("scheme:")) return `#${value}`;
-    const name = value.slice("scheme:".length);
-    const color = this.deck?.theme?.[SCHEME_NAMES[name] ?? name];
-    return color ? `#${color}` : undefined;
+    return colorIn(this.deck?.theme, value);
   }
 
   private drawList(): void {
@@ -463,7 +461,7 @@ class PptxEditor implements Editor, Pictures {
   private fontMeasure(): Measure {
     return {
       width: textWidth,
-      face: (font) => `"${this.deck?.theme?.[font] ?? font}", Carlito, sans-serif`,
+      face: (font) => familyIn(this.deck?.theme, font),
     };
   }
 
@@ -627,9 +625,7 @@ class PptxEditor implements Editor, Pictures {
     holder.style.padding = `${TEXT_INSET}px`;
     holder.style.transform = `scale(${scale}) rotate(${shape.rotation / ROTATION_UNITS}deg)`;
     holder.style.color = this.color("scheme:tx1") ?? "#1a1a1a";
-    this.textLook.textContent = levelRules(shape.look, this.fontMeasure(), (color) =>
-      this.color(color),
-    );
+    this.textLook.textContent = levelRules(shape.look, this.deck?.theme ?? null);
   }
 
   private closeText(): void {

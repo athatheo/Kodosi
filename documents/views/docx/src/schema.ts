@@ -1,3 +1,4 @@
+import { cssColor, cssString } from "@documents/client";
 import { type Extensions, Mark, Node } from "@tiptap/core";
 import { cssAlign } from "./styles";
 
@@ -224,10 +225,11 @@ export const marks = [
     parseHTML: () => [{ tag: "span[data-look]" }],
     renderHTML: ({ mark }) => {
       const { color, size, font, highlight } = mark.attrs;
+      const shown = cssColor(color);
       const parts = [
-        color ? `color:#${color}` : "",
+        shown ? `color:${shown}` : "",
         size ? `font-size:${Number(size) / 2}pt` : "",
-        font ? `font-family:"${String(font).replace(/["\\]/g, "")}"` : "",
+        font ? `font-family:${cssString(String(font))}` : "",
         highlight && HIGHLIGHTS[highlight] ? `background:${HIGHLIGHTS[highlight]}` : "",
       ];
       return ["span", { "data-look": "", style: parts.filter(Boolean).join(";") }, 0];
