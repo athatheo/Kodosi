@@ -133,11 +133,10 @@ export class XlsxBar {
   private readonly bar: Bar;
   private refresh: (() => void) | undefined;
   private pending = 0;
+  private readonly status: HTMLElement;
 
-  constructor(
-    root: HTMLElement,
-    private readonly status: HTMLElement,
-  ) {
+  constructor(root: HTMLElement, status: HTMLElement) {
+    this.status = status;
     this.bar = new Bar(root, say("Format"));
   }
 

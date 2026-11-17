@@ -31,6 +31,7 @@ interface Snapshot {
 }
 
 class PlainEditor implements ViewEditor, Pictures {
+  private readonly client: Client;
   private view: EditorView | undefined;
   private readonly bar: Bar;
   private readonly status: Status;
@@ -44,10 +45,8 @@ class PlainEditor implements ViewEditor, Pictures {
   private placeWaits = false;
   private areas: Area[] = [];
 
-  constructor(
-    root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.client = client;
     this.status = new Status(root);
     this.bar = new Bar(root, say("Text"));
     this.page.className = "document-page plain-page";

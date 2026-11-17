@@ -59,8 +59,11 @@ export class Client {
   private placeTimer: ReturnType<typeof setTimeout> | undefined;
   private nextPlace: { rev: number; body: ToDocumentBody } | undefined;
   private placeSentAt = 0;
+  private readonly joined: () => void;
 
-  constructor(private readonly joined: () => void = () => {}) {}
+  constructor(joined: () => void = () => {}) {
+    this.joined = joined;
+  }
 
   use(editor: Editor): void {
     this.editor = editor;

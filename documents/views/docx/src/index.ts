@@ -81,6 +81,8 @@ function imagesPlugin(client: Client): Plugin {
 }
 
 class DocxEditor implements ViewEditor, Pictures {
+  private readonly root: HTMLElement;
+  private readonly client: Client;
   private editor: Editor | undefined;
   private readonly bar: DocxBar;
   private readonly status: Status;
@@ -98,10 +100,9 @@ class DocxEditor implements ViewEditor, Pictures {
   private pageAreas: Area[] = [];
   private placeWaits = false;
 
-  constructor(
-    private readonly root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.root = root;
+    this.client = client;
     this.status = new Status(root);
     this.page.className = "document-page docx-page";
     this.sheet.className = "docx-sheet";

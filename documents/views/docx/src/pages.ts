@@ -70,14 +70,17 @@ function textLines(element: HTMLElement, holes: readonly Hole[]): DOMRect[] {
 }
 
 class Measure {
+  private readonly holes: readonly Hole[];
+  private readonly zoom: number;
+  private readonly origin: number;
   private next = 0;
   private passed = 0;
 
-  constructor(
-    private readonly holes: readonly Hole[],
-    private readonly zoom: number,
-    private readonly origin: number,
-  ) {}
+  constructor(holes: readonly Hole[], zoom: number, origin: number) {
+    this.holes = holes;
+    this.zoom = zoom;
+    this.origin = origin;
+  }
 
   /** Points must come in order. */
   natural(y: number): number {

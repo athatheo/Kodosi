@@ -287,6 +287,8 @@ function sizes(
 }
 
 class XlsxEditor implements Editor, Pictures {
+  private readonly root: HTMLElement;
+  private readonly client: Client;
   private readonly canvas: HTMLElement;
   private readonly marks: HTMLElement;
   private readonly status: Status;
@@ -311,10 +313,9 @@ class XlsxEditor implements Editor, Pictures {
   /** The keys that the person held at the last press, which Univer's click does not carry. */
   private pressed: Pick<MouseEvent, "metaKey" | "ctrlKey"> = { metaKey: false, ctrlKey: false };
 
-  constructor(
-    private readonly root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.root = root;
+    this.client = client;
     this.status = new Status(root);
     this.bar = new XlsxBar(root, this.status.element);
     root.append(this.bar.element);

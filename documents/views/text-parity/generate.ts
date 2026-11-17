@@ -42,7 +42,11 @@ function specOf(schema: Schema) {
 }
 
 class Random {
-  constructor(private state: number) {}
+  private state: number;
+
+  constructor(state: number) {
+    this.state = state;
+  }
 
   next(): number {
     this.state = (this.state + 0x6d2b79f5) | 0;

@@ -119,6 +119,7 @@ function textKey(slide: string, shape: string): string {
 }
 
 class PptxEditor implements Editor, Pictures {
+  private readonly client: Client;
   private readonly list: HTMLElement;
   private readonly stageHolder: HTMLElement;
   private readonly stageRoot: HTMLDivElement;
@@ -144,10 +145,8 @@ class PptxEditor implements Editor, Pictures {
   private canEdit = true;
   private holding = false;
 
-  constructor(
-    root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.client = client;
     this.status = new Status(root);
     this.bar = new Bar(root, say("Slides"));
     root.append(this.bar.element);

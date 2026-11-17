@@ -31,8 +31,10 @@ export class Status {
   readonly element = document.createElement("div");
   private readonly state = document.createElement("span");
   private readonly people = document.createElement("div");
+  private readonly root: HTMLElement;
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(root: HTMLElement) {
+    this.root = root;
     this.element.className = "document-status";
     this.state.className = "document-state";
     this.people.className = "document-peers";

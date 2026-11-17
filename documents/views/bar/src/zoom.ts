@@ -42,6 +42,7 @@ export function stepFrom(scale: number, larger: boolean): number | undefined {
 }
 
 export class Zoom {
+  private readonly view: Zoomable;
   private readonly part: ZoomPart;
   private readonly watching: ResizeObserver;
   private readonly listening = new AbortController();
@@ -50,7 +51,8 @@ export class Zoom {
   private current = 1;
   private pinched = 1;
 
-  constructor(private readonly view: Zoomable) {
+  constructor(view: Zoomable) {
+    this.view = view;
     this.start = view.fits ? "width" : 1;
     this.sizing = this.start;
     this.part = zoomOf({
