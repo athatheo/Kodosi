@@ -48,7 +48,7 @@ ENTITLEMENTS = {
         "com.apple.security.cs.disable-library-validation": True,
     },
 }
-MINIMUM_MAC = "12.0"
+MINIMUM_MAC = "13.0"
 # The parts of a CEF download that a package leaves out or places itself. The SUID sandbox
 # helper works only when root owns it, which a download never is.
 CEF_LEFT_OUT = {
