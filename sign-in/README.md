@@ -54,5 +54,5 @@ Wording never reveals whether an account exists, and neither does a page of the 
 step: an address that has an account gets the same pages, and its mail says so in place
 of a code. In `src/email/messages/`, write an apostrophe twice. Keycloak caches e-mail
 pictures for 30 days, so give a changed picture a new file name. After a Keycloak update,
-set its version in `keycloak.sh` and `extension/pom.xml`, and check the pages and the
-code step.
+set its version and image digest in `keycloak.sh` and its version in `extension/pom.xml`,
+and check the pages and the code step.
