@@ -49,7 +49,17 @@ struct TerminalImageSourceTests {
         #expect(session.receive(kittyImage(id: 2, medium: "f", payload: path)))
         #expect(try await !draws(surface, session: session, in: view, frames: 25) { $0.showsRed })
 
-        #expect(session.receive(kittyImage(id: 3, medium: "d", payload: pixels)))
+        let checkpoint = try #require(
+            Bundle.module.url(forResource: "visible-image-checkpoint", withExtension: "snapshot")
+        )
+        #expect(try session.restoreCheckpointSynchronously(Data(contentsOf: checkpoint), console: false))
+        #expect(try await draws(surface, session: session, in: view, frames: 150) { $0.showsRed })
+        #expect(session.receive(Data("\u{1B}[?1049h".utf8)))
+        #expect(try await draws(surface, session: session, in: view, frames: 150) { !$0.showsRed })
+        #expect(session.receive(kittyImage(id: 3, medium: "f", payload: path)))
+        #expect(try await !draws(surface, session: session, in: view, frames: 25) { $0.showsRed })
+
+        #expect(session.receive(kittyImage(id: 4, medium: "d", payload: pixels)))
         #expect(try await draws(surface, session: session, in: view, frames: 150) { $0.showsRed })
     }
 

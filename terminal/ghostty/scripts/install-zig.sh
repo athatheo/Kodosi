@@ -28,12 +28,12 @@ fi
 
 mkdir -p "$DOWNLOAD_ROOT"
 if [ ! -f "$ARCHIVE" ] ||
-    ! printf '%s  %s\n' "$ZIG_SHA256" "$ARCHIVE" | sha256sum -c - >/dev/null 2>&1; then
+    ! printf '%s  %s\n' "$ZIG_SHA256" "$ARCHIVE" | sha256sum --strict -c - >/dev/null 2>&1; then
     echo "[*] downloading isolated Zig $ZIG_VERSION" >&2
     temporary="$ARCHIVE.tmp.$$"
     trap 'rm -f "$temporary"' EXIT
     curl -fL --retry 3 -o "$temporary" "$ZIG_URL"
-    printf '%s  %s\n' "$ZIG_SHA256" "$temporary" | sha256sum -c - >&2
+    printf '%s  %s\n' "$ZIG_SHA256" "$temporary" | sha256sum --strict -c - >&2
     mv "$temporary" "$ARCHIVE"
     trap - EXIT
 fi

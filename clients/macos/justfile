@@ -68,7 +68,7 @@ working-tree-build: xcode-gen
         -destination 'generic/platform=macOS' \
         archive
 
-# Check that the Swift packages and the Ghostty iOS build agree with the deployment targets of the apps.
+# Check that the Swift packages and the Ghostty build agree with the deployment targets of the apps.
 deployment-targets-check:
     ../apple/scripts/verify-deployment-targets.py
 

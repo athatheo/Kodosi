@@ -1,5 +1,6 @@
 import Foundation
 import GhosttyKit
+import Synchronization
 
 public struct TerminalDebugCategory: OptionSet, Sendable {
     public let rawValue: UInt16
@@ -34,14 +35,7 @@ public struct TerminalDebugCategory: OptionSet, Sendable {
 public enum TerminalDebugLog {
     public typealias Sink = @Sendable (String) -> Void
 
-    private struct Snapshot {
-        let isEnabled: Bool
-        let categories: TerminalDebugCategory
-        let sink: Sink
-    }
-
-    private final class Store: @unchecked Sendable {
-        let lock = NSLock()
+    private struct Settings {
         var isEnabled = false
         var categories: TerminalDebugCategory = .standard
         var sink: Sink = { message in
@@ -49,14 +43,14 @@ public enum TerminalDebugLog {
         }
     }
 
-    private static let store = Store()
+    private static let settings = Mutex(Settings())
 
     public static var isEnabled: Bool {
         get {
             withSnapshot { $0.isEnabled }
         }
         set {
-            updateStore { $0.isEnabled = newValue }
+            updateSettings { $0.isEnabled = newValue }
         }
     }
 
@@ -65,7 +59,7 @@ public enum TerminalDebugLog {
             withSnapshot { $0.categories }
         }
         set {
-            updateStore { $0.categories = newValue }
+            updateSettings { $0.categories = newValue }
         }
     }
 
@@ -74,19 +68,19 @@ public enum TerminalDebugLog {
             withSnapshot { $0.sink }
         }
         set {
-            updateStore { $0.sink = newValue }
+            updateSettings { $0.sink = newValue }
         }
     }
 
     public static func enable(_ categories: TerminalDebugCategory = .standard) {
-        updateStore {
+        updateSettings {
             $0.isEnabled = true
             $0.categories = categories
         }
     }
 
     public static func disable() {
-        updateStore { $0.isEnabled = false }
+        updateSettings { $0.isEnabled = false }
     }
 
     static func log(
@@ -164,27 +158,19 @@ public enum TerminalDebugLog {
     }
 
     private static func withSnapshot<T>(
-        _ body: (Snapshot) -> T
+        _ body: (Settings) -> T
     ) -> T {
         body(snapshot())
     }
 
-    private static func snapshot() -> Snapshot {
-        store.lock.lock()
-        defer { store.lock.unlock() }
-        return Snapshot(
-            isEnabled: store.isEnabled,
-            categories: store.categories,
-            sink: store.sink
-        )
+    private static func snapshot() -> Settings {
+        settings.withLock { $0 }
     }
 
-    private static func updateStore(
-        _ body: (Store) -> Void
+    private static func updateSettings(
+        _ body: (inout Settings) -> Void
     ) {
-        store.lock.lock()
-        defer { store.lock.unlock() }
-        body(store)
+        settings.withLock { body(&$0) }
     }
 
     private static func label(

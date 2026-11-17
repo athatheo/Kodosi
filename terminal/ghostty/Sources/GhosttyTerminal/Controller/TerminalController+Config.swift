@@ -1,7 +1,10 @@
 import Foundation
 import GhosttyKit
+import os
 
 extension TerminalController {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.kodosi", category: "terminal")
+
     func applyResolvedConfig(
         _ resolved: (source: ConfigSource, contents: String),
         applyState: () -> Void = {}
@@ -171,7 +174,7 @@ extension TerminalController {
     }
 
     private static func reportConfigurationIssue(_ message: String) {
-        NSLog("GhosttyTerminal configuration issue: %@", message)
+        logger.warning("GhosttyTerminal configuration issue: \(message, privacy: .public)")
     }
 
     private func applyPreparedConfig(_ prepared: PreparedConfig, source: ConfigSource) {

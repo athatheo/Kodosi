@@ -1,0 +1,19 @@
+diff --git a/src/build/Config.zig b/src/build/Config.zig
+index b9629bb38..015b69e25 100644
+--- a/src/build/Config.zig
++++ b/src/build/Config.zig
+@@ -107,7 +107,14 @@ pub fn init(b: *std.Build, appVersion: []const u8, libVersion: []const u8) !Conf
+         if (result.result.os.tag == .macos and
+             builtin.target.os.tag.isDarwin())
+         {
++            const os_version_min = result.query.os_version_min;
+             result = genericMacOSTarget(b, result.query.cpu_arch);
++            // Keep the macOS version that the build asked for over Ghostty's own minimum.
++            if (os_version_min) |version| {
++                var query = result.query;
++                query.os_version_min = version;
++                result = b.resolveTargetQuery(query);
++            }
+         }
+ 
+         // On Windows, default to the MSVC ABI so that produced COFF

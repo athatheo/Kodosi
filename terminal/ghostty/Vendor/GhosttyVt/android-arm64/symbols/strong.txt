@@ -220,6 +220,7 @@ __aarch64_cas8_acq
 __aarch64_cas8_acq_rel
 __aarch64_cas8_rel
 __aarch64_cas8_relax
+__aarch64_cpu_features
 __aarch64_ldadd1_acq
 __aarch64_ldadd1_acq_rel
 __aarch64_ldadd1_rel
@@ -553,6 +554,7 @@ __gthf2
 __gtsf2
 __gttf2
 __gtxf2
+__init_cpu_features_resolver
 __ledf2
 __lehf2
 __lesf2
