@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import type { ToClient, ToDocument } from "@documents/contract";
 import { Client, type Editor, type Pipe, type Sent } from "./client";
 import { batchOf, Outbox } from "./outbox";
@@ -102,6 +102,29 @@ test("an edit made while the client joins goes once the document took it in", as
   await settled();
   expect(kinds(pipe)).toEqual(["join", "change"]);
   expect(pipe.sent[1]).toMatchObject({ seq: 1, base: 3 });
+});
+
+test("a view that fails to load still joins, and its edits go", async () => {
+  const editor = new TestEditor();
+  editor.load = () => {
+    throw new Error("The view broke.");
+  };
+  let joins = 0;
+  const client = new Client(() => joins++);
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  editor.edits = 1;
+  const logged = spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await pipe.deliver(joined(3));
+    await settled();
+    expect(logged).toHaveBeenCalledTimes(1);
+  } finally {
+    logged.mockRestore();
+  }
+  expect(joins).toBe(1);
+  expect(kinds(pipe)).toEqual(["join", "change"]);
 });
 
 test("a snapshot after a refused batch says so to the editor", async () => {

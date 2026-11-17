@@ -111,20 +111,23 @@ export class Client {
         this.waitingSeq = null;
         this.epoch = message.epoch;
         this.lastSeq = message.seq;
-        if (message.catchup.kind === "snapshot") {
-          this.rev = message.rev;
-          const person = { id: message.id, name: message.name, canEdit: message.canEdit };
-          editor?.load(message.catchup.snapshot, person, sent);
-        } else {
-          for (const changed of message.catchup.changes) this.applied(changed);
-        }
-        this.refused = false;
-        this.joining = false;
         this.peers.clear();
         for (const peer of message.peers) this.peers.set(peer.id, peer);
-        editor?.peers([...this.peers.values()]);
-        this.joined();
-        this.pull();
+        try {
+          if (message.catchup.kind === "snapshot") {
+            this.rev = message.rev;
+            const person = { id: message.id, name: message.name, canEdit: message.canEdit };
+            editor?.load(message.catchup.snapshot, person, sent);
+          } else {
+            for (const changed of message.catchup.changes) this.applied(changed);
+          }
+          editor?.peers([...this.peers.values()]);
+        } finally {
+          this.refused = false;
+          this.joining = false;
+          this.joined();
+          this.pull();
+        }
         break;
       }
       case "changed":
