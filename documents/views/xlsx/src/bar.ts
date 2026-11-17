@@ -23,6 +23,7 @@ import {
   swatchesOf,
   wellOf,
 } from "@documents/bar";
+import { cssString } from "@documents/client";
 import { say } from "@documents/words";
 import {
   ALargeSmall,
@@ -388,7 +389,7 @@ export class XlsxBar {
         return names.map((name) => ({
           label: name,
           checked: name === current,
-          look: { fontFamily: `"${name}", sans-serif` },
+          look: { fontFamily: `${cssString(name)}, sans-serif` },
           run: () => {
             control.setFont(name);
             font.show(name);

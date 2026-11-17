@@ -24,6 +24,7 @@ import {
   swatchesOf,
   wellOf,
 } from "@documents/bar";
+import { cssString } from "@documents/client";
 import { language, say } from "@documents/words";
 import type { Editor } from "@tiptap/core";
 import { redo, redoDepth, undo, undoDepth } from "@tiptap/pm/history";
@@ -450,7 +451,7 @@ export class DocxBar {
         return names.map((name) => ({
           label: name,
           checked: name === current,
-          look: { fontFamily: `"${name}", sans-serif` },
+          look: { fontFamily: `${cssString(name)}, sans-serif` },
           run: () => {
             commands.setTextLook(editor, { font: name });
             font.show(name);
