@@ -344,7 +344,11 @@ class XlsxEditor implements Editor, Pictures {
   }
 
   load(raw: unknown, person: Person, sent: Sent): void {
-    if (this.outbox.loaded(sent)) this.status.kept("");
+    if (this.outbox.loaded(sent)) {
+      // The changes after a batch that went name rows and columns as that batch left them.
+      this.outbox.clear();
+      this.status.kept("");
+    }
     this.univer?.univer.dispose();
     const worker = new Worker(new URL("./formula-worker.ts", import.meta.url), { type: "module" });
     const made = createUniver({

@@ -165,7 +165,7 @@ test("a snapshot says what became of the batch on its way, as far as the documen
   }
 });
 
-test("a batch that the document refused goes no more after the snapshot, nor what came after it", async () => {
+test("a batch that the document refused goes no more, and what came after it goes on", async () => {
   const editor = new OutboxEditor();
   const client = new Client();
   client.use(editor);
@@ -179,7 +179,36 @@ test("a batch that the document refused goes no more after the snapshot, nor wha
   await pipe.deliver({ type: "refused", seq: 1, reason: "invalid" });
   await pipe.deliver(joined(0));
   await settled();
-  expect(kinds(pipe)).toEqual(["join", "change", "join"]);
+  expect(
+    pipe.sent.map((message) => (message.type === "change" ? message.body : message.type)),
+  ).toEqual(["join", "refused", "join", "after"]);
+  expect(editor.dropped).toBe(true);
+});
+
+test("a batch that the document may have taken before it lost what it knew goes no more", async () => {
+  const editor = new OutboxEditor();
+  const client = new Client();
+  client.use(editor);
+  const pipe = new TestPipe();
+  client.attach(pipe);
+  await pipe.deliver(joined(0));
+  editor.outbox.add("first");
+  client.pull();
+  await settled();
+  const id = (pipe.sent[0] as { client: string }).client;
+  await pipe.deliver({ type: "changed", rev: 1, author: "Ana", client: id, seq: 1, body: "first" });
+  editor.outbox.add("doubtful");
+  client.pull();
+  editor.outbox.add("after");
+  await settled();
+  client.detach();
+  const again = new TestPipe();
+  client.attach(again);
+  await again.deliver(joined(1, 0, 8));
+  await settled();
+  expect(
+    again.sent.map((message) => (message.type === "change" ? message.body : message.type)),
+  ).toEqual(["join", "after"]);
   expect(editor.dropped).toBe(true);
 });
 
