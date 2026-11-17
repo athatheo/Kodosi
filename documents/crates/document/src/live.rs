@@ -13,7 +13,6 @@ use crate::{
     format::{Assets, Format, Ordered, Refused, Unreadable},
 };
 
-const MOST_ASSET_BYTES: usize = 128 * 1024 * 1024;
 const MOST_SAVED_STATES: usize = 32;
 
 pub type PipeId = u64;
@@ -69,7 +68,6 @@ pub enum Effect {
     },
     /// Writes this change to the journal before anyone hears of it.
     Append(Vec<u8>),
-    KeepAsset(Hash),
     Unsaved,
     /// The new file reads well, so it is the file on disk now.
     FileTaken,
@@ -113,12 +111,13 @@ pub struct Document<F: Format> {
 }
 
 impl<F: Format> Document<F> {
-    pub fn open(file: Vec<u8>, epoch: u64, assets: Assets) -> Result<Self, Unreadable> {
+    pub fn open(file: Vec<u8>, epoch: u64) -> Result<Self, Unreadable> {
         F::opens(&file)?;
-        Self::start(file, epoch, assets)
+        Self::start(file, epoch)
     }
 
-    fn start(file: Vec<u8>, epoch: u64, mut assets: Assets) -> Result<Self, Unreadable> {
+    fn start(file: Vec<u8>, epoch: u64) -> Result<Self, Unreadable> {
+        let mut assets = Assets::default();
         let model = F::read(&file, &mut assets)?;
         Ok(Self {
             model,
@@ -140,9 +139,8 @@ impl<F: Format> Document<F> {
         original: Vec<u8>,
         restored: Restored,
         records: &[Vec<u8>],
-        assets: Assets,
     ) -> Result<Self, Unreadable> {
-        let mut document = Self::start(original, restored.epoch, assets)?;
+        let mut document = Self::start(original, restored.epoch)?;
         document.first_rev = restored.first_rev;
         document.rev = restored.first_rev;
         document.saved_rev = restored.saved.last().copied().unwrap_or(restored.first_rev);
@@ -196,10 +194,6 @@ impl<F: Format> Document<F> {
         self.seats.is_empty()
     }
 
-    pub fn asset(&self, hash: &Hash) -> Option<&Arc<[u8]>> {
-        self.assets.get(hash)
-    }
-
     pub fn step(&mut self, input: Input) -> Vec<Effect> {
         match input {
             Input::Connected { pipe, viewer } => {
@@ -236,7 +230,10 @@ impl<F: Format> Document<F> {
             return vec![Effect::Drop { pipe }];
         };
         let message = match decoded {
-            Frame::Asset { hash, bytes } => return self.asset_frame(pipe, hash, &bytes),
+            Frame::Asset { hash, bytes } if bytes.is_empty() => {
+                return self.asset_frame(pipe, hash);
+            }
+            Frame::Asset { .. } => return vec![Effect::Drop { pipe }],
             Frame::Message(message) => message,
         };
         let joined = self
@@ -258,20 +255,14 @@ impl<F: Format> Document<F> {
         }
     }
 
-    fn asset_frame(&mut self, pipe: PipeId, hash: Hash, bytes: &[u8]) -> Vec<Effect> {
-        if bytes.is_empty() {
-            return self.assets.get(&hash).map_or_else(Vec::new, |asset| {
-                vec![Effect::Send {
-                    to: vec![pipe],
-                    frame: contract::encode_asset(&hash, asset).into(),
-                    catchup: true,
-                }]
-            });
-        }
-        if self.assets.bytes() + bytes.len() > MOST_ASSET_BYTES || !self.assets.take(hash, bytes) {
-            return vec![Effect::Drop { pipe }];
-        }
-        vec![Effect::KeepAsset(hash)]
+    fn asset_frame(&self, pipe: PipeId, hash: Hash) -> Vec<Effect> {
+        self.assets.get(&hash).map_or_else(Vec::new, |asset| {
+            vec![Effect::Send {
+                to: vec![pipe],
+                frame: contract::encode_asset(&hash, asset).into(),
+                catchup: true,
+            }]
+        })
     }
 
     fn join(

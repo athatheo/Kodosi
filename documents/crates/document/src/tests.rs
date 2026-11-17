@@ -144,7 +144,7 @@ fn viewer(name: &str) -> Viewer {
 }
 
 fn opened() -> Document<Sheet> {
-    Document::open(file_of(&Model::default()), 1, Assets::default()).unwrap()
+    Document::open(file_of(&Model::default()), 1).unwrap()
 }
 
 fn frame(message: &ToDocument) -> Vec<u8> {
@@ -739,7 +739,7 @@ impl World {
     fn new(seed: u64) -> Self {
         let file = file_of(&Model::default());
         Self {
-            document: Document::open(file.clone(), 1, Assets::default()).unwrap(),
+            document: Document::open(file.clone(), 1).unwrap(),
             original: file.clone(),
             records: Vec::new(),
             saved: Vec::new(),
@@ -774,7 +774,7 @@ impl World {
                     let effects = self.document.step(Input::Saved { rev });
                     self.run_effects(effects);
                 }
-                Effect::KeepAsset(_) | Effect::Unsaved | Effect::FileTaken | Effect::Seal => {}
+                Effect::Unsaved | Effect::FileTaken | Effect::Seal => {}
             }
         }
     }
@@ -882,7 +882,6 @@ impl World {
                 saved: self.saved.clone(),
             },
             &self.records,
-            Assets::default(),
         )
         .unwrap();
     }

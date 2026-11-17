@@ -19,20 +19,8 @@ impl Assets {
         hash
     }
 
-    pub fn take(&mut self, hash: Hash, bytes: &[u8]) -> bool {
-        let fits = <[u8; 32]>::from(Sha256::digest(bytes)) == hash;
-        if fits {
-            self.held.entry(hash).or_insert_with(|| Arc::from(bytes));
-        }
-        fits
-    }
-
     pub fn get(&self, hash: &Hash) -> Option<&Arc<[u8]>> {
         self.held.get(hash)
-    }
-
-    pub fn bytes(&self) -> usize {
-        self.held.values().map(|bytes| bytes.len()).sum()
     }
 }
 
@@ -171,20 +159,5 @@ pub trait Format: 'static {
     /// A place in the words of `read`, for agents.
     fn describe_place(_model: &Self::Model, place: &Value) -> Value {
         place.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn an_asset_with_the_wrong_name_is_refused() {
-        let mut assets = Assets::default();
-        let hash = assets.put(b"picture");
-        let mut other = Assets::default();
-        assert!(!other.take([0; 32], b"picture"));
-        assert!(other.take(hash, b"picture"));
-        assert_eq!(other.get(&hash).map(|bytes| bytes.len()), Some(7));
     }
 }

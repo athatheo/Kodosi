@@ -6,7 +6,7 @@ import {
   type ToClient,
   type ToDocument,
 } from "@documents/contract";
-import { decodeFrame, encodeAsset, encodeMessage } from "./frame";
+import { decodeFrame, encodeAssetRequest, encodeMessage } from "./frame";
 
 const PLACE_EVERY = 100;
 
@@ -226,17 +226,12 @@ export class Client {
         return;
       }
       this.assetWaiters.set(hash, [resolve]);
-      this.pipe?.send(encodeAsset(hash));
+      this.pipe?.send(encodeAssetRequest(hash));
     });
   }
 
   heldAsset(hash: string): Uint8Array | undefined {
     return this.assets.get(hash);
-  }
-
-  addAsset(hash: string, bytes: Uint8Array): void {
-    this.assets.set(hash, bytes);
-    this.pipe?.send(encodeAsset(hash, bytes));
   }
 }
 

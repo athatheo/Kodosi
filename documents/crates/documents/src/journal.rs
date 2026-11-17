@@ -4,13 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use document::{Assets, Hash, Restored, Rev, Seq};
+use document::{Hash, Restored, Rev, Seq};
 use serde::{Deserialize, Serialize};
 
 const ORIGINAL: &str = "original";
 const RECORDS: &str = "records";
 const META: &str = "meta.json";
-const ASSETS: &str = "assets";
 const CHANGE: u8 = 0;
 const SAVED: u8 = 1;
 const HEADER: usize = 1 + 4;
@@ -28,7 +27,6 @@ pub(crate) struct Found {
     pub original: Vec<u8>,
     pub restored: Restored,
     pub records: Vec<Vec<u8>>,
-    pub assets: Assets,
     pub saved_hash: Option<Hash>,
 }
 
@@ -76,7 +74,6 @@ impl Journal {
     ) -> io::Result<Self> {
         drop(std::fs::remove_dir_all(folder));
         private_folder(folder)?;
-        private_folder(&folder.join(ASSETS))?;
         write_replacing(&folder.join(ORIGINAL), file)?;
         let meta = Meta {
             path: path.to_owned(),
@@ -129,12 +126,6 @@ impl Journal {
         if let Some(file) = records_file {
             drop(file.set_len(whole as u64));
         }
-        let mut assets = Assets::default();
-        for entry in std::fs::read_dir(folder.join(ASSETS)).ok()?.flatten() {
-            if let Ok(bytes) = std::fs::read(entry.path()) {
-                assets.put(&bytes);
-            }
-        }
         let journal = Self {
             folder: folder.to_owned(),
             records: Some(open_records(folder).ok()?),
@@ -151,7 +142,6 @@ impl Journal {
                     saved,
                 },
                 records,
-                assets,
                 saved_hash,
             },
         ))
@@ -185,10 +175,6 @@ impl Journal {
         body.extend_from_slice(hash);
         self.record(SAVED, &body)?;
         self.sync()
-    }
-
-    pub(crate) fn keep_asset(&self, name: &str, bytes: &[u8]) -> io::Result<()> {
-        write_replacing(&self.folder.join(ASSETS).join(name), bytes)
     }
 
     pub(crate) fn bytes(&self) -> u64 {

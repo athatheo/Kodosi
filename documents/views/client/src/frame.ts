@@ -42,12 +42,10 @@ export async function encodeMessage(message: ToDocument): Promise<Uint8Array> {
   return prefixed(GZIP_FRAME, await transformed(json, new CompressionStream("gzip")));
 }
 
-/** Names an asset with no bytes to ask for it, or with its bytes to give it. */
-export function encodeAsset(hash: string, bytes: Uint8Array = new Uint8Array()): Uint8Array {
-  const frame = new Uint8Array(1 + HASH_BYTES + bytes.length);
+export function encodeAssetRequest(hash: string): Uint8Array {
+  const frame = new Uint8Array(1 + HASH_BYTES);
   frame[0] = ASSET_FRAME;
   frame.set(bytesOfHex(hash), 1);
-  frame.set(bytes, 1 + HASH_BYTES);
   return frame;
 }
 

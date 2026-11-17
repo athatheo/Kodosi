@@ -68,11 +68,6 @@ fn hash_of(bytes: &[u8]) -> Hash {
     Sha256::digest(bytes).into()
 }
 
-fn hex(hash: &Hash) -> String {
-    hash.iter()
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"))
-}
-
 fn new_epoch() -> io::Result<u64> {
     let mut bytes = [0; 8];
     getrandom::fill(&mut bytes[2..]).map_err(io::Error::other)?;
@@ -146,12 +141,11 @@ fn open_or_restore(
             original,
             restored,
             records,
-            assets,
             saved_hash,
         } = found;
         let known = saved_hash.unwrap_or_else(|| hash_of(&original));
         let journaled = (hash_of(disk) != known).then(|| original.clone());
-        match format.restore(original, restored, &records, assets) {
+        match format.restore(original, restored, &records) {
             Ok(document) => return Ok((document, journal, journaled)),
             Err(problem) => {
                 tracing::warn!(%problem, "the journal is not usable, so the file opens as it is");
@@ -292,13 +286,6 @@ impl Task {
                         tracing::warn!(%problem, "the journal cannot grow");
                     }
                     appended = true;
-                }
-                Effect::KeepAsset(hash) => {
-                    if let Some(bytes) = self.document.asset(&hash)
-                        && let Err(problem) = self.journal.keep_asset(&hex(&hash), &bytes)
-                    {
-                        tracing::warn!(%problem, "an asset stays only in memory");
-                    }
                 }
                 Effect::Unsaved => {
                     let now = Instant::now();

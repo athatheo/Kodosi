@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, path::Path, sync::Arc};
 
-use document::{Assets, Document, Effect, Format, Hash, Input, Restored, Rev, Unreadable};
+use document::{Document, Effect, Format, Input, Restored, Rev, Unreadable};
 
 pub trait Live: Send {
     fn step(&mut self, input: Input) -> Vec<Effect>;
@@ -8,7 +8,6 @@ pub trait Live: Send {
     fn saved_rev(&self) -> Rev;
     fn seqs(&self) -> HashMap<String, u64>;
     fn is_empty(&self) -> bool;
-    fn asset(&self, hash: &Hash) -> Option<Arc<[u8]>>;
 }
 
 impl<F: Format> Live for Document<F> {
@@ -31,10 +30,6 @@ impl<F: Format> Live for Document<F> {
     fn is_empty(&self) -> bool {
         Self::is_empty(self)
     }
-
-    fn asset(&self, hash: &Hash) -> Option<Arc<[u8]>> {
-        Self::asset(self, hash).cloned()
-    }
 }
 
 pub trait Opener: Send + Sync {
@@ -47,7 +42,6 @@ pub trait Opener: Send + Sync {
         original: Vec<u8>,
         restored: Restored,
         records: &[Vec<u8>],
-        assets: Assets,
     ) -> Result<Box<dyn Live>, Unreadable>;
 }
 
@@ -59,7 +53,7 @@ impl<F: Format> Opener for FormatOpener<F> {
     }
 
     fn open(&self, file: Vec<u8>, epoch: u64) -> Result<Box<dyn Live>, Unreadable> {
-        let document = Document::<F>::open(file, epoch, Assets::default())?;
+        let document = Document::<F>::open(file, epoch)?;
         Ok(Box::new(document))
     }
 
@@ -68,9 +62,8 @@ impl<F: Format> Opener for FormatOpener<F> {
         original: Vec<u8>,
         restored: Restored,
         records: &[Vec<u8>],
-        assets: Assets,
     ) -> Result<Box<dyn Live>, Unreadable> {
-        let document = Document::<F>::restore(original, restored, records, assets)?;
+        let document = Document::<F>::restore(original, restored, records)?;
         Ok(Box::new(document))
     }
 }
