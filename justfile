@@ -84,9 +84,10 @@ rust-lint:
 rust-deny-check: (rust-tool-check "cargo-deny")
     cargo deny --manifest-path runtime/Cargo.toml --workspace --locked check --hide-inclusion-graph bans licenses sources
 
-# Check the Rust dependencies for security advisories with cargo-deny.
+# Check the Rust dependencies of the apps and of Kodosi Browser for security advisories with cargo-deny.
 [group('rust')]
 rust-advisories-check: (rust-tool-check "cargo-deny")
+    cargo deny --manifest-path browser/engine/Cargo.toml --locked check --hide-inclusion-graph advisories
     cargo deny --manifest-path runtime/Cargo.toml --workspace --locked check --hide-inclusion-graph advisories
 
 # Find unused Rust dependencies with cargo-machete.
