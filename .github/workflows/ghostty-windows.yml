@@ -75,3 +75,4 @@ jobs:
             terminal/ghostty/Vendor/GhosttyVt/windows-x86_64
             terminal/ghostty/Vendor/GhosttyVt/windows-x86_64.version
           if-no-files-found: error
+          retention-days: 14
