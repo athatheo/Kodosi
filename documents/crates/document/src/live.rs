@@ -304,13 +304,17 @@ impl<F: Format> Document<F> {
             return effects;
         };
         seat.client = Some(client.clone());
+        let seq = self.seqs.get(&client).copied();
+        if seat.viewer.can_edit {
+            self.seqs.entry(client.clone()).or_insert(0);
+        }
         let joined = ToClient::Joined {
             id: client.clone(),
             name: seat.viewer.name.clone(),
             can_edit: seat.viewer.can_edit,
             epoch: self.epoch,
             rev: self.rev,
-            seq: self.seqs.get(&client).copied().unwrap_or(0),
+            seq,
             peers,
             catchup,
         };

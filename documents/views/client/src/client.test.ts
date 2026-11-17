@@ -70,7 +70,7 @@ class OutboxEditor implements Editor {
   destroy(): void {}
 }
 
-function joined(rev: number, seq = 0, epoch = 7): ToClient {
+function joined(rev: number, seq: number | null = 0, epoch = 7): ToClient {
   return {
     type: "joined",
     id: "ana",
@@ -144,21 +144,26 @@ test("a snapshot after a refused batch says so to the editor", async () => {
   expect(editor.loads).toEqual(["none", "refused"]);
 });
 
-test("a first batch that never got there goes again on the snapshot", async () => {
-  const editor = new TestEditor();
-  const client = new Client();
-  client.use(editor);
-  const pipe = new TestPipe();
-  client.attach(pipe);
-  await pipe.deliver(joined(0));
-  editor.edits = 1;
-  client.pull();
-  await settled();
-  client.detach();
-  const again = new TestPipe();
-  client.attach(again);
-  await again.deliver(joined(0, 0, 8));
-  expect(editor.loads).toEqual(["none", "lost"]);
+test("a first batch goes again only when the document knows the client", async () => {
+  for (const [seq, sent] of [
+    [0, "lost"],
+    [null, "unknown"],
+  ] as const) {
+    const editor = new TestEditor();
+    const client = new Client();
+    client.use(editor);
+    const pipe = new TestPipe();
+    client.attach(pipe);
+    await pipe.deliver(joined(0));
+    editor.edits = 1;
+    client.pull();
+    await settled();
+    client.detach();
+    const again = new TestPipe();
+    client.attach(again);
+    await again.deliver(joined(0, seq, 8));
+    expect(editor.loads).toEqual(["none", sent]);
+  }
 });
 
 test("a snapshot says what became of the batch on its way, as far as the document knows", async () => {
@@ -166,6 +171,7 @@ test("a snapshot says what became of the batch on its way, as far as the documen
     [2, "taken"],
     [1, "lost"],
     [0, "unknown"],
+    [null, "unknown"],
   ] as const) {
     const editor = new TestEditor();
     const client = new Client();

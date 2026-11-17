@@ -363,7 +363,7 @@ impl Seat {
                         pipe,
                         client,
                         rev,
-                        seq,
+                        seq: seq.unwrap_or(0),
                         next_query: 1,
                         used_at: Instant::now(),
                     });

@@ -209,7 +209,7 @@ async fn after_a_clean_close_a_client_learns_that_the_document_took_its_batch() 
     again.send(contract::encode_message(&join)).await.unwrap();
     assert!(matches!(
         message(&mut again).await,
-        ToClient::Joined { seq: 1, .. }
+        ToClient::Joined { seq: Some(1), .. }
     ));
     documents.close().await;
 }

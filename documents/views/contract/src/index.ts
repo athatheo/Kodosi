@@ -4,4 +4,4 @@ export type { Peer } from "./generated/Peer";
 export type { ToClient } from "./generated/ToClient";
 export type { ToDocument } from "./generated/ToDocument";
 
-export const CONTRACT = 2;
+export const CONTRACT = 3;

@@ -6,7 +6,7 @@ use serde_json::Value;
 use ts_rs::TS;
 
 /// Views and the CLI with another number cannot join.
-pub const CONTRACT: u32 = 2;
+pub const CONTRACT: u32 = 3;
 
 const JSON_FRAME: u8 = 0;
 const GZIP_FRAME: u8 = 1;
@@ -140,8 +140,10 @@ pub enum ToClient {
         epoch: u64,
         #[ts(type = "number")]
         rev: Rev,
-        #[ts(type = "number")]
-        seq: Seq,
+        /// The last batch of this client that the document took, and none when the document does
+        /// not know the client, so that it cannot tell whether it took the batch on its way.
+        #[ts(type = "number | null")]
+        seq: Option<Seq>,
         peers: Vec<Peer>,
         catchup: Catchup,
     },

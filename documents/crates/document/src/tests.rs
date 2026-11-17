@@ -352,7 +352,7 @@ fn a_view_that_comes_back_gets_only_what_it_missed() {
     match messages_for(2, &effects).as_slice() {
         [
             ToClient::Joined {
-                seq: 2,
+                seq: Some(2),
                 rev: 2,
                 catchup: Catchup::Missed { changes },
                 ..
@@ -360,6 +360,23 @@ fn a_view_that_comes_back_gets_only_what_it_missed() {
         ] => assert_eq!(changes.len(), 1),
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn a_view_learns_whether_the_document_knows_its_client() {
+    let seq_of = |pipe: PipeId, effects: &[Effect]| match messages_for(pipe, effects).as_slice() {
+        [ToClient::Joined { seq, .. }] => *seq,
+        other => panic!("{other:?}"),
+    };
+    let mut document = opened();
+    assert_eq!(seq_of(1, &connect(&mut document, 1, "ana")), None);
+    document.step(Input::Left { pipe: 1 });
+    document.step(Input::Connected {
+        pipe: 2,
+        viewer: viewer("ana"),
+    });
+    let effects = message_to(&mut document, 2, join_frame("ana", 1, 0));
+    assert_eq!(seq_of(2, &effects), Some(0));
 }
 
 #[test]
@@ -679,7 +696,7 @@ impl View {
                         }
                     }
                 }
-                self.take_pending(seq);
+                self.take_pending(seq.unwrap_or(0));
                 self.resend()
                     .or_else(|| self.next_frame())
                     .into_iter()

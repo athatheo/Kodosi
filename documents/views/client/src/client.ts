@@ -110,7 +110,7 @@ export class Client {
         const sent = this.sentOf(message.seq);
         this.waitingSeq = null;
         this.epoch = message.epoch;
-        this.lastSeq = message.seq;
+        this.lastSeq = message.seq ?? 0;
         this.peers.clear();
         for (const peer of message.peers) this.peers.set(peer.id, peer);
         try {
@@ -168,12 +168,14 @@ export class Client {
 
   /**
    * The document keeps the number of the last batch of each client that it took, also when it
-   * closes and opens again, so only a number below the batch before this one means it lost that.
+   * closes and opens again, and gives none for a client that it does not know. So the batch goes
+   * again only when the document knows that it took the batch before it and not this one.
    */
-  private sentOf(seq: number): Sent {
+  private sentOf(seq: number | null): Sent {
     const waiting = this.waitingSeq;
     if (this.refused) return "refused";
     if (waiting === null) return "none";
+    if (seq === null) return "unknown";
     if (seq >= waiting) return "taken";
     return seq === waiting - 1 ? "lost" : "unknown";
   }
