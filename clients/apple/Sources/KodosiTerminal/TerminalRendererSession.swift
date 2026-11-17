@@ -324,6 +324,9 @@ public final class TerminalRendererSession: ObservableObject {
             for override in hostManagedPolicyOverrides {
                 $0.withCustom(override.key, override.value)
             }
+            #if os(macOS)
+                $0.withCustom("mouse-hide-while-typing", "true")
+            #endif
             $0.withCustom(
                 "adjust-cell-height",
                 "\(style.lineHeightAdjustment)%",

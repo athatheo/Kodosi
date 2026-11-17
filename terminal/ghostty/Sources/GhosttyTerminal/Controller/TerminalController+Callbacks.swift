@@ -42,6 +42,10 @@ private func copyTerminalAction(_ action: ghostty_action_s) -> TerminalActionSna
         ))
     case GHOSTTY_ACTION_SELECTION_CHANGED:
         .selectionChanged
+    case GHOSTTY_ACTION_MOUSE_SHAPE:
+        .mouseShape(action.action.mouse_shape)
+    case GHOSTTY_ACTION_MOUSE_VISIBILITY:
+        .mouseVisibility(visible: action.action.mouse_visibility == GHOSTTY_MOUSE_VISIBLE)
     default:
         .unsupported(TerminalDebugLog.describe(action.tag))
     }
