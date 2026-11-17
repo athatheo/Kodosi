@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde_json::Value;
-use shared_browser::{Place, State, ToView, Viewer, Window};
+use shared_browser::{Driver, Place, State, ToView, Viewer, Window};
 use tokio::{
     sync::{mpsc, watch},
     time::Instant,
@@ -40,6 +40,7 @@ pub(super) const KEPT_PROFILE: &str = "person";
 /// program or lifetime.
 const NOT_HERE: &[&str] = &[
     "--cdp",
+    "--cdp-headers",
     "--session",
     "--session-name",
     "--profile",
@@ -324,7 +325,7 @@ impl Browser {
         });
     }
 
-    async fn point(&self, folder: &Path, driver: &str, target: &str) -> Option<BrowserPoint> {
+    async fn point(&self, folder: &Path, driver: &Driver, target: &str) -> Option<BrowserPoint> {
         let run = self
             .agent_browser(
                 folder,
@@ -367,7 +368,7 @@ impl Browser {
         let _one = self.commands.lock().await;
         let window = self.window().await?;
         window.driven().await;
-        let driver = window.driver().to_owned();
+        let driver = window.driver().clone();
         let acting =
             !(LOOKS.contains(&command.as_str()) || (command == "tab" && arguments.len() == 1));
         let (used, introduced) = self.activity(|activity| {
@@ -569,7 +570,7 @@ impl Browser {
         &self,
         folder: &Path,
         arguments: &[String],
-        driver: &str,
+        driver: &Driver,
         limit: Duration,
     ) -> Result<Run, Text> {
         if !self.places.binary.is_file() {
@@ -577,13 +578,17 @@ impl Browser {
         }
         prepare(&self.places).await?;
         let mut command = agent_browser_command(&self.places.binary, &self.places.sockets);
+        // Other users of the computer can read a command line, but not the environment.
         command
+            .env("AGENT_BROWSER_CDP", driver.address())
+            .env(
+                "AGENT_BROWSER_CDP_HEADERS",
+                serde_json::json!({ "Authorization": driver.authorization() }).to_string(),
+            )
             .arg("--session")
             .arg(self.terminal.id.simple().to_string())
             .arg("--config")
             .arg(&self.places.config)
-            .arg("--cdp")
-            .arg(driver)
             .args(arguments)
             .current_dir(if folder.is_dir() {
                 folder
@@ -737,6 +742,8 @@ fn agent_browser_command(binary: &Path, sockets: &Path) -> tokio::process::Comma
     command
         .env("AGENT_BROWSER_SOCKET_DIR", sockets)
         .env("AGENT_BROWSER_IDLE_TIMEOUT_MS", DAEMON_IDLE_MS)
+        // Kodosi updates Kodosi Browser itself, from its feed.
+        .env("AGENT_BROWSER_NO_VERSION_CHECK", "1")
         .stdin(Stdio::null())
         .kill_on_drop(true);
     kodosi_os::process::without_terminal(command.as_std_mut());

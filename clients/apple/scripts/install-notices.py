@@ -3,6 +3,7 @@
 app. Builds other than Debug also get the licenses of the Rust crates in the runtime, which
 the iOS app gets as one file for each crate."""
 
+# Xcode runs this with its own Python 3.9.
 from __future__ import annotations
 
 import argparse
