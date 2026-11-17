@@ -77,16 +77,7 @@ fn writable_shape(
                 shape.id
             ));
         }
-    } else if shape.kind != "shape"
-        || shape
-            .geometry
-            .as_deref()
-            .is_some_and(|geometry| geometry != "rect")
-        || shape.placeholder.is_some()
-        || shape.asset.is_some()
-        || shape.link.is_some()
-        || shape.line.is_some()
-    {
+    } else if !is_box(shape) {
         return Err(format!(
             "The shape {} is not one that the file held, and a new shape can only be a box with text, without a picture, a placeholder, a link or a line.",
             shape.id
@@ -96,6 +87,19 @@ fn writable_shape(
         .text
         .as_ref()
         .map_or(Ok(()), |tree| writable_text(tree, raws))
+}
+
+/// A shape that the writer makes whole, which the file need not have held.
+pub(crate) fn is_box(shape: &Shape) -> bool {
+    shape.kind == "shape"
+        && shape
+            .geometry
+            .as_deref()
+            .is_none_or(|geometry| geometry == "rect")
+        && shape.placeholder.is_none()
+        && shape.asset.is_none()
+        && shape.link.is_none()
+        && shape.line.is_none()
 }
 
 /// A file may bring a frame that the schema does not take. It stays, and only what a change

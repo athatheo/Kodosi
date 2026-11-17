@@ -739,6 +739,7 @@ fn a_change_that_the_file_could_not_save_is_refused_and_changes_nothing() {
     placeholder["placeholder"] = json!("title:0");
     let mut stray = view_text_box("11");
     stray["source"] = json!(unknown);
+    stray["geometry"] = json!("ellipse");
     let mut styled = view_text_box("12");
     styled["text"]["content"][0]["content"][0]["marks"] =
         json!([{ "type": "run", "attrs": { "props": unknown } }]);
@@ -1025,4 +1026,48 @@ fn a_shape_that_another_program_wrote_can_come_back_on_its_slide() {
     apply_change(&mut model, back).unwrap();
     let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
     assert!(xml.contains(r#"<a:prstGeom prst="ellipse">"#));
+}
+
+#[test]
+fn a_box_whose_piece_went_comes_back_as_a_new_box_with_its_words() {
+    let note = concat!(
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="5" name="Note"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>"#,
+        r#"<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="127000" cy="127000"/></a:xfrm>"#,
+        r#"<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>"#,
+        r#"<a:p><a:r><a:rPr lang="fr-FR" sz="1400" b="1"/><a:t>Notes </a:t></a:r>"#,
+        r#"<a:fld id="{1}" type="slidenum"><a:rPr lang="fr-FR"/><a:t>1</a:t></a:fld>"#,
+        r#"<a:endParaRPr lang="fr-FR"/></a:p><a:p><a:r><a:rPr lang="fr-FR"/><a:t>A</a:t></a:r>"#,
+        r#"<a:r><a:rPr lang="de-DE"/><a:t>B</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"#,
+    );
+    let slide = slide_xml("First").replace("</p:spTree>", note);
+    let file = with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)]);
+    let mut model = read(&file);
+    let shapes = Pptx::snapshot(&model).0["slides"][0]["shapes"].clone();
+    let removed = |shape: &str| Op::RemoveShape {
+        slide: "256".to_owned(),
+        shape: shape.to_owned(),
+    };
+    apply_ops(&mut model, vec![removed("2"), removed("5")]);
+    let saved_without = saved(&model, &file);
+    let mut reopened = read(&saved_without);
+    let back = |shape: &Value| Change::AddShape {
+        slide: "256".to_owned(),
+        shape: shape.clone(),
+        keep: BTreeMap::new(),
+    };
+    assert!(matches!(
+        apply_change(&mut reopened, back(&shapes[0])),
+        Err(Refused::Invalid(_))
+    ));
+    let applied = serde_json::to_value(apply_change(&mut reopened, back(&shapes[2])).unwrap());
+    let applied = applied.unwrap()["shape"].clone();
+    assert!(applied["source"].is_null());
+    assert_eq!(
+        applied["text"]["content"][1]["content"],
+        json!([{ "type": "text", "text": "AB", "marks": [{ "type": "run", "attrs": { "props": null } }] }])
+    );
+    let xml = part(&saved(&reopened, &saved_without), "ppt/slides/slide1.xml");
+    assert!(xml.contains(r#"<p:cNvPr id="5" name="Note"/>"#));
+    assert!(xml.contains(r#"sz="1400""#) && xml.contains("<a:t>Notes </a:t>"));
+    assert!(xml.contains("<a:t>1</a:t>") && !xml.contains("slidenum"));
 }

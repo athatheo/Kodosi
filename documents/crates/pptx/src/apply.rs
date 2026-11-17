@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use document::{Ordered, Refused};
-use serde_json::Value;
+use serde_json::{Value, json};
 use text::{Node, Step};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         number_in, schema,
     },
     ops,
-    writable::writable_change,
+    writable::{is_box, writable_change},
 };
 
 fn invalid(error: impl std::fmt::Display) -> Refused {
@@ -67,11 +67,105 @@ pub(crate) fn apply(
     } else {
         change
     };
+    let change = returning(model, change);
     let mut copy = model.clone();
     apply_one(&mut copy, &change)?;
     writable_change(model, &copy).map_err(Refused::Invalid)?;
     *model = copy;
     Ok(change)
+}
+
+/// A box whose slide no longer holds its piece, as after the presentation opened again from its
+/// file while Undo waited to bring the box back, comes back as a new box. It keeps its words, its
+/// frame, its fill and the look of its text, without the pieces of the file that went.
+fn returning(model: &Model, change: Change) -> Change {
+    match change {
+        Change::AddShape {
+            slide,
+            mut shape,
+            keep,
+        } if keep.is_empty() => {
+            let held = shape
+                .get("source")
+                .and_then(Value::as_str)
+                .is_none_or(|source| {
+                    model
+                        .slide(&slide)
+                        .is_some_and(|known| known.sources.contains_key(source))
+                });
+            if !held && Shape::from_snapshot(&shape).is_ok_and(|parsed| is_box(&parsed)) {
+                shape["source"] = Value::Null;
+                if let Some(text) = shape.get_mut("text") {
+                    without_gone_pieces(text, &model.raws);
+                }
+            }
+            Change::AddShape { slide, shape, keep }
+        }
+        Change::Group { changes } => Change::Group {
+            changes: changes
+                .into_iter()
+                .map(|change| returning(model, change))
+                .collect(),
+        },
+        change => change,
+    }
+}
+
+fn without_gone_pieces(node: &mut Value, raws: &HashMap<String, String>) {
+    let gone = |key: &Value| key.as_str().is_some_and(|key| !raws.contains_key(key));
+    let attrs = node.get_mut("attrs").and_then(Value::as_object_mut);
+    for (name, key) in attrs.into_iter().flatten() {
+        if matches!(name.as_str(), "props" | "end") && gone(key) {
+            *key = Value::Null;
+        }
+    }
+    let marks = node.get_mut("marks").and_then(Value::as_array_mut);
+    for mark in marks.into_iter().flatten() {
+        if let Some(key) = mark.pointer_mut("/attrs/props")
+            && gone(key)
+        {
+            *key = Value::Null;
+        }
+    }
+    let Some(content) = node.get_mut("content").and_then(Value::as_array_mut) else {
+        return;
+    };
+    let marks_of = |node: &Value| {
+        node.get("marks")
+            .filter(|marks| marks.as_array().is_some_and(|marks| !marks.is_empty()))
+            .cloned()
+    };
+    let mut kept: Vec<Value> = Vec::with_capacity(content.len());
+    for mut child in content.drain(..) {
+        if child["type"] == "inlineOpaque" && child.pointer("/attrs/raw").is_some_and(gone) {
+            let text = child.pointer("/attrs/text").and_then(Value::as_str);
+            let Some(text) = text.filter(|text| !text.is_empty()) else {
+                continue;
+            };
+            let mut shown = json!({ "type": "text", "text": text });
+            if let Some(marks) = marks_of(&child) {
+                shown["marks"] = marks;
+            }
+            child = shown;
+        }
+        without_gone_pieces(&mut child, raws);
+        match kept.last_mut() {
+            Some(last)
+                if last["type"] == "text"
+                    && child["type"] == "text"
+                    && marks_of(last) == marks_of(&child) =>
+            {
+                let joined = format!(
+                    "{}{}",
+                    last["text"].as_str().unwrap_or_default(),
+                    child["text"].as_str().unwrap_or_default()
+                );
+                last["text"] = Value::String(joined);
+            }
+            _ => kept.push(child),
+        }
+    }
+    *content = kept;
 }
 
 fn shape_mut<'m>(model: &'m mut Model, slide: &str, shape: &str) -> Result<&'m mut Shape, Refused> {
