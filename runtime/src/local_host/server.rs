@@ -354,7 +354,7 @@ async fn serve_terminal(
                 match bytes.first() {
                     Some(&INPUT)=>{
                         let handle=runtime.clone();
-                        let input=Bytes::copy_from_slice(&bytes[1..]);
+                        let input=Bytes::from(bytes).slice(1..);
                         admissions.push_back(Box::pin(async move {handle.write_input(session,incarnation,connection,input).await}));
                     }
                     Some(&CONTROL)=>{

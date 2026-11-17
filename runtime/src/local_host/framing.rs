@@ -103,7 +103,7 @@ pub async fn read_terminal<R: AsyncRead + Unpin>(
                     .try_into()
                     .map_err(|_| Error::Invalid("invalid terminal sequence".into()))?,
             ),
-            bytes: Bytes::copy_from_slice(&bytes[9..]),
+            bytes: Bytes::from(bytes).slice(9..),
         }),
         Some(&INPUT_ACK) => {
             let value: Value = serde_json::from_slice(&bytes[1..])?;
