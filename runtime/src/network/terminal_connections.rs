@@ -329,16 +329,13 @@ async fn send_json(socket: &mut Socket, value: Value) -> Result<()> {
     if text.len() > MESSAGE_LIMIT {
         return Err(invalid("Connection message exceeds its limit."));
     }
-    tokio::time::timeout(
-        Duration::from_secs(10),
-        socket.send(Message::Text(text.into())),
-    )
-    .await
-    .map_err(|_| Error::Closed)?
-    .map_err(|error| {
-        tracing::warn!(%error, "terminal connection send failed");
-        Error::Text(text!("The connection to the server dropped."))
-    })
+    tokio::time::timeout(Duration::from_secs(10), socket.send(Message::text(text)))
+        .await
+        .map_err(|_| Error::Closed)?
+        .map_err(|error| {
+            tracing::warn!(%error, "terminal connection send failed");
+            Error::Text(text!("The connection to the server dropped."))
+        })
 }
 async fn read_json(socket: &mut Socket) -> Result<Value> {
     let message = tokio::time::timeout(Duration::from_secs(10), socket.next())

@@ -180,7 +180,7 @@ impl Transport for Pipe {
         let mut frame = Vec::with_capacity(PIPE_ID + bytes.len());
         frame.extend_from_slice(self.id.as_bytes());
         frame.extend_from_slice(&bytes);
-        tokio::time::timeout(SEND, self.frames.send(Message::Binary(frame.into())))
+        tokio::time::timeout(SEND, self.frames.send(Message::binary(frame)))
             .await
             .map_err(|_| Error::Closed)?
             .map_err(|_| Error::Closed)
@@ -218,7 +218,7 @@ impl Drop for Pipe {
 }
 
 fn text(value: &Value) -> Message {
-    Message::Text(value.to_string().into())
+    Message::text(value.to_string())
 }
 
 fn status_message(session: Uuid, incarnation: Uuid, status: Option<&TerminalStatus>) -> Message {
