@@ -37,6 +37,7 @@ pub(super) const KEPT_PROFILE: &str = "person";
 /// program or lifetime.
 const NOT_HERE: &[&str] = &[
     "--cdp",
+    "--cdp-headers",
     "--session",
     "--session-name",
     "--profile",
@@ -718,6 +719,8 @@ fn agent_browser_command(binary: &Path, sockets: &Path) -> tokio::process::Comma
     command
         .env("AGENT_BROWSER_SOCKET_DIR", sockets)
         .env("AGENT_BROWSER_IDLE_TIMEOUT_MS", DAEMON_IDLE_MS)
+        // Kodosi updates Kodosi Browser itself, from its feed.
+        .env("AGENT_BROWSER_NO_VERSION_CHECK", "1")
         .stdin(Stdio::null())
         .kill_on_drop(true);
     kodosi_os::process::without_terminal(command.as_std_mut());
