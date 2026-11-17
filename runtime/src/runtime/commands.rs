@@ -280,9 +280,10 @@ impl Runtime {
             Command::ListRepositories { project_id, .. } => {
                 self.job_capacity()?;
                 let folders = self.repository_folders(project_id.as_deref());
+                let client = self.network.inner.http.client.clone();
                 let command = command.clone();
                 self.spawn(async move {
-                    let result = crate::projects::providers::choices(folders)
+                    let result = crate::projects::providers::choices(&client, folders)
                         .await
                         .map_err(Error::from);
                     Completion::Repositories { command, result }
