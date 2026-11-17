@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Kodosi.Models 1.0 as Models
 
 KDialog {
@@ -14,10 +14,10 @@ KDialog {
 
     signal shared(string projectId)
 
-    function nameOf(id) {
+    function nameOf(id: string): string {
         return (Models.Projects.projects.find(entry => entry.id === id) || {}).name || qsTr("the project")
     }
-    function ask(id, target) {
+    function ask(id: string, target: string): bool {
         const entry = Models.Sessions.presentationForSession(id)
         if (entry.isOwner !== true || entry.projectId === target)
             return false
@@ -28,7 +28,7 @@ KDialog {
     }
 
     standardButtons: Dialog.Ok | Dialog.Cancel
-    title: qsTr("Share %1 with %2?").arg(session.name || qsTr("this terminal")).arg(projectName)
+    title: qsTr("Share %1 with %2?").arg(session.name || qsTr("this terminal"), projectName)
     objectName: "project.share.ask"
     onOpened: standardButton(Dialog.Ok).text = qsTr("Share")
     onAccepted: {
@@ -39,7 +39,7 @@ KDialog {
     PlainLabel {
         width: 340
         text: root.leaves.length > 0
-            ? qsTr("Everyone in %1 gets full control of it. It leaves %2.").arg(root.projectName).arg(root.leaves)
+            ? qsTr("Everyone in %1 gets full control of it. It leaves %2.").arg(root.projectName, root.leaves)
             : qsTr("Everyone in %1 gets full control of it.").arg(root.projectName)
         color: KodosiTheme.inkMuted
         wrapMode: Text.WordWrap

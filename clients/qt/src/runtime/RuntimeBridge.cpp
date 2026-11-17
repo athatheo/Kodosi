@@ -261,7 +261,7 @@ RuntimeBridge::Result RuntimeBridge::terminalOperationResult(std::int32_t result
     if (result == KODOSI_FFI_OK)
         return {};
     return std::unexpected(
-        failure(result, tr("%1 failed (%2).").arg(operation).arg(result)));
+        failure(result, tr("%1 failed (%2).").arg(operation, QString::number(result))));
 }
 
 void RuntimeBridge::queueEvent(const std::uint8_t* json, std::uintptr_t length)

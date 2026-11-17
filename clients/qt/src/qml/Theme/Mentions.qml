@@ -20,10 +20,6 @@ QtObject {
         return list
     }
 
-    function escaped(text: string): string {
-        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-    }
-
     function wordCharacter(character: string): bool {
         return character.toLowerCase() !== character.toUpperCase() || /[0-9_]/.test(character)
     }
@@ -81,13 +77,13 @@ QtObject {
 
     function html(parts: var, selfId: string): string {
         return "<span style=\"white-space:pre-wrap\">" + parts.map(segment => {
-            const body = escaped(segment.text)
+            const body = Qt.escapeHtml(segment.text)
             if (!segment.target)
                 return body
             const style = "color:" + tint(segment.target, selfId) + ";font-weight:600;text-decoration:none"
             const word = body.replace(/ /g, "&nbsp;")
             return segment.target.kind === "terminal"
-                ? "<a href=\"kodosi-mention://terminal/" + escaped(segment.target.id) + "\" style=\"" + style + "\">" + word + "</a>"
+                ? "<a href=\"kodosi-mention://terminal/" + Qt.escapeHtml(segment.target.id) + "\" style=\"" + style + "\">" + word + "</a>"
                 : "<span style=\"" + style + "\">" + word + "</span>"
         }).join("") + "</span>"
     }

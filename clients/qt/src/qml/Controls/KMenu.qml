@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 Menu {
     id: root
@@ -14,6 +14,11 @@ Menu {
         for (let index = 0; index < count; ++index)
             widest = Math.max(widest, itemAt(index)?.implicitWidth ?? 0)
         return widest
+    }
+
+    function popupFor(item: Item, position: point): void {
+        // A request from the keyboard carries no position on Windows, so the menu opens below the item.
+        popup(item.mapToItem(parent, item.contains(position) ? position : Qt.point(0, item.height + 4)))
     }
 
     width: Math.min(320, Math.max(minimumWidth, widestItem + leftPadding + rightPadding))

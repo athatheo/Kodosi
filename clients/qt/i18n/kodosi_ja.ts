@@ -805,6 +805,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>切り取り</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -825,6 +839,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi はこのリンクを開けませんでした。</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>削除</translation>
     </message>
 </context>
 <context>
@@ -2383,6 +2404,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -3178,6 +3206,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>&amp;OK</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>キャンセル(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>閉じる(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>キャンセル</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3200,6 +3258,13 @@
         <translation>
             <numerusform>このコンピュータのターミナル %n 個が停止します。Kodosi を開くと再び起動します。</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>やり直す</translation>
     </message>
 </context>
 <context>
@@ -3272,6 +3337,13 @@
     <message>
         <source>No repositories found</source>
         <translation>リポジトリが見つかりません</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>すべて選択</translation>
     </message>
 </context>
 <context>
@@ -4156,6 +4228,13 @@
     <message>
         <source>Detailed</source>
         <translation>詳細</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>元に戻す</translation>
     </message>
 </context>
 <context>

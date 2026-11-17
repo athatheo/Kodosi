@@ -9,12 +9,12 @@ Item {
 
     property int section: 0
 
-    function showDevices(focusCode) {
+    function showDevices(focusCode: bool): void {
         section = 3;
         if (focusCode)
             Qt.callLater(() => devices.focusCode());
     }
-    function showAccountStep() {
+    function showAccountStep(): void {
         if (!Models.Account.signedIn && Models.Account.signInPage.length > 0)
             section = 2;
         else if (Models.Account.signedIn && !Models.Devices.localDeviceEnrolled)

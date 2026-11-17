@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Kodosi.Models 1.0 as Models
 
 AbstractButton {
@@ -16,7 +16,7 @@ AbstractButton {
     property bool cuedAsking: false
     property int reacts: 0
 
-    function cueUp() {
+    function cueUp(): void {
         if (asking && !cuedAsking)
             faceCue.rings += 1
         else if (unseen && !cuedUnseen && !asking)

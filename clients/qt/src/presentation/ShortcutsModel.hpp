@@ -17,10 +17,10 @@ namespace kodosi {
 
 class ShortcutsModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QVariantMap keys READ keys NOTIFY keysChanged)
-    Q_PROPERTY(QVariantMap hints READ hints NOTIFY keysChanged)
-    Q_PROPERTY(QVariantList rows READ rows NOTIFY keysChanged)
-    Q_PROPERTY(bool changed READ changed NOTIFY keysChanged)
+    Q_PROPERTY(QVariantMap keys READ keys NOTIFY keysChanged FINAL)
+    Q_PROPERTY(QVariantMap hints READ hints NOTIFY keysChanged FINAL)
+    Q_PROPERTY(QVariantList rows READ rows NOTIFY keysChanged FINAL)
+    Q_PROPERTY(bool changed READ changed NOTIFY keysChanged FINAL)
 
 public:
     explicit ShortcutsModel(std::unique_ptr<QSettings> settings, QObject* parent = nullptr);

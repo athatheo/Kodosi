@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.3...4.4)
+cmake_minimum_required(VERSION 4.5)
 
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../VERSION" KODOSI_PRODUCT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../VERSION")
@@ -27,11 +27,14 @@ set(KODOSI_GHOSTTY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../terminal/ghostty")
 include(cmake/${CMAKE_SYSTEM_NAME}.cmake)
 include(cmake/Evidence.cmake)
 
+# The app ships with the Qt that it builds with, so its use of Qt's private headers holds.
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
 find_package(
     Qt6 ${KODOSI_QT_VERSION}
     EXACT
     REQUIRED
-    COMPONENTS Core Gui LinguistTools Qml Quick QuickControls2 Test WebChannelQuick WebEngineCore WebEngineQuick Widgets ${KODOSI_PLATFORM_QT_COMPONENTS}
+    COMPONENTS Core Gui GuiPrivate LinguistTools Qml Quick QuickControls2 QuickPrivate Test WebChannelQuick WebEngineCore
+        WebEngineQuick Widgets ${KODOSI_PLATFORM_QT_COMPONENTS}
 )
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -115,12 +118,12 @@ set_target_properties(kodosi-ghostty-vt PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${KODOSI_GHOSTTY_VT_ROOT}/include"
     INTERFACE_COMPILE_DEFINITIONS GHOSTTY_STATIC
 )
+file(MAKE_DIRECTORY "${KODOSI_RUNTIME_HEADER_DIR}")
 set_target_properties(kodosi-rust-runtime PROPERTIES
     IMPORTED_LOCATION "${KODOSI_RUNTIME_ARCHIVE}"
-)
-include_directories("${KODOSI_RUNTIME_HEADER_DIR}")
-set_property(TARGET kodosi-rust-runtime PROPERTY INTERFACE_LINK_LIBRARIES
-    "kodosi-ghostty-vt;${KODOSI_RUNTIME_SYSTEM_LIBRARIES}"
+    INTERFACE_INCLUDE_DIRECTORIES "${KODOSI_RUNTIME_HEADER_DIR}"
+    INTERFACE_LINK_LIBRARIES "kodosi-ghostty-vt;${KODOSI_RUNTIME_SYSTEM_LIBRARIES}"
+    INTERFACE_LINK_OPTIONS "${KODOSI_RUNTIME_LINK_OPTIONS}"
 )
 add_dependencies(kodosi-rust-runtime kodosi-runtime-library-build)
 

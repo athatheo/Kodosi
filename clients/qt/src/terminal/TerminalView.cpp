@@ -606,6 +606,7 @@ void TerminalView::setTerminalInteraction(
         !m_canResize && canResize;
     m_canSendInput = canSendInput;
     m_canResize = canResize;
+    showTerminalPointer();
     if (!m_canSendInput) {
         clearPendingInput();
         m_preedit.clear();
@@ -788,7 +789,6 @@ void TerminalView::detach()
     m_pressedLink.reset();
     m_wheelAngleRemainder = 0;
     m_wheelPixelRemainder = 0.0;
-    clearHoverLink();
     updateBlinkTimer();
     if (auto* inputMethod = QGuiApplication::inputMethod()) {
         if (ownsComposition) {
@@ -797,6 +797,7 @@ void TerminalView::detach()
         inputMethod->update(Qt::ImEnabled | Qt::ImCursorRectangle);
     }
     m_frame.reset();
+    showTerminalPointer();
     forgetRaster();
     update();
     if (wasReady) {
@@ -1042,7 +1043,7 @@ void TerminalView::presentFrame(GhosttyTerminalKernel::Frame frame)
         m_imageAnimationTimer.stop();
     }
     m_pressedLink.reset();
-    clearHoverLink();
+    showTerminalPointer();
     const auto wasReady = m_terminalReady;
     m_terminalReady = m_frame != nullptr;
     if (m_frame) {

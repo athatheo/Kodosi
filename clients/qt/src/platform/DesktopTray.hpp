@@ -12,7 +12,7 @@ class DesktopSettings;
 
 class DesktopTray final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool available READ available CONSTANT)
+    Q_PROPERTY(bool available READ available CONSTANT FINAL)
 public:
     explicit DesktopTray(DesktopSettings& settings, QObject* parent = nullptr);
     ~DesktopTray() override;

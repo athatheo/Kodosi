@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -13,7 +13,7 @@ KDialog {
     property string failure: ""
     property bool received: false
 
-    function ask(handle, name) {
+    function ask(handle: string, name: string): void {
         username = handle;
         fullName = name;
         failure = "";

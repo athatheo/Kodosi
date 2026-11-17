@@ -75,7 +75,7 @@ void AccessibilityScopeTest::scopesFilterNativeTreeWithoutOverwritingChildBindin
     QQmlComponent component(&engine);
     component.setData(R"(
         import QtQuick
-        import QtQuick.Controls
+        import QtQuick.Controls.Basic
         import Kodosi.Accessibility.Test
         ApplicationWindow {
             id: window

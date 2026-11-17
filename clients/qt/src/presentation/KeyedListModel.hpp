@@ -7,9 +7,9 @@ namespace kodosi {
 
 class KeyedListModel : public QAbstractListModel {
     Q_OBJECT
-    Q_PROPERTY(QString key READ key WRITE setKey NOTIFY keyChanged)
-    Q_PROPERTY(QVariantList values READ values WRITE setValues NOTIFY valuesChanged)
-    Q_PROPERTY(int count READ rowCount NOTIFY valuesChanged)
+    Q_PROPERTY(QString key READ key WRITE setKey NOTIFY keyChanged FINAL)
+    Q_PROPERTY(QVariantList values READ values WRITE setValues NOTIFY valuesChanged FINAL)
+    Q_PROPERTY(int count READ rowCount NOTIFY valuesChanged FINAL)
 public:
     using QAbstractListModel::QAbstractListModel;
 

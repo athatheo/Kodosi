@@ -10,11 +10,11 @@ class Workspace;
 
 class PeopleModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QVariantList friends READ friends NOTIFY changed)
-    Q_PROPERTY(QVariantList incoming READ incoming NOTIFY changed)
-    Q_PROPERTY(QVariantList outgoing READ outgoing NOTIFY changed)
-    Q_PROPERTY(QVariantList blocked READ blocked NOTIFY changed)
-    Q_PROPERTY(bool reporting READ reporting NOTIFY reportingChanged)
+    Q_PROPERTY(QVariantList friends READ friends NOTIFY changed FINAL)
+    Q_PROPERTY(QVariantList incoming READ incoming NOTIFY changed FINAL)
+    Q_PROPERTY(QVariantList outgoing READ outgoing NOTIFY changed FINAL)
+    Q_PROPERTY(QVariantList blocked READ blocked NOTIFY changed FINAL)
+    Q_PROPERTY(bool reporting READ reporting NOTIFY reportingChanged FINAL)
 
 public:
     explicit PeopleModel(Workspace& workspace);

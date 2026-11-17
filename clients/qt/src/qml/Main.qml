@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQml
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Shapes
 import Kodosi.Models 1.0 as Models
@@ -40,67 +40,67 @@ ApplicationWindow {
             : qsTr("This computer needs approval before it can share.");
     }
 
-    function openLauncher(projectId) {
+    function openLauncher(projectId: string): void {
         const stage = stageLoader.item as TerminalStage;
         if (!projectId && stage && stage.focusLauncher())
             return;
-        window.launcherSheet().openFor(projectId || "");
+        window.launcherSheet().openFor(projectId);
     }
-    function sessionDetails() {
+    function sessionDetails(): SessionDetails {
         detailsLoader.active = true;
         return detailsLoader.item as SessionDetails;
     }
-    function shareSheet() {
+    function shareSheet(): ShareSheet {
         shareLoader.active = true;
         return shareLoader.item as ShareSheet;
     }
-    function historyView() {
+    function historyView(): HistoryView {
         historyLoader.active = true;
         return historyLoader.item as HistoryView;
     }
-    function launcherSheet() {
+    function launcherSheet(): LauncherSheet {
         launcherLoader.active = true;
         return launcherLoader.item as LauncherSheet;
     }
-    function commandPalette() {
+    function commandPalette(): CommandPalette {
         paletteLoader.active = true;
         return paletteLoader.item as CommandPalette;
     }
-    function aboutDialog() {
+    function aboutDialog(): AboutDialog {
         aboutLoader.active = true;
         return aboutLoader.item as AboutDialog;
     }
-    function quitDialog() {
+    function quitDialog(): QuitDialog {
         quitLoader.active = true;
         return quitLoader.item as QuitDialog;
     }
-    function projectsView() {
+    function projectsView(): ProjectsView {
         projectsLoader.active = true;
         return projectsLoader.item as ProjectsView;
     }
-    function settingsView() {
+    function settingsView(): SettingsView {
         settingsLoader.active = true;
         return settingsLoader.item as SettingsView;
     }
-    function showDosiSettings() {
+    function showDosiSettings(): void {
         Models.DesktopState.activeView = Models.DesktopState.Settings;
         window.settingsView().section = 4;
     }
-    function openNewProject() {
+    function openNewProject(): void {
         Models.DesktopState.activeView = Models.DesktopState.Projects;
         window.projectsView().openCreate();
     }
-    function openTerminalBeside(direction) {
+    function openTerminalBeside(direction: string): void {
         const id = Models.TerminalTiling.neighbor(Models.DesktopState.selectedSessionId, direction);
         if (id.length > 0)
             Models.SessionActions.activate(id);
     }
-    function openNumberedTerminal(number) {
+    function openNumberedTerminal(number: int): void {
         const staged = Models.DesktopState.stagedSessionIds;
         if (staged.length > 0)
             Models.SessionActions.activate(staged[number === 9 ? staged.length - 1 : Math.min(number, staged.length) - 1]);
     }
-    function openAdjacentTerminal(offset) {
+    function openAdjacentTerminal(offset: int): void {
         const staged = Models.DesktopState.stagedSessionIds;
         if (staged.length === 0)
             return;
@@ -209,7 +209,7 @@ ApplicationWindow {
 
                 onDetailsRequested: sessionId => window.sessionDetails().openSession(sessionId)
                 onShareRequested: sessionId => window.shareSheet().openSession(sessionId)
-                onNewTerminalRequested: window.openLauncher()
+                onNewTerminalRequested: window.openLauncher("")
                 onResumeRequested: provider => window.historyView().openModal(provider)
                 onPaletteRequested: window.commandPalette().open()
                 onNewProjectRequested: window.openNewProject()
@@ -246,7 +246,7 @@ ApplicationWindow {
                         sourceComponent: TerminalStage {
                             interactionEnabled: !window.modalOpen
                             onInspectSessionRequested: id => window.sessionDetails().openSession(id)
-                            onResumeRequested: window.historyView().openModal()
+                            onResumeRequested: window.historyView().openModal("")
                             onShareSessionRequested: id => window.shareSheet().openSession(id)
                         }
                     }
@@ -437,7 +437,7 @@ ApplicationWindow {
         id: launcherLoader
         active: false
         sourceComponent: LauncherSheet {
-            onResumeRequested: window.historyView().openModal()
+            onResumeRequested: window.historyView().openModal("")
         }
     }
     Timer {
@@ -450,9 +450,9 @@ ApplicationWindow {
         id: paletteLoader
         active: false
         sourceComponent: CommandPalette {
-            onNewTerminalRequested: window.openLauncher()
+            onNewTerminalRequested: window.openLauncher("")
             onNewProjectRequested: window.openNewProject()
-            onResumeRequested: window.historyView().openModal()
+            onResumeRequested: window.historyView().openModal("")
         }
     }
     Loader {
@@ -465,7 +465,7 @@ ApplicationWindow {
         enabled: !window.modalOpen
         sequences: Models.Shortcuts.keys.newTerminal
 
-        onActivated: window.openLauncher()
+        onActivated: window.openLauncher("")
     }
     Shortcut {
         autoRepeat: false
@@ -491,7 +491,7 @@ ApplicationWindow {
         enabled: !window.modalOpen
         sequences: Models.Shortcuts.keys.resume
 
-        onActivated: window.historyView().openModal()
+        onActivated: window.historyView().openModal("")
     }
     Shortcut {
         enabled: !window.modalOpen
@@ -579,7 +579,7 @@ ApplicationWindow {
 
         onActivated: {
             const id = Models.DesktopState.selectedSessionId;
-            closeConfirmation.ask(id, Models.Sessions.presentationForSession(id).name);
+            closeConfirmation.ask(id, Models.Sessions.presentationForSession(id).name || "");
         }
     }
     Shortcut {

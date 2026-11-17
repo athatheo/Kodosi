@@ -56,8 +56,8 @@ private slots:
         kodosi::AppearanceModel appearance(
             std::make_unique<QSettings>(directory.filePath(QStringLiteral("appearance.ini")), QSettings::IniFormat),
             { [] { return Qt::ColorScheme::Light; }, [](Qt::ColorScheme) {}, [] {} });
-        kodosi::qml::AppearanceModelForeign::instance = &appearance;
         QQmlEngine engine;
+        kodosi::qml::provide<kodosi::qml::AppearanceModelForeign>(engine, appearance);
         QQmlComponent component(&engine);
         component.setData(R"(
             import QtQuick

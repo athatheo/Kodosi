@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Kodosi.Models 1.0 as Models
 
 AbstractButton {
@@ -17,7 +17,7 @@ AbstractButton {
     signal resumeRequested(string provider)
     signal startRequested
 
-    function start(agent, account) {
+    function start(agent: string, account: string): void {
         menu.dismiss()
         Models.DesktopSettings.lastComputer = ""
         Models.Launcher.chooseAgent(agent)

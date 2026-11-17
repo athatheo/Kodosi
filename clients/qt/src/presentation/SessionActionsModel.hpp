@@ -24,7 +24,7 @@ class Workspace;
 
 class SessionActionsModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
 
 public:
     SessionActionsModel(Workspace& workspace, SessionCatalogModel& sessions,

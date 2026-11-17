@@ -1,14 +1,14 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 KPopover {
     id: root
 
     signal resumeRequested
 
-    function openFor(projectId) {
-        launcher.projectId = projectId || ""
+    function openFor(projectId: string): void {
+        launcher.projectId = projectId
         open()
     }
 

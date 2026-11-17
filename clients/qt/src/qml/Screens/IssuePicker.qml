@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -29,7 +29,7 @@ ColumnLayout {
         return result
     }
 
-    function load() {
+    function load(): void {
         for (const repository of repositories)
             Models.Projects.act({ type: "issues", repositoryId: repository.id })
     }

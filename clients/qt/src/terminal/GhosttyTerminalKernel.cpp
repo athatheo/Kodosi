@@ -28,7 +28,7 @@ GhosttyTerminalKernel::Failure ghosttyFailure(QString operation, const GhosttyRe
 {
     return {
         GhosttyTerminalKernel::Failure::Code::GhosttyRejected,
-        QStringLiteral("%1 failed with Ghostty result %2.").arg(operation).arg(result),
+        QStringLiteral("%1 failed with Ghostty result %2.").arg(operation, QString::number(result)),
     };
 }
 
@@ -407,7 +407,71 @@ struct CapturedView {
     QVector<TerminalImagePlacement> images;
     std::optional<std::chrono::steady_clock::time_point> imageAnimationDue;
     bool mouseTracking = false;
+    std::optional<Qt::CursorShape> programPointer;
 };
+
+// A terminal starts with the text pointer, so it stands for a program that chose no pointer.
+std::optional<Qt::CursorShape> programPointer(const GhosttyMouseShape shape)
+{
+    switch (shape) {
+    case GHOSTTY_MOUSE_SHAPE_TEXT:
+        return std::nullopt;
+    case GHOSTTY_MOUSE_SHAPE_DEFAULT:
+    case GHOSTTY_MOUSE_SHAPE_CONTEXT_MENU:
+    case GHOSTTY_MOUSE_SHAPE_ZOOM_IN:
+    case GHOSTTY_MOUSE_SHAPE_ZOOM_OUT:
+    case GHOSTTY_MOUSE_SHAPE_MAX_VALUE:
+        return Qt::ArrowCursor;
+    case GHOSTTY_MOUSE_SHAPE_HELP:
+        return Qt::WhatsThisCursor;
+    case GHOSTTY_MOUSE_SHAPE_POINTER:
+        return Qt::PointingHandCursor;
+    case GHOSTTY_MOUSE_SHAPE_PROGRESS:
+        return Qt::BusyCursor;
+    case GHOSTTY_MOUSE_SHAPE_WAIT:
+        return Qt::WaitCursor;
+    case GHOSTTY_MOUSE_SHAPE_CELL:
+    case GHOSTTY_MOUSE_SHAPE_CROSSHAIR:
+        return Qt::CrossCursor;
+    case GHOSTTY_MOUSE_SHAPE_VERTICAL_TEXT:
+        return Qt::IBeamCursor;
+    case GHOSTTY_MOUSE_SHAPE_ALIAS:
+        return Qt::DragLinkCursor;
+    case GHOSTTY_MOUSE_SHAPE_COPY:
+        return Qt::DragCopyCursor;
+    case GHOSTTY_MOUSE_SHAPE_MOVE:
+    case GHOSTTY_MOUSE_SHAPE_ALL_SCROLL:
+        return Qt::SizeAllCursor;
+    case GHOSTTY_MOUSE_SHAPE_NO_DROP:
+    case GHOSTTY_MOUSE_SHAPE_NOT_ALLOWED:
+        return Qt::ForbiddenCursor;
+    case GHOSTTY_MOUSE_SHAPE_GRAB:
+        return Qt::OpenHandCursor;
+    case GHOSTTY_MOUSE_SHAPE_GRABBING:
+        return Qt::ClosedHandCursor;
+    case GHOSTTY_MOUSE_SHAPE_COL_RESIZE:
+        return Qt::SplitHCursor;
+    case GHOSTTY_MOUSE_SHAPE_ROW_RESIZE:
+        return Qt::SplitVCursor;
+    case GHOSTTY_MOUSE_SHAPE_N_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_S_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_NS_RESIZE:
+        return Qt::SizeVerCursor;
+    case GHOSTTY_MOUSE_SHAPE_E_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_W_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_EW_RESIZE:
+        return Qt::SizeHorCursor;
+    case GHOSTTY_MOUSE_SHAPE_NE_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_SW_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_NESW_RESIZE:
+        return Qt::SizeBDiagCursor;
+    case GHOSTTY_MOUSE_SHAPE_NW_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_SE_RESIZE:
+    case GHOSTTY_MOUSE_SHAPE_NWSE_RESIZE:
+        return Qt::SizeFDiagCursor;
+    }
+    return Qt::ArrowCursor;
+}
 
 using ViewCapture = std::expected<CapturedView, GhosttyTerminalKernel::Failure>;
 
@@ -458,7 +522,21 @@ ViewCapture captureView(
     if (result != GHOSTTY_SUCCESS) {
         return std::unexpected(ghosttyFailure(QStringLiteral("terminal mouse tracking"), result));
     }
-    return CapturedView {scrollbar, images.capture(terminal, renderState), std::nullopt, mouseTracking};
+    GhosttyMouseShape mouseShape = GHOSTTY_MOUSE_SHAPE_TEXT;
+    result = ghostty_terminal_get(
+        terminal,
+        GHOSTTY_TERMINAL_DATA_MOUSE_SHAPE,
+        &mouseShape);
+    if (result != GHOSTTY_SUCCESS) {
+        return std::unexpected(ghosttyFailure(QStringLiteral("terminal mouse shape"), result));
+    }
+    return CapturedView {
+        scrollbar,
+        images.capture(terminal, renderState),
+        std::nullopt,
+        mouseTracking,
+        programPointer(mouseShape),
+    };
 }
 
 FrameResult buildFrame(
@@ -525,6 +603,7 @@ FrameResult buildFrame(
     frame->images = view.images;
     frame->imageAnimationDue = view.imageAnimationDue;
     frame->mouseTracking = view.mouseTracking;
+    frame->programPointer = view.programPointer;
     frame->cells.reserve(static_cast<qsizetype>(cellCount));
     frame->wrappedRows.reserve(rows);
 

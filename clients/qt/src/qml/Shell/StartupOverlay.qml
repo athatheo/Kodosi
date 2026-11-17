@@ -1,6 +1,6 @@
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -10,7 +10,7 @@ KPopover {
     readonly property bool failed: Models.ApplicationLifecycle.state === Models.ApplicationLifecycle.Failed
     readonly property bool outdated: failed && Models.ApplicationLifecycle.hostOutdated
 
-    function restorePrimaryFocus() {
+    function restorePrimaryFocus(): void {
         if (!visible)
             return;
         if (failed)

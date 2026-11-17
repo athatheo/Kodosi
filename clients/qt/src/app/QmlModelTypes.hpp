@@ -26,24 +26,15 @@
 #include "platform/DesktopTray.hpp"
 #include "terminal/TerminalSurfaceController.hpp"
 #include "terminal/TerminalView.hpp"
-#include <QJSEngine>
 #include <QQmlEngine>
 #include <QtQml/qqmlregistration.h>
 namespace kodosi::qml {
-template <typename T> T* singleton(T* instance, QQmlEngine* engine)
-{
-    Q_ASSERT(instance && engine && instance->thread() == engine->thread());
-    QQmlEngine::setObjectOwnership(instance, QQmlEngine::CppOwnership);
-    return instance;
-}
 struct AppStateForeign {
     Q_GADGET
     QML_FOREIGN(kodosi::Workspace)
     QML_NAMED_ELEMENT(AppState)
     QML_SINGLETON
-public:
-    inline static kodosi::Workspace* instance = nullptr;
-    static kodosi::Workspace* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct AccountModelForeign {
@@ -51,9 +42,7 @@ struct AccountModelForeign {
     QML_FOREIGN(kodosi::AccountModel)
     QML_NAMED_ELEMENT(Account)
     QML_SINGLETON
-public:
-    inline static kodosi::AccountModel* instance = nullptr;
-    static kodosi::AccountModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct PeopleModelForeign {
@@ -61,9 +50,7 @@ struct PeopleModelForeign {
     QML_FOREIGN(kodosi::PeopleModel)
     QML_NAMED_ELEMENT(People)
     QML_SINGLETON
-public:
-    inline static kodosi::PeopleModel* instance = nullptr;
-    static kodosi::PeopleModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DevicesModelForeign {
@@ -71,9 +58,7 @@ struct DevicesModelForeign {
     QML_FOREIGN(kodosi::DevicesModel)
     QML_NAMED_ELEMENT(Devices)
     QML_SINGLETON
-public:
-    inline static kodosi::DevicesModel* instance = nullptr;
-    static kodosi::DevicesModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct ProjectsModelForeign {
@@ -81,9 +66,7 @@ struct ProjectsModelForeign {
     QML_FOREIGN(kodosi::ProjectsModel)
     QML_NAMED_ELEMENT(Projects)
     QML_SINGLETON
-public:
-    inline static kodosi::ProjectsModel* instance = nullptr;
-    static kodosi::ProjectsModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DosiModelForeign {
@@ -91,9 +74,7 @@ struct DosiModelForeign {
     QML_FOREIGN(kodosi::DosiModel)
     QML_NAMED_ELEMENT(Dosi)
     QML_SINGLETON
-public:
-    inline static kodosi::DosiModel* instance = nullptr;
-    static kodosi::DosiModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct SessionActionsModelForeign {
@@ -101,9 +82,7 @@ struct SessionActionsModelForeign {
     QML_FOREIGN(kodosi::SessionActionsModel)
     QML_NAMED_ELEMENT(SessionActions)
     QML_SINGLETON
-public:
-    inline static kodosi::SessionActionsModel* instance = nullptr;
-    static kodosi::SessionActionsModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct ConversationHistoryModelForeign {
@@ -111,9 +90,7 @@ struct ConversationHistoryModelForeign {
     QML_FOREIGN(kodosi::ConversationHistoryModel)
     QML_NAMED_ELEMENT(ConversationHistory)
     QML_SINGLETON
-public:
-    inline static kodosi::ConversationHistoryModel* instance = nullptr;
-    static kodosi::ConversationHistoryModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct ProviderFilesModelForeign {
@@ -121,9 +98,7 @@ struct ProviderFilesModelForeign {
     QML_FOREIGN(kodosi::ProviderFilesModel)
     QML_NAMED_ELEMENT(ProviderFiles)
     QML_SINGLETON
-public:
-    inline static kodosi::ProviderFilesModel* instance = nullptr;
-    static kodosi::ProviderFilesModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct AgentLauncherModelForeign {
@@ -131,9 +106,7 @@ struct AgentLauncherModelForeign {
     QML_FOREIGN(kodosi::AgentLauncherModel)
     QML_NAMED_ELEMENT(Launcher)
     QML_SINGLETON
-public:
-    inline static kodosi::AgentLauncherModel* instance = nullptr;
-    static kodosi::AgentLauncherModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct AppearanceModelForeign {
@@ -141,9 +114,7 @@ struct AppearanceModelForeign {
     QML_FOREIGN(kodosi::AppearanceModel)
     QML_NAMED_ELEMENT(Appearance)
     QML_SINGLETON
-public:
-    inline static kodosi::AppearanceModel* instance = nullptr;
-    static kodosi::AppearanceModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DesktopSettingsForeign {
@@ -151,9 +122,7 @@ struct DesktopSettingsForeign {
     QML_FOREIGN(kodosi::DesktopSettings)
     QML_NAMED_ELEMENT(DesktopSettings)
     QML_SINGLETON
-public:
-    inline static kodosi::DesktopSettings* instance = nullptr;
-    static kodosi::DesktopSettings* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DesktopStateModelForeign {
@@ -161,9 +130,7 @@ struct DesktopStateModelForeign {
     QML_FOREIGN(kodosi::DesktopStateModel)
     QML_NAMED_ELEMENT(DesktopState)
     QML_SINGLETON
-public:
-    inline static kodosi::DesktopStateModel* instance = nullptr;
-    static kodosi::DesktopStateModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct SessionCatalogModelForeign {
@@ -171,9 +138,7 @@ struct SessionCatalogModelForeign {
     QML_FOREIGN(kodosi::SessionCatalogModel)
     QML_NAMED_ELEMENT(Sessions)
     QML_SINGLETON
-public:
-    inline static kodosi::SessionCatalogModel* instance = nullptr;
-    static kodosi::SessionCatalogModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct ShortcutsModelForeign {
@@ -181,9 +146,7 @@ struct ShortcutsModelForeign {
     QML_FOREIGN(kodosi::ShortcutsModel)
     QML_NAMED_ELEMENT(Shortcuts)
     QML_SINGLETON
-public:
-    inline static kodosi::ShortcutsModel* instance = nullptr;
-    static kodosi::ShortcutsModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct TerminalTilingLayoutModelForeign {
@@ -191,9 +154,7 @@ struct TerminalTilingLayoutModelForeign {
     QML_FOREIGN(kodosi::TerminalTilingLayoutModel)
     QML_NAMED_ELEMENT(TerminalTiling)
     QML_SINGLETON
-public:
-    inline static kodosi::TerminalTilingLayoutModel* instance = nullptr;
-    static kodosi::TerminalTilingLayoutModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DesktopFileIntegrationForeign {
@@ -201,9 +162,7 @@ struct DesktopFileIntegrationForeign {
     QML_FOREIGN(kodosi::DesktopFileIntegration)
     QML_NAMED_ELEMENT(DesktopFiles)
     QML_SINGLETON
-public:
-    inline static kodosi::DesktopFileIntegration* instance = nullptr;
-    static kodosi::DesktopFileIntegration* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct DesktopTrayForeign {
@@ -211,9 +170,7 @@ struct DesktopTrayForeign {
     QML_FOREIGN(kodosi::DesktopTray)
     QML_NAMED_ELEMENT(Tray)
     QML_SINGLETON
-public:
-    inline static kodosi::DesktopTray* instance = nullptr;
-    static kodosi::DesktopTray* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct ApplicationLifecycleModelForeign {
@@ -221,9 +178,7 @@ struct ApplicationLifecycleModelForeign {
     QML_FOREIGN(kodosi::ApplicationLifecycleModel)
     QML_NAMED_ELEMENT(ApplicationLifecycle)
     QML_SINGLETON
-public:
-    inline static kodosi::ApplicationLifecycleModel* instance = nullptr;
-    static kodosi::ApplicationLifecycleModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct TerminalSurfaceControllerForeign {
@@ -231,9 +186,7 @@ struct TerminalSurfaceControllerForeign {
     QML_FOREIGN(kodosi::TerminalSurfaceController)
     QML_NAMED_ELEMENT(TerminalSurfaces)
     QML_SINGLETON
-public:
-    inline static kodosi::TerminalSurfaceController* instance = nullptr;
-    static kodosi::TerminalSurfaceController* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct CanvasModelForeign {
@@ -241,9 +194,7 @@ struct CanvasModelForeign {
     QML_FOREIGN(kodosi::CanvasModel)
     QML_NAMED_ELEMENT(Canvas)
     QML_SINGLETON
-public:
-    inline static kodosi::CanvasModel* instance = nullptr;
-    static kodosi::CanvasModel* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct CanvasDocumentsForeign {
@@ -251,9 +202,7 @@ struct CanvasDocumentsForeign {
     QML_FOREIGN(kodosi::CanvasDocuments)
     QML_NAMED_ELEMENT(CanvasDocuments)
     QML_SINGLETON
-public:
-    inline static kodosi::CanvasDocuments* instance = nullptr;
-    static kodosi::CanvasDocuments* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct CanvasWebForeign {
@@ -261,9 +210,7 @@ struct CanvasWebForeign {
     QML_FOREIGN(kodosi::CanvasWeb)
     QML_NAMED_ELEMENT(CanvasWeb)
     QML_SINGLETON
-public:
-    inline static kodosi::CanvasWeb* instance = nullptr;
-    static kodosi::CanvasWeb* create(QQmlEngine* engine, QJSEngine*) { return singleton(instance, engine); }
+    QML_UNCREATABLE("Kodosi provides it.")
 };
 
 struct BrowserVideoForeign {
@@ -289,7 +236,14 @@ struct KeyedListModelForeign {
     QML_FOREIGN(kodosi::KeyedListModel)
     QML_NAMED_ELEMENT(KeyedList)
 };
-void configureModelInstances(Workspace&, ConversationHistoryModel&, ProviderFilesModel&,
+template <typename Foreign> void provide(QQmlEngine& engine, QObject& instance)
+{
+    const auto& type = Foreign::staticMetaObject;
+    engine.setExternalSingletonInstance(
+        "Kodosi.Models", type.classInfo(type.indexOfClassInfo("QML.Element")).value(), &instance);
+}
+
+void provideModels(QQmlEngine&, Workspace&, ConversationHistoryModel&, ProviderFilesModel&,
     AgentLauncherModel&, AppearanceModel&, DesktopSettings&,
     DesktopStateModel&, SessionCatalogModel&, TerminalTilingLayoutModel&, DesktopFileIntegration&,
     ApplicationLifecycleModel&, TerminalSurfaceController&, DesktopTray&, CanvasModel&, CanvasDocuments&,
