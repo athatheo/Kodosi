@@ -29,7 +29,7 @@ cd "$(dirname "$0")/.."
 VENDOR_ROOT=${VENDOR_ROOT:-Vendor}
 RENDERER="$VENDOR_ROOT/GhosttyKit.xcframework"
 VT="$VENDOR_ROOT/GhosttyVt/macos-arm64"
-MACOS_MINIMUM=13.0
+MACOS_MINIMUM=$(./scripts/native-build-options.sh minimum macos-arm64)
 APPLE_SLICES=$(./scripts/native-build-options.sh slices)
 SLICES=()
 IOS_SLICES=()
@@ -39,14 +39,7 @@ while IFS= read -r slice; do
 done <<<"$APPLE_SLICES"
 
 ios_slice_values() {
-    local target
-    target=$(./scripts/native-build-options.sh target "$1")
-    if [[ "$target" != aarch64-ios.* ]]; then
-        echo "[!] unexpected iOS target for $1: $target"
-        exit 1
-    fi
-    SLICE_MINIMUM=${target#aarch64-ios.}
-    SLICE_MINIMUM=${SLICE_MINIMUM%-simulator}
+    SLICE_MINIMUM=$(./scripts/native-build-options.sh minimum "$1")
     case "$1" in
         *-simulator)
             SLICE_PLATFORM=7
