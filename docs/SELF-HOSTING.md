@@ -54,14 +54,18 @@ URL, each HTTPS (or loopback HTTP) without a query.
 ## Account deletion
 
 With Keycloak, the backend follows account deletions in Keycloak's events. Give it a
-confidential client with only a service account and the `realm-management` role
-`view-events`:
+confidential client with only a service account, the `realm-management` role
+`view-events` and the client scope `kc-admin-api`, and set:
 
 | Variable | Value |
 | --- | --- |
 | `Auth__AccountDeletion__ClientId` | Client ID |
 | `Auth__AccountDeletion__ClientSecret` | Client secret |
 | `Auth__AccountDeletion__AdminUrl` | Optional Keycloak admin address (HTTPS or loopback HTTP) when the public one refuses `/admin` |
+
+The backend asks for `kc-admin-api`, because Keycloak's Admin API accepts only tokens that
+carry it. Keycloak adds this scope to each realm when it upgrades to 26.8.2: give it to the
+client then, before you upgrade the backend.
 
 ## Push notifications
 

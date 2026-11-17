@@ -192,6 +192,13 @@ calm kc create clients -r $realm -s clientId=kodosi-app -s name=Kodosi -s public
   -s 'defaultClientScopes=["basic","profile"]' -s 'optionalClientScopes=["offline_access"]' \
   -s 'protocolMappers=[{"name":"kodosi-app audience","protocol":"openid-connect","protocolMapper":"oidc-audience-mapper","config":{"included.client.audience":"kodosi-app","id.token.claim":"false","access.token.claim":"true","introspection.token.claim":"true"}}]'
 
+backend_secret=$(openssl rand -hex 16)
+calm kc create clients -r $realm -s clientId=kodosi-backend -s publicClient=false \
+  -s serviceAccountsEnabled=true -s standardFlowEnabled=false -s directAccessGrantsEnabled=false \
+  -s "secret=$backend_secret" -s 'optionalClientScopes=["kc-admin-api"]'
+calm kc add-roles -r $realm --uusername service-account-kodosi-backend --cclientid realm-management \
+  --rolename view-events
+
 # A built-in flow takes no new step, so the realm uses copies. A copy loses the place of the terms
 # step after the step that makes the account.
 calm kc create authentication/flows/registration/copy -r $realm -b '{"newName":"registration with check"}'
@@ -284,3 +291,4 @@ echo "The account page: http://localhost:$port/realms/$realm/account"
 echo "A device sign-in: ./keycloak.sh code"
 echo "The mailbox:      http://localhost:$mailbox_port"
 echo "The people and their passwords: sign-in/$people"
+echo "The backend's client for account deletions: kodosi-backend, secret $backend_secret"
