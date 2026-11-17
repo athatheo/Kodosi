@@ -16,8 +16,9 @@ if ! command -v zig >/dev/null 2>&1; then
 fi
 
 rm -rf "$SOURCE_DIR/zig-pkg"
-# A --system build crashes on a global cache that holds package archives, so
-# the fetch keeps its own cache apart from the build cache.
+# Zig 0.17 can crash a --system build whose global cache holds package
+# archives, and a build cache without them proves that the build used only
+# the store, so the fetch keeps its own cache apart from the build cache.
 FETCH_CACHE_DIR="$PWD/build/cache/zig-fetch"
 (
     cd "$SOURCE_DIR"
