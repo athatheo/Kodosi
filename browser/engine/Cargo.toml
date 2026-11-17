@@ -33,8 +33,8 @@ objc2 = "0.6.5"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSEvent", "NSResponder", "NSRunningApplication"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-openh264 = "0.9.9"
-openh264-sys2 = "0.9.9"
+openh264 = "0.9.10"
+openh264-sys2 = "0.9.10"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2.191"
