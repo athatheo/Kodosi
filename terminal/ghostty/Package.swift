@@ -1,6 +1,15 @@
 // swift-tools-version: 6.3
 import PackageDescription
 
+let swiftSettings: [SwiftSetting] = [
+    .swiftLanguageMode(.v6),
+    .enableUpcomingFeature("MemberImportVisibility"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("ImmutableWeakCaptures"),
+]
+
 let package = Package(
     name: "KodosiGhostty",
     platforms: [
@@ -29,7 +38,8 @@ let package = Package(
         .target(
             name: "GhosttyTerminal",
             dependencies: ["GhosttyKit"],
-            path: "Sources/GhosttyTerminal"
+            path: "Sources/GhosttyTerminal",
+            swiftSettings: swiftSettings
         ),
         .binaryTarget(
             name: "libghostty",
@@ -43,7 +53,8 @@ let package = Package(
                 .copy("Resources/visible-image-checkpoint.snapshot"),
                 .copy("Resources/mouse-capture-checkpoint.snapshot"),
                 .copy("Resources/mouse-release-checkpoint.snapshot"),
-            ]
+            ],
+            swiftSettings: swiftSettings
         ),
     ]
 )

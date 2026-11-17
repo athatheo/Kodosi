@@ -17,7 +17,7 @@ struct TerminalSurfaceCoordinatorTests {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
         let controller = TerminalController()
         let coordinator = TerminalSurfaceCoordinator()
-        let collector = ViewportCollector()
+        let collector = LockedValues<InMemoryTerminalViewport>()
         let session: InMemoryTerminalSession
         var size = (width: 640.0, height: 480.0)
 
