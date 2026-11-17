@@ -91,23 +91,24 @@ impl Memory {
 
     /// An open document keeps what it takes in its journal, so what it kept when it closed before
     /// could only mislead.
-    pub(crate) fn forget(&self, path: &Path) {
+    pub(crate) fn forget(&self, path: &Path) -> io::Result<()> {
         let _held = self.held();
         let mut closed = self.read();
         let known = closed.documents.len();
         closed.documents.retain(|closed| closed.path != path);
         if closed.documents.len() < known {
-            self.write(&closed);
+            self.write(&closed)?;
         }
+        Ok(())
     }
 
-    pub(crate) fn keep(&self, path: &Path, clients: HashMap<String, Remembered>) {
+    pub(crate) fn keep(&self, path: &Path, clients: HashMap<String, Remembered>) -> io::Result<()> {
         let _held = self.held();
         let mut closed = self.read();
         let known = closed.documents.len();
         closed.documents.retain(|closed| closed.path != path);
         if clients.is_empty() && closed.documents.len() == known {
-            return;
+            return Ok(());
         }
         if !clients.is_empty() {
             closed.documents.push(ClosedDocument {
@@ -117,7 +118,7 @@ impl Memory {
         }
         let forgotten = closed.documents.len().saturating_sub(MOST_DOCUMENTS);
         closed.documents.drain(..forgotten);
-        self.write(&closed);
+        self.write(&closed)
     }
 
     fn held(&self) -> MutexGuard<'_, ()> {
@@ -131,16 +132,10 @@ impl Memory {
             .unwrap_or_default()
     }
 
-    fn write(&self, closed: &Closed) {
-        let written = serde_json::to_vec(closed)
-            .map_err(io::Error::from)
-            .and_then(|bytes| {
-                private_folder(&self.folder)?;
-                write_replacing(&self.folder.join(FILE), &bytes)
-            });
-        if let Err(problem) = written {
-            tracing::warn!(%problem, "documents forget what they took of each client");
-        }
+    fn write(&self, closed: &Closed) -> io::Result<()> {
+        let bytes = serde_json::to_vec(closed)?;
+        private_folder(&self.folder)?;
+        write_replacing(&self.folder.join(FILE), &bytes)
     }
 }
 
@@ -175,15 +170,15 @@ mod tests {
         let path = |number: usize| PathBuf::from(format!("/files/{number}.docx"));
         let ana = |seq: Seq| HashMap::from([("ana".to_owned(), Remembered { seq, quiet: 0 })]);
         for number in 0..=MOST_DOCUMENTS {
-            memory.keep(&path(number), ana(1));
+            memory.keep(&path(number), ana(1)).unwrap();
         }
-        memory.keep(&path(1), ana(2));
+        memory.keep(&path(1), ana(2)).unwrap();
         assert!(memory.recall(&path(0)).is_empty());
         assert_eq!(memory.recall(&path(1)), ana(2));
-        memory.keep(&path(MOST_DOCUMENTS + 1), ana(1));
+        memory.keep(&path(MOST_DOCUMENTS + 1), ana(1)).unwrap();
         assert_eq!(memory.recall(&path(1)), ana(2));
         assert!(memory.recall(&path(2)).is_empty());
-        memory.forget(&path(1));
+        memory.forget(&path(1)).unwrap();
         assert!(memory.recall(&path(1)).is_empty());
     }
 }

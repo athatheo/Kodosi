@@ -269,6 +269,25 @@ fn after_a_journal_that_cannot_be_used_the_document_knows_no_client_from_before(
     });
 }
 
+#[test]
+fn a_close_that_cannot_keep_what_the_document_took_keeps_the_journal() {
+    let folder = tempfile::tempdir().unwrap();
+    let state = folder.path().join("state");
+    let file = folder.path().join("a.notes");
+    std::fs::write(&file, "{}").unwrap();
+    std::fs::create_dir_all(state.join("taken.json")).unwrap();
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let documents = Documents::new(&state, formats());
+        let mut ana = joined(&documents, &file, "ana").await;
+        change(&ana, 1, 0, "a1", "x").await;
+        assert!(matches!(message(&mut ana).await, ToClient::Changed(_)));
+        documents.close().await;
+        let documents = Documents::new(&state, formats());
+        assert_eq!(seq_of_ana(&documents, &file).await, Some(1));
+        documents.close().await;
+    });
+}
+
 fn a1_comes_back(state: &Path, file: &Path) {
     assert_eq!(file_value(file, "a1"), None);
     let restarted = tokio::runtime::Runtime::new().unwrap();

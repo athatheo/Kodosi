@@ -153,7 +153,7 @@ fn open_or_restore(
         let journaled = (hash_of(disk) != known).then(|| original.clone());
         match format.restore(original, restored, &records) {
             Ok(document) => {
-                memory.forget(path);
+                memory.forget(path)?;
                 return Ok((document, journal, journaled, HashMap::new()));
             }
             Err(problem) => {
@@ -167,7 +167,7 @@ fn open_or_restore(
     let seqs = memory::seqs_of(&remembered);
     let document = format.open(disk.to_vec(), epoch, seqs.clone())?;
     let journal = Journal::start(folder, path, disk, epoch, 0, seqs)?;
-    memory.forget(path);
+    memory.forget(path)?;
     Ok((document, journal, None, remembered))
 }
 
@@ -479,8 +479,12 @@ impl Task {
         self.send_all(effects);
         if saved {
             let clients = memory::remembered(&self.remembered, self.document.seqs());
-            self.memory.keep(&self.path, clients);
-            self.journal.remove();
+            match self.memory.keep(&self.path, clients) {
+                Ok(()) => self.journal.remove(),
+                Err(problem) => {
+                    tracing::warn!(%problem, "the journal stays, as only it knows what the document took");
+                }
+            }
         }
     }
 }
