@@ -20,15 +20,9 @@ impl ProjectCache {
             .ok_or_else(|| Error::Text(text!("Project keys are missing.")))?
             .1
             .state;
-        if state.owner_user_id == credentials.user_id
-            && state.members.keys().eq([&credentials.user_id])
-        {
-            Ok(())
-        } else {
-            Err(invalid(
-                "The server offered Dosi a project that is not yours alone.",
-            ))
-        }
+        (state.owner_user_id == credentials.user_id
+            && state.members.keys().eq([&credentials.user_id]))
+        .ok_or_else(|| invalid("The server offered Dosi a project that is not yours alone."))
     }
 
     fn dosi_devices(&self, credentials: &Credentials, project: Uuid) -> BTreeSet<String> {

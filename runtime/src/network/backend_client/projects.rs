@@ -117,11 +117,7 @@ impl CachedProject {
 
 impl ProjectCache {
     fn current(&self, credentials: &Credentials) -> Result<()> {
-        if self.generation == credentials.generation {
-            Ok(())
-        } else {
-            Err(Error::Stale)
-        }
+        (self.generation == credentials.generation).ok_or(Error::Stale)
     }
 
     fn sequence(&self, credentials: &Credentials, project: Uuid) -> Result<Option<u64>> {

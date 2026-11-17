@@ -1083,13 +1083,8 @@ impl Runtime {
     }
 
     fn require_owner(&self, id: Uuid) -> Result<()> {
-        if self.hosts(&id) || self.remotes.get(&id).is_some_and(|entry| entry.is_owner) {
-            Ok(())
-        } else {
-            Err(Error::Refused(text!(
-                "Only the owner can change this terminal."
-            )))
-        }
+        (self.hosts(&id) || self.remotes.get(&id).is_some_and(|entry| entry.is_owner))
+            .ok_or_else(|| Error::Refused(text!("Only the owner can change this terminal.")))
     }
 
     #[cfg(feature = "host")]
@@ -1288,11 +1283,7 @@ impl Runtime {
     }
 
     pub(super) fn reachable(&self, id: Uuid) -> Result<()> {
-        if self.host_online(id) {
-            Ok(())
-        } else {
-            Err(self.offline(id))
-        }
+        self.host_online(id).ok_or_else(|| self.offline(id))
     }
 
     fn offline(&self, id: Uuid) -> Error {

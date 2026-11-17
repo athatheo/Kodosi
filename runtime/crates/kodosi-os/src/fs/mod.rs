@@ -17,7 +17,7 @@ pub fn home_dir() -> io::Result<PathBuf> {
     // std gives an empty HOME as it is, and an empty path would put the data root in the
     // working folder.
     std::env::home_dir()
-        .filter(|home| !home.as_os_str().is_empty())
+        .filter(|home| !home.is_empty())
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "cannot find the home folder"))
 }
 

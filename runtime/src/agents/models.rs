@@ -241,7 +241,7 @@ pub(super) fn copilot(config: Option<&str>) -> Vec<AgentModel> {
         .skip(1)
         .map(str::trim)
         .take_while(|line| line.starts_with("- \""))
-        .filter_map(|line| line.strip_prefix("- \"")?.strip_suffix('"'))
+        .filter_map(|line| line.strip_circumfix("- \"", '"'))
         .take(MAX_MODELS)
         .filter_map(|id| model(id, id, Agent::Copilot, Vec::new()))
         .collect()

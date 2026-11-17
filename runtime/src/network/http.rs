@@ -363,13 +363,8 @@ async fn decode<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
 }
 
 pub(crate) fn supported(own: u32, oldest: u64, current: u64) -> Result<()> {
-    if u64::from(own) < oldest {
-        Err(Error::UpdateRequired)
-    } else if u64::from(own) > current {
-        Err(Error::ServerOutdated)
-    } else {
-        Ok(())
-    }
+    (u64::from(own) >= oldest).ok_or(Error::UpdateRequired)?;
+    (u64::from(own) <= current).ok_or(Error::ServerOutdated)
 }
 
 fn backend_message(status: u16, body: &Value) -> Text {
