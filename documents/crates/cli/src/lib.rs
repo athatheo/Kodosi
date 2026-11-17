@@ -410,7 +410,12 @@ impl Seat {
         let seq = self.seq;
         send(&self.pipe, &ToDocument::Change { seq, base, body }).await?;
         loop {
-            match message(&mut self.pipe).await? {
+            let answer = message(&mut self.pipe).await.map_err(|failed| {
+                Failed::Says(format!(
+                    "{failed} The change may have gone in. Read again before you send it again."
+                ))
+            })?;
+            match answer {
                 ToClient::Changed(changed)
                     if changed.client == self.client && changed.seq == seq =>
                 {
