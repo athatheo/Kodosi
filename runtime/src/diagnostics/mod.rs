@@ -97,10 +97,7 @@ impl Log {
         let time = time::UtcDateTime::now()
             .format(&Rfc3339)
             .unwrap_or_default();
-        let mut end = body.len().min(MAX_RECORD_BYTES);
-        while !body.is_char_boundary(end) {
-            end -= 1;
-        }
+        let end = body.floor_char_boundary(MAX_RECORD_BYTES);
         let mut safe = redact::redact(&body[..end], &self.home);
         if end < body.len() {
             safe.push_str(" [TRUNCATED]");

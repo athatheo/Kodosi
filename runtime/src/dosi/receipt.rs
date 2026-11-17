@@ -117,11 +117,7 @@ fn short(text: &str) -> String {
     if line.len() <= MAX_TEXT && !text.trim().contains('\n') {
         return line.to_owned();
     }
-    let mut end = MAX_TEXT.min(line.len());
-    while !line.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}…", &line[..end])
+    format!("{}…", &line[..line.floor_char_boundary(MAX_TEXT)])
 }
 
 pub(super) fn command_receipt(command: &str, description: Option<String>) -> Shown {

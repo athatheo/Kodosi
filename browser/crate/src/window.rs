@@ -1316,11 +1316,7 @@ fn fitted(size: Size) -> Option<Size> {
 }
 
 fn cut(text: &str, most: usize) -> String {
-    let mut end = text.len().min(most);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    text[..end].to_owned()
+    text[..text.floor_char_boundary(most)].to_owned()
 }
 
 /// A page names the file, so only its last part counts, and an equal name gets a number.

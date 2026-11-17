@@ -65,11 +65,7 @@ pub(super) fn clip(text: &str, bytes: usize) -> String {
     if text.len() <= bytes {
         return text.to_owned();
     }
-    let mut end = bytes;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}…", &text[..end])
+    format!("{}…", &text[..text.floor_char_boundary(bytes)])
 }
 
 impl Conversation {

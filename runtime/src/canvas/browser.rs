@@ -627,11 +627,7 @@ async fn follow(browser: Weak<Browser>, window: Window, closed: CancellationToke
 }
 
 fn cut(text: &str, most: usize) -> String {
-    let mut end = text.len().min(most);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    text[..end].to_owned()
+    text[..text.floor_char_boundary(most)].to_owned()
 }
 
 /// `--all` with `close` would close the browsers of the other terminals.
