@@ -84,6 +84,38 @@ struct TerminalLinkHoverTests {
         #expect(try await pointer(of: view, becomes: .iBeam))
     }
 
+    @Test
+    func `a restored view shows the arrow over a program that captures the mouse`() async throws {
+        let captured = try checkpoint("mouse-capture-checkpoint")
+        let released = try checkpoint("mouse-release-checkpoint")
+        let session = InMemoryTerminalSession(write: { _ in }, resize: { _ in })
+        let view = AppTerminalView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
+        let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        view.controller = TerminalController()
+        view.configuration = .init(session: session)
+        window.contentView = view
+        defer {
+            view.tearDownSurface()
+            window.contentView = nil
+        }
+        _ = try #require(view.surface)
+
+        #expect(session.restoreCheckpointSynchronously(captured, console: false))
+        #expect(try await pointer(of: view, becomes: .arrow))
+        #expect(session.receive(Data("\u{1B}[?1003l".utf8)))
+        session.waitForPendingOutput()
+        #expect(try await pointer(of: view, becomes: .iBeam))
+
+        #expect(session.restoreCheckpointSynchronously(captured, console: false))
+        #expect(try await pointer(of: view, becomes: .arrow))
+        #expect(session.restoreCheckpointSynchronously(released, console: false))
+        #expect(try await pointer(of: view, becomes: .iBeam))
+    }
+
+    private func checkpoint(_ name: String) throws -> Data {
+        try Data(contentsOf: #require(Bundle.module.url(forResource: name, withExtension: "snapshot")))
+    }
+
     private func pointer(of view: AppTerminalView, becomes cursor: NSCursor) async throws -> Bool {
         for _ in 0 ..< 100 where view.pointer != cursor {
             try await Task.sleep(for: .milliseconds(20))

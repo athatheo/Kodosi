@@ -41,6 +41,8 @@ let package = Package(
             resources: [
                 .copy("Resources/visual-checkpoint.snapshot"),
                 .copy("Resources/visible-image-checkpoint.snapshot"),
+                .copy("Resources/mouse-capture-checkpoint.snapshot"),
+                .copy("Resources/mouse-release-checkpoint.snapshot"),
             ]
         ),
     ]
