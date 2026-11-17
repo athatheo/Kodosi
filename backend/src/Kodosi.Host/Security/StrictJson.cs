@@ -13,6 +13,7 @@ internal static class StrictJson
         options.RespectNullableAnnotations = true;
         options.RespectRequiredConstructorParameters = true;
         options.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
+        options.AllowDuplicateProperties = false;
         options.MaxDepth = 32;
         return options;
     }

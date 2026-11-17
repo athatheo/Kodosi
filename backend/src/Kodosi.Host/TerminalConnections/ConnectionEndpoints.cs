@@ -86,7 +86,7 @@ internal static partial class ConnectionEndpoints
     private static async Task<(string DeviceId, string? Session, bool Hosts)> HelloAsync(WebSocket socket, MessageReader reader, CancellationToken ct)
     {
         if (await reader.ReadAsync(ControlBytes, ct) != WebSocketMessageType.Text) throw ApiException.Invalid("Expected device connection hello.");
-        using var hello = JsonDocument.Parse(reader.Memory, new JsonDocumentOptions { MaxDepth = 32 });
+        using var hello = JsonDocument.Parse(reader.Memory, new JsonDocumentOptions { MaxDepth = 32, AllowDuplicateProperties = false });
         var root = hello.RootElement;
         if (root.GetProperty("type").GetString() != "hello") throw ApiException.Invalid("Expected device connection hello.");
         var version = root.GetProperty("protocolVersion").GetInt32();

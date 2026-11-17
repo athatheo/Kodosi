@@ -88,8 +88,8 @@ internal sealed record AccessChangedNotice(Guid SessionId) : ServerMessage;
 
 internal sealed record ClosedNotice(Guid Pipe, int Status, string Message) : ServerMessage;
 
-[JsonSourceGenerationOptions(JsonSerializerDefaults.Web, AllowOutOfOrderMetadataProperties = true, RespectNullableAnnotations = true,
-    RespectRequiredConstructorParameters = true, MaxDepth = 32)]
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web, AllowDuplicateProperties = false, AllowOutOfOrderMetadataProperties = true,
+    RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true, MaxDepth = 32)]
 [JsonSerializable(typeof(DeviceMessage))]
 [JsonSerializable(typeof(ServerMessage))]
 internal sealed partial class WireJson : JsonSerializerContext;
