@@ -3,7 +3,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD_INDIFFERENT};
 use serde_json::Value;
 
 use super::{
@@ -262,8 +262,8 @@ pub(super) fn identity(agent: Agent, home: &Path, path: &Path) -> Option<String>
         Agent::Codex => {
             let value: Value = serde_json::from_str(&read(&path.join("auth.json"))?).ok()?;
             let token = value.pointer("/tokens/id_token")?.as_str()?;
-            let claims = URL_SAFE_NO_PAD
-                .decode(token.split('.').nth(1)?.trim_end_matches('='))
+            let claims = URL_SAFE_NO_PAD_INDIFFERENT
+                .decode(token.split('.').nth(1)?)
                 .ok()?;
             let claims: Value = serde_json::from_slice(&claims).ok()?;
             claims.get("email")?.as_str()?.to_owned()
