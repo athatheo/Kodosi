@@ -219,18 +219,14 @@ struct SealKeys {
 
 #[cfg(unix)]
 fn key_of(password: &[u8]) -> [u8; KEY_BYTES] {
-    let mut key = [0; KEY_BYTES];
-    pbkdf2::pbkdf2_hmac::<Sha1>(password, SALT, KEY_ROUNDS, &mut key);
-    key
+    pbkdf2::pbkdf2_hmac_array::<Sha1, KEY_BYTES>(password, SALT, KEY_ROUNDS)
 }
 
 #[cfg(unix)]
 fn opened(key: &[u8; KEY_BYTES], sealed: &[u8]) -> Option<Vec<u8>> {
-    let mut buffer = sealed.to_vec();
-    let plain = Decryptor::<Aes128>::new(key.into(), (&IV).into())
-        .decrypt_padded::<Pkcs7>(&mut buffer)
-        .ok()?;
-    Some(plain.to_vec())
+    Decryptor::<Aes128>::new(key.into(), (&IV).into())
+        .decrypt_padded_vec::<Pkcs7>(sealed)
+        .ok()
 }
 
 #[cfg(unix)]
@@ -481,11 +477,9 @@ mod tests {
     const FAR_PAST: i64 = 10_000_000_000_000_000;
 
     fn sealed(key: &[u8; KEY_BYTES], prefix: &[u8], plain: &[u8]) -> Vec<u8> {
-        let mut buffer = vec![0; plain.len() + KEY_BYTES];
-        let written = Encryptor::<Aes128>::new(key.into(), (&IV).into())
-            .encrypt_padded_b2b::<Pkcs7>(plain, &mut buffer)
-            .unwrap();
-        [prefix, written].concat()
+        let written =
+            Encryptor::<Aes128>::new(key.into(), (&IV).into()).encrypt_padded_vec::<Pkcs7>(plain);
+        [prefix, &written].concat()
     }
 
     fn store(folder: &Path, version: u32, rows: &[(&str, &str, &str, &[u8], i64)]) -> PathBuf {
