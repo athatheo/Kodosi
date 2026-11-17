@@ -292,13 +292,6 @@ Item {
                     Flickable {
                         id: tabsArea
 
-                        function reveal(tab: Item): void {
-                            if (tab.x < contentX)
-                                contentX = tab.x;
-                            else if (tab.x + tab.width > contentX + width)
-                                contentX = tab.x + tab.width - width;
-                        }
-
                         Layout.fillWidth: true
                         Layout.preferredHeight: 26
                         contentWidth: tabs.implicitWidth
@@ -376,11 +369,11 @@ Item {
                                     onClicked: Models.Canvas.pick(root.sessionId, modelData.key)
                                     onSelectedChanged: {
                                         if (selected)
-                                            Qt.callLater(tabsArea.reveal, tab);
+                                            Qt.callLater(tabsArea.positionViewAtChild, tab, Flickable.Contain);
                                     }
                                     Component.onCompleted: {
                                         if (selected)
-                                            Qt.callLater(tabsArea.reveal, tab);
+                                            Qt.callLater(tabsArea.positionViewAtChild, tab, Flickable.Contain);
                                     }
 
                                     RemoveKey {
