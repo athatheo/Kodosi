@@ -87,7 +87,8 @@ function(kodosi_install app)
         OUTPUT_SCRIPT deploy_script
         NO_TRANSLATIONS
         NO_COMPILER_RUNTIME
-        DEPLOY_TOOL_OPTIONS --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --skip-plugin-types position
+        EXCLUDE_PLUGIN_TYPES position
+        DEPLOY_TOOL_OPTIONS --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler
     )
     set(languages_deploy_script "${CMAKE_CURRENT_BINARY_DIR}/deploy-kodosi-languages.cmake")
     list(JOIN KODOSI_QT_LANGUAGES " " qt_languages)
