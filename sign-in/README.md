@@ -23,7 +23,10 @@ the realm's login, account and e-mail themes to `kodosi`. Then:
   after the code. A code works as long as the realm's User-initiated action lifespan.
 - `KODOSI_TERMS_URL` and `KODOSI_PRIVACY_URL` on the Keycloak server add terms and
   privacy links.
-- Account notices need the realm's `email` event listener.
+- Account notices need the realm's `email` event listener and Keycloak's option
+  `--spi-events-listener--email--include-events` with the events that `keycloak.sh` names.
+  The notice of a locked account asks the person to reply, so send the realm's mail from an
+  address that someone reads.
 - The pages show the person check of Keycloak's reCAPTCHA or of the Turnstile providers
   [keycloak-cloudflare-turnstile-provider](https://github.com/zymlabs/keycloak-cloudflare-turnstile-provider)
   and [keycloak-turnstile](https://github.com/panpaul/keycloak-turnstile); the realm's

@@ -22,7 +22,7 @@ broker=kodosi-first-broker-login
 people=dev/people.txt
 # Keycloak e-mails the lockout notes only when this option names them, and then only what it
 # names. UPDATE_PASSWORD or UPDATE_TOTP too would send two e-mails for one change.
-notes=UPDATE_CREDENTIAL,REMOVE_CREDENTIAL,USER_DISABLED_BY_TEMPORARY_LOCKOUT
+notes=UPDATE_CREDENTIAL,REMOVE_CREDENTIAL,USER_DISABLED_BY_TEMPORARY_LOCKOUT,USER_DISABLED_BY_PERMANENT_LOCKOUT
 
 kc() { docker exec "$name" /opt/keycloak/bin/kcadm.sh "$@"; }
 calm() { "$@" 2> >(grep -v -e '^Created new' -e '^Logging into' >&2) >/dev/null; }
@@ -152,6 +152,7 @@ calm kc create realms -s realm=$realm -s enabled=true -s displayName=Kodosi \
   -s bruteForceProtected=true -s permanentLockout=false -s failureFactor=10 \
   -s waitIncrementSeconds=60 -s maxFailureWaitSeconds=300 -s maxDeltaTimeSeconds=43200 \
   -s quickLoginCheckMilliSeconds=1000 -s minimumQuickLoginWaitSeconds=60 \
+  -s maxSecondaryAuthFailures=100 \
   -s 'passwordPolicy=length(12) and maxLength(128) and notUsername and notEmail' \
   -s oauth2DeviceCodeLifespan=900 -s actionTokenGeneratedByUserLifespan=900 \
   -s accessCodeLifespanLogin=3600 -s accessCodeLifespanUserAction=1800 \
