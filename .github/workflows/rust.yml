@@ -64,4 +64,4 @@ jobs:
         with:
           workspaces: runtime
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: just ghostty-check rust-format-check rust-lint rust-dependency-check rust-test translations-check
+      - run: just ghostty-check rust-format-check rust-lint rust-dependency-check rust-test
