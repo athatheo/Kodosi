@@ -166,7 +166,7 @@ function Steps({
     ...(details.length ? (["details"] as const) : []),
     ...(password ? (["password"] as const) : []),
   ];
-  const last = steps[steps.length - 1];
+  const last = steps.at(-1);
 
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(

@@ -66,8 +66,9 @@ public final class ConfirmedEmail implements FormAction, FormActionFactory {
 
     @Override
     public String getHelpText() {
-        return "Fixes the address of the registration form to the one that the Kodosi mail code confirmed. Put it"
-                + " after Registration User Profile Creation.";
+        return """
+                Fixes the address of the registration form to the one that the Kodosi mail code confirmed. Put it \
+                after Registration User Profile Creation.""";
     }
 
     @Override public List<ProviderConfigProperty> getConfigProperties() { return List.of(); }

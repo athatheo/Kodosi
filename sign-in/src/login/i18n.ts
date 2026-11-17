@@ -217,6 +217,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "That name or password is not right.",
       accountTemporarilyDisabledMessageTotp:
         "That code is not right. Type the code that the app shows now.",
+      accountPermanentlyDisabledMessage: "That name or password is not right.",
+      accountPermanentlyDisabledMessageTotp:
+        "That code is not right. Type the code that the app shows now.",
       invalidUsernameMessage: "That name is not right.",
       invalidUsernameOrEmailMessage: "That name is not right.",
       invalidTotpMessage: "That code is not right. Type the code that the app shows now.",
@@ -494,6 +497,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "Name oder Passwort ist falsch.",
       accountTemporarilyDisabledMessageTotp:
         "Der Code stimmt nicht. Gib den Code ein, den die App gerade anzeigt.",
+      accountPermanentlyDisabledMessage: "Name oder Passwort ist falsch.",
+      accountPermanentlyDisabledMessageTotp:
+        "Der Code stimmt nicht. Gib den Code ein, den die App gerade anzeigt.",
       invalidUsernameMessage: "Dieser Name ist ungültig.",
       invalidUsernameOrEmailMessage: "Dieser Name ist ungültig.",
       invalidTotpMessage: "Der Code stimmt nicht. Gib den Code ein, den die App gerade anzeigt.",
@@ -767,6 +773,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       invalidPasswordMessage: "Λάθος όνομα ή κωδικός πρόσβασης.",
       accountTemporarilyDisabledMessage: "Λάθος όνομα ή κωδικός πρόσβασης.",
       accountTemporarilyDisabledMessageTotp:
+        "Ο κωδικός δεν είναι σωστός. Πληκτρολογήστε τον κωδικό που δείχνει τώρα η εφαρμογή.",
+      accountPermanentlyDisabledMessage: "Λάθος όνομα ή κωδικός πρόσβασης.",
+      accountPermanentlyDisabledMessageTotp:
         "Ο κωδικός δεν είναι σωστός. Πληκτρολογήστε τον κωδικό που δείχνει τώρα η εφαρμογή.",
       invalidUsernameMessage: "Το όνομα δεν είναι έγκυρο.",
       invalidUsernameOrEmailMessage: "Το όνομα δεν είναι έγκυρο.",
@@ -1048,6 +1057,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "Nombre o contraseña incorrectos.",
       accountTemporarilyDisabledMessageTotp:
         "El código no es correcto. Escribe el código que muestra ahora la app.",
+      accountPermanentlyDisabledMessage: "Nombre o contraseña incorrectos.",
+      accountPermanentlyDisabledMessageTotp:
+        "El código no es correcto. Escribe el código que muestra ahora la app.",
       invalidUsernameMessage: "El nombre no es válido.",
       invalidUsernameOrEmailMessage: "El nombre no es válido.",
       invalidTotpMessage: "El código no es correcto. Escribe el código que muestra ahora la app.",
@@ -1325,6 +1337,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "Nom d'utilisateur ou mot de passe incorrect.",
       accountTemporarilyDisabledMessageTotp:
         "Le code est incorrect. Saisissez le code affiché maintenant par l'application.",
+      accountPermanentlyDisabledMessage: "Nom d'utilisateur ou mot de passe incorrect.",
+      accountPermanentlyDisabledMessageTotp:
+        "Le code est incorrect. Saisissez le code affiché maintenant par l'application.",
       invalidUsernameMessage: "Ce nom n'est pas valide.",
       invalidUsernameOrEmailMessage: "Ce nom n'est pas valide.",
       invalidTotpMessage:
@@ -1596,6 +1611,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       invalidPasswordMessage: "Nome utente o password non corretti.",
       accountTemporarilyDisabledMessage: "Nome utente o password non corretti.",
       accountTemporarilyDisabledMessageTotp:
+        "Il codice non è corretto. Inserisci il codice che l'app mostra ora.",
+      accountPermanentlyDisabledMessage: "Nome utente o password non corretti.",
+      accountPermanentlyDisabledMessageTotp:
         "Il codice non è corretto. Inserisci il codice che l'app mostra ora.",
       invalidUsernameMessage: "Il nome non è valido.",
       invalidUsernameOrEmailMessage: "Il nome non è valido.",
@@ -1871,6 +1889,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "ユーザー名またはパスワードが正しくありません。",
       accountTemporarilyDisabledMessageTotp:
         "コードが正しくありません。アプリに今表示されているコードを入力してください。",
+      accountPermanentlyDisabledMessage: "ユーザー名またはパスワードが正しくありません。",
+      accountPermanentlyDisabledMessageTotp:
+        "コードが正しくありません。アプリに今表示されているコードを入力してください。",
       invalidUsernameMessage: "名前が正しくありません。",
       invalidUsernameOrEmailMessage: "名前が正しくありません。",
       invalidTotpMessage:
@@ -2145,6 +2166,9 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       accountTemporarilyDisabledMessage: "사용자 이름 또는 비밀번호가 올바르지 않아요.",
       accountTemporarilyDisabledMessageTotp:
         "코드가 올바르지 않아요. 앱에 지금 표시된 코드를 입력하세요.",
+      accountPermanentlyDisabledMessage: "사용자 이름 또는 비밀번호가 올바르지 않아요.",
+      accountPermanentlyDisabledMessageTotp:
+        "코드가 올바르지 않아요. 앱에 지금 표시된 코드를 입력하세요.",
       invalidUsernameMessage: "이름이 올바르지 않아요.",
       invalidUsernameOrEmailMessage: "이름이 올바르지 않아요.",
       invalidTotpMessage: "코드가 올바르지 않아요. 앱에 지금 표시된 코드를 입력하세요.",
@@ -2407,6 +2431,8 @@ const { getI18n, ofTypeI18n } = i18nBuilder
       invalidPasswordMessage: "用户名或密码错误。",
       accountTemporarilyDisabledMessage: "用户名或密码错误。",
       accountTemporarilyDisabledMessageTotp: "验证码不正确。请输入应用当前显示的验证码。",
+      accountPermanentlyDisabledMessage: "用户名或密码错误。",
+      accountPermanentlyDisabledMessageTotp: "验证码不正确。请输入应用当前显示的验证码。",
       invalidUsernameMessage: "用户名无效。",
       invalidUsernameOrEmailMessage: "用户名无效。",
       invalidTotpMessage: "验证码不正确。请输入应用当前显示的验证码。",

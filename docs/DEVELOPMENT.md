@@ -92,7 +92,9 @@ just backend-docker-run
 
 `just backend-docker-stop` stops it and keeps the volume. To sign in with another
 identity provider, such as the disposable Keycloak of `sign-in/keycloak.sh`, set
-`Auth__Authority` and `Auth__Audience` in a local Compose override.
+`Auth__Authority` and `Auth__Audience` in a local Compose override. With that Keycloak,
+the client that `sign-in/keycloak.sh` prints for account deletions goes into the
+`Auth__AccountDeletion` settings of [Self-hosting](SELF-HOSTING.md).
 
 Debug builds of the Mac, iPhone and Android apps use this local backend and sign in with the
 Keycloak of `sign-in/keycloak.sh`, or with the service that `KODOSI__AUTH__ISSUER` names. For

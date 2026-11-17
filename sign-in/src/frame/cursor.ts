@@ -253,19 +253,21 @@ export function liveCursor(): Cursor {
   };
   const moved = () => watch(1200);
 
-  document.addEventListener(MOVES, moved);
-  document.addEventListener("focusin", enter);
-  document.addEventListener("focusout", leave);
-  document.addEventListener("input", changed);
-  document.addEventListener("keydown", changed);
-  document.addEventListener("pointerup", changed);
-  document.addEventListener("selectionchange", changed);
-  document.addEventListener("compositionstart", compose);
-  document.addEventListener("compositionend", compose);
-  document.addEventListener("animationstart", moved);
-  document.addEventListener("transitionstart", moved);
-  document.addEventListener("scroll", moved, true);
-  window.addEventListener("resize", resized);
+  const listening = new AbortController();
+  const { signal } = listening;
+  document.addEventListener(MOVES, moved, { signal });
+  document.addEventListener("focusin", enter, { signal });
+  document.addEventListener("focusout", leave, { signal });
+  document.addEventListener("input", changed, { signal });
+  document.addEventListener("keydown", changed, { signal });
+  document.addEventListener("pointerup", changed, { signal });
+  document.addEventListener("selectionchange", changed, { signal });
+  document.addEventListener("compositionstart", compose, { signal });
+  document.addEventListener("compositionend", compose, { signal });
+  document.addEventListener("animationstart", moved, { signal });
+  document.addEventListener("transitionstart", moved, { signal });
+  document.addEventListener("scroll", moved, { capture: true, signal });
+  window.addEventListener("resize", resized, { signal });
   void document.fonts?.ready.then(resized);
 
   const first = document.activeElement;
@@ -292,19 +294,7 @@ export function liveCursor(): Cursor {
     },
     box: () => ({ x: at.x - scrollX, y: at.y - scrollY, w: at.w, h: at.h }),
     destroy() {
-      document.removeEventListener(MOVES, moved);
-      document.removeEventListener("focusin", enter);
-      document.removeEventListener("focusout", leave);
-      document.removeEventListener("input", changed);
-      document.removeEventListener("keydown", changed);
-      document.removeEventListener("pointerup", changed);
-      document.removeEventListener("selectionchange", changed);
-      document.removeEventListener("compositionstart", compose);
-      document.removeEventListener("compositionend", compose);
-      document.removeEventListener("animationstart", moved);
-      document.removeEventListener("transitionstart", moved);
-      document.removeEventListener("scroll", moved, true);
-      window.removeEventListener("resize", resized);
+      listening.abort();
       clearTimeout(quietTimer);
       clearTimeout(release);
       cancelAnimationFrame(frame);

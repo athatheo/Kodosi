@@ -1,5 +1,5 @@
 import { useInsertScriptTags } from "keycloakify/tools/useInsertScriptTags";
-import { TriangleAlert } from "lucide-react";
+import { TriangleExclamationPoint } from "lucide-react";
 import {
   type FormEvent,
   type ReactNode,
@@ -26,7 +26,7 @@ import type { KcContext } from "./KcContext";
 function Sign({ form }: { form: "done" | "failed" }) {
   if (form === "failed")
     return (
-      <TriangleAlert
+      <TriangleExclamationPoint
         className="pop mr-2.5 inline-block size-[21px] align-[-3px] text-caution"
         strokeWidth={2.2}
         aria-hidden
