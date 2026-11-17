@@ -396,11 +396,13 @@ impl BackendClient {
         let pace = if scanned { LINK_POLL / 2 } else { LINK_POLL };
         let this = self.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    () = this.inner.shutdown.cancelled() => break,
-                    () = tokio::time::sleep(pace) => {}
-                }
+            while this
+                .inner
+                .shutdown
+                .run_until_cancelled(tokio::time::sleep(pace))
+                .await
+                .is_some()
+            {
                 let _operation = this.inner.operations.lock().await;
                 let current = this.inner.state.lock().await.link.clone();
                 if current.is_none_or(|link| link.device_code != watched.device_code) {
@@ -628,11 +630,13 @@ impl BackendClient {
     fn watch_offer(&self, watched: Arc<LinkSecret>) {
         let this = self.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    () = this.inner.shutdown.cancelled() => break,
-                    () = tokio::time::sleep(LINK_POLL) => {}
-                }
+            while this
+                .inner
+                .shutdown
+                .run_until_cancelled(tokio::time::sleep(LINK_POLL))
+                .await
+                .is_some()
+            {
                 let _operation = this.inner.operations.lock().await;
                 let current = this.inner.state.lock().await.offer.clone();
                 let Some(current) = current.filter(|offer| Arc::ptr_eq(&offer.secret, &watched))
