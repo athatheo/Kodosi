@@ -134,7 +134,7 @@ struct NewProjectSheet: View {
         guard valid, !creating else { return }
         creating = true
         error = nil
-        Task { @MainActor in
+        Task {
             defer { creating = false }
             do {
                 let id = try await deps.projects.create(name: name, inviting: [])

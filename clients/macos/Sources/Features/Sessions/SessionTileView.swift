@@ -255,7 +255,7 @@ struct SessionTileView: View {
 
     private func closeSession() {
         isClosing = true
-        Task { @MainActor in
+        Task {
             await deps.close(session)
             isClosing = false
         }

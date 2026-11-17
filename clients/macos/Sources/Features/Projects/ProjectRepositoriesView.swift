@@ -144,7 +144,7 @@ struct ProjectRepositoriesView: View {
     private func select(_ repository: ProjectRepository) {
         workspace.selectedRepository = repository.id
         issueFailure = nil; loadingIssues = true
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.act(projectId, ProjectAction.issues(repository.id))
             } catch {
@@ -160,7 +160,7 @@ struct ProjectRepositoriesView: View {
 
     private func perform(_ action: [String: JSONValue], completed: @escaping @MainActor () -> Void = {}) {
         workspace.busy = true; state.failure = nil
-        Task { @MainActor in
+        Task {
             defer { workspace.busy = false }
             do {
                 try await deps.projects.act(projectId, action)

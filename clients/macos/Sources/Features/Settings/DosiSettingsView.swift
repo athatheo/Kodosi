@@ -236,7 +236,7 @@ struct DosiSettingsView: View {
 
     private func save(_ text: String?) {
         saving = true
-        Task { @MainActor in
+        Task {
             defer { saving = false }
             do {
                 let saved = try await deps.dosi.writeInstructions(text)
@@ -266,7 +266,7 @@ struct DosiSettingsView: View {
     }
 
     private func choose(_ change: AgentChoiceChange) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.dosi.choose(change)
                 message = nil

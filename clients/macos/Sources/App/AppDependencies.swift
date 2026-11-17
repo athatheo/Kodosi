@@ -127,7 +127,7 @@ final class AppDependencies {
         guard eventTask == nil else { return }
         startShortcuts()
         let currentInbox = inbox
-        eventTask = Task(name: "Runtime events") { @MainActor [weak self] in
+        eventTask = Task(name: "Runtime events") { [weak self] in
             while !Task.isCancelled, self?.runtimeHandle.isRunning == false {
                 try? await Task.sleep(for: .milliseconds(10))
             }
@@ -185,7 +185,7 @@ final class AppDependencies {
         guard case let .hostOutdated(failure) = appState else { return }
         errorMessage = nil
         appState = .launching
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             let result = await HostStopResult.stopHost(force: true)
             guard let self else { return }
             switch result {
@@ -321,7 +321,7 @@ final class AppDependencies {
     }
 
     func openTerminal(in directory: String, computer: String? = nil, like: String? = nil) {
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             do {
                 try await self?.createSession(name: generateSessionName(), directory: directory, computer: computer, like: like)
             } catch {
@@ -405,7 +405,7 @@ extension AppDependencies {
         let epoch = accountEpoch
         let section = workbench.section
         let selectedProject = workbench.selectedProjectId
-        activationTasks[id] = Task { @MainActor [weak self] in
+        activationTasks[id] = Task { [weak self] in
             guard let self else { return }
             defer {
                 if !Task.isCancelled {

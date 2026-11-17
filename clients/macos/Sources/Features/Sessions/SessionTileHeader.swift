@@ -254,7 +254,7 @@ private struct TerminalActions: View {
                 PanelMenuRow(Text("Remove from project"), icon: .symbol("rectangle.portrait.and.arrow.right"),
                              identifier: "\(stageId).removeFromProject", destructive: true)
                 {
-                    Task { @MainActor in
+                    Task {
                         do {
                             try await deps.removeFromProject(session)
                         } catch { deps.errorMessage = error.localizedDescription }

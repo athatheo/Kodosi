@@ -149,7 +149,7 @@ struct ProjectTasksView: View {
         guard !title.isEmpty, !workspace.busy else { return }
         let revision = workspace.taskRevision
         workspace.busy = true; state.failure = nil
-        Task { @MainActor in
+        Task {
             defer { workspace.busy = false }
             do {
                 try await deps.projects.createTask(
@@ -264,7 +264,7 @@ private struct ProjectTaskCard: View {
 
     private func update(_ change: ProjectTaskChange, note: String? = nil) {
         workspace.busy = true; state.failure = nil
-        Task { @MainActor in
+        Task {
             defer { workspace.busy = false }
             do {
                 try await deps.projects.update(task, in: projectId, change: change, note: note)

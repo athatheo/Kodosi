@@ -148,7 +148,7 @@ struct ProjectConversationView: View {
     }
 
     private func clear() {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.clearConversation(projectId)
             } catch { state.failure = error.localizedDescription }

@@ -6,7 +6,7 @@ extension PresenceSource {
         isActive: { NSApp?.isActive == true },
         secondsSinceInput: secondsSinceSystemInput,
         after: { seconds, action in
-            let task = Task { @MainActor in
+            let task = Task {
                 try? await Task.sleep(for: .seconds(max(seconds, 0)))
                 guard !Task.isCancelled else { return }
                 action()

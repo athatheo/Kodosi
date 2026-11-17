@@ -81,7 +81,7 @@ extension BrowserKeys {
             if let shownMenu {
                 shownMenu.cancelTracking()
             } else if let menu {
-                Task { @MainActor [weak self] in self?.pop(menu) }
+                Task { [weak self] in self?.pop(menu) }
             }
         }
 
@@ -103,7 +103,7 @@ extension BrowserKeys {
                     feed.send(.choose(menu: menu.id, choice: nil))
                 }
             } else if let next = pageMenu {
-                Task { @MainActor [weak self] in self?.pop(next) }
+                Task { [weak self] in self?.pop(next) }
             }
         }
 

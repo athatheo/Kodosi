@@ -266,7 +266,7 @@ struct CanvasPanel: View {
     }
 
     private func ask(about shown: CanvasShown, words: String?) {
-        Task { @MainActor in
+        Task {
             let words: String? = if let words {
                 words
             } else if case let .item(item) = shown {
@@ -291,7 +291,7 @@ struct CanvasPanel: View {
     }
 
     private func remove(_ keys: [String]) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.canvas.remove(keys, in: session.id)
             } catch { deps.errorMessage = error.localizedDescription }
@@ -299,7 +299,7 @@ struct CanvasPanel: View {
     }
 
     private func save(_ item: CanvasItem) {
-        Task { @MainActor in
+        Task {
             do {
                 let (_, data) = try await deps.canvas.content(of: item, in: session.id)
                 let panel = NSSavePanel()
@@ -313,7 +313,7 @@ struct CanvasPanel: View {
 
 extension AppDependencies {
     func openBrowser(of session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 try await canvas.openBrowser(of: session)
             } catch { errorMessage = error.localizedDescription }
@@ -330,7 +330,7 @@ extension AppDependencies {
     }
 
     func add(_ files: [URL], to session: RuntimeSession) {
-        Task { @MainActor in
+        Task {
             do {
                 for file in files {
                     try await canvas.attach(file, in: session.id)

@@ -195,7 +195,7 @@ struct ProjectHeader: View {
 
     private func run(_ work: @escaping (ProjectStore) async throws -> Void) {
         let projects = deps.projects
-        Task { @MainActor in
+        Task {
             do {
                 try await work(projects)
                 workspace.renaming = false
@@ -332,7 +332,7 @@ struct ProjectPeoplePopover: View {
 
     private func invite(_ friend: FriendEntry) {
         invited.insert(friend.userId)
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.invite(friend.userId, to: detail.project.id)
             } catch {
@@ -343,7 +343,7 @@ struct ProjectPeoplePopover: View {
     }
 
     private func remove(_ member: ProjectMemberEntry) {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.remove(member, from: detail.project.id)
             } catch { state.failure = error.localizedDescription }

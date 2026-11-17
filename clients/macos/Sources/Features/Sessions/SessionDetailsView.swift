@@ -124,7 +124,7 @@ struct SessionDetailsView: View {
     private func leave() {
         guard let current else { return }
         error = nil
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.mutateSession("session.leave", session: current)
                 dismiss()

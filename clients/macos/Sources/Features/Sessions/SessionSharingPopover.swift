@@ -151,7 +151,7 @@ struct SessionSharingPopover: View {
     private func save() {
         saving = true
         error = nil
-        Task { @MainActor in
+        Task {
             defer { saving = false }
             do {
                 if projectId != current.projectId {

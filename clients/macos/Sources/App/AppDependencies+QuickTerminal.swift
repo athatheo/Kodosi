@@ -28,7 +28,7 @@ extension AppDependencies {
         }
         typeAhead.hold()
         let directory = quickFolder
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             do {
                 try await typeAhead.expect(createSession(name: generateSessionName(), directory: directory, like: like))

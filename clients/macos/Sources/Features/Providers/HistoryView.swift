@@ -43,7 +43,7 @@ struct HistoryView: View {
                     SegmentOption(value: $0, title: $0.name)
                 }, compact: true, identifier: "panel.resume.provider")
                 Button {
-                    Task { @MainActor in
+                    Task {
                         if let directory = await pickWorkingDirectory(initialDirectory: browser.directory) {
                             browser.directory = directory
                             browser.load()
@@ -192,7 +192,7 @@ struct HistoryView: View {
     private func resume(_ browser: ConversationBrowser) {
         guard let selected = browser.selected else { return }
         resuming = true
-        Task { @MainActor in
+        Task {
             defer { resuming = false }
             do {
                 try await deps.createSession(name: selected.sessionName,

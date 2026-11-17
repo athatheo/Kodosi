@@ -127,7 +127,7 @@ public extension View {
                 .onChange(of: isPresented) { _, now in
                     guard !now, !theme.motion.reduced else { return }
                     leaving = true
-                    Task { @MainActor in
+                    Task {
                         try? await Task.sleep(for: .milliseconds(140))
                         if !isPresented {
                             leaving = false

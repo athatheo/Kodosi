@@ -8,7 +8,7 @@ import Testing
     let commands = CommandSink { data in sent.append(data); return 0 }
     commands.setAccount(userId: "owner", epoch: 4)
     var completed = false
-    let request = Task { @MainActor in
+    let request = Task {
         let reply = try await commands.request("session.close", ["requestId": .string("request")])
         completed = true
         return reply

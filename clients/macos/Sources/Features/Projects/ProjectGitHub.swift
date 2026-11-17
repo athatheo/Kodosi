@@ -143,7 +143,7 @@ struct RepositoryPicker: View {
         guard adding == nil else { return }
         adding = url
         failure = nil
-        Task { @MainActor in
+        Task {
             defer { adding = nil }
             do {
                 try await deps.projects.addRepository(url, to: projectId)
@@ -281,7 +281,7 @@ struct IssuePicker: View {
 
     private func add(_ number: UInt64, from repository: ProjectRepository) {
         adding = key(number, in: repository)
-        Task { @MainActor in
+        Task {
             defer { adding = nil }
             do {
                 try await deps.projects.act(projectId, ProjectAction.importIssue(repositoryId: repository.id, number: number))

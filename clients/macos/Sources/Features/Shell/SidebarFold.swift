@@ -182,7 +182,7 @@ struct FoldFlights: View {
             flights = start
             lanes = starts
         }
-        Task { @MainActor in
+        Task {
             var aimed: [FoldMark: CGRect] = [:]
             let last = Double(min(marks.count - 1, 6))
             for wait in [17, 50, 120] {

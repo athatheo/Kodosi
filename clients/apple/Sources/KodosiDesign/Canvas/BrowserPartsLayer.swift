@@ -73,7 +73,7 @@ struct BrowserPartsLayer: View {
                 }
             }
             PasteButton(payloadType: String.self) { [feed, id = menu.id] words in
-                Task { @MainActor in
+                Task {
                     feed.send(.choose(menu: id, choice: nil))
                     if let text = words.first, !text.isEmpty {
                         feed.send(.text(text))
