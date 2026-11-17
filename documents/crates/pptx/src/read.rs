@@ -7,7 +7,7 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
 use text::{Fragment, Mark, Node};
 
-use crate::model::{Model, SHAPE_IDS, Shape, Slide, number_in, schema};
+use crate::model::{Model, SHAPE_IDS, Shape, Slide, Sourced, number_in, schema};
 
 pub(crate) const PRESENTATION: &str = "ppt/presentation.xml";
 const LAYOUT_KIND: &str = "slideLayout";
@@ -511,7 +511,7 @@ impl<'input> Reader<'_, '_, 'input> {
     }
 }
 
-fn name_end(piece: &str) -> Option<usize> {
+pub(crate) fn name_end(piece: &str) -> Option<usize> {
     piece.find(|character: char| {
         character.is_ascii_whitespace() || character == '/' || character == '>'
     })
@@ -592,6 +592,12 @@ fn text_styles(xml: &str) -> [Levels; 3] {
         }
     }
     styles
+}
+
+fn dimension(size: Option<Xml<'_, '_>>, name: &str) -> i64 {
+    size.and_then(|size| size.attribute(name))
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0)
 }
 
 fn background_of(root: Xml<'_, '_>) -> Option<String> {
@@ -689,14 +695,9 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
     let presentation = Document::parse(&presentation_xml).map_err(broken)?;
     let root = presentation.root_element();
     let size = local(root, "sldSz");
-    let number = |name: &str| {
-        size.and_then(|size| size.attribute(name))
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(0)
-    };
     let mut model = Model {
-        width: number("cx"),
-        height: number("cy"),
+        width: dimension(size, "cx"),
+        height: dimension(size, "cy"),
         ..Model::default()
     };
     let list = local(root, "sldIdLst");
@@ -740,6 +741,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
         let shapes = reader
             .shapes(parsed.root_element(), &inherited)
             .map_err(broken)?;
+        let sources = Sourced::by_piece(&shapes);
         let background = background_of(parsed.root_element());
         let mut behind = Vec::new();
         for (source, relations) in [
@@ -777,6 +779,7 @@ pub(crate) fn read(file: &[u8], assets: &mut Assets) -> Result<Model, Unreadable
             background,
             text_look: inherited.text_look(None, None),
             last_shape: last_shape(parsed.root_element()),
+            sources,
         });
     }
     model.theme = theme_of(&mut package, first_master.as_deref());

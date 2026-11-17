@@ -8,7 +8,7 @@ use text::{Mark, Node};
 
 use crate::{
     model::{Model, ROOT_SHAPE, Shape, Slide, schema},
-    read::{self, PRESENTATION, RunLook, local, run_look},
+    read::{self, PRESENTATION, RunLook, local, name_end, run_look},
 };
 
 const DRAWING: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -306,6 +306,62 @@ fn frame_xml(shape: &Shape) -> String {
     )
 }
 
+/// A frame changes in its numbers only, so that a shape turned over and the frame of the children
+/// of a group stay.
+fn moved_frame(xml: &str, transform: Xml<'_, '_>, shape: &Shape) -> String {
+    let tag = |element: Xml<'_, '_>| {
+        let text = &xml[element.range()];
+        name_end(text).map_or("", |end| &text[1..end])
+    };
+    let mut frame = format!("<{}", tag(transform));
+    for attribute in transform
+        .attributes()
+        .filter(|attribute| attribute.name() != "rot")
+    {
+        let _ = write!(
+            frame,
+            r#" {}="{}""#,
+            &xml[attribute.range_qname()],
+            escape(attribute.value())
+        );
+    }
+    if shape.rotation != 0 {
+        let _ = write!(frame, r#" rot="{}""#, shape.rotation);
+    }
+    frame.push('>');
+    let mut placed = [false, false];
+    for child in transform.children().filter(Xml::is_element) {
+        match child.tag_name().name() {
+            "off" => {
+                placed[0] = true;
+                let _ = write!(
+                    frame,
+                    r#"<{} x="{}" y="{}"/>"#,
+                    tag(child),
+                    shape.x,
+                    shape.y
+                );
+            }
+            "ext" => {
+                placed[1] = true;
+                let _ = write!(
+                    frame,
+                    r#"<{} cx="{}" cy="{}"/>"#,
+                    tag(child),
+                    shape.width,
+                    shape.height
+                );
+            }
+            _ => frame.push_str(&xml[child.range()]),
+        }
+    }
+    if placed != [true, true] {
+        return frame_xml(shape);
+    }
+    let _ = write!(frame, "</{}>", tag(transform));
+    frame
+}
+
 fn new_shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
     let body = match &shape.text {
         Some(tree) => format!(
@@ -345,7 +401,7 @@ fn patch_shape(
     let properties = local(element, "spPr");
     if !same_frame && let Some(properties) = properties {
         if let Some(transform) = local(properties, "xfrm") {
-            edits.push((transform.range(), frame_xml(new)));
+            edits.push((transform.range(), moved_frame(xml, transform, new)));
         } else if let Some(first) = properties.first_element_child() {
             let at = first.range().start;
             edits.push((at..at, frame_xml(new)));
@@ -425,7 +481,7 @@ fn patch_slide(
             .ok_or("the shapes are broken")?;
     for shape in &slide.shapes {
         if !elements.contains_key(&shape.id) {
-            edits.push((end..end, shape_xml(out, shape)?));
+            edits.push((end..end, shape_xml(out, slide, shape)?));
         }
     }
     if edits.is_empty() {
@@ -447,23 +503,40 @@ fn with_edits(xml: &str, mut edits: Vec<(std::ops::Range<usize>, String)>) -> St
     new_xml
 }
 
-/// A shape that the file held goes back as its piece holds it, with the frame, fill and text
-/// that it has now.
-fn shape_xml(out: &Out<'_>, shape: &Shape) -> Result<String, String> {
+/// A shape that the file held goes back as its piece holds it, changed in the frame and fill that
+/// changed since its slide read the piece, and with the text that it has now.
+fn shape_xml(out: &Out<'_>, slide: &Slide, shape: &Shape) -> Result<String, String> {
     let Some(source) = &shape.source else {
         return new_shape_xml(out, shape);
     };
     let piece = out.raw(source)?;
     let parsed = Document::parse(piece).map_err(|error| error.to_string())?;
+    let held = slide.sources.get(source).map(|sourced| Shape {
+        x: sourced.frame.x,
+        y: sourced.frame.y,
+        width: sourced.frame.width,
+        height: sourced.frame.height,
+        rotation: sourced.frame.rotation,
+        fill: sourced.fill.clone(),
+        text: None,
+        ..shape.clone()
+    });
     let mut edits = Vec::new();
-    patch_shape(out, piece, parsed.root_element(), None, shape, &mut edits)?;
+    patch_shape(
+        out,
+        piece,
+        parsed.root_element(),
+        held.as_ref(),
+        shape,
+        &mut edits,
+    )?;
     Ok(with_edits(piece, edits))
 }
 
 fn new_slide_xml(out: &Out<'_>, slide: &Slide) -> Result<String, String> {
     let mut shapes = String::new();
     for shape in &slide.shapes {
-        shapes.push_str(&shape_xml(out, shape)?);
+        shapes.push_str(&shape_xml(out, slide, shape)?);
     }
     Ok(format!(
         concat!(

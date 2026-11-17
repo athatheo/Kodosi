@@ -6,8 +6,8 @@ use text::{Node, Step};
 
 use crate::{
     model::{
-        Change, Model, ROOT_SHAPE, SHAPE_IDS, SLIDE_IDS, Shape, ShapeFields, Slide, number_in,
-        schema,
+        Change, Model, ROOT_SHAPE, SHAPE_IDS, SLIDE_IDS, Shape, ShapeFields, Slide, Sourced,
+        number_in, schema,
     },
     ops,
     writable::writable_change,
@@ -117,6 +117,41 @@ fn set_fields(shape: &mut Shape, fields: &ShapeFields) {
     }
 }
 
+/// A shape that a merge brings comes with its piece, which its slide now holds.
+fn add_shape(
+    model: &mut Model,
+    slide: &str,
+    shape: &Value,
+    keep: &BTreeMap<String, String>,
+) -> Result<(), Refused> {
+    model.raws.extend(keep.clone());
+    let mut shape = Shape::from_snapshot(shape).map_err(Refused::Invalid)?;
+    let number = number_in(&shape.id, &SHAPE_IDS).ok_or_else(|| {
+        Refused::Invalid(format!(
+            "A shape id is a number from 0 to 4294967295, and {} is not.",
+            shape.id
+        ))
+    })?;
+    let target = model.slide_mut(slide).ok_or_else(|| no_slide(slide))?;
+    if target.shapes.iter().any(|known| known.id == shape.id) {
+        return Err(Refused::Invalid(format!(
+            "The shape {} is there already.",
+            shape.id
+        )));
+    }
+    if shape.text.is_some() && shape.look.is_null() {
+        shape.look.clone_from(&target.text_look);
+    }
+    if let Some(source) = &shape.source
+        && keep.contains_key(source)
+    {
+        target.sources.insert(source.clone(), Sourced::of(&shape));
+    }
+    target.last_shape = target.last_shape.max(number);
+    target.shapes.push(shape);
+    Ok(())
+}
+
 fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
     match change {
         Change::Shape {
@@ -169,6 +204,7 @@ fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
                 background: None,
                 text_look,
                 last_shape: ROOT_SHAPE,
+                sources: HashMap::new(),
             });
             model.sort_slides();
         }
@@ -180,28 +216,7 @@ fn apply_one(model: &mut Model, change: &Change) -> Result<(), Refused> {
             }
             model.slides.retain(|known| known.id != *slide);
         }
-        Change::AddShape { slide, shape, keep } => {
-            model.raws.extend(keep.clone());
-            let mut shape = Shape::from_snapshot(shape).map_err(Refused::Invalid)?;
-            let number = number_in(&shape.id, &SHAPE_IDS).ok_or_else(|| {
-                Refused::Invalid(format!(
-                    "A shape id is a number from 0 to 4294967295, and {} is not.",
-                    shape.id
-                ))
-            })?;
-            let target = model.slide_mut(slide).ok_or_else(|| no_slide(slide))?;
-            if target.shapes.iter().any(|known| known.id == shape.id) {
-                return Err(Refused::Invalid(format!(
-                    "The shape {} is there already.",
-                    shape.id
-                )));
-            }
-            if shape.text.is_some() && shape.look.is_null() {
-                shape.look.clone_from(&target.text_look);
-            }
-            target.last_shape = target.last_shape.max(number);
-            target.shapes.push(shape);
-        }
+        Change::AddShape { slide, shape, keep } => add_shape(model, slide, shape, keep)?,
         Change::RemoveShape { slide, shape } => {
             model
                 .slide_mut(slide)

@@ -700,7 +700,7 @@ fn a_shape_that_a_save_took_away_comes_back_whole_and_can_again() {
     Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
     let with = saved(&model, &without);
     let xml = part(&with, "ppt/slides/slide1.xml");
-    assert!(xml.contains(r#"<p:ph type="title"/>"#));
+    assert!(xml.contains(r#"<p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr/>"#));
     assert!(xml.contains("<a:t>First</a:t>"));
     let again = Pptx::snapshot(&read(&with)).0;
     let returned = &again["slides"][0]["shapes"][1];
@@ -910,4 +910,66 @@ fn a_merge_brings_the_pieces_of_a_write_so_that_later_edits_still_save() {
     let xml = part(&saved(&model, &written), "ppt/slides/slide1.xml");
     assert!(xml.contains("<a:t>The </a:t>"));
     assert!(xml.contains(r#"<a:rPr lang="en-US" b="1" i="1" dirty="0"/><a:t>First</a:t>"#));
+}
+
+fn turned_deck() -> Vec<u8> {
+    let slide = slide_xml("First")
+        .replace("<a:xfrm><a:off", r#"<a:xfrm flipH="1"><a:off"#)
+        .replace(
+            r#"<a:srgbClr val="FF0000"/>"#,
+            r#"<a:srgbClr val="FF0000"><a:lumMod val="75000"/></a:srgbClr>"#,
+        );
+    with_parts(&deck(), &[("ppt/slides/slide1.xml", &slide)])
+}
+
+fn box_moved_to(x: f64) -> Op {
+    Op::MoveShape {
+        slide: "256".to_owned(),
+        shape: "3".to_owned(),
+        x: Some(x),
+        y: None,
+        width: None,
+        height: None,
+    }
+}
+
+#[test]
+fn a_move_keeps_a_shape_turned_over() {
+    let file = turned_deck();
+    let mut model = read(&file);
+    apply_ops(&mut model, vec![box_moved_to(10.0)]);
+    let xml = part(&saved(&model, &file), "ppt/slides/slide1.xml");
+    assert!(xml.contains(
+        r#"<a:xfrm flipH="1"><a:off x="127000" y="25400"/><a:ext cx="127000" cy="254000"/></a:xfrm>"#
+    ));
+}
+
+#[test]
+fn a_shape_that_comes_back_keeps_the_turn_and_the_colour_of_its_piece() {
+    let file = turned_deck();
+    let mut model = read(&file);
+    apply_ops(&mut model, vec![box_moved_to(10.0)]);
+    let moved = saved(&model, &file);
+    let shape = Pptx::snapshot(&model).0["slides"][0]["shapes"][1].clone();
+    apply_ops(
+        &mut model,
+        vec![Op::RemoveShape {
+            slide: "256".to_owned(),
+            shape: "3".to_owned(),
+        }],
+    );
+    let without = saved(&model, &moved);
+    let back = Change::AddShape {
+        slide: "256".to_owned(),
+        shape,
+        keep: BTreeMap::new(),
+    };
+    Pptx::apply(&mut model, back, &[], &mut Assets::default()).unwrap();
+    let xml = part(&saved(&model, &without), "ppt/slides/slide1.xml");
+    assert!(xml.contains(
+        r#"<a:xfrm flipH="1"><a:off x="127000" y="25400"/><a:ext cx="127000" cy="254000"/></a:xfrm>"#
+    ));
+    assert!(xml.contains(
+        r#"<a:solidFill><a:srgbClr val="FF0000"><a:lumMod val="75000"/></a:srgbClr></a:solidFill>"#
+    ));
 }
