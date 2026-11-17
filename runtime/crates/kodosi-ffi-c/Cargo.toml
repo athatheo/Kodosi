@@ -37,7 +37,7 @@ rustls-platform-verifier = { workspace = true }
 tempfile = {workspace = true}
 
 [build-dependencies]
-cbindgen = "0.29.4"
+cbindgen = { version = "0.29.4", default-features = false }
 
 
 [lints.rust]
