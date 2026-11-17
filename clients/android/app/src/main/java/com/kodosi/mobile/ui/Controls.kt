@@ -24,8 +24,13 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldBuffer
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.delete
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -55,6 +60,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kodosi.mobile.R
+import com.kodosi.mobile.runtime.clippedUtf8
 
 enum class ButtonKind { PRIMARY, SECONDARY, TINTED, GHOST, DANGER }
 
@@ -272,18 +278,16 @@ fun KodosiSendKey(enabled: Boolean, working: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun KodosiField(
-    value: String,
-    onValueChange: (String) -> Unit,
+    state: TextFieldState,
     modifier: Modifier = Modifier,
     label: String? = null,
     placeholder: String? = null,
     enabled: Boolean = true,
-    singleLine: Boolean = false,
-    minLines: Int = 1,
-    maxLines: Int = Int.MAX_VALUE,
+    lineLimits: TextFieldLineLimits = TextFieldLineLimits.Default,
     textStyle: TextStyle = KodosiType.body,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    onKeyboardAction: KeyboardActionHandler? = null,
+    inputTransformation: InputTransformation? = null,
     compact: Boolean = false,
     leading: (@Composable () -> Unit)? = null
 ) {
@@ -302,29 +306,28 @@ fun KodosiField(
             )
         }
         BasicTextField(
-            value, onValueChange,
+            state,
             enabled = enabled,
-            singleLine = singleLine,
-            minLines = minLines,
-            maxLines = maxLines,
+            lineLimits = lineLimits,
+            inputTransformation = inputTransformation,
             textStyle = textStyle.copy(color = if (enabled) colors.ink else colors.inkFaint),
             cursorBrush = SolidColor(colors.accent),
             interactionSource = interaction,
             keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
+            onKeyboardAction = onKeyboardAction,
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = if (compact) 34.dp else 48.dp)
                 .well(colors, shape)
                 .border(1.5.dp, if (focused) colors.accent.copy(alpha = 0.55f) else Color.Transparent, shape)
                 .padding(horizontal = 12.dp, vertical = if (compact) 8.dp else 12.dp)
                 .semantics { (label ?: placeholder)?.let { contentDescription = it } },
-            decorationBox = { input ->
+            decorator = { input ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     leading?.invoke()
                     Box(Modifier.weight(1f)) {
-                        if (value.isEmpty() &&
+                        if (state.text.isEmpty() &&
                             placeholder != null
                         ) {
                             Text(placeholder, style = textStyle, color = colors.inkMuted)
@@ -334,6 +337,13 @@ fun KodosiField(
                 }
             }
         )
+    }
+}
+
+class Utf8Limit(private val bytes: Int) : InputTransformation {
+    override fun TextFieldBuffer.transformInput() {
+        val kept = asCharSequence().toString().clippedUtf8(bytes).length
+        if (kept < length) delete(kept, length)
     }
 }
 

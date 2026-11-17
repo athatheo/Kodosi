@@ -13,7 +13,7 @@ impl BackendClient {
             &credentials.user_id,
             device,
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &preimage)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &preimage)?;
         Ok(
             json!({"incarnationId":current.incarnation_id,"deviceId":device,"signature":BASE64.encode(signature)}),
         )
@@ -84,8 +84,7 @@ mod tests {
         dto.close_request = Some(CloseRequest {
             user_id: user.to_owned(),
             device_id: keys.device_id.clone(),
-            signature: BASE64
-                .encode(crypto::sign_control_message(keys.signing_pkcs8(), &preimage).unwrap()),
+            signature: BASE64.encode(crypto::sign(keys.signing_key(), &preimage).unwrap()),
         });
         dto
     }

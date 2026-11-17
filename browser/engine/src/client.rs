@@ -14,6 +14,8 @@ use crate::{
 const SCREEN_WIDTH: u32 = 1920;
 const SCREEN_HEIGHT: u32 = 1080;
 const MENU_BAR: c_int = 25;
+/// Tabs show icons at 16 points, so 32 pixels are sharp on a Retina screen.
+const ICON_PIXELS: u32 = 32;
 
 /// The crate names the cursor handle on Linux and Windows only.
 #[cfg(target_os = "macos")]
@@ -39,6 +41,32 @@ pub(crate) fn target_observer() -> DevToolsMessageObserver {
 
 fn id_of(browser: Option<&mut Browser>) -> Option<i64> {
     browser.map(|browser| i64::from(browser.identifier()))
+}
+
+/// The crate's iterator over a string list never frees the copy of each string that it reads
+/// (cef-rs#516), so the first address is read and freed here.
+fn first_address(urls: &mut CefStringList) -> Option<String> {
+    let list: *mut cef_dll_sys::_cef_string_list_t = urls.into();
+    if list.is_null() {
+        return None;
+    }
+    let mut value = cef_dll_sys::cef_string_t {
+        str_: std::ptr::null_mut(),
+        length: 0,
+        dtor: None,
+    };
+    // SAFETY: CEF keeps the list valid for this call, and `value` owns the copy that
+    // `cef_string_list_value` makes until `cef_string_utf16_clear` frees it.
+    unsafe {
+        if cef_dll_sys::cef_string_list_size(list) == 0
+            || cef_dll_sys::cef_string_list_value(list, 0, &raw mut value) == 0
+        {
+            return None;
+        }
+        let address = CefString::from(&raw const value).to_string();
+        cef_dll_sys::cef_string_utf16_clear(&raw mut value);
+        Some(address)
+    }
 }
 
 wrap_client! {
@@ -249,6 +277,18 @@ wrap_display_handler! {
             }
         }
 
+        fn on_favicon_urlchange(&self, browser: Option<&mut Browser>, icon_urls: Option<&mut CefStringList>) {
+            let Some(browser) = browser else { return };
+            let tab = i64::from(browser.identifier());
+            let address = icon_urls.and_then(first_address).unwrap_or_default();
+            if engine::with(|engine| engine.icon_named(tab, &address)) == Some(true)
+                && let Some(host) = browser.host()
+            {
+                let mut fetched = IconBuilder::new(tab);
+                host.download_image(Some(&CefString::from(address.as_str())), 1, ICON_PIXELS, 0, Some(&mut fetched));
+            }
+        }
+
         fn on_cursor_change(
             &self,
             browser: Option<&mut Browser>,
@@ -260,6 +300,30 @@ wrap_display_handler! {
                 engine::with(|engine| engine.shape(tab, cursor::css_name(type_)));
             }
             1
+        }
+    }
+}
+
+wrap_download_image_callback! {
+    struct IconBuilder {
+        tab: i64,
+    }
+
+    impl DownloadImageCallback {
+        fn on_download_image_finished(&self, image_url: Option<&CefString>, _http_status_code: c_int, image: Option<&mut Image>) {
+            let address = image_url.map_or_default(CefString::to_string);
+            let png = image
+                .and_then(|image| {
+                    // CEF gives no PNG unless it can write the size of the picture.
+                    let (mut width, mut height) = (0, 0);
+                    image.as_png(1.0, 1, Some(&mut width), Some(&mut height))
+                })
+                .map_or_default(|png| {
+                    let mut bytes = vec![0; png.size()];
+                    png.data(Some(&mut bytes), 0);
+                    bytes
+                });
+            engine::with(|engine| engine.icon(self.tab, &address, &png));
         }
     }
 }
@@ -326,7 +390,7 @@ fn take_dialog(
     let (Some(tab), Some(callback)) = (id_of(browser), callback) else {
         return false;
     };
-    let words = |text: Option<&CefString>| text.map(CefString::to_string).unwrap_or_default();
+    let words = |text: Option<&CefString>| text.map_or_default(CefString::to_string);
     let dialog = Dialog {
         kind,
         message: words(message),

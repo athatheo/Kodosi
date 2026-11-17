@@ -3,6 +3,7 @@
 Rust and its own Cargo.lock, and copies it to <output-dir>. With --notices, writes its
 license and the licenses of its Rust crates to that folder. Prints the path of the program."""
 
+# Xcode runs this with its own Python 3.9.
 from __future__ import annotations
 
 import argparse

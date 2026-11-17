@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi 1.0
 import Kodosi.Models 1.0 as Models
@@ -23,7 +23,7 @@ Item {
     signal blockAsked(string handle, string name)
     signal reportAsked(string handle, string name)
 
-    function rememberPosition() {
+    function rememberPosition(): void {
         Models.Projects.setPresentation("followLatest", transcript.atYEnd);
         let index = transcript.indexAt(1, transcript.contentY + transcript.spacing + 1);
         if (index < 0) index = 0;
@@ -33,16 +33,16 @@ Item {
             Models.Projects.setPresentation("chatOffset", transcript.contentY - item.y);
         }
     }
-    function send() {
+    function send(): void {
         dismissed = "";
         Models.Projects.act({ type: "post", text: editor.text.trim() });
     }
-    function pick(target) {
+    function pick(target: var): void {
         Models.Projects.setPresentation("message", Mentions.complete(editor.text, target));
         editor.cursorPosition = editor.text.length;
         highlighted = 0;
     }
-    function dayLabel(date) {
+    function dayLabel(date: var): string {
         const today = new Date();
         const start = value => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
         const days = Math.round((start(today) - start(date)) / 86400000);
@@ -84,6 +84,35 @@ Item {
                 ToolTip.text: qsTr("Copy the instructions. Paste them into your agent.")
                 ToolTip.delay: Tip.delay
                 onClicked: { Models.Projects.copyAgentInstructions(); root.copied = true; copiedTimer.restart(); }
+            }
+            KIconButton {
+                id: chatOptionsButton
+                glyph: "more"
+                size: 26
+                open: chatOptions.visible
+                Accessible.name: qsTr("Chat options")
+                objectName: "project.conversation.options"
+                Accessible.id: objectName
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Chat options")
+                ToolTip.delay: Tip.delay
+                onClicked: chatOptions.visible ? chatOptions.close() : chatOptions.open()
+
+                KMenu {
+                    id: chatOptions
+                    x: chatOptionsButton.width - width
+                    y: chatOptionsButton.height + 4
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+                    transformOrigin: Popup.TopRight
+                    KMenuItem {
+                        text: qsTr("Clear chat…")
+                        iconName: "trash"
+                        destructive: true
+                        enabled: root.messages.length > 0
+                        objectName: "project.conversation.clear"
+                        onTriggered: clearChat.open()
+                    }
+                }
             }
         }
         Timer { id: copiedTimer; interval: 2000; onTriggered: root.copied = false }
@@ -178,7 +207,7 @@ Item {
                         onClicked: {
                             root.rememberPosition();
                             Models.Projects.setPresentation("followLatest", false);
-                            Models.Projects.act({ type: "read", before: root.messages[0].sequence });
+                            Models.Projects.act({ type: "read", before: root.messages[0].position });
                         }
                     }
                     PlainLabel {
@@ -200,11 +229,13 @@ Item {
                     required property int index
                     readonly property var previous: index > 0 ? root.messages[index - 1] : null
                     readonly property date sent: new Date(modelData.createdAt)
-                    readonly property bool own: modelData.authorId === Models.Account.userId && !modelData.agent
+                    readonly property bool yours: modelData.authorId === Models.Account.userId
+                    readonly property bool own: yours && !modelData.agent
                     readonly property bool isAgent: !!modelData.agent
+                    readonly property bool deleted: !!modelData.deleted
                     readonly property bool newDay: !previous || new Date(previous.createdAt).toDateString() !== sent.toDateString()
-                    readonly property bool grouped: !newDay && !!previous && previous.authorId === modelData.authorId && (previous.agent || "") === (modelData.agent || "")
-                        && sent.getTime() - new Date(previous.createdAt).getTime() < 300000
+                    readonly property bool grouped: !newDay && !!previous && !previous.deleted && previous.authorId === modelData.authorId
+                        && (previous.agent || "") === (modelData.agent || "") && sent.getTime() - new Date(previous.createdAt).getTime() < 300000
                     readonly property var parts: Mentions.segments(modelData.text, root.targets)
                     readonly property bool mentionsMe: !own && Mentions.mentions(parts, Models.Account.userId)
                     readonly property var terminal: modelData.terminalId ? (Models.Sessions.sessions.find(session => session.id === modelData.terminalId) || null) : null
@@ -227,9 +258,21 @@ Item {
                             PlainLabel { id: day; anchors.centerIn: parent; text: root.dayLabel(entry.sent); color: KodosiTheme.inkMuted; font.pixelSize: KodosiTheme.fontCaption; font.weight: Font.Medium }
                         }
                     }
+                    PlainLabel {
+                        width: parent.width
+                        visible: entry.deleted
+                        leftPadding: entry.own ? 0 : 38
+                        rightPadding: entry.own ? 4 : 0
+                        horizontalAlignment: entry.own ? Text.AlignRight : Text.AlignLeft
+                        text: qsTr("Message deleted")
+                        color: KodosiTheme.inkFaint
+                        font.pixelSize: KodosiTheme.fontFootnote
+                        font.italic: true
+                    }
                     Item {
                         width: parent.width
                         height: row.implicitHeight + (entry.mentionsMe ? 12 : 0)
+                        visible: !entry.deleted
 
                         Rectangle {
                             anchors.fill: parent
@@ -355,7 +398,7 @@ Item {
                             anchors.rightMargin: entry.own ? 0 : 4
                             anchors.top: parent.top
                             anchors.topMargin: -12
-                            visible: hover.hovered || authorMenu.opened
+                            visible: hover.hovered || authorMenu.opened || ownMenu.opened
                             spacing: 0
                             z: 2
 
@@ -405,6 +448,24 @@ Item {
                                                 iconName: "warning"
                                                 destructive: true
                                                 onTriggered: root.reportAsked(authorMore.author.handle, authorMore.fullName)
+                                            }
+                                        }
+                                    }
+                                    KIconButton {
+                                        id: ownMore
+                                        size: 26
+                                        glyph: "more"
+                                        visible: entry.yours
+                                        Accessible.name: qsTr("Message options")
+                                        onClicked: ownMenu.popup(ownMore, 0, ownMore.height + 4)
+
+                                        KMenu {
+                                            id: ownMenu
+                                            KMenuItem {
+                                                text: qsTr("Delete message…")
+                                                iconName: "trash"
+                                                destructive: true
+                                                onTriggered: deleteMessage.ask(entry.modelData.id)
                                             }
                                         }
                                     }
@@ -603,6 +664,44 @@ Item {
                     onClicked: root.send()
                 }
             }
+        }
+    }
+    KDialog {
+        id: deleteMessage
+
+        property string messageId: ""
+
+        function ask(id: string): void {
+            messageId = id;
+            open();
+        }
+
+        destructive: true
+        title: qsTr("Delete this message?")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = qsTr("Delete message")
+        onAccepted: Models.Projects.act({ type: "deleteMessage", messageId: deleteMessage.messageId })
+
+        PlainLabel {
+            width: 340
+            color: KodosiTheme.inkMuted
+            wrapMode: Text.WordWrap
+            text: qsTr("Everyone in the project sees that a message was deleted.")
+        }
+    }
+    KDialog {
+        id: clearChat
+        destructive: true
+        title: qsTr("Clear the chat for you?")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = qsTr("Clear chat")
+        onAccepted: Models.Projects.act({ type: "clearConversation" })
+
+        PlainLabel {
+            width: 340
+            color: KodosiTheme.inkMuted
+            wrapMode: Text.WordWrap
+            text: qsTr("The messages up to now disappear from all your devices. Everyone else keeps them.")
         }
     }
 }

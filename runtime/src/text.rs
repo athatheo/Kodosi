@@ -235,13 +235,7 @@ fn fill(words: &str, args: &[(Cow<'static, str>, Arg)], language: Language) -> S
 }
 
 fn cut(mut words: String, most: usize) -> String {
-    if words.len() > most {
-        let mut end = most;
-        while !words.is_char_boundary(end) {
-            end -= 1;
-        }
-        words.truncate(end);
-    }
+    words.truncate(words.floor_char_boundary(most));
     words
 }
 

@@ -55,7 +55,7 @@ struct ProjectScreen: View {
             .sensoryFeedback(.selection, trigger: screen.shownSection) { _, _ in wide }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func content(_ screen: ProjectScreenState) -> some View {
         if leaving {
             Color.clear
@@ -128,7 +128,7 @@ struct ProjectScreen: View {
         .frame(maxWidth: .infinity)
     }
 
-    @ToolbarContentBuilder
+    @ContentBuilder
     private func toolbar(_ screen: ProjectScreenState) -> some ToolbarContent {
         if let project = projects.project(projectId) {
             ToolbarItem(placement: .principal) {

@@ -50,7 +50,6 @@ trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
 cargo install \
   --quiet \
-  --locked \
   --root "$tmp_dir/tool" \
   --version 0.73.2 \
   bindgen-cli

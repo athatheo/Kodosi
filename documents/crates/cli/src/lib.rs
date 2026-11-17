@@ -326,9 +326,8 @@ fn read_text(path: &Path) -> Result<String, Failed> {
 }
 
 fn random_client() -> Result<String, Failed> {
-    let mut bytes = [0_u8; 8];
-    getrandom::fill(&mut bytes).map_err(|error| Failed::Io(std::io::Error::other(error)))?;
-    Ok(format!("agent-{}", u64::from_be_bytes(bytes)))
+    let number = getrandom::u64().map_err(|error| Failed::Io(error.into()))?;
+    Ok(format!("agent-{number}"))
 }
 
 struct Seat {
@@ -349,6 +348,7 @@ impl Seat {
             client: client.clone(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         };
         send(&pipe, &join).await?;
         loop {
@@ -363,7 +363,7 @@ impl Seat {
                         pipe,
                         client,
                         rev,
-                        seq,
+                        seq: seq.unwrap_or(0),
                         next_query: 1,
                         used_at: Instant::now(),
                     });
@@ -409,7 +409,12 @@ impl Seat {
         let seq = self.seq;
         send(&self.pipe, &ToDocument::Change { seq, base, body }).await?;
         loop {
-            match message(&mut self.pipe).await? {
+            let answer = message(&mut self.pipe).await.map_err(|failed| {
+                Failed::Says(format!(
+                    "{failed} The change may have gone in. Read again before you send it again."
+                ))
+            })?;
+            match answer {
                 ToClient::Changed(changed)
                     if changed.client == self.client && changed.seq == seq =>
                 {

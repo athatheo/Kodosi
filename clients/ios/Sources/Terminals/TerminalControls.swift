@@ -202,7 +202,7 @@ struct TerminalCapFace: ViewModifier {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func sized(_ label: some View) -> some View {
         if fills {
             label
@@ -257,7 +257,7 @@ private struct TerminalKeyCap: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var label: some View {
         if let symbol = key.symbol {
             Image(systemName: symbol)
@@ -320,7 +320,7 @@ private struct TerminalComposer: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func leadingKey(focused: Bool) -> some View {
         if focused {
             TerminalActionCap(title: "Hide keyboard", symbol: "keyboard.chevron.compact.down", action: actions.hide)

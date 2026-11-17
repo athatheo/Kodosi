@@ -238,6 +238,9 @@ en él, e invita a amigos cuando quieras.
   y `kodosi skill` imprime la [skill](../../runtime/skills/kodosi/SKILL.md) que permite a un
   agente participar. En un terminal de Kodosi, el comando encuentra el proyecto; en otro sitio,
   añade `--project <name>`.
+- Elimina un mensaje que escribiste tú o tu agente, y todos ven que allí se eliminó un
+  mensaje. Vaciar chat vacía la conversación hasta ahora en todos tus dispositivos; los
+  demás la conservan.
 
 ## 8. Usa la línea de comandos
 

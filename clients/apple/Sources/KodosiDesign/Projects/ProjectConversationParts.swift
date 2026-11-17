@@ -40,6 +40,23 @@ public struct ProjectTrimmedNote: View {
     }
 }
 
+public struct ProjectDeletedNote: View {
+    @Environment(\.theme) private var theme
+    let alignment: HorizontalAlignment
+
+    public init(alignment: HorizontalAlignment) {
+        self.alignment = alignment
+    }
+
+    public var body: some View {
+        Text("Message deleted", bundle: .module)
+            .italic()
+            .appTextStyle(.footnote)
+            .foregroundStyle(theme.colors.inkFaint)
+            .frame(maxWidth: .infinity, alignment: Alignment(horizontal: alignment, vertical: .center))
+    }
+}
+
 public struct ProjectLatestKey: View {
     let unread: Int
     let identifier: String

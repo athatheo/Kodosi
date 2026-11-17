@@ -7,7 +7,7 @@ struct SheetLayer<Content: View>: View {
     let close: () -> Void
     var cancel: (() -> Void)?
     var rises = true
-    @ViewBuilder let content: Content
+    @ContentBuilder let content: Content
     @State private var risen = false
     @State private var monitor: Any?
     @State private var panel = UUID()

@@ -152,14 +152,12 @@ impl Launcher {
         name: &str,
     ) -> Result<AgentAccount, crate::text::Text> {
         let catalog = self.catalog().await.map_err(crate::text::Text::plain)?;
-        let taken = agent_info(&catalog, agent)
-            .map(|info| {
-                info.accounts
-                    .iter()
-                    .map(|account| account.name.clone())
-                    .collect()
-            })
-            .unwrap_or_default();
+        let taken = agent_info(&catalog, agent).map_or_default(|info| {
+            info.accounts
+                .iter()
+                .map(|account| account.name.clone())
+                .collect()
+        });
         let account = super::add_account(&self.home, agent, name, taken).await;
         self.state().catalog = None;
         account

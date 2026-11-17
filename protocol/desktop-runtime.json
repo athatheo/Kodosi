@@ -3253,6 +3253,34 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "messageId": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "deleteMessage"
+                  }
+                },
+                "required": [
+                  "type",
+                  "messageId"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "clearConversation"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
                   "description": {
                     "type": "string"
                   },
@@ -4459,15 +4487,15 @@
               }
             ]
           },
+          "position": {
+            "format": "u64",
+            "type": "integer"
+          },
           "projectId": {
             "type": "string"
           },
           "requestId": {
             "type": "string"
-          },
-          "sequence": {
-            "format": "u64",
-            "type": "integer"
           },
           "type": {
             "const": "project.seen"
@@ -4479,7 +4507,7 @@
           "type",
           "requestId",
           "projectId",
-          "sequence"
+          "position"
         ],
         "type": "object"
       },
@@ -8082,6 +8110,9 @@
                                     }
                                   ]
                                 },
+                                "ownSignIns": {
+                                  "type": "boolean"
+                                },
                                 "problem": {
                                   "anyOf": [
                                     {
@@ -9161,6 +9192,10 @@
           "content": {
             "additionalProperties": false,
             "properties": {
+              "clearedPosition": {
+                "format": "u64",
+                "type": "integer"
+              },
               "hasOlder": {
                 "type": "boolean"
               },
@@ -9190,10 +9225,13 @@
                     "createdAt": {
                       "type": "string"
                     },
+                    "deleted": {
+                      "type": "boolean"
+                    },
                     "id": {
                       "type": "string"
                     },
-                    "sequence": {
+                    "position": {
                       "format": "u64",
                       "type": "integer"
                     },
@@ -9213,12 +9251,13 @@
                   },
                   "required": [
                     "id",
-                    "sequence",
+                    "position",
                     "authorId",
                     "authorName",
                     "agent",
                     "terminalId",
                     "text",
+                    "deleted",
                     "createdAt"
                   ],
                   "type": "object"
@@ -9227,6 +9266,68 @@
               },
               "projectId": {
                 "type": "string"
+              },
+              "replacements": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agent": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "authorId": {
+                      "type": "string"
+                    },
+                    "authorName": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "format": "u64",
+                      "type": "integer"
+                    },
+                    "terminalId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "position",
+                    "authorId",
+                    "authorName",
+                    "agent",
+                    "terminalId",
+                    "text",
+                    "deleted",
+                    "createdAt"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "repositories": {
                 "items": {
@@ -9406,6 +9507,8 @@
             "required": [
               "projectId",
               "messages",
+              "replacements",
+              "clearedPosition",
               "tasks",
               "repositories",
               "sequence",
@@ -9558,6 +9661,10 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "clearedPosition": {
+                    "format": "u64",
+                    "type": "integer"
+                  },
                   "hasOlder": {
                     "type": "boolean"
                   },
@@ -9587,10 +9694,13 @@
                         "createdAt": {
                           "type": "string"
                         },
+                        "deleted": {
+                          "type": "boolean"
+                        },
                         "id": {
                           "type": "string"
                         },
-                        "sequence": {
+                        "position": {
                           "format": "u64",
                           "type": "integer"
                         },
@@ -9610,12 +9720,13 @@
                       },
                       "required": [
                         "id",
-                        "sequence",
+                        "position",
                         "authorId",
                         "authorName",
                         "agent",
                         "terminalId",
                         "text",
+                        "deleted",
                         "createdAt"
                       ],
                       "type": "object"
@@ -9624,6 +9735,68 @@
                   },
                   "projectId": {
                     "type": "string"
+                  },
+                  "replacements": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "agent": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "authorId": {
+                          "type": "string"
+                        },
+                        "authorName": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "position": {
+                          "format": "u64",
+                          "type": "integer"
+                        },
+                        "terminalId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "position",
+                        "authorId",
+                        "authorName",
+                        "agent",
+                        "terminalId",
+                        "text",
+                        "deleted",
+                        "createdAt"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
                   },
                   "repositories": {
                     "items": {
@@ -9803,6 +9976,8 @@
                 "required": [
                   "projectId",
                   "messages",
+                  "replacements",
+                  "clearedPosition",
                   "tasks",
                   "repositories",
                   "sequence",

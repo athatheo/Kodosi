@@ -851,7 +851,6 @@ async fn remote_folder(
         return Ok(None);
     };
     let directory = directory
-        .into_os_string()
         .into_string()
         .map_err(|_| Error::Invalid("The folder must be text.".into()))?;
     let bytes = directory.as_bytes();
@@ -1507,8 +1506,7 @@ fn path(value: Option<PathBuf>) -> Result<Option<String>> {
     value
         .map(|path| {
             kodosi_os::fs::canonicalize(&path).and_then(|p| {
-                p.into_os_string()
-                    .into_string()
+                p.into_string()
                     .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path is not UTF-8"))
             })
         })

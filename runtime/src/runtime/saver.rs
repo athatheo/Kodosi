@@ -100,11 +100,7 @@ mod tests {
     #[tokio::test]
     async fn a_failed_write_is_known_until_a_write_succeeds() {
         let saver = Saver::new("numbers", |bytes: &[u8]| {
-            if bytes == b"full" {
-                Err(io::Error::other("the disk is full"))
-            } else {
-                Ok(())
-            }
+            (bytes != b"full").ok_or_else(|| io::Error::other("the disk is full"))
         });
         saver.save(b"full".to_vec());
         saver.saved().await;

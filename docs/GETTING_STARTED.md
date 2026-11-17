@@ -229,6 +229,9 @@ invite friends when you want.
   `kodosi skill` prints the [skill](../runtime/skills/kodosi/SKILL.md) that lets an agent
   take part. In a Kodosi
   terminal, the command finds the project; elsewhere, add `--project <name>`.
+- Delete a message that you or your agent wrote, and everyone sees that a message was
+  deleted there. Clear chat clears the conversation up to now on all your devices; the
+  others keep it.
 
 ## 8. Use the command line
 

@@ -17,16 +17,18 @@ public struct CanvasBrowserView: View {
     let browser: CanvasBrowser
     let feed: BrowserFeed
     var typing = false
+    var ask: CanvasAsk?
     @Environment(\.displayScale) private var displayScale
     @State private var address = ""
     @State private var choice = 0
     @State private var picking = false
     @FocusState private var editing: Bool
 
-    public init(browser: CanvasBrowser, feed: BrowserFeed, typing: Bool = false) {
+    public init(browser: CanvasBrowser, feed: BrowserFeed, typing: Bool = false, ask: CanvasAsk? = nil) {
         self.browser = browser
         self.feed = feed
         self.typing = typing
+        self.ask = ask
     }
 
     private var blank: Bool {
@@ -53,10 +55,10 @@ public struct CanvasBrowserView: View {
                         .transition(.opacity)
                 }
                 if browser.state == .awake {
-                    BrowserInputArea(feed: feed, typing: typing)
+                    BrowserInputArea(feed: feed, typing: typing, ask: ask)
                     BrowserPointersLayer(feed: feed)
                     AgentPointerLayer(browser: browser, feed: feed)
-                    BrowserPartsLayer(feed: feed)
+                    BrowserPartsLayer(feed: feed, ask: ask)
                 } else {
                     sleeping.transition(.opacity)
                 }
@@ -149,7 +151,7 @@ public struct CanvasBrowserView: View {
     private func tabKeys(_ tabs: [BrowserWindow.Tab]) -> some View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
-                tabKey(tab, closes: tabs.count > 1)
+                tabKey(tab)
                     .id(tab.id)
                     .transition(.scale(scale: 0.9).combined(with: .opacity))
             }
@@ -157,7 +159,7 @@ public struct CanvasBrowserView: View {
         .padding(.vertical, 1)
     }
 
-    private func tabKey(_ tab: BrowserWindow.Tab, closes: Bool) -> some View {
+    private func tabKey(_ tab: BrowserWindow.Tab) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.xs, style: .continuous)
         let title = Self.title(of: tab)
         return Button { feed.send(.tab(tab.id)) } label: {
@@ -165,17 +167,21 @@ public struct CanvasBrowserView: View {
                 Group {
                     if tab.loading {
                         Spinner(size: 10)
+                    } else if let icon = feed.icons[tab.id] {
+                        Image(decorative: icon, scale: 2).resizable().interpolation(.high)
+                            .frame(width: 14, height: 14)
+                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                     } else {
                         Image(systemName: "globe").font(.system(size: 10, weight: .semibold))
                     }
                 }
                 .foregroundStyle(tab.active ? theme.colors.accentStrong : theme.colors.inkFaint)
-                .frame(width: 12)
+                .frame(width: 14)
                 Text(title).lineLimit(1).truncationMode(.tail)
             }
             .appTextStyle(.footnote).fontWeight(.medium)
             .foregroundStyle(tab.active ? theme.colors.ink : theme.colors.inkMuted)
-            .padding(.leading, 8).padding(.trailing, closes ? closeKey + 10 : 10)
+            .padding(.leading, 8).padding(.trailing, closeKey + 10)
             .frame(height: control - 2).frame(minWidth: 80, maxWidth: 200, alignment: .leading)
             .background {
                 if tab.active {
@@ -191,11 +197,9 @@ public struct CanvasBrowserView: View {
         .accessibilityAddTraits(tab.active ? .isSelected : [])
         .accessibilityIdentifier("canvas.browser.tab.\(AccessibilityIdentifier.token(tab.id))")
         .overlay(alignment: .trailing) {
-            if closes {
-                RemoveKey(size: closeKey, title: String(localized: "Close tab", bundle: .module),
-                          identifier: "canvas.browser.close.\(AccessibilityIdentifier.token(tab.id))") { feed.send(.closeTab(tab.id)) }
-                    .padding(.trailing, 5)
-            }
+            RemoveKey(size: closeKey, title: String(localized: "Close tab", bundle: .module),
+                      identifier: "canvas.browser.close.\(AccessibilityIdentifier.token(tab.id))") { feed.send(.closeTab(tab.id)) }
+                .padding(.trailing, 5)
         }
     }
 
@@ -224,11 +228,15 @@ public struct CanvasBrowserView: View {
                 addressField
             }
             .disabled(browser.state != .awake)
+            if browser.ownSignIns {
+                SharedBrowserKey(height: control - 6)
+            }
             if let failure = feed.failure ?? browser.problem {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.colors.caution).help(failure)
                     .accessibilityLabel(Text(failure))
             }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 6).frame(height: control + 8)
     }
@@ -291,17 +299,30 @@ public struct CanvasBrowserView: View {
     private func suggestionList(_ suggestions: [Suggestion]) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
         return VStack(alignment: .leading, spacing: 1) {
-            ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
+            ForEach(suggestions.enumerated(), id: \.element.id) { index, suggestion in
                 Button { open(suggestion) } label: {
-                    suggestionRow(suggestion).hoverRow(radius: Radius.sm, selected: index == choice)
+                    suggestionRow(suggestion).background {
+                        if index == choice {
+                            RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                                .fill(theme.colors.ink.opacity(0.08))
+                                .matchedGeometryEffect(id: "suggestion", in: thumb)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside {
+                        choice = index
+                    }
+                }
+                .accessibilityAddTraits(index == choice ? .isSelected : [])
                 .accessibilityIdentifier("canvas.browser.suggestion.\(index)")
             }
         }
         .padding(4)
         .fixedSize(horizontal: false, vertical: true)
         .background { RaisedBackground(shape: shape, fill: theme.colors.raised, elevation: .lifted) }
+        .animation(theme.motion.snappy, value: choice)
     }
 
     private func suggestionRow(_ suggestion: Suggestion) -> some View {
@@ -368,7 +389,7 @@ public struct CanvasBrowserView: View {
         return .handled
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var sleeping: some View {
         switch browser.state {
         case .starting:
@@ -409,6 +430,40 @@ public struct CanvasBrowserView: View {
         editing = false
         address = target
         feed.send(.open(target))
+    }
+}
+
+private struct SharedBrowserKey: View {
+    @Environment(\.theme) private var theme
+    let height: CGFloat
+    @State private var explaining = false
+
+    private var explanation: String {
+        String(localized: "This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.",
+               bundle: .module)
+    }
+
+    var body: some View {
+        Button { explaining.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.2.fill").font(.system(size: 9, weight: .semibold))
+                Text("Shared", bundle: .module)
+            }
+            .appTextStyle(.footnote).fontWeight(.medium).foregroundStyle(theme.colors.inkMuted)
+            .padding(.horizontal, 9).frame(height: height)
+            .background(Capsule().fill(theme.colors.ink.opacity(0.06)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle())
+        .help(explanation)
+        .popover(isPresented: $explaining) {
+            Text(explanation).appTextStyle(.footnote).foregroundStyle(theme.colors.ink)
+                .fixedSize(horizontal: false, vertical: true).frame(width: 260).padding(14)
+                .presentationCompactAdaptation(.popover)
+        }
+        .accessibilityLabel(Text("Shared", bundle: .module))
+        .accessibilityHint(Text(explanation))
+        .accessibilityIdentifier("canvas.browser.shared")
     }
 }
 

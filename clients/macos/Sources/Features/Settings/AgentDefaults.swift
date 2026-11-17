@@ -149,7 +149,7 @@ private struct ChoiceButton<Content: View>: View {
     @Binding var open: Bool
     let identifier: String
     let label: String
-    @ViewBuilder let content: () -> Content
+    @ContentBuilder let content: () -> Content
 
     var body: some View {
         Button { open.toggle() } label: {

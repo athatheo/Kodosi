@@ -42,7 +42,7 @@ Item {
     readonly property string overflowAccessibilityDescription:
         verticalOverflow ? qsTr("Scroll for more terminals") : ""
 
-    function focusSelectedTerminal() {
+    function focusSelectedTerminal(): void {
         if (!interactionEnabled || !stageFlick.visible)
             return
         const selected = Models.DesktopState.selectedSessionId
@@ -55,11 +55,11 @@ Item {
         }
     }
 
-    function focusLauncher() {
+    function focusLauncher(): bool {
         return !hasStage && overview.focusLauncher()
     }
 
-    function registerTerminalTile(tile) {
+    function registerTerminalTile(tile: Item): void {
         if (!tile || terminalTiles.indexOf(tile) >= 0)
             return
         const next = terminalTiles.slice()
@@ -68,7 +68,7 @@ Item {
         scheduleTerminalFocus()
     }
 
-    function unregisterTerminalTile(tile) {
+    function unregisterTerminalTile(tile: Item): void {
         const index = terminalTiles.indexOf(tile)
         if (index < 0)
             return
@@ -78,7 +78,7 @@ Item {
         scheduleTerminalFocus()
     }
 
-    function scheduleTerminalFocus() {
+    function scheduleTerminalFocus(): void {
         if (!interactionEnabled || terminalFocusPending || leaving)
             return
         terminalFocusPending = true
@@ -88,7 +88,7 @@ Item {
         })
     }
 
-    function scheduleVerticalOverflowUpdate() {
+    function scheduleVerticalOverflowUpdate(): void {
         if (overflowUpdatePending || leaving)
             return
         overflowUpdatePending = true
@@ -254,7 +254,7 @@ Item {
                                     readonly property string sessionId: layoutEntry.sessionId
                                     readonly property string canvasId: Models.DesktopState.canvasSessionId === sessionId ? sessionId : ""
 
-                                    function forceTerminalFocus() {
+                                    function forceTerminalFocus(): void {
                                         terminalTile.forceTerminalFocus()
                                     }
 

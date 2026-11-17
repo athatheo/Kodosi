@@ -72,7 +72,10 @@ fun firebaseFields(packageName: String): Map<String, String> {
 
 android {
     namespace = "com.kodosi.mobile"
-    compileSdk = libs.versions.compileSdk.get().toInt()
+    compileSdk {
+        val (api, minor) = libs.versions.compileSdk.get().split('.').map(String::toInt)
+        version = release(api) { minorApiLevel = minor }
+    }
     buildToolsVersion = libs.versions.buildTools.get()
     ndkVersion = libs.versions.ndk.get()
 
@@ -86,9 +89,6 @@ android {
             (major * 1_000_000 + minor * 1_000 + patch) * 100 + buildNumber
         }
         ndk { abiFilters += "arm64-v8a" }
-        externalNativeBuild {
-            cmake { arguments += "-DANDROID_STL=c++_shared" }
-        }
     }
 
     if (releaseKey.values.all { it != null }) {
@@ -119,9 +119,7 @@ android {
             firebaseFields("com.kodosi.mobile").forEach { (name, value) ->
                 buildConfigField("String", name, quoted(value))
             }
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            optimization { enable = true }
             buildConfigField("String", "DEBUG_BACKEND_API", "\"\"")
             buildConfigField("String", "DEBUG_AUTH_ISSUER", "\"\"")
             externalNativeBuild {
@@ -287,8 +285,7 @@ abstract class CollectJvmNotices @Inject constructor(private val files: FileSyst
         checkNotNull(verifier) { "Package the Android certificate verifier's MIT license." }
         verifier.copyTo(directory.resolve("rustls-platform-verifier-MIT.txt"), overwrite = true)
         archives.files.sortedBy { it.name }.forEach { archive ->
-            val digest = MessageDigest.getInstance("SHA-256").digest(archive.readBytes())
-                .take(6).joinToString("") { "%02x".format(it) }
+            val digest = MessageDigest.getInstance("SHA-256").digest(archive.readBytes()).toHexString(endIndex = 6)
             val prefix = "${archive.name}-$digest"
             ZipFile(archive).use { zip ->
                 zip.entries().asSequence().filterNot { it.isDirectory }.forEach { entry ->
@@ -388,7 +385,7 @@ androidComponents {
         val jvmNotices = tasks.register<CollectJvmNotices>(
             "collect${variant.name.replaceFirstChar(Char::titlecase)}JvmNotices"
         ) {
-            val runtime = configurations.getByName("${variant.name}RuntimeClasspath")
+            val runtime = variant.runtimeConfiguration
             val components = runtime.incoming.resolutionResult.allComponents
                 .map { it.id }.filterIsInstance<ModuleComponentIdentifier>()
             val metadata = dependencies.createArtifactResolutionQuery().forComponents(components)
@@ -432,7 +429,7 @@ dependencies {
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.webkit)
-    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.browser)
@@ -445,6 +442,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.compose.ui.test)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
 
@@ -453,14 +451,21 @@ dependencies {
     }
 }
 
-val ktlintSources = listOf("src/**/*.kt", "*.kts", "../*.kts")
+// Given globs, ktlint walks their common folder, build output included, while other tasks write there.
+val ktlintSources = files(
+    fileTree("src") { include("**/*.kt") },
+    "build.gradle.kts",
+    "../build.gradle.kts",
+    "../settings.gradle.kts"
+)
 
 tasks.register<JavaExec>("ktlintCheck") {
     description = "Checks the Kotlin style."
     group = "verification"
     classpath = ktlint
     mainClass = "com.pinterest.ktlint.Main"
-    args(ktlintSources)
+    val sources = ktlintSources
+    argumentProviders.add(CommandLineArgumentProvider { sources.map { it.path } })
 }
 
 tasks.register<JavaExec>("ktlintFormat") {
@@ -468,6 +473,6 @@ tasks.register<JavaExec>("ktlintFormat") {
     group = "formatting"
     classpath = ktlint
     mainClass = "com.pinterest.ktlint.Main"
-    jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
-    args(listOf("-F") + ktlintSources)
+    val sources = ktlintSources
+    argumentProviders.add(CommandLineArgumentProvider { listOf("-F") + sources.map { it.path } })
 }

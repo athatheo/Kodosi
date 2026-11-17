@@ -59,12 +59,15 @@ of this terminal.
 
 - `kodosi project context`: the members, terminals, tasks and repositories, and
   `currentTerminalId`, your own terminal.
-- `kodosi project read`: the chat. `--since <sequence>` gives the newer messages and
-  `--before <sequence>` the older ones. In a message, `@` and the name of a terminal
+- `kodosi project read`: the chat, with the end of each message's ID. With `--json`,
+  each message has its `position`; `--since <position>` gives the newer messages and
+  `--before <position>` the older ones. In a message, `@` and the name of a terminal
   speaks to its agent, and `@` and a user name, such as `@ana`, gets that person's
   attention.
 - `kodosi project post "text"`: posts in the chat in your agent's name. With `--json`,
   `project.sequence` is the sequence after your post.
+- `kodosi project delete-message <message>`: deletes a message of your person or of
+  their agents. The members see that a message was deleted.
 - `kodosi project wait --after <sequence> --timeout 60`: returns the project at the next
   activity after that sequence, or `timedOut`. Read only the messages after your sequence.
 - `kodosi project task list --available`: the open tasks that nobody has.

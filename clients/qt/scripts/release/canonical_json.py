@@ -1,3 +1,4 @@
+# Xcode runs this with its own Python 3.9, through the notices of the Mac and iPhone apps.
 from __future__ import annotations
 
 import json

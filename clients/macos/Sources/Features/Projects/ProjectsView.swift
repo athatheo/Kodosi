@@ -53,7 +53,7 @@ struct ProjectsLobby: View {
                     }.arrive(delay: 0.04)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 14)], alignment: .leading, spacing: 14) {
-                    ForEach(Array(deps.projects.entries.enumerated()), id: \.element.id) { index, project in
+                    ForEach(deps.projects.entries.enumerated(), id: \.element.id) { index, project in
                         ProjectCard(project: project, sessions: deps.projectSessions(project.id), yours: deps.projects.isOwner(of: project.id)) {
                             deps.openProject(project)
                         } detail: {
@@ -134,7 +134,7 @@ struct NewProjectSheet: View {
         guard valid, !creating else { return }
         creating = true
         error = nil
-        Task { @MainActor in
+        Task {
             defer { creating = false }
             do {
                 let id = try await deps.projects.create(name: name, inviting: [])

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Runs Maven in a container on the current folder, with its downloads in .tools/maven of the
+# repository.
+set -euo pipefail
+tools=$(cd "$(dirname "$0")" && pwd)
+repository="$(cd "$tools/../../.." && pwd)/.tools/maven"
+mkdir -p "$repository"
+exec docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e MAVEN_CONFIG=/tmp/.m2 \
+  -v "$PWD:$PWD" -v "$repository:/repository" -w "$PWD" \
+  "$(<"$tools/image")" mvn -B -ntp -Dmaven.repo.local=/repository "$@"

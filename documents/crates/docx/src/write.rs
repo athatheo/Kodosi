@@ -3,7 +3,7 @@ use std::{
     fmt::Write as _,
 };
 
-use document::{Assets, Hash, Unwritable};
+use document::{Assets, Hash, Unwritable, hash_from_hex, hex};
 use package::{Package, Parts, RELATIONSHIPS, Relation, escape, rewrite};
 use roxmltree::Node as Xml;
 use serde_json::Value;
@@ -375,7 +375,7 @@ impl Out<'_> {
             None => String::new(),
         };
         let wanted = |name: &str| text_attr(node, name).map(str::to_owned);
-        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or(Value::Null);
+        let change = |name: &str| node.attrs().get(name).cloned().unwrap_or_default();
         let wanted = ParagraphLook {
             style: wanted("style"),
             align: wanted("align"),
@@ -523,21 +523,29 @@ impl Out<'_> {
         attributes
     }
 
+    /// A link keeps the relation that it came with while that relation still goes to its address.
     fn link_open(&mut self, link: &Mark) -> String {
-        let id = if let Some(relation) = mark_text(link, "relation") {
-            relation.to_owned()
-        } else {
-            let href = mark_text(link, "href").unwrap_or_default().to_owned();
-            let (id, new) = self.relation_to(HYPERLINK_KIND, &href, true);
-            if new {
-                self.links.push((id.clone(), href));
+        let href = mark_text(link, "href").unwrap_or_default().to_owned();
+        let id = match mark_text(link, "relation") {
+            Some(relation) if self.links_to(relation, &href) => relation.to_owned(),
+            _ => {
+                let (id, new) = self.relation_to(HYPERLINK_KIND, &href, true);
+                if new {
+                    self.links.push((id.clone(), href));
+                }
+                id
             }
-            id
         };
         format!(
             r#"<w:hyperlink xmlns:r="{RELATIONSHIPS}" r:id="{}">"#,
             escape(&id)
         )
+    }
+
+    fn links_to(&self, relation: &str, href: &str) -> bool {
+        self.relations.get(relation).is_some_and(|known| {
+            known.kind == HYPERLINK_KIND && known.external && known.target == href
+        })
     }
 
     fn relation_to(&mut self, kind: &str, target: &str, external: bool) -> (String, bool) {
@@ -819,12 +827,8 @@ impl Out<'_> {
 
     fn new_image(&mut self, node: &Node) -> Result<String, String> {
         let asset = text_attr(node, "asset").ok_or("an image has no asset")?;
-        let hash = hash_from_hex(asset).ok_or("the asset name is not a hash")?;
-        let bytes = self
-            .assets
-            .get(&hash)
-            .ok_or_else(|| format!("the asset {asset} is missing"))?;
-        let extension = picture_extension(bytes).ok_or("this kind of picture cannot go in")?;
+        let (hash, extension) = new_picture(self.assets, asset)
+            .ok_or_else(|| format!("the asset {asset} is no picture that can go in"))?;
         let number = |name: &str| {
             node.attrs()
                 .get(name)
@@ -1065,35 +1069,21 @@ fn grid_of(columns: u64, width: u64) -> String {
 }
 
 fn media_of(hash: &Hash, extension: &str) -> String {
-    let name: String = hash.iter().take(8).fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    });
-    format!("media/{name}.{extension}")
+    format!("media/{}.{extension}", hex(&hash[..8]))
 }
 
-fn hash_from_hex(text: &str) -> Option<Hash> {
-    let mut hash = [0; 32];
-    if text.len() != 64 || !text.is_ascii() {
-        return None;
-    }
-    for (index, pair) in text.as_bytes().chunks(2).enumerate() {
-        let pair = std::str::from_utf8(pair).ok()?;
-        hash[index] = u8::from_str_radix(pair, 16).ok()?;
-    }
-    Some(hash)
-}
+/// The kinds that a new picture of the file takes, by how their bytes start.
+pub(crate) const PICTURES: [(&[u8], &str); 3] = [
+    (&[0x89, b'P', b'N', b'G'], "png"),
+    (&[0xff, 0xd8, 0xff], "jpeg"),
+    (b"GIF8", "gif"),
+];
 
 fn picture_extension(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-        Some("png")
-    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
-        Some("jpeg")
-    } else if bytes.starts_with(b"GIF8") {
-        Some("gif")
-    } else {
-        None
-    }
+    PICTURES
+        .iter()
+        .find(|(start, _)| bytes.starts_with(start))
+        .map(|(_, extension)| *extension)
 }
 
 fn picture_run(relation: &str, picture: u32, width: f64, height: f64) -> String {
@@ -1113,4 +1103,11 @@ fn picture_run(relation: &str, picture: u32, width: f64, height: f64) -> String 
         relationship = RELATIONSHIPS,
         relation = relation,
     )
+}
+
+/// The hash of a picture that can go in as a new part of the file, and the extension of that part.
+pub(crate) fn new_picture(assets: &Assets, asset: &str) -> Option<(Hash, &'static str)> {
+    let hash = hash_from_hex(asset)?;
+    let extension = picture_extension(assets.get(&hash)?)?;
+    Some((hash, extension))
 }

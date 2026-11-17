@@ -42,6 +42,7 @@ if ! python_ready; then
 fi
 
 ZIG_BIN=$("$ROOT_DIR/scripts/install-zig.sh")
+export ZIG_GLOBAL_CACHE_DIR="${ZIG_GLOBAL_CACHE_DIR:-$ROOT_DIR/build/cache/zig-global}"
 
 (
     cd "$SOURCE_DIR"

@@ -213,7 +213,7 @@ struct AgentLauncher: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var folderKey: some View {
         if let computer {
             let places = launcher.places
@@ -299,7 +299,7 @@ struct AgentLauncher: View {
         case .anotherFolder:
             closeMenu()
             let directory = directory
-            Task { @MainActor in
+            Task {
                 if let selected = await pickWorkingDirectory(initialDirectory: directory) {
                     deps.workbench.launcherDraft.folder = selected
                 }
@@ -326,7 +326,7 @@ struct AgentLauncher: View {
         guard !saving else { return }
         saving = true
         addError = nil
-        Task { @MainActor in
+        Task {
             defer { saving = false }
             do {
                 let account = try await launcher.addAccount(info.agent, name: name)
@@ -394,7 +394,7 @@ struct AgentLauncher: View {
         starting = true
         error = nil
         let (directory, computer, launcher) = (directory, computer, launcher)
-        Task { @MainActor in
+        Task {
             defer { starting = false }
             do {
                 try await deps.createSession(

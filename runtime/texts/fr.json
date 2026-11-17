@@ -309,6 +309,7 @@
 "Wait for the terminal snapshot before sending a picture.": "Attendez l'instantané du terminal avant d'envoyer une image.",
 "Wait for the terminal snapshot before sending input.": "Attendez l'instantané du terminal avant d'envoyer une saisie.",
 "You are signed in to Kodosi": "Vous êtes connecté à Kodosi",
+"You can delete only your own messages.": "Vous ne pouvez supprimer que vos propres messages.",
 "You cannot leave your own terminal.": "Vous ne pouvez pas quitter votre propre terminal.",
 "You chose more people than a terminal can have ({most}).": "Vous avez choisi plus de personnes qu'un terminal ne peut en avoir ({most}).",
 "You have not trusted this person yet.": "Vous ne faites pas encore confiance à cette personne.",

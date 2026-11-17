@@ -662,7 +662,7 @@ index b0e4cfc0b..b4b30797b 100644
  const global = @import("../global.zig");
  const xev = global.xev;
  const renderer = @import("../renderer.zig");
-@@ -692,6 +693,164 @@ pub fn focusGained(self: *Termio, td: *ThreadData, focused: bool) !void {
+@@ -692,6 +693,169 @@ pub fn focusGained(self: *Termio, td: *ThreadData, focused: bool) !void {
      try self.backend.focusGained(td, focused);
  }
  
@@ -710,6 +710,11 @@ index b0e4cfc0b..b4b30797b 100644
 +        break :cursor color.toTerminalRGB() orelse break :cursor null;
 +    };
 +    new_terminal.screens.replaceGenerationsFrom(&self.terminal.screens);
++    // The host's terminal keeps only the pointer that a program asked for
++    // with OSC 22, the I-beam when it asked for none, while live output here
++    // shows the arrow over a program that captures the mouse.
++    if (new_terminal.flags.mouse_event != .none and new_terminal.mouse_shape == .text)
++        new_terminal.mouse_shape = .default;
 +    new_terminal.flags.focused = self.terminal.flags.focused;
 +    new_terminal.flags.visible = self.terminal.flags.visible;
 +    new_terminal.flags.resize_pull_scrollback = resize_pull_scrollback;

@@ -1,7 +1,4 @@
-use aws_lc_rs::{
-    aead, rand,
-    signature::{ML_DSA_65_SIGNING, PqdsaKeyPair},
-};
+use aws_lc_rs::{aead, rand, signature::PqdsaKeyPair};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -64,12 +61,6 @@ pub(crate) fn open(
     Some(bytes)
 }
 
-pub fn sign_control_message(pkcs8: &[u8], preimage: &[u8]) -> Result<Vec<u8>> {
-    let key = PqdsaKeyPair::from_pkcs8(&ML_DSA_65_SIGNING, pkcs8)
-        .map_err(|_| invalid("Stored device signing key is invalid."))?;
-    sign(&key, preimage)
-}
-
 pub fn sign(key: &PqdsaKeyPair, preimage: &[u8]) -> Result<Vec<u8>> {
     let mut signature = vec![0; SIGNATURE_BYTES];
     let len = key
@@ -116,9 +107,7 @@ pub(crate) fn terminal_project_preimage(
     sequence: u64,
     device_id: &str,
 ) -> Result<Vec<u8>> {
-    let project = project
-        .map(|project| project.to_string())
-        .unwrap_or_default();
+    let project = project.map_or_default(|project| project.to_string());
     signed_fields(
         b"kodosi-terminal-room-v2",
         &[
@@ -155,7 +144,10 @@ pub(crate) fn terminal_close_preimage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aws_lc_rs::signature::{KeyPair as _, ML_DSA_65, VerificationAlgorithm as _};
+    use crate::hex::from_hex;
+    use aws_lc_rs::signature::{
+        KeyPair as _, ML_DSA_65, ML_DSA_65_SIGNING, VerificationAlgorithm as _,
+    };
 
     #[test]
     fn a_device_session_proof_holds_for_one_device_and_one_challenge() {
@@ -188,10 +180,10 @@ mod tests {
             &text("userId"),
             &text("deviceId"),
             &Uuid::parse_str(&text("challengeId")).unwrap(),
-            &hex(&text("challengeHex")),
+            &from_hex(&text("challengeHex")).unwrap(),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     #[test]
@@ -209,7 +201,7 @@ mod tests {
             &text("deviceId"),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     #[test]
@@ -225,7 +217,7 @@ mod tests {
             &text("deviceId"),
         )
         .unwrap();
-        assert_eq!(bytes, hex(&text("preimageHex")));
+        assert_eq!(bytes, from_hex(&text("preimageHex")).unwrap());
     }
 
     fn vector(name: &str) -> serde_json::Value {
@@ -234,15 +226,5 @@ mod tests {
         let manifest: serde_json::Value =
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         manifest["deviceProofPreimageVectors"][name].clone()
-    }
-
-    fn hex(value: &str) -> Vec<u8> {
-        value
-            .as_bytes()
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
-            .collect()
     }
 }

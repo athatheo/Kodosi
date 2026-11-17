@@ -152,7 +152,7 @@ public sealed class AccountDeletionTests(PostgresFixture postgres)
             if (path == "/realms/kodosi/protocol/openid-connect/token")
             {
                 var form = System.Web.HttpUtility.ParseQueryString(await request.Content!.ReadAsStringAsync(cancellationToken));
-                Assert.Equal(("client_credentials", "kodosi-backend", "test-secret"), (form["grant_type"], form["client_id"], form["client_secret"]));
+                Assert.Equal(("client_credentials", "kodosi-backend", "test-secret", "kc-admin-api"), (form["grant_type"], form["client_id"], form["client_secret"], form["scope"]));
                 TokenRequests++;
                 return JsonContent(new { access_token = AccessToken, expires_in = 300 });
             }

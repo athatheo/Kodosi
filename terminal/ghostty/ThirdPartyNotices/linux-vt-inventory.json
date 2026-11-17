@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "ghosttyCommit": "83fb95624b0439ee660c2679b43b38c8b63769cd",
   "zig": {
-    "version": "0.17.0",
+    "version": "0.17.1",
     "target": "x86_64-linux",
-    "sha256": "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026"
+    "sha256": "3581863e3cbcfd0fce0efc682ce7e9e93da96668a977791d356a26d2a7e9b17a"
   },
   "artifacts": {
     "static": "Vendor/GhosttyVt/linux-x86_64/lib/libghostty-vt.a",
@@ -53,13 +53,13 @@
     },
     {
       "id": "zig-runtime",
-      "identity": "Zig 0.17.0 / 1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026",
+      "identity": "Zig 0.17.1 / 3581863e3cbcfd0fce0efc682ce7e9e93da96668a977791d356a26d2a7e9b17a",
       "spdx": "MIT",
       "notices": ["zig-compiler-runtime.txt"]
     },
     {
       "id": "compiler-rt-llvm-derived",
-      "identity": "Zig 0.17.0 toolchain sources",
+      "identity": "Zig 0.17.1 toolchain sources",
       "spdx": "Apache-2.0 WITH LLVM-exception AND NCSA AND MIT",
       "notices": [
         "compiler-rt-LLVM-derived.txt",
@@ -68,7 +68,7 @@
     },
     {
       "id": "compiler-rt-musl-derived",
-      "identity": "Zig 0.17.0 toolchain sources",
+      "identity": "Zig 0.17.1 toolchain sources",
       "spdx": "MIT AND permissive-source-notices",
       "notices": [
         "compiler-rt-musl-derived.txt",

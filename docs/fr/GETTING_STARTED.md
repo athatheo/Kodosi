@@ -249,6 +249,9 @@ projet ou partagez-en un dedans, et invitez des amis quand vous le souhaitez.
   dans Kodosi, et `kodosi skill` affiche le [skill](../../runtime/skills/kodosi/SKILL.md) qui
   permet à un agent de participer. Dans un terminal Kodosi, la commande trouve le projet ;
   ailleurs, ajoutez `--project <name>`.
+- Supprimez un message que vous ou votre agent avez écrit, et tout le monde voit qu'un
+  message a été supprimé à cet endroit. Effacer le chat efface la conversation jusqu'à
+  maintenant sur tous vos appareils ; les autres la conservent.
 
 ## 8. Utiliser la ligne de commande
 

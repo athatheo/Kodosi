@@ -78,10 +78,11 @@ public final class MailCodeAuthenticator implements Authenticator, Authenticator
     }
 
     private static CodeStep.Kind kindOf(AuthenticationFlowContext context) {
-        String path = context.getFlowPath();
-        if (LoginActionsService.REGISTRATION_PATH.equals(path)) return CodeStep.Kind.SIGN_UP;
-        if (LoginActionsService.RESET_CREDENTIALS_PATH.equals(path)) return CodeStep.Kind.RESET;
-        return null;
+        return switch (context.getFlowPath()) {
+            case LoginActionsService.REGISTRATION_PATH -> CodeStep.Kind.SIGN_UP;
+            case LoginActionsService.RESET_CREDENTIALS_PATH -> CodeStep.Kind.RESET;
+            case null, default -> null;
+        };
     }
 
     @Override public boolean requiresUser() { return false; }
@@ -96,8 +97,9 @@ public final class MailCodeAuthenticator implements Authenticator, Authenticator
 
     @Override
     public String getHelpText() {
-        return "Checks the mail address with a code: in the registration flow before the form, which then takes"
-                + " the confirmed address, and in the reset flow in the place of the reset mail.";
+        return """
+                Checks the mail address with a code: in the registration flow before the form, which then takes \
+                the confirmed address, and in the reset flow in the place of the reset mail.""";
     }
 
     @Override public List<ProviderConfigProperty> getConfigProperties() { return List.of(); }

@@ -98,7 +98,7 @@ struct AgentSettingsView: View {
                         .accessibilityIdentifier("settings.agents.clearProject")
                 }
                 Button("Choose a folder…") {
-                    Task { @MainActor in
+                    Task {
                         if let selected = await pickWorkingDirectory(initialDirectory: directory) {
                             directory = selected
                         }

@@ -27,7 +27,7 @@ Item {
     readonly property real stepSize: 1
     readonly property bool dragActive: dragArea.pressed
 
-    function applyAdjustment(deltaPixels) {
+    function applyAdjustment(deltaPixels: real): real {
         const accepted = adjustmentHandler(deltaPixels)
         return Number.isFinite(accepted) ? accepted : 0
     }
@@ -82,7 +82,7 @@ Item {
         property real pressCoordinate: 0
         property real appliedDelta: 0
 
-        function stableCoordinate(mouse) {
+        function stableCoordinate(mouse: MouseEvent): real {
             const point = mapToItem(
                 root.coordinateSpace,
                 mouse.x,

@@ -1,5 +1,6 @@
 import Foundation
 import KodosiKit
+import Synchronization
 
 public enum TerminalInputFailure: Equatable, Sendable {
     case budgetExceeded(perSession: Bool)
@@ -21,7 +22,7 @@ public enum TerminalInputFailure: Equatable, Sendable {
     }
 }
 
-public final class TerminalInputQueue: @unchecked Sendable {
+public final class TerminalInputQueue: Sendable {
     public static let chunkBytes = 64 * 1024
 
     public static let shared = TerminalInputQueue(
@@ -107,6 +108,26 @@ public final class TerminalInputQueue: @unchecked Sendable {
         var chunk: Chunk
     }
 
+    private struct State {
+        var sessions: [String: SessionQueue] = [:]
+        var ready = Ring<String>()
+        var readyIds: Set<String> = []
+        var totalBytes = 0
+        var draining = false
+        var nextEpoch: UInt64 = 0
+
+        mutating func scheduleReady(_ sessionId: String, session: inout SessionQueue) {
+            guard !session.inFlight,
+                  !session.retryBlocked,
+                  !session.chunks.isEmpty,
+                  readyIds.insert(sessionId).inserted
+            else {
+                return
+            }
+            ready.append(sessionId)
+        }
+    }
+
     private static let defaultPerSessionBudget = 8 * 1024 * 1024
     private static let defaultGlobalBudget = 32 * 1024 * 1024
     private static let defaultBusyDelays: [Duration] = [
@@ -119,17 +140,11 @@ public final class TerminalInputQueue: @unchecked Sendable {
         .milliseconds(250),
     ]
 
-    private let lock = NSLock()
+    private let state = Mutex(State())
     private let perSessionBudget: Int
     private let globalBudget: Int
     private let coalesceLimit: Int
     private let busyDelays: [Duration]
-    private var sessions: [String: SessionQueue] = [:]
-    private var ready = Ring<String>()
-    private var readyIds: Set<String> = []
-    private var totalBytes = 0
-    private var draining = false
-    private var nextEpoch: UInt64 = 0
 
     public init(
         perSessionBudget: Int,
@@ -157,19 +172,19 @@ public final class TerminalInputQueue: @unchecked Sendable {
         guard !data.isEmpty else { return }
         var shouldStart = false
         var rejection: TerminalInputFailure?
-        lock.withLock {
+        state.withLock { state in
             var session: SessionQueue
-            if let existing = sessions[sessionId] {
+            if let existing = state.sessions[sessionId] {
                 session = existing
             } else {
-                nextEpoch &+= 1
-                session = SessionQueue(epoch: nextEpoch)
+                state.nextEpoch &+= 1
+                session = SessionQueue(epoch: state.nextEpoch)
             }
             if session.byteCount + data.count > perSessionBudget {
                 rejection = .budgetExceeded(perSession: true)
                 return
             }
-            if totalBytes + data.count > globalBudget {
+            if state.totalBytes + data.count > globalBudget {
                 rejection = .budgetExceeded(perSession: false)
                 return
             }
@@ -191,13 +206,13 @@ public final class TerminalInputQueue: @unchecked Sendable {
                 ))
             }
             session.byteCount += data.count
-            totalBytes += data.count
-            if !session.inFlight, !session.retryBlocked, readyIds.insert(sessionId).inserted {
-                ready.append(sessionId)
+            state.totalBytes += data.count
+            if !session.inFlight, !session.retryBlocked, state.readyIds.insert(sessionId).inserted {
+                state.ready.append(sessionId)
             }
-            sessions[sessionId] = session
-            if !draining {
-                draining = true
+            state.sessions[sessionId] = session
+            if !state.draining {
+                state.draining = true
                 shouldStart = true
             }
         }
@@ -212,10 +227,10 @@ public final class TerminalInputQueue: @unchecked Sendable {
     }
 
     public func cancel(sessionId: String) {
-        lock.withLock {
-            guard let session = sessions.removeValue(forKey: sessionId) else { return }
-            totalBytes -= session.byteCount
-            readyIds.remove(sessionId)
+        state.withLock { state in
+            guard let session = state.sessions.removeValue(forKey: sessionId) else { return }
+            state.totalBytes -= session.byteCount
+            state.readyIds.remove(sessionId)
         }
     }
 
@@ -237,10 +252,10 @@ public final class TerminalInputQueue: @unchecked Sendable {
     }
 
     private func takeCandidate() -> Candidate? {
-        lock.withLock {
-            while let sessionId = ready.popFirst() {
-                readyIds.remove(sessionId)
-                guard var session = sessions[sessionId],
+        state.withLock { state in
+            while let sessionId = state.ready.popFirst() {
+                state.readyIds.remove(sessionId)
+                guard var session = state.sessions[sessionId],
                       !session.inFlight,
                       !session.retryBlocked,
                       let chunk = session.chunks.popFirst()
@@ -248,31 +263,31 @@ public final class TerminalInputQueue: @unchecked Sendable {
                     continue
                 }
                 session.inFlight = true
-                sessions[sessionId] = session
+                state.sessions[sessionId] = session
                 return Candidate(sessionId: sessionId, epoch: session.epoch, chunk: chunk)
             }
-            draining = false
+            state.draining = false
             return nil
         }
     }
 
     private func finish(_ candidate: Candidate, failure: TerminalInputFailure?) {
         var shouldStart = false
-        lock.withLock {
-            guard var session = sessions[candidate.sessionId],
+        state.withLock { state in
+            guard var session = state.sessions[candidate.sessionId],
                   session.epoch == candidate.epoch
             else { return }
             session.inFlight = false
             session.byteCount -= candidate.chunk.data.count
-            totalBytes -= candidate.chunk.data.count
+            state.totalBytes -= candidate.chunk.data.count
             if session.byteCount == 0, session.chunks.isEmpty {
-                sessions.removeValue(forKey: candidate.sessionId)
+                state.sessions.removeValue(forKey: candidate.sessionId)
             } else {
-                scheduleReady(candidate.sessionId, session: &session)
-                sessions[candidate.sessionId] = session
+                state.scheduleReady(candidate.sessionId, session: &session)
+                state.sessions[candidate.sessionId] = session
             }
-            if !draining, !readyIds.isEmpty {
-                draining = true
+            if !state.draining, !state.readyIds.isEmpty {
+                state.draining = true
                 shouldStart = true
             }
         }
@@ -288,14 +303,14 @@ public final class TerminalInputQueue: @unchecked Sendable {
         var retried = candidate.chunk
         let delay = busyDelays[min(retried.busyAttempt, busyDelays.count - 1)]
         retried.busyAttempt += 1
-        lock.withLock {
-            guard var session = sessions[candidate.sessionId],
+        state.withLock { state in
+            guard var session = state.sessions[candidate.sessionId],
                   session.epoch == candidate.epoch
             else { return }
             session.inFlight = false
             session.retryBlocked = true
             session.chunks.prepend(retried)
-            sessions[candidate.sessionId] = session
+            state.sessions[candidate.sessionId] = session
         }
         Task { [weak self] in
             try? await Task.sleep(for: delay)
@@ -306,29 +321,18 @@ public final class TerminalInputQueue: @unchecked Sendable {
 
     private func unblockRetry(sessionId: String, epoch: UInt64) {
         var shouldStart = false
-        lock.withLock {
-            guard var session = sessions[sessionId], session.epoch == epoch else { return }
+        state.withLock { state in
+            guard var session = state.sessions[sessionId], session.epoch == epoch else { return }
             session.retryBlocked = false
-            scheduleReady(sessionId, session: &session)
-            sessions[sessionId] = session
-            if !draining, readyIds.contains(sessionId) {
-                draining = true
+            state.scheduleReady(sessionId, session: &session)
+            state.sessions[sessionId] = session
+            if !state.draining, state.readyIds.contains(sessionId) {
+                state.draining = true
                 shouldStart = true
             }
         }
         if shouldStart {
             Task { await drain() }
         }
-    }
-
-    private func scheduleReady(_ sessionId: String, session: inout SessionQueue) {
-        guard !session.inFlight,
-              !session.retryBlocked,
-              !session.chunks.isEmpty,
-              readyIds.insert(sessionId).inserted
-        else {
-            return
-        }
-        ready.append(sessionId)
     }
 }

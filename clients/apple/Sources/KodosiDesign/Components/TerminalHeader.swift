@@ -105,7 +105,7 @@ public struct GhostKeyFace<Content: View>: View {
     let lit: Bool
     let content: Content
 
-    public init(lit: Bool = false, @ViewBuilder content: () -> Content) {
+    public init(lit: Bool = false, @ContentBuilder content: () -> Content) {
         self.lit = lit
         self.content = content()
     }

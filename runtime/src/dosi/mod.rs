@@ -16,7 +16,7 @@ mod shared;
 mod store;
 #[cfg(all(test, feature = "host"))]
 mod tests;
-#[cfg(any(test, not(feature = "host")))]
+#[cfg(any(all(test, unix), not(feature = "host")))]
 mod viewer;
 
 pub(crate) use chat::{Failure, Message, Output};
@@ -24,7 +24,7 @@ pub(crate) use chat::{Failure, Message, Output};
 pub(crate) use engine::{Engine, Installed};
 #[cfg(feature = "host")]
 pub(crate) use folder::SKILL;
-#[cfg(any(test, not(feature = "host")))]
+#[cfg(any(all(test, unix), not(feature = "host")))]
 pub(crate) use viewer::Viewer;
 
 use serde::{Deserialize, Serialize};

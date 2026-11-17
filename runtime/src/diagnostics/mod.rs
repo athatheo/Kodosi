@@ -11,6 +11,7 @@ use time::format_description::well_known::Rfc3339;
 use tracing::{
     Event, Level, Metadata, Subscriber,
     field::{Field, Visit},
+    level_filters::LevelFilter,
     span::{Attributes, Id, Record},
 };
 
@@ -93,13 +94,10 @@ impl Log {
     }
 
     fn line(&self, level: Level, target: &str, body: &str) -> String {
-        let time = time::OffsetDateTime::now_utc()
+        let time = time::UtcDateTime::now()
             .format(&Rfc3339)
             .unwrap_or_default();
-        let mut end = body.len().min(MAX_RECORD_BYTES);
-        while !body.is_char_boundary(end) {
-            end -= 1;
-        }
+        let end = body.floor_char_boundary(MAX_RECORD_BYTES);
         let mut safe = redact::redact(&body[..end], &self.home);
         if end < body.len() {
             safe.push_str(" [TRUNCATED]");
@@ -171,6 +169,10 @@ impl Subscriber for Log {
             && LOGGED
                 .iter()
                 .any(|name| metadata.target().starts_with(name))
+    }
+
+    fn max_level_hint(&self) -> Option<LevelFilter> {
+        Some(LevelFilter::INFO)
     }
 
     fn new_span(&self, _: &Attributes<'_>) -> Id {

@@ -46,11 +46,11 @@ impl Format for Xlsx {
     }
 
     fn write(model: &Model, file: &[u8], _assets: &Assets) -> Result<Vec<u8>, Unwritable> {
-        write::write(model, file)
+        write::write(model, file, calculate::CALCULATION_TIME)
     }
 
     fn query(model: &Model, query: Query) -> Answer {
-        Answer(ops::answer(model, &query))
+        Answer(ops::answer(model, &query, calculate::CALCULATION_TIME))
     }
 
     fn guide() -> Guide {

@@ -3,9 +3,7 @@ package com.kodosi.mobile.people
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +16,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kodosi.mobile.AppModel
 import com.kodosi.mobile.R
-import com.kodosi.mobile.runtime.clippedUtf8
 import com.kodosi.mobile.terminals.RuntimeSession
 import com.kodosi.mobile.terminals.TerminalCard
 import com.kodosi.mobile.ui.ActionIcon
@@ -70,6 +70,7 @@ import com.kodosi.mobile.ui.ScanCode
 import com.kodosi.mobile.ui.ScanCodeCard
 import com.kodosi.mobile.ui.SectionTitle
 import com.kodosi.mobile.ui.TextEntryDialog
+import com.kodosi.mobile.ui.Utf8Limit
 import com.kodosi.mobile.ui.canScanCodes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -200,7 +201,7 @@ fun PeopleScreen(model: AppModel, back: () -> Unit, open: (String) -> Unit) {
 private fun AddFriendDialog(dismiss: () -> Unit, add: (String) -> Unit) {
     val context = LocalContext.current
     val camera = remember(context) { canScanCodes(context) }
-    var text by remember { mutableStateOf("") }
+    val text = rememberTextFieldState()
     var scanning by remember { mutableStateOf(false) }
     KodosiDialog(
         onDismissRequest = dismiss,
@@ -209,7 +210,6 @@ private fun AddFriendDialog(dismiss: () -> Unit, add: (String) -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 KodosiField(
                     text,
-                    { text = it },
                     label = stringResource(R.string.username_invite),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -223,7 +223,11 @@ private fun AddFriendDialog(dismiss: () -> Unit, add: (String) -> Unit) {
             }
         },
         confirmButton = {
-            KodosiButton(stringResource(R.string.add_friend), { add(text.trim()) }, enabled = text.isNotBlank())
+            KodosiButton(
+                stringResource(R.string.add_friend),
+                { add(text.text.toString().trim()) },
+                enabled = text.text.isNotBlank()
+            )
         },
         dismissButton = { KodosiTextButton(onClick = dismiss) { Text(stringResource(R.string.cancel)) } }
     )
@@ -238,7 +242,7 @@ private fun AddFriendDialog(dismiss: () -> Unit, add: (String) -> Unit) {
             accepts = PeopleStore::invite,
             found = { invite ->
                 scanning = false
-                text = invite
+                text.setTextAndPlaceCursorAtEnd(invite)
                 add(invite)
             },
             dismiss = { scanning = false }
@@ -270,7 +274,7 @@ fun BlockDialog(model: AppModel, person: Person, dismiss: () -> Unit, blocked: (
 @Composable
 fun ReportDialog(model: AppModel, person: Person, dismiss: () -> Unit) {
     val received = stringResource(R.string.report_received)
-    var note by remember { mutableStateOf("") }
+    val note = rememberTextFieldState()
     var sending by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -282,11 +286,11 @@ fun ReportDialog(model: AppModel, person: Person, dismiss: () -> Unit) {
                 Text(stringResource(R.string.report_message))
                 KodosiField(
                     note,
-                    { note = it.clippedUtf8(REPORT_NOTE_BYTES) },
                     Modifier.fillMaxWidth(),
                     label = stringResource(R.string.report_note),
                     enabled = !sending,
-                    minLines = 3
+                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3),
+                    inputTransformation = Utf8Limit(REPORT_NOTE_BYTES)
                 )
                 failure?.let { ErrorNote(it) }
                 if (sending) ProgressCaption(stringResource(R.string.working))
@@ -298,7 +302,7 @@ fun ReportDialog(model: AppModel, person: Person, dismiss: () -> Unit) {
                 sending = true
                 scope.launch {
                     try {
-                        model.people.report(person.handle, note)
+                        model.people.report(person.handle, note.text.toString())
                         dismiss()
                         model.notify(received)
                     } catch (cancelled: CancellationException) {

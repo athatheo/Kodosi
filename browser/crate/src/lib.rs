@@ -5,7 +5,8 @@ pub mod link;
 mod message;
 
 pub use message::{
-    Chooser, Dialog, DialogKind, Download, Menu, MenuItem, Pointer, Size, State, Tab, Viewer,
+    Chooser, Dialog, DialogKind, Download, Menu, MenuContext, MenuItem, Pointer, Size, State, Tab,
+    Viewer,
 };
 
 #[cfg(feature = "host")]
@@ -27,6 +28,8 @@ mod socket;
 #[cfg(feature = "host")]
 mod window;
 
+#[cfg(feature = "host")]
+pub use driver::Driver;
 #[cfg(feature = "host")]
 pub use host::{Browsers, Error, Place, Settings};
 #[cfg(feature = "host")]

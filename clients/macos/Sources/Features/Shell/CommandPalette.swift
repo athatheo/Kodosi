@@ -75,7 +75,7 @@ struct CommandPalette: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(results.enumerated()), id: \.element.id) { position, item in
+                    ForEach(results.enumerated(), id: \.element.id) { position, item in
                         if position == 0 || results[position - 1].group != item.group {
                             Text(item.group).appTextStyle(.caption).foregroundStyle(theme.colors.inkFaint)
                                 .padding(.horizontal, 12).padding(.top, position == 0 ? 0 : 12).padding(.bottom, 4)

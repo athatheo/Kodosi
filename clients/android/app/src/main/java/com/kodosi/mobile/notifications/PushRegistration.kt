@@ -24,15 +24,15 @@ class PushRegistration(
     private var completed = 0L
     private var worker: Job? = null
     private val outcome = MutableStateFlow(Outcome(0))
-    private val mutableIssue = MutableStateFlow<String?>(null)
-    val issue: StateFlow<String?> = mutableIssue
+    val issue: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
     fun update(user: String?, epoch: Long, enabled: Boolean, force: Boolean = false): Long {
         val next = Target(user, epoch, enabled && user != null)
         if (next != target || force) {
             target = next
             version += 1
-            mutableIssue.value = null
+            issue.value = null
         }
         if (worker?.isActive != true && completed != version) worker = scope.launch { synchronize() }
         return version
@@ -62,15 +62,15 @@ class PushRegistration(
                     }
                 }
                 completed = pending
-                mutableIssue.value = null
+                issue.value = null
                 outcome.value = Outcome(pending)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
                 if (pending == version) {
-                    val issue = failure.localizedMessage ?: failure.javaClass.simpleName
-                    mutableIssue.value = issue
-                    outcome.value = Outcome(pending, issue)
+                    val message = failure.localizedMessage ?: failure.javaClass.simpleName
+                    issue.value = message
+                    outcome.value = Outcome(pending, message)
                     if (pending == version) return
                 }
             }

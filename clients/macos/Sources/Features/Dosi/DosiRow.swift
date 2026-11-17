@@ -1,4 +1,3 @@
-import AppKit
 import KodosiBridge
 import KodosiDesign
 import SwiftUI
@@ -221,13 +220,7 @@ struct SidebarResizeHandle: View {
         Color.clear
             .frame(width: 8)
             .contentShape(Rectangle())
-            .onHover { inside in
-                if inside {
-                    NSCursor.columnResize.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
+            .pointerStyle(.columnResize)
             .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .onChanged { drag in

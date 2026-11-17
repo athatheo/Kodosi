@@ -27,8 +27,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -76,7 +77,6 @@ import com.kodosi.mobile.ui.AppSymbol
 import com.kodosi.mobile.ui.ButtonKind
 import com.kodosi.mobile.ui.ConfirmDialog
 import com.kodosi.mobile.ui.FileIcon
-import com.kodosi.mobile.ui.Glyph
 import com.kodosi.mobile.ui.KodosiButton
 import com.kodosi.mobile.ui.KodosiMenu
 import com.kodosi.mobile.ui.KodosiMenuItem
@@ -98,6 +98,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonNull
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -113,7 +114,7 @@ fun TerminalScreen(model: AppModel, sessionId: String, online: Boolean, back: ()
     val preferences by model.preferences.state.collectAsStateWithLifecycle()
     val news by model.canvas.news.collectAsStateWithLifecycle()
     var composing by rememberSaveable(sessionId) { mutableStateOf(false) }
-    var draft by rememberSaveable(sessionId) { mutableStateOf("") }
+    val draft = rememberSaveable(sessionId, saver = TextFieldState.Saver) { TextFieldState() }
     var renaming by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
     var clipboardAnswer by remember { mutableStateOf<((String) -> Boolean)?>(null) }
@@ -267,10 +268,9 @@ fun TerminalScreen(model: AppModel, sessionId: String, online: Boolean, back: ()
             MessageComposer(
                 draft,
                 false,
-                change = { draft = it },
                 send = {
-                    if (view?.paste(draft, enter = true) == true) {
-                        draft = ""
+                    if (view?.paste(draft.text.toString(), enter = true) == true) {
+                        draft.clearText()
                         composing = false
                         focus.clearFocus()
                         keyboard?.hide()
@@ -412,6 +412,16 @@ private fun TerminalActions(
                     menu = false
                     scope.launch { model.runAction { model.terminals.act("session.interrupt", session) } }
                 })
+                if (session.projectId != null) {
+                    KodosiMenuItem(text = { Text(stringResource(R.string.remove_from_project)) }, onClick = {
+                        menu = false
+                        scope.launch {
+                            model.runAction {
+                                model.terminals.act("session.attachProject", session, mapOf("projectId" to JsonNull))
+                            }
+                        }
+                    })
+                }
                 KodosiMenuItem(text = { Text(stringResource(R.string.close_terminal)) }, onClick = {
                     menu = false
                     close()
@@ -621,7 +631,6 @@ private fun StateCard(title: String, message: String?, working: Boolean, action:
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun KeyRow(view: TerminalView?, control: Boolean, actions: @Composable () -> Unit) {
     FlowRow(

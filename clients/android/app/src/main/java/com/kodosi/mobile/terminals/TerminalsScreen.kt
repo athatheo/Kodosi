@@ -2,7 +2,6 @@ package com.kodosi.mobile.terminals
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +21,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -72,9 +73,9 @@ fun TerminalsScreen(
 ) {
     val colors = KodosiTheme.colors
     val state by store.state.collectAsStateWithLifecycle()
-    var query by rememberSaveable { mutableStateOf("") }
+    val query = rememberTextFieldState()
     var folded by rememberSaveable { mutableStateOf(emptySet<String>()) }
-    val sessions = TerminalCatalog.matching(state.sessions.filter { !it.hidden }, query)
+    val sessions = TerminalCatalog.matching(state.sessions.filter { !it.hidden }, query.text.toString())
     val groups = TerminalCatalog.groups(
         sessions,
         stringResource(R.string.remote_computer),
@@ -95,7 +96,7 @@ fun TerminalsScreen(
                 ActionIcon(AppSymbol.ADD, R.string.new_terminal, { start(NewTerminalRequest()) })
             }
         }
-        item { SearchField(query) { query = it } }
+        item { SearchField(query) }
         for (group in groups) {
             val own = group.place is TerminalGroup.Place.Computer
             item(key = "group-$own-${group.place.id}") {
@@ -151,7 +152,7 @@ fun TerminalsScreen(
                             }
                         }
                     }
-                    if (key !in folded || query.isNotBlank()) {
+                    if (key !in folded || query.text.isNotBlank()) {
                         items(entries, key = { it.id }) { session ->
                             TerminalCard(session, online, summaryFirst = summaryFirst, onClick = {
                                 open(session.id)
@@ -171,7 +172,7 @@ fun TerminalsScreen(
                         KodosiSpinner(Modifier.size(22.dp))
                     }
 
-                    query.isNotBlank() -> Text(
+                    query.text.isNotBlank() -> Text(
                         stringResource(R.string.nothing_matches),
                         style = KodosiType.footnote,
                         color = colors.inkMuted,
@@ -187,12 +188,11 @@ fun TerminalsScreen(
 }
 
 @Composable
-private fun SearchField(query: String, change: (String) -> Unit) {
+private fun SearchField(query: TextFieldState) {
     KodosiField(
         query,
-        change,
         placeholder = stringResource(R.string.search_terminals),
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
         leading = {
             Glyph(R.drawable.ic_search, KodosiTheme.colors.inkMuted, 18.dp)

@@ -21,8 +21,8 @@ default:
 # Install the Rust check tools in .tools/rust.
 [group('tools')]
 rust-tools-install:
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-deny --version {{ cargo_deny_version }}
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-machete --version {{ cargo_machete_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-deny --version {{ cargo_deny_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-machete --version {{ cargo_machete_version }}
 
 [private]
 rust-tool-check tool:
@@ -84,10 +84,20 @@ rust-lint:
 rust-deny-check: (rust-tool-check "cargo-deny")
     cargo deny --manifest-path runtime/Cargo.toml --workspace --locked check --hide-inclusion-graph bans licenses sources
 
-# Check the Rust dependencies for security advisories with cargo-deny.
+# Check the Rust dependencies of the apps and of Kodosi Browser for security advisories with cargo-deny.
 [group('rust')]
 rust-advisories-check: (rust-tool-check "cargo-deny")
+    cargo deny --manifest-path browser/engine/Cargo.toml --locked check --hide-inclusion-graph advisories
     cargo deny --manifest-path runtime/Cargo.toml --workspace --locked check --hide-inclusion-graph advisories
+
+# Check the Bun packages of the document views and the sign-in pages for security advisories.
+[group('rust')]
+[group('sign-in')]
+bun-advisories-check:
+    failed=0; \
+    (cd documents/views && bun audit) || failed=1; \
+    (cd sign-in && bun audit) || failed=1; \
+    exit "$failed"
 
 # Find unused Rust dependencies with cargo-machete.
 [group('rust')]
@@ -136,7 +146,7 @@ rust-check: ghostty-check rust-format-check rust-lint rust-dependency-check rust
 # Build, check and test the views, then lint and test the document crates.
 [group('rust')]
 documents-check:
-    cd documents/views && bun install --frozen-lockfile && bun run build && bun run format:check && bun run test
+    cd documents/views && bun ci && bun run build && bun run format:check && bun run test
     cargo fmt --manifest-path documents/Cargo.toml --all -- --check
     CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path documents/Cargo.toml --locked --workspace --all-targets -- {{ test_lints }}
     cd documents && cargo test --locked --workspace
@@ -144,7 +154,7 @@ documents-check:
 # Build the views, then lint the documents app, which has its own workspace and Cargo.lock.
 [group('rust')]
 documents-app-check:
-    cd documents/views && bun install --frozen-lockfile && bun run build
+    cd documents/views && bun ci && bun run build
     cargo fmt --manifest-path documents/app/Cargo.toml --all -- --check
     CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path documents/app/Cargo.toml --locked --all-targets -- {{ test_lints }}
 
@@ -153,7 +163,7 @@ documents-app-check:
 [no-cd]
 [positional-arguments]
 documents-app-run *files:
-    cd "{{ justfile_directory() }}/documents/views" && bun install --frozen-lockfile && bun run build
+    cd "{{ justfile_directory() }}/documents/views" && bun ci && bun run build
     cargo run --manifest-path "{{ justfile_directory() }}/documents/app/Cargo.toml" --locked -- "$@"
 
 # Lint and test the shared browser crate and Kodosi Browser.
@@ -161,6 +171,7 @@ documents-app-run *files:
 browser-check:
     cargo fmt --manifest-path browser/crate/Cargo.toml --all -- --check
     CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path browser/crate/Cargo.toml --locked --all-targets -- {{ test_lints }}
+    CARGO_BUILD_WARNINGS=deny CARGO_INCREMENTAL=0 cargo clippy --manifest-path browser/crate/Cargo.toml --locked --no-default-features --all-targets -- {{ test_lints }}
     cargo test --manifest-path browser/crate/Cargo.toml --locked
     python3 browser/build/build-engine.py --check
 
@@ -259,7 +270,7 @@ ios-rust-lint:
 [group('android')]
 android-tools-install:
     rustup target add aarch64-linux-android
-    cargo install --locked --root "{{ cargo_tools_root }}" cargo-ndk --version {{ cargo_ndk_version }}
+    cargo install --root "{{ cargo_tools_root }}" cargo-ndk --version {{ cargo_ndk_version }}
 
 # Build the viewer runtime for Android as a shared library, for the dev or release profile.
 [group('android')]
@@ -345,7 +356,7 @@ windows-rust-lint:
 # Build the Keycloak theme after the type, lint and format checks, then build and test the Keycloak extension.
 [group('sign-in')]
 sign-in-check: translations-check
-    cd sign-in && bun install --frozen-lockfile && bun run lint && bun run format:check && bun run build
+    cd sign-in && bun ci && bun run lint && bun run format:check && bun run build
     sign-in/extension/maven.sh -q verify
 
 # Test the scripts that write the update site of a release and the feed of Kodosi Browser.

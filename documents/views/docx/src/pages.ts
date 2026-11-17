@@ -3,13 +3,13 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 /** In CSS pixels. */
-export interface PageShape {
+interface PageShape {
   height: number;
   top: number;
   bottom: number;
 }
 
-export interface BlockRules {
+interface BlockRules {
   keepNext(block: ProseNode): boolean;
   startsPage(block: ProseNode): boolean;
 }
@@ -70,14 +70,17 @@ function textLines(element: HTMLElement, holes: readonly Hole[]): DOMRect[] {
 }
 
 class Measure {
+  private readonly holes: readonly Hole[];
+  private readonly zoom: number;
+  private readonly origin: number;
   private next = 0;
   private passed = 0;
 
-  constructor(
-    private readonly holes: readonly Hole[],
-    private readonly zoom: number,
-    private readonly origin: number,
-  ) {}
+  constructor(holes: readonly Hole[], zoom: number, origin: number) {
+    this.holes = holes;
+    this.zoom = zoom;
+    this.origin = origin;
+  }
 
   /** Points must come in order. */
   natural(y: number): number {

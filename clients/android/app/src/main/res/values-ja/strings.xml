@@ -102,6 +102,7 @@
     <string name="close">閉じる</string>
     <string name="remove">削除</string>
     <string name="copy">コピー</string>
+    <string name="copy_link">リンクをコピー</string>
     <string name="rename">名前を変更</string>
     <string name="delete">削除</string>
     <string name="working">作業中</string>
@@ -133,6 +134,13 @@
     <string name="write_message">メッセージを入力</string>
     <string name="load_older">以前のメッセージを読み込む</string>
     <string name="history_trimmed">このプロジェクトの上限を超えないように、最も古いメッセージが削除されました。</string>
+    <string name="delete_message">メッセージを削除</string>
+    <string name="delete_message_title">このメッセージを削除しますか？</string>
+    <string name="delete_message_notice">プロジェクトの全員に、メッセージが削除されたことが表示されます。</string>
+    <string name="message_deleted">メッセージは削除されました</string>
+    <string name="clear_chat">チャットを消去</string>
+    <string name="clear_chat_title">自分のチャットを消去しますか？</string>
+    <string name="clear_chat_notice">これまでのメッセージがすべてのデバイスから消えます。ほかの人には残ります。</string>
     <string name="create_task">タスクを作成</string>
     <string name="no_tasks">まだタスクはありません</string>
     <string name="closed_tasks">完了したタスク</string>
@@ -292,8 +300,11 @@
     <string name="browser_dialog">ページからの確認</string>
     <string name="choose_file">ファイルを選択</string>
     <string name="browser_menu">ページメニュー</string>
+    <string name="browser_shared">共有中</string>
+    <string name="browser_shared_explained">このターミナルは共有されているため、ブラウザにはあなたとは別のサインイン情報があります。ターミナルの全員がそれを使います。</string>
     <string name="terminal_actions">ターミナルの操作</string>
     <string name="interrupt">中断</string>
+    <string name="remove_from_project">プロジェクトから削除</string>
     <string name="close_terminal">ターミナルを閉じる</string>
     <string name="close_terminal_message">全員に対してターミナルとそのプログラムを終了します。</string>
     <string name="hide_terminal">オンラインになるまで非表示</string>

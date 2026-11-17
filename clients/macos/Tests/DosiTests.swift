@@ -28,7 +28,7 @@ private func text(_ id: String, _ text: String, live: Bool = false) -> JSONValue
     item(id, ["kind": .string("text"), "text": .string(text), "live": .bool(live)])
 }
 
-@Test @MainActor func `a snapshot keeps earlier pages and a new conversation starts clean`() async throws {
+@Test func `a snapshot keeps earlier pages and a new conversation starts clean`() async throws {
     let commands = CommandSink()
     var sent: [[String: JSONValue]] = []
     commands.transport = { data in
@@ -82,7 +82,7 @@ private struct Named {
     #expect(referred("", in: items, id: \.id, name: \.name) == nil)
 }
 
-@Test @MainActor func `a question names its terminal by its ID, the end of its ID or its name`() throws {
+@Test func `a question names its terminal by its ID, the end of its ID or its name`() throws {
     let dosi = DosiStore(commands: CommandSink())
     let terminal = try runtimeSession()
     for (reference, found) in [(terminal.id, true), ("149b28", true), ("terminal", true), ("01992e43", false), ("28", false)] {
@@ -95,7 +95,7 @@ private struct Named {
     }
 }
 
-@Test @MainActor func `a terminal finds its question and the face follows the turn`() throws {
+@Test func `a terminal finds its question and the face follows the turn`() throws {
     let dosi = DosiStore(commands: CommandSink())
     let question = item("q", [
         "kind": .string("question"), "question": .string("Continue?"), "options": .array([.string("y"), .string("n")]),
@@ -117,7 +117,7 @@ private struct Named {
     #expect(DosiTool.Action.allCases.allSatisfy { DosiWords.deeds[$0] != nil })
 }
 
-@Test @MainActor func `a reply from before the start is read and a new one is not`() throws {
+@Test func `a reply from before the start is read and a new one is not`() throws {
     let dosi = DosiStore(commands: CommandSink())
     try dosi.receive(runtimeEvent("dosi.snapshot", fields: snapshot(items: [person("a", "Hi"), text("b", "Hello.")])))
     #expect(!dosi.unseen)
@@ -130,7 +130,7 @@ private struct Named {
     #expect(!dosi.unseen)
 }
 
-@Test @MainActor func `a message to Dosi names the terminal that the person looks at`() async throws {
+@Test func `a message to Dosi names the terminal that the person looks at`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "DosiContext"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -156,7 +156,7 @@ private struct Named {
     #expect(send["context"] == .object(["terminal": .string("01992e43-53db-7040-8e02-f6ebf4149b28"), "project": .null]))
 }
 
-@Test @MainActor func `in the thread Dosi thinks until its turn shows something`() throws {
+@Test func `in the thread Dosi thinks until its turn shows something`() throws {
     let dosi = DosiStore(commands: CommandSink())
     try dosi.receive(runtimeEvent("dosi.snapshot", fields: snapshot(state: "working", items: [person("a", "What needs me?")])))
     #expect(dosi.pending)
@@ -176,7 +176,7 @@ private struct Named {
     #expect(!dosi.pending)
 }
 
-@Test @MainActor func `the sidebar keeps a width for the list and one for Dosi`() throws {
+@Test func `the sidebar keeps a width for the list and one for Dosi`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "DosiWidth"))
     let workbench = WorkbenchState(defaults: defaults)
     #expect(workbench.shownSidebarWidth == Metrics.sidebarWidth)
@@ -193,7 +193,7 @@ private struct Named {
     #expect(restored.dosiOpen && restored.shownSidebarWidth == 500)
 }
 
-@Test @MainActor func `turning Dosi off closes it and keeps it closed`() throws {
+@Test func `turning Dosi off closes it and keeps it closed`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "DosiOff"))
     let workbench = WorkbenchState(defaults: defaults)
     workbench.openDosi()
@@ -204,7 +204,7 @@ private struct Named {
     #expect(!WorkbenchState(defaults: defaults).dosiOpen)
 }
 
-@Test @MainActor func `a message from the phone waits under the computer that it asked`() throws {
+@Test func `a message from the phone waits under the computer that it asked`() throws {
     let dosi = DosiStore(commands: CommandSink())
     var fields = snapshot(items: [person("a", "What needs me?")])
     if case var .object(inner)? = fields["dosi"] {
@@ -249,7 +249,7 @@ private struct Named {
     #expect(DosiWords.receipt(typing) == "typing just test · build" && DosiWords.said(typed) == "typed just test")
 }
 
-@Test @MainActor func `a step in a terminal touches it once and the card follows the step`() throws {
+@Test func `a step in a terminal touches it once and the card follows the step`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "dosi-touch"))
     let app = try AppDependencies(defaults: defaults, storageBootstrap: RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false))
     app.sessions = try [runtimeSession(kind: "local")]

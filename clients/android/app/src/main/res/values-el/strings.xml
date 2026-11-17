@@ -102,6 +102,7 @@
     <string name="close">Κλείσιμο</string>
     <string name="remove">Αφαίρεση</string>
     <string name="copy">Αντιγραφή</string>
+    <string name="copy_link">Αντιγραφή συνδέσμου</string>
     <string name="rename">Μετονομασία</string>
     <string name="delete">Διαγραφή</string>
     <string name="working">Δουλεύει</string>
@@ -133,6 +134,13 @@
     <string name="write_message">Γράψτε ένα μήνυμα</string>
     <string name="load_older">Φόρτωση προηγούμενων μηνυμάτων</string>
     <string name="history_trimmed">Τα παλαιότερα μηνύματα αφαιρέθηκαν για να παραμείνει αυτό το έργο εντός του ορίου του.</string>
+    <string name="delete_message">Διαγραφή μηνύματος</string>
+    <string name="delete_message_title">Διαγραφή αυτού του μηνύματος;</string>
+    <string name="delete_message_notice">Όλοι στο έργο βλέπουν ότι διαγράφηκε ένα μήνυμα.</string>
+    <string name="message_deleted">Το μήνυμα διαγράφηκε</string>
+    <string name="clear_chat">Εκκαθάριση συνομιλίας</string>
+    <string name="clear_chat_title">Εκκαθάριση της συνομιλίας για εσάς;</string>
+    <string name="clear_chat_notice">Τα μηνύματα μέχρι τώρα εξαφανίζονται από όλες τις συσκευές σας. Όλοι οι άλλοι τα κρατούν.</string>
     <string name="create_task">Δημιουργία εργασίας</string>
     <string name="no_tasks">Δεν υπάρχουν ακόμη εργασίες</string>
     <string name="closed_tasks">Κλειστές εργασίες</string>
@@ -292,8 +300,11 @@
     <string name="browser_dialog">Η σελίδα ρωτά</string>
     <string name="choose_file">Επιλογή αρχείου</string>
     <string name="browser_menu">Μενού σελίδας</string>
+    <string name="browser_shared">Κοινόχρηστο</string>
+    <string name="browser_shared_explained">Αυτό το τερματικό είναι κοινόχρηστο, οπότε ο browser του έχει δικές του συνδέσεις, χωριστά από τις δικές σας. Όλοι στο τερματικό τις χρησιμοποιούν.</string>
     <string name="terminal_actions">Ενέργειες τερματικού</string>
     <string name="interrupt">Διακοπή</string>
+    <string name="remove_from_project">Αφαίρεση από το έργο</string>
     <string name="close_terminal">Κλείσιμο τερματικού</string>
     <string name="close_terminal_message">Αυτό τερματίζει το τερματικό και τα προγράμματά του για όλους.</string>
     <string name="hide_terminal">Απόκρυψη μέχρι να συνδεθεί</string>

@@ -21,9 +21,9 @@ export function commandKey(event: KeyboardEvent): boolean {
   return !event.altKey && (APPLE ? event.metaKey : event.ctrlKey);
 }
 
-export type Room = "wide" | "mid" | "narrow" | "tiny";
+type Room = "wide" | "mid" | "narrow" | "tiny";
 
-export type Fit = Exclude<Room, "tiny">;
+type Fit = Exclude<Room, "tiny">;
 
 const ROOMS: readonly (readonly [Room, number])[] = [
   ["wide", 900],

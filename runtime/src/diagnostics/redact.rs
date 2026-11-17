@@ -180,9 +180,7 @@ fn strip_named_secrets(text: &str) -> String {
                     _ => value_end += 1,
                 }
             }
-            while !text.is_char_boundary(value_end) {
-                value_end += 1;
-            }
+            value_end = text.ceil_char_boundary(value_end);
         } else {
             value_end = text[value_start..]
                 .find(|symbol: char| symbol.is_whitespace() || ",;}".contains(symbol))

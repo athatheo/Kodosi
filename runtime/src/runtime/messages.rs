@@ -33,9 +33,10 @@ pub(super) struct Place {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Mention {
     pub project: String,
+    pub project_id: Uuid,
     pub from: Sender,
     pub text: String,
-    pub sequence: u64,
+    pub position: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,7 +61,7 @@ impl Mentions {
     pub(super) fn new_messages(&mut self, project: &str, messages: &[Value]) -> Vec<Value> {
         let latest = messages
             .iter()
-            .filter_map(|message| message["sequence"].as_u64())
+            .filter_map(|message| message["position"].as_u64())
             .max()
             .unwrap_or_default();
         let Some(seen) = self.seen.insert(project.to_owned(), latest) else {
@@ -72,9 +73,10 @@ impl Mentions {
         messages
             .iter()
             .filter(|message| {
-                message["sequence"]
-                    .as_u64()
-                    .is_some_and(|sequence| sequence > seen)
+                message["deleted"] != true
+                    && message["position"]
+                        .as_u64()
+                        .is_some_and(|position| position > seen)
             })
             .cloned()
             .collect()
@@ -84,13 +86,25 @@ impl Mentions {
         let waiting = self.waiting.entry(terminal).or_default();
         if waiting
             .iter()
-            .any(|kept| kept.sequence == mention.sequence && kept.project == mention.project)
+            .any(|kept| kept.position == mention.position && kept.project_id == mention.project_id)
         {
             return;
         }
         waiting.push(mention);
         let extra = waiting.len().saturating_sub(MOST_WAITING);
         waiting.drain(..extra);
+    }
+
+    pub(super) fn forget_deleted(&mut self, project: Uuid, positions: &HashSet<u64>) {
+        let deleted = |mention: &Mention| {
+            mention.project_id == project && positions.contains(&mention.position)
+        };
+        for waiting in self.waiting.values_mut() {
+            waiting.retain(|mention| !deleted(mention));
+        }
+        self.waiting.retain(|_, waiting| !waiting.is_empty());
+        self.unchecked
+            .retain(|unchecked| !deleted(&unchecked.mention));
     }
 
     pub(super) fn wait_for_check(&mut self, unchecked: Unchecked) {
@@ -164,7 +178,7 @@ pub(super) fn mention_line(project: &str, mentions: &[Mention]) -> String {
     }
     let first = mentions
         .iter()
-        .map(|mention| mention.sequence)
+        .map(|mention| mention.position)
         .min()
         .unwrap_or_default();
     let mut authors = Vec::new();

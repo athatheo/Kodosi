@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.json.JsonObject
 
 class ProjectStore(private val commands: CommandSink) {
-    private val mutableState = MutableStateFlow(ProjectsState())
-    val state: StateFlow<ProjectsState> = mutableState
+    val state: StateFlow<ProjectsState>
+        field = MutableStateFlow(ProjectsState())
     val drafts = mutableMapOf<String, String>()
     private val seen = mutableMapOf<String, Long>()
     private var userId: String? = null
@@ -23,7 +23,7 @@ class ProjectStore(private val commands: CommandSink) {
     fun reset(userId: String?) {
         generation++
         this.userId = userId
-        mutableState.value = ProjectsState()
+        state.value = ProjectsState()
         drafts.clear()
         seen.clear()
         reading = null
@@ -38,7 +38,7 @@ class ProjectStore(private val commands: CommandSink) {
                 val projects = event.value<List<Project>>("projects")
                 val truncated = event.bool("projectsTruncated") == true
                 val present = projects.map { it.id }.toSet()
-                mutableState.update {
+                state.update {
                     it.copy(
                         projects = projects,
                         invitations = event.value("invitations"),
@@ -56,14 +56,20 @@ class ProjectStore(private val commands: CommandSink) {
     }
 
     private fun apply(next: ProjectSnapshot) {
-        mutableState.update { current ->
+        state.update { current ->
             val previous = current.snapshots[next.projectId]
             val fresh = previous != null && next.messages.any {
-                it.sequence > (previous.messages.maxOfOrNull { message -> message.sequence } ?: 0) && !it.isOwn(userId)
+                it.position > (previous.messages.maxOfOrNull { message -> message.position } ?: 0) &&
+                    !it.deleted && !it.isOwn(userId)
             }
+            val cleared = previous != null && next.clearedPosition > previous.clearedPosition
             current.copy(
                 snapshots = current.snapshots + (next.projectId to (previous?.let(next::merging) ?: next)),
-                unread = if (fresh && reading != next.projectId) current.unread + next.projectId else current.unread
+                unread = when {
+                    fresh && reading != next.projectId -> current.unread + next.projectId
+                    cleared -> current.unread - next.projectId
+                    else -> current.unread
+                }
             )
         }
     }
@@ -74,7 +80,7 @@ class ProjectStore(private val commands: CommandSink) {
         val epoch = generation
         val reply = commands.request("project.open", fields("projectId" to id))
         if (generation != epoch) return
-        mutableState.update {
+        state.update {
             it.copy(
                 details =
                     it.details + (id to ProjectDetail(reply.value("project"), reply.value("members")))
@@ -87,12 +93,12 @@ class ProjectStore(private val commands: CommandSink) {
     }
 
     fun markRead(id: String) {
-        val sequence = state.value.snapshots[id]?.messages?.maxOfOrNull { it.sequence } ?: return
-        if (sequence > (seen[id] ?: 0)) {
-            seen[id] = sequence
-            commands.perform("project.seen", fields("projectId" to id, "sequence" to sequence))
+        val position = state.value.snapshots[id]?.messages?.maxOfOrNull { it.position } ?: return
+        if (position > (seen[id] ?: 0)) {
+            seen[id] = position
+            commands.perform("project.seen", fields("projectId" to id, "position" to position))
         }
-        mutableState.update {
+        state.update {
             it.copy(
                 unread = it.unread - id,
                 projects = it.projects.map { project ->
@@ -110,6 +116,14 @@ class ProjectStore(private val commands: CommandSink) {
 
     suspend fun act(id: String, action: JsonObject): RuntimeEvent =
         commands.request("project.act", fields("projectId" to id, "action" to action))
+
+    suspend fun delete(id: String, message: ProjectMessage) {
+        act(id, fields("type" to "deleteMessage", "messageId" to message.id))
+    }
+
+    suspend fun clearChat(id: String) {
+        act(id, fields("type" to "clearConversation"))
+    }
 
     suspend fun post(id: String, text: String) {
         val message = text.trim()

@@ -51,8 +51,8 @@ class TerminalConnection(
     }
 
     val kernel = TerminalKernel()
-    private val mutableState = MutableStateFlow<State>(State.Connecting)
-    val state: StateFlow<State> = mutableState
+    val state: StateFlow<State>
+        field = MutableStateFlow<State>(State.Connecting)
 
     /** Called on any thread when the screen changes. */
     @Volatile
@@ -145,7 +145,7 @@ class TerminalConnection(
 
     fun retry() {
         link?.let(::leave)
-        mutableState.value = State.Connecting
+        state.value = State.Connecting
         open()
         refresh()
     }
@@ -165,7 +165,7 @@ class TerminalConnection(
             try {
                 store.open(sessionId)
             } catch (failure: RuntimeFailure) {
-                mutableState.value = State.Failed(failure.message.orEmpty())
+                state.value = State.Failed(failure.message.orEmpty())
             }
             opening = null
         }
@@ -179,7 +179,7 @@ class TerminalConnection(
         focused = false
         focus = null
         sizedTo = null
-        mutableState.value = State.Connecting
+        state.value = State.Connecting
         scope.launch {
             for (wait in CONNECT_BACKOFF_MS + listOf(0L)) {
                 if (link !== next) return@launch
@@ -211,7 +211,7 @@ class TerminalConnection(
     private fun fail(failed: Link, message: String) {
         if (link !== failed) return
         leave(failed)
-        mutableState.value = State.Failed(message)
+        state.value = State.Failed(message)
     }
 
     private fun changed() = onChange()
@@ -278,7 +278,7 @@ class TerminalConnection(
             val result = runtime.input(sessionId, input.incarnation, input.link, input.bytes)
             if (result == Ffi.OK) return
             if (result != Ffi.BUSY || wait == 0L) {
-                mutableState.value = State.Failed(words.fellBehind)
+                state.value = State.Failed(words.fellBehind)
                 return
             }
             delay(wait)
@@ -291,7 +291,7 @@ class TerminalConnection(
         when (type) {
             "term.closed" -> {
                 leave(current)
-                mutableState.value = State.Closed(fields.string("reason"))
+                state.value = State.Closed(fields.string("reason"))
             }
 
             "term.focusApplied", "term.focusRejected" -> {
@@ -323,7 +323,7 @@ class TerminalConnection(
             if (link !== this || !active || !checkpointInstalled || !connected) return
             restored = true
             ready.complete(true)
-            mutableState.value = State.Rendered
+            state.value = State.Rendered
             refresh()
         }
 

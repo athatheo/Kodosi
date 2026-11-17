@@ -7,7 +7,7 @@ type Sheet = ReturnType<NonNullable<ReturnType<Api["getActiveWorkbook"]>>["getAc
 export type Align = "left" | "center" | "right";
 export type Vertical = "top" | "center" | "bottom";
 export type MarkName = "bold" | "italic" | "underline" | "strike";
-export type Merge = "all" | "rows" | "columns";
+type Merge = "all" | "rows" | "columns";
 
 export interface CellLook {
   bold: boolean;
@@ -60,11 +60,15 @@ function nameOf<V extends string>(
 }
 
 export class SheetControl {
-  constructor(
-    private readonly api: Api,
-    private readonly commands: ICommandService,
-    private readonly history: IUndoRedoService,
-  ) {}
+  private readonly api: Api;
+  private readonly commands: ICommandService;
+  private readonly history: IUndoRedoService;
+
+  constructor(api: Api, commands: ICommandService, history: IUndoRedoService) {
+    this.api = api;
+    this.commands = commands;
+    this.history = history;
+  }
 
   private sheet(): Sheet | undefined {
     return this.api.getActiveWorkbook()?.getActiveSheet();

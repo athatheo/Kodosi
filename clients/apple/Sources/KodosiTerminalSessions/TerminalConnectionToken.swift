@@ -1,13 +1,16 @@
 import Foundation
 import KodosiBridge
+import Synchronization
 
-public final class TerminalConnectionToken: @unchecked Sendable {
-    private static let generationLock = NSLock()
-    private nonisolated(unsafe) static var generationCounter: UInt64 = 0
+public final class TerminalConnectionToken: Sendable {
+    private struct State {
+        var active = true
+        var inputViews: Set<UUID> = []
+    }
 
-    private let lock = NSLock()
-    private var active = true
-    private var inputViews: Set<UUID> = []
+    private static let generation = Mutex<UInt64>(0)
+
+    private let state = Mutex(State())
     public let subscriptionId: String
     public let subscriptionGeneration: UInt64
 
@@ -17,39 +20,37 @@ public final class TerminalConnectionToken: @unchecked Sendable {
     }
 
     public var isActive: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return active
+        state.withLock { $0.active }
     }
 
     public var canSendInput: Bool {
-        lock.withLock { active && !inputViews.isEmpty }
+        state.withLock { $0.active && !$0.inputViews.isEmpty }
     }
 
     public func setInputAllowed(_ allowed: Bool, by view: UUID) {
-        lock.withLock {
+        state.withLock {
             if allowed {
-                inputViews.insert(view)
+                $0.inputViews.insert(view)
             } else {
-                inputViews.remove(view)
+                $0.inputViews.remove(view)
             }
         }
     }
 
     @discardableResult
     public func deactivate() -> Bool {
-        lock.withLock {
-            let wasActive = active
-            active = false
+        state.withLock {
+            let wasActive = $0.active
+            $0.active = false
             return wasActive
         }
     }
 
     private static func nextGeneration() -> UInt64 {
-        generationLock.withLock {
-            precondition(generationCounter < UInt64.max, "terminal subscription generation exhausted")
-            generationCounter += 1
-            return generationCounter
+        generation.withLock {
+            precondition($0 < UInt64.max, "terminal subscription generation exhausted")
+            $0 += 1
+            return $0
         }
     }
 }

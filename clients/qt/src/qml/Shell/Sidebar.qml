@@ -2,8 +2,9 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi.Models 1.0 as Models
 
 Item {
@@ -63,11 +64,11 @@ Item {
     property var collapsedFolders: ({})
     property var collapsedComputers: ({})
 
-    function computerSessions(computer) {
+    function computerSessions(computer: string): var {
         return root.groups.filter(group => !group.pinned && group.computer === computer)
             .reduce((all, group) => all.concat(group.sessions || []), [])
     }
-    function toggled(folds, key) {
+    function toggled(folds: var, key: string): var {
         const next = Object.assign({}, folds)
         next[key] = next[key] !== true
         return next
@@ -83,23 +84,23 @@ Item {
     signal accountSettingsRequested
     signal aboutRequested
 
-    function signIn() {
+    function signIn(): void {
         Models.DesktopState.activeView = Models.DesktopState.Settings
         if (!Models.Account.signedIn)
             Models.Account.login()
     }
-    function showProjects() {
+    function showProjects(): void {
         Models.DesktopState.activeView = Models.DesktopState.Projects
         Models.Projects.open("")
     }
-    function openProject(id) {
+    function openProject(id: string): void {
         Models.DesktopState.activeView = Models.DesktopState.Projects
         Models.Projects.open(id)
     }
-    function openTerminal(id) {
+    function openTerminal(id: string): void {
         Models.SessionActions.activate(id)
     }
-    function syncPill() {
+    function syncPill(): void {
         if (!pillTarget || collapsed) {
             pill.visible = false
             return
@@ -111,7 +112,7 @@ Item {
         pill.height = pillTarget.height
         pill.visible = true
     }
-    function claimPill(item, selected) {
+    function claimPill(item: Item, selected: bool): void {
         if (selected)
             pillTarget = item
         else if (pillTarget === item)
@@ -955,7 +956,7 @@ Item {
                             hoverEnabled: true
                             objectName: "sidebar.folder." + folder.group.key
                             Accessible.id: objectName
-                            Accessible.name: folder.group.host ? qsTr("%1 on %2").arg(folderLabel.text).arg(folder.group.host) : folderLabel.text
+                            Accessible.name: folder.group.host ? qsTr("%1 on %2").arg(folderLabel.text, folder.group.host) : folderLabel.text
                             contentItem: RowLayout {
                                 spacing: 6
                                 KIcon {
@@ -1006,7 +1007,7 @@ Item {
                                     objectName: "sidebar.folder.new." + folder.group.key
                                     Accessible.id: objectName
                                     Accessible.name: agent.length > 0
-                                        ? qsTr("New %1 in %2").arg(Models.DesktopSettings.agentLabel(agent)).arg(folder.group.name)
+                                        ? qsTr("New %1 in %2").arg(Models.DesktopSettings.agentLabel(agent), folder.group.name)
                                         : qsTr("New terminal in %1").arg(folder.group.name)
                                     onClicked: Models.SessionActions.createInFolder(folder.group.key)
                                 }
@@ -1241,15 +1242,12 @@ Item {
                                     if (row.session.isOwner === true)
                                         root.renamingId = sessionId
                                 }
+                                T.ContextMenu.onRequested: position => {
+                                    terminalMenu.sessionId = row.sessionId
+                                    terminalMenu.popupFor(row, position)
+                                }
 
                                 HoverHandler { id: rowHover }
-                                TapHandler {
-                                    acceptedButtons: Qt.RightButton
-                                    onTapped: {
-                                        terminalMenu.sessionId = row.sessionId
-                                        terminalMenu.popup()
-                                    }
-                                }
                                 TerminalDragSource {
                                     anchors.fill: parent
                                     enabled: !row.renaming
@@ -1437,7 +1435,7 @@ Item {
 
         property string directory: ""
 
-        function openAt(item, folder) {
+        function openAt(item: Item, folder: string): void {
             const point = item.mapToItem(root, item.width + 8, -14)
             x = point.x
             y = point.y
@@ -1445,7 +1443,7 @@ Item {
             branchName.text = Models.SessionActions.suggestedBranch()
             open()
         }
-        function start() {
+        function start(): void {
             if (Models.SessionActions.createOnBranch(directory, branchName.text))
                 close()
         }

@@ -115,6 +115,7 @@ internal sealed class AccountDeletionFeed(
             ["grant_type"] = "client_credentials",
             ["client_id"] = settings.ClientId!,
             ["client_secret"] = settings.ClientSecret!,
+            ["scope"] = "kc-admin-api",
         });
         using var response = await client.PostAsync(new Uri(settings.Admin!, $"realms/{settings.Realm}/protocol/openid-connect/token"), body, ct);
         response.EnsureSuccessStatusCode();

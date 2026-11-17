@@ -28,6 +28,7 @@ VENDOR_ROOT=${VENDOR_ROOT:-"$ROOT/Vendor"}
 RENDERER="$VENDOR_ROOT/GhosttyKit.xcframework"
 VT="$VENDOR_ROOT/GhosttyVt/macos-arm64"
 ARCHIVE="$RENDERER/macos-arm64/libghostty.a"
+MACOS_MINIMUM=$("$ROOT/scripts/native-build-options.sh" minimum macos-arm64)
 
 if [[ ! -f "$ARCHIVE" ]]; then
     echo "[!] vendored combined Ghostty archive is missing" >&2
@@ -278,7 +279,7 @@ C
 
 COMMON_FLAGS=(
     -arch arm64
-    -mmacosx-version-min=13.0
+    -mmacosx-version-min="$MACOS_MINIMUM"
     -O1
     -g
     -fno-omit-frame-pointer

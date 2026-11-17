@@ -30,6 +30,10 @@ pub enum Step {
         to: usize,
         mark: Mark,
     },
+    /// Holds only `AddMark` and `RemoveMark` steps.
+    MarkSet {
+        steps: Vec<Self>,
+    },
     AddNodeMark {
         pos: usize,
         mark: Mark,
@@ -63,6 +67,19 @@ fn text(json: &Value, name: &str) -> Result<String, Failed> {
         .ok_or_else(|| Failed(format!("Invalid {name} in a step")))
 }
 
+fn mark_steps(schema: &Schema, json: &Value) -> Result<Vec<Step>, Failed> {
+    let Some(steps) = json["steps"].as_array() else {
+        return failed("Invalid steps in a step");
+    };
+    steps
+        .iter()
+        .map(|step| match step["stepType"].as_str() {
+            Some("addMark" | "removeMark") => Step::from_json(schema, step),
+            _ => failed("Invalid steps in a step"),
+        })
+        .collect()
+}
+
 impl Step {
     pub fn from_json(schema: &Schema, json: &Value) -> Result<Self, Failed> {
         let mark = || Mark::from_json(schema, &json["mark"]);
@@ -94,6 +111,9 @@ impl Step {
                 to: number(json, "to")?,
                 mark: mark()?,
             },
+            "markSet" => Self::MarkSet {
+                steps: mark_steps(schema, json)?,
+            },
             "addNodeMark" => Self::AddNodeMark {
                 pos: number(json, "pos")?,
                 mark: mark()?,
@@ -105,11 +125,11 @@ impl Step {
             "attr" => Self::Attr {
                 pos: number(json, "pos")?,
                 attr: text(json, "attr")?,
-                value: json.get("value").cloned().unwrap_or(Value::Null),
+                value: json.get("value").cloned().unwrap_or_default(),
             },
             "docAttr" => Self::DocAttr {
                 attr: text(json, "attr")?,
-                value: json.get("value").cloned().unwrap_or(Value::Null),
+                value: json.get("value").cloned().unwrap_or_default(),
             },
             other => return failed(format!("No step type {other} defined")),
         })
@@ -167,6 +187,10 @@ impl Step {
                 "mark": mark.to_json(schema),
                 "from": from,
                 "to": to,
+            }),
+            Self::MarkSet { steps } => json!({
+                "stepType": "markSet",
+                "steps": steps.iter().map(|step| step.to_json(schema)).collect::<Vec<_>>(),
             }),
             Self::AddNodeMark { pos, mark } => json!({
                 "stepType": "addNodeMark",
@@ -243,6 +267,9 @@ impl Step {
                 let slice = Slice::new(content, old.open_start, old.open_end);
                 doc.replace(schema, *from, *to, &slice)
             }
+            Self::MarkSet { steps } => steps
+                .iter()
+                .try_fold(doc.clone(), |doc, step| step.apply(schema, &doc)),
             Self::AddNodeMark { pos, mark } => {
                 let Some(node) = doc.node_at(*pos)? else {
                     return failed("No node at mark step's position");
@@ -276,6 +303,10 @@ impl Step {
             | Self::ReplaceAround { from, to, .. }
             | Self::AddMark { from, to, .. }
             | Self::RemoveMark { from, to, .. } => Some((*from, *to)),
+            Self::MarkSet { steps } => steps
+                .iter()
+                .filter_map(Self::range)
+                .reduce(|(from, to), (next_from, next_to)| (from.min(next_from), to.max(next_to))),
             Self::AddNodeMark { pos, .. }
             | Self::RemoveNodeMark { pos, .. }
             | Self::Attr { pos, .. } => Some((*pos, *pos)),

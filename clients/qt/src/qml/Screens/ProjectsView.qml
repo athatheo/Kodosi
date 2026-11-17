@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Kodosi.Models 1.0 as Models
 
@@ -26,7 +26,7 @@ Item {
     signal shareSessionRequested(string sessionId)
     signal newTerminalRequested(string projectId)
 
-    function openCreate() {
+    function openCreate(): void {
         create.open();
     }
 

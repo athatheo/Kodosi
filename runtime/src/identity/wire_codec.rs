@@ -60,71 +60,57 @@ impl LpWriter {
 
 pub(super) struct LpReader<'a> {
     context: &'static str,
-    bytes: &'a [u8],
-    pos: usize,
+    rest: &'a [u8],
 }
 
 impl<'a> LpReader<'a> {
-    pub(super) fn new(context: &'static str, bytes: &'a [u8]) -> Self {
+    pub(super) const fn new(context: &'static str, bytes: &'a [u8]) -> Self {
         Self {
             context,
-            bytes,
-            pos: 0,
+            rest: bytes,
         }
     }
 
     pub(super) fn read_u32_be(&mut self) -> Result<u32> {
-        let end = self.pos.checked_add(4).ok_or_else(|| Error::Invalid {
-            reason: format!("{}: u32 length overflow", self.context),
-        })?;
-        if end > self.bytes.len() {
-            return Err(Error::Invalid {
+        let (value, rest) = self
+            .rest
+            .split_first_chunk()
+            .ok_or_else(|| Error::Invalid {
                 reason: format!("{}: truncated u32", self.context),
-            });
-        }
-        let mut buf = [0u8; 4];
-        buf.copy_from_slice(&self.bytes[self.pos..end]);
-        self.pos = end;
-        Ok(u32::from_be_bytes(buf))
+            })?;
+        self.rest = rest;
+        Ok(u32::from_be_bytes(*value))
     }
 
     pub(super) fn read_u64_be(&mut self) -> Result<u64> {
-        let end = self.pos.checked_add(8).ok_or_else(|| Error::Invalid {
-            reason: format!("{}: u64 length overflow", self.context),
-        })?;
-        if end > self.bytes.len() {
-            return Err(Error::Invalid {
+        let (value, rest) = self
+            .rest
+            .split_first_chunk()
+            .ok_or_else(|| Error::Invalid {
                 reason: format!("{}: truncated u64", self.context),
-            });
-        }
-        let mut buf = [0u8; 8];
-        buf.copy_from_slice(&self.bytes[self.pos..end]);
-        self.pos = end;
-        Ok(u64::from_be_bytes(buf))
+            })?;
+        self.rest = rest;
+        Ok(u64::from_be_bytes(*value))
     }
 
     pub(super) fn read_lp_bytes(&mut self) -> Result<Vec<u8>> {
-        let len_u32 = self.read_u32_be()?;
-        if len_u32 > MAX_FIELD_LEN {
+        let len = self.read_u32_be()?;
+        if len > MAX_FIELD_LEN {
             return Err(Error::Invalid {
                 reason: format!(
-                    "{}: field length {len_u32} exceeds MAX_FIELD_LEN ({MAX_FIELD_LEN})",
+                    "{}: field length {len} exceeds MAX_FIELD_LEN ({MAX_FIELD_LEN})",
                     self.context
                 ),
             });
         }
-        let len = len_u32 as usize;
-        let end = self.pos.checked_add(len).ok_or_else(|| Error::Invalid {
-            reason: format!("{}: field length overflow", self.context),
-        })?;
-        if end > self.bytes.len() {
-            return Err(Error::Invalid {
-                reason: format!("{}: truncated field", self.context),
-            });
-        }
-        let out = self.bytes[self.pos..end].to_vec();
-        self.pos = end;
-        Ok(out)
+        let (field, rest) =
+            self.rest
+                .split_at_checked(len as usize)
+                .ok_or_else(|| Error::Invalid {
+                    reason: format!("{}: truncated field", self.context),
+                })?;
+        self.rest = rest;
+        Ok(field.to_vec())
     }
 
     pub(super) fn read_lp_str(&mut self) -> Result<String> {
@@ -135,13 +121,9 @@ impl<'a> LpReader<'a> {
     }
 
     pub(super) fn expect_consumed(&self) -> Result<()> {
-        if self.pos == self.bytes.len() {
-            Ok(())
-        } else {
-            Err(Error::Invalid {
-                reason: format!("{}: trailing bytes after parse", self.context),
-            })
-        }
+        self.rest.is_empty().ok_or_else(|| Error::Invalid {
+            reason: format!("{}: trailing bytes after parse", self.context),
+        })
     }
 }
 

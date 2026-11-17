@@ -102,6 +102,7 @@
     <string name="close">Chiudi</string>
     <string name="remove">Rimuovi</string>
     <string name="copy">Copia</string>
+    <string name="copy_link">Copia link</string>
     <string name="rename">Rinomina</string>
     <string name="delete">Elimina</string>
     <string name="working">Al lavoro</string>
@@ -133,6 +134,13 @@
     <string name="write_message">Scrivi un messaggio</string>
     <string name="load_older">Carica messaggi precedenti</string>
     <string name="history_trimmed">I messaggi più vecchi sono stati rimossi per rispettare il limite di questo progetto.</string>
+    <string name="delete_message">Elimina messaggio</string>
+    <string name="delete_message_title">Eliminare questo messaggio?</string>
+    <string name="delete_message_notice">Tutti nel progetto vedono che un messaggio è stato eliminato.</string>
+    <string name="message_deleted">Messaggio eliminato</string>
+    <string name="clear_chat">Svuota chat</string>
+    <string name="clear_chat_title">Svuotare la chat per te?</string>
+    <string name="clear_chat_notice">I messaggi fino a ora scompaiono da tutti i tuoi dispositivi. Gli altri li conservano.</string>
     <string name="create_task">Crea attività</string>
     <string name="no_tasks">Ancora nessuna attività</string>
     <string name="closed_tasks">Attività chiuse</string>
@@ -292,8 +300,11 @@
     <string name="browser_dialog">La pagina chiede</string>
     <string name="choose_file">Scegli un file</string>
     <string name="browser_menu">Menu della pagina</string>
+    <string name="browser_shared">Condiviso</string>
+    <string name="browser_shared_explained">Questo terminale è condiviso, quindi il suo browser ha accessi propri, separati dai tuoi. Tutti nel terminale li usano.</string>
     <string name="terminal_actions">Azioni del terminale</string>
     <string name="interrupt">Interrompi</string>
+    <string name="remove_from_project">Rimuovi dal progetto</string>
     <string name="close_terminal">Chiudi terminale</string>
     <string name="close_terminal_message">Questo termina il terminale e i suoi programmi per tutti.</string>
     <string name="hide_terminal">Nascondi fino alla riconnessione</string>

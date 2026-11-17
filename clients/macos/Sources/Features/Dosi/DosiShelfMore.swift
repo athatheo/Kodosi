@@ -13,7 +13,7 @@ private struct DosiMoreChip<List: View>: View {
     let identifier: String
     let glints: Int
     let glintDelay: Double
-    @ViewBuilder let list: () -> List
+    @ContentBuilder let list: () -> List
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
@@ -47,7 +47,7 @@ private struct DosiMoreChip<List: View>: View {
 
 private struct DosiMoreList<Content: View>: View {
     let count: Int
-    @ViewBuilder let content: Content
+    @ContentBuilder let content: Content
 
     var body: some View {
         ScrollView {
@@ -64,8 +64,8 @@ private struct DosiMoreRow<Mark: View, Sign: View>: View {
     let name: String
     let detail: String?
     let selected: Bool
-    @ViewBuilder let mark: () -> Mark
-    @ViewBuilder let sign: () -> Sign
+    @ContentBuilder let mark: () -> Mark
+    @ContentBuilder let sign: () -> Sign
     let action: () -> Void
 
     var body: some View {
@@ -112,7 +112,7 @@ struct DosiMoreTerminals: View {
             label: Text("\(sessions.count) more terminals"), identifier: "dosi.marks.more", glints: glints, glintDelay: glintDelay,
         ) {
             DosiMoreList(count: sessions.count) {
-                ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                ForEach(sessions.enumerated(), id: \.element.id) { index, session in
                     DosiMoreRow(name: session.name, detail: session.kind == .remote ? session.hostLabel : nil, selected: selected(session)) {
                         AgentMark(session: session, size: 18, activity: deps.activity(of: session))
                     } sign: {
@@ -167,7 +167,7 @@ struct DosiMoreProjects: View {
             label: Text("\(projects.count) more projects"), identifier: "dosi.marks.project.more", glints: glints, glintDelay: glintDelay,
         ) {
             DosiMoreList(count: projects.count) {
-                ForEach(Array(projects.enumerated()), id: \.element.id) { index, project in
+                ForEach(projects.enumerated(), id: \.element.id) { index, project in
                     DosiMoreRow(name: project.name, detail: nil, selected: selected(project)) {
                         ProjectSigil(key: project.id, size: 18)
                     } sign: {

@@ -1175,7 +1175,7 @@
   "components": [
     {
       "id": "ghostty",
-      "identity": "ghostty:83fb95624b0439ee660c2679b43b38c8b63769cd;patch_set:8d78d2a6e09878ad574d21d5c9146a368c5aa546412bba6ab69557f88e3dd165;patch_application:8c9d94d5947aaed1f7e1da8c67751769b2cedc0ac2552ba9d040b3b468ea5598",
+      "identity": "ghostty:83fb95624b0439ee660c2679b43b38c8b63769cd;patch_set:5e6910d077b54f8b89537de590d215271d4301886c180ef49761a1a2f20b5100;patch_application:4cc8786ebdd4c1f19c235ab21f73050900f09dd8c4eaa5cd8286d813ed1ee6ce",
       "name": "Ghostty",
       "notices": [
         "LICENSE-GHOSTTY"
@@ -1496,7 +1496,7 @@
     },
     {
       "id": "zig-runtime",
-      "identity": "sha256:b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a",
+      "identity": "sha256:75f1bc7a1e9852f17ec9a0c1895f767c4ec56d46bc8a834920eece1d0359dd8d",
       "name": "Zig compiler runtime (Zig-authored portions)",
       "notices": [
         "zig-compiler-runtime.txt"
@@ -1504,15 +1504,15 @@
       "scope": "archive",
       "sourcePaths": [
         "Toolchain.env",
-        "pinned-source:zig-0.17.0/lib/compiler_rt",
-        "pinned-source:zig-0.17.0/LICENSE"
+        "pinned-source:zig-0.17.1/lib/compiler_rt",
+        "pinned-source:zig-0.17.1/LICENSE"
       ],
       "spdx": "MIT",
-      "version": "0.17.0"
+      "version": "0.17.1"
     },
     {
       "id": "compiler-rt-llvm-derived",
-      "identity": "sha256:b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a",
+      "identity": "sha256:75f1bc7a1e9852f17ec9a0c1895f767c4ec56d46bc8a834920eece1d0359dd8d",
       "name": "Zig compiler runtime LLVM-derived portions",
       "notices": [
         "compiler-rt-LLVM-derived.txt",
@@ -1529,11 +1529,11 @@
         "pinned-source:lib/compiler_rt/powiXf2.zig"
       ],
       "spdx": "Apache-2.0 WITH LLVM-exception AND NCSA AND MIT",
-      "version": "Zig 0.17.0 toolchain sources"
+      "version": "Zig 0.17.1 toolchain sources"
     },
     {
       "id": "compiler-rt-musl-derived",
-      "identity": "sha256:b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a",
+      "identity": "sha256:75f1bc7a1e9852f17ec9a0c1895f767c4ec56d46bc8a834920eece1d0359dd8d",
       "name": "Zig compiler runtime musl-derived math portions",
       "notices": [
         "compiler-rt-musl-derived.txt",
@@ -1561,7 +1561,7 @@
         "pinned-source:lib/compiler_rt/trunc.zig"
       ],
       "spdx": "MIT AND permissive-source-notices",
-      "version": "Zig 0.17.0 toolchain sources"
+      "version": "Zig 0.17.1 toolchain sources"
     },
     {
       "id": "xorg-rgb-data",

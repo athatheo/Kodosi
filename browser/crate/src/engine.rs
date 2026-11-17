@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    mem::DropGuard,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{
@@ -87,35 +88,6 @@ impl Routes {
                 (sender.clone(), Event::Tabs { tabs, active })
             })
             .collect()
-    }
-}
-
-/// Forgets a driver's ask for a tab when its wait ends, also when the driver went first.
-struct TabAsk<'a> {
-    engine: &'a Engine,
-    ask: i64,
-}
-
-impl Drop for TabAsk<'_> {
-    fn drop(&mut self) {
-        self.engine.routes().asked.remove(&self.ask);
-    }
-}
-
-/// Closes a host page whose opening was dropped before it ended, so that no page stays open
-/// that nobody holds.
-struct PageOpening<'a> {
-    engine: &'a Engine,
-    page: i64,
-    ended: bool,
-}
-
-impl Drop for PageOpening<'_> {
-    fn drop(&mut self) {
-        if !self.ended {
-            self.engine.routes().opening.remove(&self.page);
-            self.engine.command(ToEngine::ClosePage { page: self.page });
-        }
     }
 }
 
@@ -268,7 +240,10 @@ impl Engine {
         let ask = self.next_ask.fetch_add(1, Ordering::Relaxed);
         let (named, target) = oneshot::channel();
         self.routes().asked.insert(ask, named);
-        let _asking = TabAsk { engine: self, ask };
+        // The driver may go first and drop this wait.
+        let _asking = DropGuard::new(ask, |ask| {
+            self.routes().asked.remove(&ask);
+        });
         self.command(ToEngine::NewTab {
             window,
             address: address.to_owned(),
@@ -301,11 +276,11 @@ impl Engine {
         let page = self.next_page.fetch_add(1, Ordering::Relaxed);
         let (named, target) = oneshot::channel();
         self.routes().opening.insert(page, named);
-        let mut opening = PageOpening {
-            engine: self,
-            page,
-            ended: false,
-        };
+        // A dropped opening must not leave a page open that nobody holds.
+        let opening = DropGuard::new(page, |page| {
+            self.routes().opening.remove(&page);
+            self.command(ToEngine::ClosePage { page });
+        });
         self.command(ToEngine::OpenPage {
             page,
             width,
@@ -313,17 +288,16 @@ impl Engine {
         });
         let target = tokio::time::timeout(ATTACH_LIMIT, target).await;
         let Ok(Ok(target)) = target else {
-            opening.ended = true;
-            self.routes().opening.remove(&page);
-            self.close_page(page, None).await;
+            drop(opening);
+            self.stop_if_idle().await;
             return Err(Error::Engine("the page did not open".to_owned()));
         };
         let Some(session) = self.attach(&target).await else {
-            opening.ended = true;
+            DropGuard::dismiss(opening);
             self.close_page(page, Some(&target)).await;
             return Err(Error::Engine("the page did not attach".to_owned()));
         };
-        opening.ended = true;
+        DropGuard::dismiss(opening);
         let (sender, events) = mpsc::unbounded_channel();
         self.routes().pages.insert(session.clone(), sender);
         Ok(OpenedPage {
@@ -572,16 +546,13 @@ impl Engine {
         let to_tab = |tab: i64, event: Event| {
             self.routes()
                 .sender_of_tab(tab)
-                .map(|sender| vec![(sender, event)])
-                .unwrap_or_default()
+                .map_or_default(|sender| vec![(sender, event)])
         };
         match said {
             FromEngine::Failed { window, problem } => {
                 tracing::warn!(%problem, "the capture stopped");
                 let sender = self.routes().windows.get(&window).cloned();
-                sender
-                    .map(|sender| vec![(sender, Event::CaptureFailed)])
-                    .unwrap_or_default()
+                sender.map_or_default(|sender| vec![(sender, Event::CaptureFailed)])
             }
             FromEngine::Shape { tab, shape } => to_tab(tab, Event::Shape(shape)),
             FromEngine::Menu {
@@ -604,6 +575,7 @@ impl Engine {
                 link,
             } => to_tab(tab, Event::Context { selection, link }),
             FromEngine::Copied { tab, text } => to_tab(tab, Event::Copied(text)),
+            FromEngine::Icon { tab, png } => to_tab(tab, Event::Icon { tab, png }),
             FromEngine::Dialog { tab, dialog } => to_tab(tab, Event::Dialog { tab, dialog }),
             FromEngine::DialogClosed { tab } => to_tab(tab, Event::DialogClosed { tab }),
             FromEngine::Tabs { tabs, .. } => {
@@ -672,7 +644,7 @@ async fn follow(
                 if let Some(Report::Said(FromEngine::Tabs { tabs, .. })) = &report {
                     engine.attach_new(tabs);
                 }
-                report.map(|report| engine.report(report)).unwrap_or_default()
+                report.map_or_default(|report| engine.report(report))
             }
         };
         for (sender, event) in deliveries {

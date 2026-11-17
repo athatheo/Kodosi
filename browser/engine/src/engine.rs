@@ -7,10 +7,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cef::*;
 use shared_browser::{
     Dialog, MenuItem, Size,
-    link::{EngineTab, FromEngine, ToEngine},
+    link::{EngineTab, FromEngine, MOST_ICON, ToEngine},
 };
 
 use crate::{client, encode::Encoder, link::Link, renderer};
@@ -205,6 +206,8 @@ struct Tab {
     address: String,
     loading: bool,
     shape: String,
+    /// The address of the icon that the tab shows or gets.
+    icon: String,
     observer: Option<Registration>,
 }
 
@@ -366,6 +369,7 @@ impl Engine {
                         address: String::new(),
                         loading: true,
                         shape: String::new(),
+                        icon: String::new(),
                         observer: None,
                     },
                 );
@@ -510,6 +514,43 @@ impl Engine {
         {
             tab.address = address;
             self.report_soon();
+        }
+    }
+
+    /// Whether the tab gets the icon at this address. A tab whose page names no icon has none.
+    pub(crate) fn icon_named(&mut self, browser: i64, address: &str) -> bool {
+        let Some(tab) = self.tabs.get_mut(&browser) else {
+            return false;
+        };
+        if tab.icon == address {
+            return false;
+        }
+        address.clone_into(&mut tab.icon);
+        if address.is_empty() {
+            self.link.send(&FromEngine::Icon {
+                tab: browser,
+                png: String::new(),
+            });
+        }
+        !address.is_empty()
+    }
+
+    /// An icon that comes after its page named another one stays out.
+    pub(crate) fn icon(&mut self, browser: i64, address: &str, png: &[u8]) {
+        if self
+            .tabs
+            .get(&browser)
+            .is_some_and(|tab| tab.icon == address)
+        {
+            let png = STANDARD.encode(png);
+            self.link.send(&FromEngine::Icon {
+                tab: browser,
+                png: if png.len() <= MOST_ICON {
+                    png
+                } else {
+                    String::new()
+                },
+            });
         }
     }
 

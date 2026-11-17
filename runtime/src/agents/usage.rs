@@ -315,7 +315,7 @@ impl Process {
             .read_exact(&mut body)
             .await
             .map_err(|error| error.to_string())?;
-        Ok(Some(serde_json::from_slice(&body).unwrap_or(Value::Null)))
+        Ok(Some(serde_json::from_slice(&body).unwrap_or_default()))
     }
 
     async fn send_line(&mut self, message: &Value) -> Result<(), String> {
@@ -365,7 +365,7 @@ fn answer(message: &Value, id: u64) -> Result<Option<Value>, String> {
             .unwrap_or("The agent refused the usage request.")
             .to_owned());
     }
-    Ok(Some(message.get("result").cloned().unwrap_or(Value::Null)))
+    Ok(Some(message.get("result").cloned().unwrap_or_default()))
 }
 
 pub(super) fn claude(report: &Value) -> Vec<UsageLimit> {

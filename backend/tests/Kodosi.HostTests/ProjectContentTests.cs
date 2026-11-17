@@ -55,6 +55,99 @@ public sealed class ProjectContentTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task OnlyItsAuthorWritesTheNextVersionOfAMessageWhichKeepsItsPlaceInTheHistory()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await TestStore.CreateAsync(postgres);
+        var (project, alice, bob) = await TwoPersonProjectAsync(store, ct);
+        Guid first = Guid.CreateVersion7(), second = Guid.CreateVersion7(), third = Guid.CreateVersion7();
+        await store.Projects.PutContentAsync(project, first, alice.User.Id, Item(project, first, "message", 0, alice), ct);
+        await store.Projects.PutContentAsync(project, second, bob.User.Id, Item(project, second, "message", 0, bob), ct);
+        await store.Projects.PutContentAsync(project, third, alice.User.Id, Item(project, third, "message", 0, alice), ct);
+        var other = await Assert.ThrowsAsync<ApiException>(() =>
+            store.Projects.PutContentAsync(project, first, bob.User.Id, Item(project, first, "message", 1, bob), ct));
+        Assert.Equal(403, other.Status);
+        await store.Projects.PutContentAsync(project, first, alice.User.Id, Item(project, first, "message", 1, alice), ct);
+
+        var changed = Assert.Single((await PageAsync(store, project, bob, 3, null, ct)).GetProperty("items").EnumerateArray());
+        Assert.Equal((first, 2L, 4L, 1L), (changed.GetProperty("id").GetGuid(), changed.GetProperty("version").GetInt64(),
+            changed.GetProperty("sequence").GetInt64(), changed.GetProperty("position").GetInt64()));
+        Assert.Equal([first, second, third], Ids(await PageAsync(store, project, bob, 0, long.MaxValue, ct)));
+        Assert.Equal([first], Ids(await PageAsync(store, project, bob, 0, 2, ct)));
+    }
+
+    [Fact]
+    public async Task AClearHidesTheMessagesUpToItsPositionOnlyFromThePersonWhoClears()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await TestStore.CreateAsync(postgres);
+        var (project, alice, bob) = await TwoPersonProjectAsync(store, ct);
+        Guid first = Guid.CreateVersion7(), second = Guid.CreateVersion7(), third = Guid.CreateVersion7();
+        await store.Projects.PutContentAsync(project, first, alice.User.Id, Item(project, first, "message", 0, alice), ct);
+        await store.Projects.PutContentAsync(project, second, bob.User.Id, Item(project, second, "message", 0, bob), ct);
+        var beyond = await Assert.ThrowsAsync<ApiException>(() => store.Projects.ClearConversationAsync(project, alice.User.Id, 3, ct));
+        Assert.Equal(400, beyond.Status);
+        await store.Projects.ClearConversationAsync(project, alice.User.Id, 2, ct);
+        await store.Projects.PutContentAsync(project, third, bob.User.Id, Item(project, third, "message", 0, bob), ct);
+        await store.Projects.ClearConversationAsync(project, alice.User.Id, 1, ct);
+
+        foreach (var (after, before) in new (long, long?)[] { (0, long.MaxValue), (0, null) })
+        {
+            var cleared = await PageAsync(store, project, alice, after, before, ct);
+            Assert.Equal(2, cleared.GetProperty("clearedPosition").GetInt64());
+            Assert.Equal([third], Ids(cleared));
+            var kept = await PageAsync(store, project, bob, after, before, ct);
+            Assert.Equal(0, kept.GetProperty("clearedPosition").GetInt64());
+            Assert.Equal([first, second, third], Ids(kept));
+        }
+        var newest = JsonSerializer.SerializeToElement(await store.Projects.ContentAsync(project, alice.User.Id, "message", 0, long.MaxValue, 1, ct),
+            TestJson.Options);
+        Assert.False(newest.GetProperty("hasMore").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ASignedBodyThatNamesAFieldTwiceIsRefusedAsDevicesRefuseIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await TestStore.CreateAsync(postgres);
+        var (project, alice, _) = await TwoPersonProjectAsync(store, ct);
+        var message = Guid.CreateVersion7();
+        var body = System.Text.Encoding.UTF8.GetBytes(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(Item(project, message, "message", 0, alice).Body))
+            .Replace("\"kind\":\"message\"", "\"kind\":\"task\",\"kind\":\"message\"", StringComparison.Ordinal));
+        var twice = new ProjectService.ContentWrite(0, alice.Device.Id, Convert.ToBase64String(body),
+            Convert.ToBase64String(alice.Fixture.Sign(Proofs.Tagged("kodosi-room-content-v1"u8, body))));
+        await Assert.ThrowsAsync<JsonException>(() => store.Projects.PutContentAsync(project, message, alice.User.Id, twice, ct));
+        Assert.False(await store.Db.ProjectItems.AnyAsync(ct));
+    }
+
+    private static async Task<(Guid Project, TestUser Alice, TestUser Bob)> TwoPersonProjectAsync(TestStore store, CancellationToken ct)
+    {
+        var alice = await store.UserAsync("alice"); var bob = await store.UserAsync("bob");
+        var project = Guid.CreateVersion7();
+        await store.Projects.CreateAsync(alice.User.Id, new(project, "Workspace"), ct);
+        store.Db.ProjectMembers.Add(new ProjectMember { ProjectId = project, UserId = bob.User.Id });
+        await store.Db.SaveChangesAsync(ct);
+        await store.Projects.StoreKeysAsync(project, alice.User.Id,
+            Signed(alice, KeyState(project, alice, alice, 1, 1, "", [alice.User.Id, bob.User.Id], [alice, bob])), ct);
+        return (project, alice, bob);
+    }
+
+    private static ProjectService.ContentWrite Item(Guid project, Guid id, string kind, long expected, TestUser author)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { roomId = project, id, kind, version = expected + 1,
+            keyVersion = 1, epoch = 1, authorId = author.User.Id, deviceId = author.Device.Id,
+            nonce = Convert.ToBase64String(new byte[12]), ciphertext = Convert.ToBase64String(new byte[20]) }, TestJson.Options);
+        return new(expected, author.Device.Id, Convert.ToBase64String(bytes),
+            Convert.ToBase64String(author.Fixture.Sign(Proofs.Tagged("kodosi-room-content-v1"u8, bytes))));
+    }
+
+    private static async Task<JsonElement> PageAsync(TestStore store, Guid project, TestUser reader, long after, long? before, CancellationToken ct) =>
+        JsonSerializer.SerializeToElement(await store.Projects.ContentAsync(project, reader.User.Id, before is null ? null : "message", after, before, 100, ct),
+            TestJson.Options);
+
+    private static Guid[] Ids(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetGuid())];
+
+    [Fact]
     public async Task TheKeyHistoryComesInPagesOfABoundedSize()
     {
         var ct = TestContext.Current.CancellationToken;

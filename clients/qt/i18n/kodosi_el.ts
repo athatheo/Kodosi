@@ -492,6 +492,14 @@
         <translation>Διεύθυνση</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>Αυτό το τερματικό είναι κοινόχρηστο, οπότε ο browser του έχει δικές του συνδέσεις, χωριστά από τις δικές σας. Όλοι στο τερματικό τις χρησιμοποιούν.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Κοινόχρηστο</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 καρτέλες</translation>
     </message>
@@ -506,6 +514,18 @@
     <message>
         <source>Shared browser</source>
         <translation>Κοινόχρηστος browser</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Αντιγραφή</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Αντιγραφή συνδέσμου</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Επικόλληση</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -802,6 +822,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>Αντιγραφή</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>Αποκοπή</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -822,6 +856,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Το Kodosi δεν μπόρεσε να ανοίξει αυτόν τον σύνδεσμο.</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>Διαγραφή</translation>
     </message>
 </context>
 <context>
@@ -2382,6 +2423,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>Επικόλληση</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -2769,6 +2817,14 @@
         <translation>Αντιγράψτε τις οδηγίες. Επικολλήστε τες στον agent σας.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>Επιλογές συνομιλίας</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>Εκκαθάριση συνομιλίας…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>Η συζήτηση δεν φορτώθηκε</translation>
     </message>
@@ -2805,6 +2861,10 @@
         <translation>Το Kodosi αφαίρεσε τα παλαιότερα μηνύματα για να κάνει χώρο για νέα.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>Το μήνυμα διαγράφηκε</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>για %1</translation>
     </message>
@@ -2832,6 +2892,14 @@
         <source>Report…</source>
         <translation>Αναφορά…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>Επιλογές μηνύματος</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>Διαγραφή μηνύματος…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2854,6 +2922,30 @@
     <message>
         <source>Send message</source>
         <translation>Αποστολή μηνύματος</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>Διαγραφή αυτού του μηνύματος;</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>Διαγραφή μηνύματος</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>Όλοι στο έργο βλέπουν ότι διαγράφηκε ένα μήνυμα.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>Εκκαθάριση της συνομιλίας για εσάς;</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>Εκκαθάριση συνομιλίας</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>Τα μηνύματα μέχρι τώρα εξαφανίζονται από όλες τις συσκευές σας. Όλοι οι άλλοι τα κρατούν.</translation>
     </message>
 </context>
 <context>
@@ -3141,6 +3233,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>&amp;OK</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>&amp;Ακύρωση</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>&amp;Κλείσιμο</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Ακύρωση</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Κλείσιμο</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3164,6 +3286,13 @@
             <numerusform>%n τερματικό σε αυτόν τον υπολογιστή σταματά. Ξεκινά ξανά όταν ανοίξει το Kodosi.</numerusform>
             <numerusform>%n τερματικά σε αυτόν τον υπολογιστή σταματούν. Ξεκινούν ξανά όταν ανοίξει το Kodosi.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>Επανάληψη</translation>
     </message>
 </context>
 <context>
@@ -3236,6 +3365,13 @@
     <message>
         <source>No repositories found</source>
         <translation>Δεν βρέθηκαν αποθετήρια</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>Επιλογή όλων</translation>
     </message>
 </context>
 <context>
@@ -4125,6 +4261,13 @@
     <message>
         <source>Fast mode</source>
         <translation>Γρήγορη λειτουργία</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>Αναίρεση</translation>
     </message>
 </context>
 <context>

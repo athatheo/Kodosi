@@ -31,7 +31,6 @@
 #include <QApplication>
 #include <QProcess>
 #include <QQmlApplicationEngine>
-#include <QQuickStyle>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSystemTrayIcon>
@@ -91,7 +90,6 @@ int main(int argc, char* argv[])
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "windows:altgr");
 #endif
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
     kodosi::CanvasWeb::registerScheme();
     QtWebEngineQuick::initialize();
     QApplication app(argc, argv);
@@ -253,10 +251,9 @@ int main(int argc, char* argv[])
         if (state == Qt::ApplicationActive)
             workspace.projects().readWatched();
     });
-    kodosi::qml::configureModelInstances(
-        workspace, history, providerFiles, launcher, appearance, desktopSettings, desktop, sessions, tiling, files,
-        lifecycle, surfaces, tray, canvas, documents, canvasWeb, shortcuts);
     QQmlApplicationEngine engine;
+    kodosi::qml::provideModels(engine, workspace, history, providerFiles, launcher, appearance, desktopSettings,
+        desktop, sessions, tiling, files, lifecycle, surfaces, tray, canvas, documents, canvasWeb, shortcuts);
     engine.addImageProvider(QStringLiteral("canvas"), new kodosi::CanvasImages(canvas));
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,

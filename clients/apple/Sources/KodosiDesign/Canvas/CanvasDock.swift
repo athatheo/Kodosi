@@ -178,7 +178,7 @@ public struct CanvasDock: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func adder(_ closed: [CanvasSection], open: @escaping (CanvasSection) -> Void) -> some View {
         let plus = Image(systemName: "plus").font(.system(size: 10.5, weight: .bold)).foregroundStyle(theme.colors.inkMuted)
             .frame(width: 24, height: 24).touchTarget(Circle())

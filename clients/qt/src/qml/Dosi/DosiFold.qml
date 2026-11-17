@@ -11,7 +11,7 @@ Item {
     property string previous: place
     property var planes: ({})
 
-    function collect(where) {
+    function collect(where: string): var {
         const found = {}
         for (const spot of Fold.spots) {
             if (spot.place !== where || spot.width <= 0)
@@ -35,7 +35,7 @@ Item {
         }
         return found
     }
-    function clear() {
+    function clear(): void {
         for (const key of Object.keys(planes)) {
             const plane = planes[key]
             Fold.land(key + "@" + plane.where)
@@ -43,7 +43,7 @@ Item {
         }
         planes = {}
     }
-    function fly() {
+    function fly(): void {
         const arrivals = collect(place)
         const keys = Object.keys(planes)
         const marks = keys.filter(key => arrivals[key] !== undefined && (key.startsWith("terminal:") || key.startsWith("project:")))
@@ -96,15 +96,15 @@ Item {
             property real corner: from.radius
             property real fade: from.shown ? 1 : 0
 
-            function go(target, order) {
+            function go(target: var, order: int): void {
                 to = target
                 delay = order * 35
                 motion.start()
             }
-            function vanish() {
+            function vanish(): void {
                 ending.start()
             }
-            function finish() {
+            function finish(): void {
                 Fold.land(plane.key + "@" + plane.where)
                 delete root.planes[plane.key]
                 plane.destroy()

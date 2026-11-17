@@ -1,17 +1,5 @@
 use super::*;
-
-struct ClientSlot(std::sync::Arc<watch::Sender<usize>>);
-impl ClientSlot {
-    fn enter(clients: &std::sync::Arc<watch::Sender<usize>>) -> Self {
-        clients.send_modify(|count| *count += 1);
-        Self(std::sync::Arc::clone(clients))
-    }
-}
-impl Drop for ClientSlot {
-    fn drop(&mut self) {
-        self.0.send_modify(|count| *count = count.saturating_sub(1));
-    }
-}
+use std::mem::DropGuard;
 
 pub struct LocalServer {
     pub(super) cancel: CancellationToken,
@@ -32,17 +20,7 @@ impl Drop for LocalServer {
 }
 
 pub(super) fn root_identity(root: &Path) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let hash = aws_lc_rs::digest::digest(
-        &aws_lc_rs::digest::SHA256,
-        root.as_os_str().as_encoded_bytes(),
-    );
-    let mut value = String::with_capacity(hash.as_ref().len() * 2);
-    for byte in hash.as_ref() {
-        value.push(char::from(HEX[usize::from(byte >> 4)]));
-        value.push(char::from(HEX[usize::from(byte & 0xf)]));
-    }
-    value
+    crate::hex::sha256_hex(root.as_os_str().as_encoded_bytes())
 }
 pub(super) fn endpoint(root: &Path) -> Result<kodosi_os::ipc::Endpoint> {
     role_endpoint(root, "host")
@@ -106,7 +84,10 @@ pub async fn serve(
                     Ok(stream) => {
                         let Ok(permit) = std::sync::Arc::clone(&slots).try_acquire_owned() else { continue; };
                         let handle = runtime.clone(); let expected = identity.clone(); let cancel = stop.child_token();
-                        let slot = ClientSlot::enter(&clients);
+                        clients.send_modify(|count| *count += 1);
+                        let slot = DropGuard::new(std::sync::Arc::clone(&clients), |clients| {
+                            clients.send_modify(|count| *count = count.saturating_sub(1));
+                        });
                         connections.spawn(async move {
                             let _permit = permit;
                             let _slot = slot;
@@ -367,7 +348,7 @@ async fn serve_terminal(
                 match bytes.first() {
                     Some(&INPUT)=>{
                         let handle=runtime.clone();
-                        let input=Bytes::copy_from_slice(&bytes[1..]);
+                        let input=Bytes::from(bytes).slice(1..);
                         admissions.push_back(Box::pin(async move {handle.write_input(session,incarnation,connection,input).await}));
                     }
                     Some(&CONTROL)=>{

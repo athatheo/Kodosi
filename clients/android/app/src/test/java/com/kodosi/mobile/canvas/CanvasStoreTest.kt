@@ -4,7 +4,6 @@ import com.kodosi.mobile.Preferences
 import com.kodosi.mobile.runtime.RuntimeJson
 import com.kodosi.mobile.runtime.SentCommands
 import com.kodosi.mobile.runtime.TestWords
-import com.kodosi.mobile.runtime.string
 import com.kodosi.mobile.terminals.RuntimeSession
 import java.util.Base64
 import kotlinx.coroutines.CoroutineStart

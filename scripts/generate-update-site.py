@@ -24,7 +24,8 @@ WINDOWS_CERTIFICATE = Path(__file__).resolve().parents[1] / "clients/qt/packagin
 
 
 def file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    with path.open("rb") as file:
+        return hashlib.file_digest(file, "sha256").hexdigest()
 
 
 def bytes_sha256(data: bytes) -> str:

@@ -31,14 +31,13 @@ enum TerminalPictureFile {
         return CGImageDestinationFinalize(destination) ? png as Data : nil
     }
 
+    @concurrent
     static func write(_ picture: Data) async throws -> URL {
         let file = FileManager.default.temporaryDirectory.appending(path: "kodosi-picture-\(UUID().uuidString)")
-        try await Task.detached {
-            guard let readable = readable(picture) else {
-                throw CocoaError(.fileReadCorruptFile)
-            }
-            try readable.write(to: file, options: [.atomic, .completeFileProtection])
-        }.value
+        guard let readable = readable(picture) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        try readable.write(to: file, options: [.atomic, .completeFileProtection])
         return file
     }
 }

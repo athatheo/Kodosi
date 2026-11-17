@@ -71,14 +71,13 @@ public struct RuntimeStartFailure: Equatable, Sendable {
 public enum HostStopResult: Equatable, Sendable {
     case accepted, refused, unreachable, failed
 
+    @concurrent
     public static func stopHost(force: Bool) async -> HostStopResult {
-        await Task.detached(priority: .userInitiated) {
-            switch kodosi_host_stop(force ? 1 : 0) {
-            case KODOSI_HOST_STOP_ACCEPTED: HostStopResult.accepted
-            case KODOSI_HOST_STOP_REFUSED: .refused
-            case KODOSI_HOST_STOP_UNREACHABLE: .unreachable
-            default: .failed
-            }
-        }.value
+        switch kodosi_host_stop(force ? 1 : 0) {
+        case KODOSI_HOST_STOP_ACCEPTED: .accepted
+        case KODOSI_HOST_STOP_REFUSED: .refused
+        case KODOSI_HOST_STOP_UNREACHABLE: .unreachable
+        default: .failed
+        }
     }
 }

@@ -88,7 +88,7 @@ struct TerminalSharingSheet: View {
         .animation(theme.motion.spring, value: failure)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func projects(_ session: RuntimeSession) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("A project").appTextStyle(.caption).foregroundStyle(theme.colors.inkFaint)

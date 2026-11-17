@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicU64, AtomicUsize};
+use std::{
+    mem::DropGuard,
+    sync::atomic::{AtomicU64, AtomicUsize},
+};
 
 use super::{channel::Transport, *};
 use crate::{
@@ -177,7 +180,7 @@ impl Transport for Pipe {
         let mut frame = Vec::with_capacity(PIPE_ID + bytes.len());
         frame.extend_from_slice(self.id.as_bytes());
         frame.extend_from_slice(&bytes);
-        tokio::time::timeout(SEND, self.frames.send(Message::Binary(frame.into())))
+        tokio::time::timeout(SEND, self.frames.send(Message::binary(frame)))
             .await
             .map_err(|_| Error::Closed)?
             .map_err(|_| Error::Closed)
@@ -215,7 +218,7 @@ impl Drop for Pipe {
 }
 
 fn text(value: &Value) -> Message {
-    Message::Text(value.to_string().into())
+    Message::text(value.to_string())
 }
 
 fn status_message(session: Uuid, incarnation: Uuid, status: Option<&TerminalStatus>) -> Message {
@@ -623,14 +626,6 @@ fn refusal(value: &Value) -> Error {
     }
 }
 
-struct Disconnect<'a>(&'a Link);
-
-impl Drop for Disconnect<'_> {
-    fn drop(&mut self) {
-        self.0.disconnected();
-    }
-}
-
 /// The server may drop the link while the computer sleeps, and a network may drop it without a
 /// word. So after a sleep, or when the server has not answered what the link sent for a while, the
 /// link asks the server at once and must hear back soon.
@@ -694,7 +689,7 @@ pub(crate) async fn run(
         control: control.clone(),
         frames,
     });
-    let _disconnect = Disconnect(&link);
+    let _disconnect = DropGuard::new(link.as_ref(), Link::disconnected);
     for surface in ["sessions", "friends", "devices", "projects"] {
         drop(notices.send(wire::Notice::Changed(wire::Change::of(surface))));
     }
@@ -757,8 +752,7 @@ pub(crate) async fn run(
                                 drop(notices.send(notice));
                             }
                         }
-                        Message::Ping(payload) => drop(control.send(Message::Pong(payload))),
-                        Message::Pong(_) => {}
+                        Message::Ping(_) | Message::Pong(_) => {}
                         Message::Close(_) => return Err(Error::Closed),
                         Message::Frame(_) => return Err(invalid("Unexpected device connection payload.")),
                     }

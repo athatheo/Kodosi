@@ -3,6 +3,7 @@
 <output-dir>/<target>/<profile>. With --program, the same build also makes the kodosi program
 and copies it there. Prints that folder."""
 
+# Xcode runs this with its own Python 3.9.
 from __future__ import annotations
 
 import argparse

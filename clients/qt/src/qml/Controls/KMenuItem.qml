@@ -2,13 +2,14 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 MenuItem {
     id: root
 
     property string iconName: ""
+    property string image: ""
     property string agent: ""
     property string hint: ""
     property int badge: 0
@@ -26,15 +27,24 @@ MenuItem {
         spacing: 9
 
         Item {
-            visible: root.iconName.length > 0 || root.agent.length > 0 || mark.active
+            visible: root.iconName.length > 0 || root.image.length > 0 || root.agent.length > 0 || mark.active
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
 
+            Image {
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                visible: root.image.length > 0
+                source: root.image
+                sourceSize: Qt.size(32, 32)
+                smooth: true
+            }
             KIcon {
                 anchors.centerIn: parent
                 width: 14
                 height: 14
-                visible: root.agent.length === 0
+                visible: root.agent.length === 0 && root.image.length === 0
                 name: root.iconName
                 color: !root.enabled ? KodosiTheme.inkFaint : root.destructive ? KodosiTheme.danger : root.highlighted ? KodosiTheme.ink : KodosiTheme.inkMuted
             }

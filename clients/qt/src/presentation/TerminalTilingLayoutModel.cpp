@@ -363,7 +363,7 @@ qreal TerminalTilingLayoutModel::requiredContentHeight(
     return std::max(viewportHeight, minimum);
 }
 
-QPair<qreal, qreal> TerminalTilingLayoutModel::adjustedPair(
+std::pair<qreal, qreal> TerminalTilingLayoutModel::adjustedPair(
     const qreal previous,
     const qreal current,
     const qreal deltaPixels,
@@ -683,8 +683,7 @@ TerminalTilingLayoutModel::buildEntries(
                 .type = EntryType::Divider,
                 .stableId = QStringLiteral(
                     "row.%1.column.%2")
-                    .arg(static_cast<qlonglong>(row))
-                    .arg(static_cast<qlonglong>(column)),
+                    .arg(QString::number(row), QString::number(column)),
                 .sessionId = {},
                 .x = columnX,
                 .y = rowY,

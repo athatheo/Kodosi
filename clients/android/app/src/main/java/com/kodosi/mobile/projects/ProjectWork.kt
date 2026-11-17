@@ -1,6 +1,5 @@
 package com.kodosi.mobile.projects
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -168,8 +169,8 @@ private fun NewTaskDialog(
     repositories: List<ProjectRepository>,
     dismiss: () -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    val title = rememberTextFieldState()
+    val description = rememberTextFieldState()
     var chosen by remember { mutableStateOf<Set<String>>(emptySet()) }
     var issue by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -181,14 +182,18 @@ private fun NewTaskDialog(
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {
-                    KodosiField(title, {
-                        title = it
-                    }, label = stringResource(R.string.name), singleLine = true)
+                    KodosiField(
+                        title,
+                        label = stringResource(R.string.name),
+                        lineLimits = TextFieldLineLimits.SingleLine
+                    )
                 }
                 item {
-                    KodosiField(description, {
-                        description = it
-                    }, label = stringResource(R.string.description), minLines = 3)
+                    KodosiField(
+                        description,
+                        label = stringResource(R.string.description),
+                        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3)
+                    )
                 }
                 items(repositories, key = { it.id }) { repository ->
                     CheckRow(repository.name, repository.id in chosen, {
@@ -204,14 +209,14 @@ private fun NewTaskDialog(
             }
         },
         confirmButton = {
-            KodosiButton(enabled = !busy && title.isNotBlank(), onClick = {
+            KodosiButton(enabled = !busy && title.text.isNotBlank(), onClick = {
                 busy = true
                 scope.launch {
                     try {
                         model.projects.createTask(
                             projectId,
-                            title,
-                            description,
+                            title.text.toString(),
+                            description.text.toString(),
                             chosen,
                             chosen.sorted().firstOrNull().takeIf {
                                 issue
@@ -320,6 +325,7 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
     val owner = project?.ownerUserId == account.userId
     var renaming by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf<String?>(null) }
+    var clearing by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<ProjectMember?>(null) }
     var blocking by remember { mutableStateOf<Person?>(null) }
     var reporting by remember { mutableStateOf<Person?>(null) }
@@ -409,6 +415,14 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
             }
         }
         item {
+            KodosiTextButton(
+                onClick = { clearing = true },
+                enabled = state.snapshots[projectId]?.messages?.isNotEmpty() == true
+            ) {
+                Text(stringResource(R.string.clear_chat))
+            }
+        }
+        item {
             KodosiTextButton(onClick = { confirming = if (owner) "project.delete" else "project.leave" }) {
                 Text(
                     stringResource(if (owner) R.string.delete_project else R.string.leave_project),
@@ -445,6 +459,19 @@ fun ProjectInfo(model: AppModel, projectId: String, left: () -> Unit) {
                         left()
                     }
                 }
+            },
+            destructive = true
+        )
+    }
+    if (clearing) {
+        ConfirmDialog(
+            stringResource(R.string.clear_chat_title),
+            stringResource(R.string.clear_chat_notice),
+            stringResource(R.string.clear_chat),
+            { clearing = false },
+            {
+                clearing = false
+                scope.launch { model.runAction { model.projects.clearChat(projectId) } }
             },
             destructive = true
         )

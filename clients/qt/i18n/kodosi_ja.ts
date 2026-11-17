@@ -491,6 +491,14 @@
         <translation>アドレス</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>このターミナルは共有されているため、ブラウザにはあなたとは別のサインイン情報があります。ターミナルの全員がそれを使います。</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>共有中</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>タブ %1 個</translation>
     </message>
@@ -505,6 +513,18 @@
     <message>
         <source>Shared browser</source>
         <translation>共有ブラウザ</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>リンクをコピー</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -801,6 +821,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>切り取り</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -821,6 +855,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi はこのリンクを開けませんでした。</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>削除</translation>
     </message>
 </context>
 <context>
@@ -2379,6 +2420,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>貼り付け</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -2762,6 +2810,14 @@
         <translation>指示をコピーして、エージェントに貼り付けてください。</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>チャットのオプション</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>チャットを消去…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>会話を読み込めませんでした</translation>
     </message>
@@ -2798,6 +2854,10 @@
         <translation>新しいメッセージのために、Kodosi が古いメッセージを削除しました。</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>メッセージは削除されました</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>%1 向け</translation>
     </message>
@@ -2825,6 +2885,14 @@
         <source>Report…</source>
         <translation>報告…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>メッセージのオプション</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>メッセージを削除…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2846,6 +2914,30 @@
     <message>
         <source>Send message</source>
         <translation>メッセージを送信</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>このメッセージを削除しますか？</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>メッセージを削除</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>プロジェクトの全員に、メッセージが削除されたことが表示されます。</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>自分のチャットを消去しますか？</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>チャットを消去</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>これまでのメッセージがすべてのデバイスから消えます。ほかの人には残ります。</translation>
     </message>
 </context>
 <context>
@@ -3130,6 +3222,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>&amp;OK</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>キャンセル(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>閉じる(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>キャンセル</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3152,6 +3274,13 @@
         <translation>
             <numerusform>このコンピュータのターミナル %n 個が停止します。Kodosi を開くと再び起動します。</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>やり直す</translation>
     </message>
 </context>
 <context>
@@ -3224,6 +3353,13 @@
     <message>
         <source>No repositories found</source>
         <translation>リポジトリが見つかりません</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>すべて選択</translation>
     </message>
 </context>
 <context>
@@ -4112,6 +4248,13 @@
     <message>
         <source>Fast mode</source>
         <translation>高速モード</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>元に戻す</translation>
     </message>
 </context>
 <context>

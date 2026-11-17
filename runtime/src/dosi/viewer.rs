@@ -105,11 +105,9 @@ impl Viewer {
     }
 
     pub(crate) fn unqueue(&mut self, id: &str, out: &mut Output) -> Result<()> {
-        if self.chat.take_back(id, out) {
-            Ok(())
-        } else {
-            Err(Error::Refused(text!("You sent that message already.")))
-        }
+        self.chat
+            .take_back(id, out)
+            .ok_or_else(|| Error::Refused(text!("You sent that message already.")))
     }
 
     pub(crate) fn answer(

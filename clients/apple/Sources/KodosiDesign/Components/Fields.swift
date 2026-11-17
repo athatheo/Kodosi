@@ -185,7 +185,7 @@ public struct MenuPicker<Value: Hashable>: View {
                 .kodosiPopover(isPresented: $expanded, arrowEdge: .bottom) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 1) {
-                            ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                            ForEach(values.enumerated(), id: \.offset) { _, value in
                                 Button { selection = value; expanded = false } label: {
                                     MenuRow(title: label(value), selected: value == selection)
                                 }.buttonStyle(.plain)
@@ -198,7 +198,7 @@ public struct MenuPicker<Value: Hashable>: View {
         #else
             Menu {
                 Picker(selection: $selection) {
-                    ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                    ForEach(values.enumerated(), id: \.offset) { _, value in
                         Text(verbatim: label(value)).tag(value)
                     }
                 } label: {

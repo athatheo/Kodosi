@@ -6,12 +6,12 @@ use serde_json::Value;
 use ts_rs::TS;
 
 /// Views and the CLI with another number cannot join.
-pub const CONTRACT: u32 = 2;
+pub const CONTRACT: u32 = 3;
 
 const JSON_FRAME: u8 = 0;
 const GZIP_FRAME: u8 = 1;
 const ASSET_FRAME: u8 = 2;
-const HASH_BYTES: usize = 32;
+pub(crate) const HASH_BYTES: usize = 32;
 const GZIP_FROM: usize = 16 * 1024;
 const MOST_UNPACKED: u64 = 256 * 1024 * 1024;
 
@@ -32,51 +32,43 @@ pub struct Viewer {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum ToDocument {
     Join {
         contract: u32,
         client: String,
-        #[ts(type = "number")]
         epoch: u64,
-        #[ts(type = "number")]
         rev: Rev,
+        /// The client sent no batch yet and has none on its way, so a document that does not
+        /// know it took nothing from it.
+        fresh: bool,
     },
     Change {
-        #[ts(type = "number")]
         seq: Seq,
-        #[ts(type = "number")]
         base: Rev,
         body: Value,
     },
     /// Where the person is, as the document was at `rev`.
     Place {
-        #[ts(type = "number")]
         rev: Rev,
         body: Value,
     },
     Query {
-        #[ts(type = "number")]
         id: u64,
         body: Value,
     },
     /// Who else is here and where, in the words of `read`. The answer is a list of names and
     /// places.
     People {
-        #[ts(type = "number")]
         id: u64,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Changed {
-    #[ts(type = "number")]
     pub rev: Rev,
     pub author: String,
     pub client: String,
-    #[ts(type = "number")]
     pub seq: Seq,
     pub body: Value,
 }
@@ -85,7 +77,6 @@ pub struct Changed {
 /// the document is now.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Peer {
     pub id: String,
     pub person: String,
@@ -99,7 +90,6 @@ pub struct Peer {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum Catchup {
     Snapshot { snapshot: Value },
     Missed { changes: Vec<Changed> },
@@ -107,7 +97,6 @@ pub enum Catchup {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum RefusedReason {
     /// Move the change across what came first and send it again, or read again.
     Behind,
@@ -115,11 +104,14 @@ pub enum RefusedReason {
     Invalid,
 }
 
+/// Views of another contract read why they could not join, so these names stay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum ClosedReason {
-    Contract,
+    /// Update this app.
+    ClientOutdated,
+    /// Update the app on the computer with the file.
+    HostOutdated,
     Removed,
     Failed,
 }
@@ -130,24 +122,21 @@ pub enum ClosedReason {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum ToClient {
     Joined {
         id: String,
         name: String,
         can_edit: bool,
-        #[ts(type = "number")]
         epoch: u64,
-        #[ts(type = "number")]
         rev: Rev,
-        #[ts(type = "number")]
-        seq: Seq,
+        /// The last batch of this client that the document took, and none when the document does
+        /// not know the client, so that it cannot tell whether it took the batch on its way.
+        seq: Option<Seq>,
         peers: Vec<Peer>,
         catchup: Catchup,
     },
     Changed(Changed),
     Refused {
-        #[ts(type = "number")]
         seq: Seq,
         reason: RefusedReason,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -155,14 +144,11 @@ pub enum ToClient {
         detail: Option<String>,
     },
     Answer {
-        #[ts(type = "number")]
         id: u64,
-        #[ts(type = "number")]
         rev: Rev,
         body: Value,
     },
     Saved {
-        #[ts(type = "number")]
         rev: Rev,
         waits: bool,
     },
@@ -176,6 +162,31 @@ pub enum ToClient {
 }
 
 pub type Hash = [u8; HASH_BYTES];
+
+/// The bytes in lowercase hexadecimal, as an asset or a short hash goes in a snapshot.
+pub fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut text = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        text.push(char::from(DIGITS[usize::from(byte & 0xf)]));
+    }
+    text
+}
+
+/// The hash that [`hex`] wrote.
+pub fn hash_from_hex(text: &str) -> Option<Hash> {
+    let (pairs, []) = text.as_bytes().as_chunks::<2>() else {
+        return None;
+    };
+    let pairs: &[[u8; 2]; HASH_BYTES] = pairs.try_into().ok()?;
+    let mut hash = [0; HASH_BYTES];
+    for (byte, [high, low]) in hash.iter_mut().zip(pairs) {
+        let digit = |digit: u8| char::from(digit).to_digit(16);
+        *byte = u8::try_from(digit(*high)? << 4 | digit(*low)?).ok()?;
+    }
+    Some(hash)
+}
 
 /// One frame of a pipe: JSON, gzip JSON when it is large, or the raw bytes of an asset.
 /// An asset frame with no bytes asks for that asset.
@@ -246,6 +257,19 @@ mod tests {
 
     use super::*;
 
+    /// Writes the contract that the views read, in their folder from wherever Cargo runs.
+    #[test]
+    fn the_views_get_the_contract() {
+        let config = ts_rs::Config::new()
+            .with_large_int("number")
+            .with_out_dir(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../views/contract/src/generated"
+            ));
+        ToDocument::export_all(&config).unwrap();
+        ToClient::export_all(&config).unwrap();
+    }
+
     #[test]
     fn a_small_message_stays_plain_json() {
         let message = ToDocument::Query {
@@ -287,5 +311,18 @@ mod tests {
         assert_eq!(decode::<ToDocument>(&[9, 1]), Err(BadFrame));
         assert_eq!(decode::<ToDocument>(&[ASSET_FRAME, 1, 2]), Err(BadFrame));
         assert_eq!(decode::<ToDocument>(&[JSON_FRAME, b'{']), Err(BadFrame));
+    }
+
+    /// The views send this number when they join, so they take it from here.
+    #[test]
+    fn the_views_get_the_contract_number() {
+        let file = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../views/contract/src/generated/CONTRACT.ts"
+        );
+        let text = format!(
+            "// This file was generated from documents/crates/document/src/contract.rs. Do not edit this file manually.\n\nexport const CONTRACT = {CONTRACT};\n"
+        );
+        std::fs::write(file, text).unwrap();
     }
 }

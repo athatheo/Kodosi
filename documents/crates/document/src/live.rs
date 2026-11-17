@@ -13,7 +13,6 @@ use crate::{
     format::{Assets, Format, Ordered, Refused, Unreadable},
 };
 
-const MOST_ASSET_BYTES: usize = 128 * 1024 * 1024;
 const MOST_SAVED_STATES: usize = 32;
 
 pub type PipeId = u64;
@@ -69,7 +68,6 @@ pub enum Effect {
     },
     /// Writes this change to the journal before anyone hears of it.
     Append(Vec<u8>),
-    KeepAsset(Hash),
     Unsaved,
     /// The new file reads well, so it is the file on disk now.
     FileTaken,
@@ -113,12 +111,21 @@ pub struct Document<F: Format> {
 }
 
 impl<F: Format> Document<F> {
-    pub fn open(file: Vec<u8>, epoch: u64, assets: Assets) -> Result<Self, Unreadable> {
+    /// `taken` holds the last batch of each client that the document took before it last closed,
+    /// so that a client that comes back learns what became of the batch that it sent.
+    pub fn open(
+        file: Vec<u8>,
+        epoch: u64,
+        taken: HashMap<String, Seq>,
+    ) -> Result<Self, Unreadable> {
         F::opens(&file)?;
-        Self::start(file, epoch, assets)
+        let mut document = Self::start(file, epoch)?;
+        document.seqs = taken;
+        Ok(document)
     }
 
-    fn start(file: Vec<u8>, epoch: u64, mut assets: Assets) -> Result<Self, Unreadable> {
+    fn start(file: Vec<u8>, epoch: u64) -> Result<Self, Unreadable> {
+        let mut assets = Assets::default();
         let model = F::read(&file, &mut assets)?;
         Ok(Self {
             model,
@@ -140,9 +147,8 @@ impl<F: Format> Document<F> {
         original: Vec<u8>,
         restored: Restored,
         records: &[Vec<u8>],
-        assets: Assets,
     ) -> Result<Self, Unreadable> {
-        let mut document = Self::start(original, restored.epoch, assets)?;
+        let mut document = Self::start(original, restored.epoch)?;
         document.first_rev = restored.first_rev;
         document.rev = restored.first_rev;
         document.saved_rev = restored.saved.last().copied().unwrap_or(restored.first_rev);
@@ -196,10 +202,6 @@ impl<F: Format> Document<F> {
         self.seats.is_empty()
     }
 
-    pub fn asset(&self, hash: &Hash) -> Option<&Arc<[u8]>> {
-        self.assets.get(hash)
-    }
-
     pub fn step(&mut self, input: Input) -> Vec<Effect> {
         match input {
             Input::Connected { pipe, viewer } => {
@@ -236,7 +238,10 @@ impl<F: Format> Document<F> {
             return vec![Effect::Drop { pipe }];
         };
         let message = match decoded {
-            Frame::Asset { hash, bytes } => return self.asset_frame(pipe, hash, &bytes),
+            Frame::Asset { hash, bytes } if bytes.is_empty() => {
+                return self.asset_frame(pipe, hash);
+            }
+            Frame::Asset { .. } => return vec![Effect::Drop { pipe }],
             Frame::Message(message) => message,
         };
         let joined = self
@@ -249,7 +254,8 @@ impl<F: Format> Document<F> {
                 client,
                 epoch,
                 rev,
-            } if !joined => self.join(pipe, contract, client, epoch, rev),
+                fresh,
+            } if !joined => self.join(pipe, contract, client, epoch, rev, fresh),
             ToDocument::Change { seq, base, body } if joined => self.change(pipe, seq, base, body),
             ToDocument::Place { rev, body } if joined => self.place(pipe, rev, body),
             ToDocument::Query { id, body } if joined => self.query(pipe, id, body),
@@ -258,20 +264,14 @@ impl<F: Format> Document<F> {
         }
     }
 
-    fn asset_frame(&mut self, pipe: PipeId, hash: Hash, bytes: &[u8]) -> Vec<Effect> {
-        if bytes.is_empty() {
-            return self.assets.get(&hash).map_or_else(Vec::new, |asset| {
-                vec![Effect::Send {
-                    to: vec![pipe],
-                    frame: contract::encode_asset(&hash, asset).into(),
-                    catchup: true,
-                }]
-            });
-        }
-        if self.assets.bytes() + bytes.len() > MOST_ASSET_BYTES || !self.assets.take(hash, bytes) {
-            return vec![Effect::Drop { pipe }];
-        }
-        vec![Effect::KeepAsset(hash)]
+    fn asset_frame(&self, pipe: PipeId, hash: Hash) -> Vec<Effect> {
+        self.assets.get(&hash).map_or_else(Vec::new, |asset| {
+            vec![Effect::Send {
+                to: vec![pipe],
+                frame: contract::encode_asset(&hash, asset).into(),
+                catchup: true,
+            }]
+        })
     }
 
     fn join(
@@ -281,11 +281,15 @@ impl<F: Format> Document<F> {
         client: String,
         epoch: u64,
         rev: Rev,
+        fresh: bool,
     ) -> Vec<Effect> {
         if contract_number != contract::CONTRACT {
-            let closed = ToClient::Closed {
-                reason: ClosedReason::Contract,
+            let reason = if contract_number < contract::CONTRACT {
+                ClosedReason::ClientOutdated
+            } else {
+                ClosedReason::HostOutdated
             };
+            let closed = ToClient::Closed { reason };
             return vec![send_to(vec![pipe], &closed), Effect::Drop { pipe }];
         }
         let mut effects: Vec<Effect> = self
@@ -305,13 +309,17 @@ impl<F: Format> Document<F> {
             return effects;
         };
         seat.client = Some(client.clone());
+        let seq = self.seqs.get(&client).copied();
+        if seat.viewer.can_edit && fresh {
+            self.seqs.entry(client.clone()).or_insert(0);
+        }
         let joined = ToClient::Joined {
             id: client.clone(),
             name: seat.viewer.name.clone(),
             can_edit: seat.viewer.can_edit,
             epoch: self.epoch,
             rev: self.rev,
-            seq: self.seqs.get(&client).copied().unwrap_or(0),
+            seq,
             peers,
             catchup,
         };
@@ -396,6 +404,9 @@ impl<F: Format> Document<F> {
                 return vec![refuse(pipe, seq, RefusedReason::Invalid, Some(detail))];
             }
         };
+        if let Err(detail) = F::sendable(&change) {
+            return vec![refuse(pipe, seq, RefusedReason::Invalid, Some(detail))];
+        }
         if base > self.rev {
             let detail = format!(
                 "The file opened again since rev {base} and is at rev {} now. Read again.",
@@ -641,6 +652,6 @@ fn changed_of<C: serde::Serialize>(ordered: &Ordered<C>) -> Changed {
         author: ordered.author.clone(),
         client: ordered.client.clone(),
         seq: ordered.seq,
-        body: serde_json::to_value(&ordered.change).unwrap_or(Value::Null),
+        body: serde_json::to_value(&ordered.change).unwrap_or_default(),
     }
 }

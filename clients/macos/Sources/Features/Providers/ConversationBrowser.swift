@@ -2,7 +2,6 @@ import Foundation
 import KodosiBridge
 import Observation
 
-@MainActor
 @Observable
 final class ConversationBrowser {
     var provider: Provider = .claude
@@ -58,7 +57,7 @@ final class ConversationBrowser {
         }
         loading = true
         message = nil
-        task = Task { @MainActor [weak self] in
+        task = Task { [weak self] in
             guard let self else { return }
             defer {
                 if self.generation == generation {
@@ -128,7 +127,7 @@ final class ConversationBrowser {
             fields["beforeByte"] = .uint(end)
         }
         reading = true
-        readTask = Task { @MainActor [weak self] in
+        readTask = Task { [weak self] in
             guard let self else { return }
             defer {
                 if readGeneration == generation {

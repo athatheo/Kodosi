@@ -133,8 +133,7 @@ pub(super) fn copilot_conversation(state_root: &Path, group: u32) -> Option<Stri
 
 fn copilot_lock(name: &std::ffi::OsStr) -> Option<u32> {
     name.to_str()?
-        .strip_prefix("inuse.")?
-        .strip_suffix(".lock")?
+        .strip_circumfix("inuse.", ".lock")?
         .parse()
         .ok()
         .filter(|pid| *pid != 0)

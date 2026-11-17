@@ -137,6 +137,9 @@ pub struct CanvasBrowser {
     pub last: Option<BrowserAction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub problem: Option<crate::text::Text>,
+    /// The terminal is shared, so its browser keeps sign-ins of its own, apart from its owner's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub own_sign_ins: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

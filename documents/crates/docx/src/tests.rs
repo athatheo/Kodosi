@@ -101,15 +101,44 @@ fn attrs_of(model: &Model, name: &str) -> Vec<Value> {
 }
 
 fn mark_names(node: &Value) -> Vec<&str> {
-    node["marks"]
-        .as_array()
-        .map(|marks| {
-            marks
-                .iter()
-                .map(|mark| mark["type"].as_str().unwrap())
-                .collect()
-        })
-        .unwrap_or_default()
+    node["marks"].as_array().map_or_default(|marks| {
+        marks
+            .iter()
+            .map(|mark| mark["type"].as_str().unwrap())
+            .collect()
+    })
+}
+
+/// A picture that names the relationship rId9 of `with_picture`.
+fn drawing(id: u32) -> String {
+    format!(
+        concat!(
+            r#"<w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">"#,
+            r#"<wp:extent cx="952500" cy="952500"/><wp:docPr id="{id}" name="Picture {id}"/>"#,
+            r#"<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">"#,
+            r#"<a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId9"/>"#,
+            r#"</a:graphicData></a:graphic></wp:inline></w:drawing>"#,
+        ),
+        id = id
+    )
+}
+
+fn with_picture(body: &str, picture: &[u8]) -> Vec<u8> {
+    let types =
+        r#"<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>"#;
+    let relations = r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>"#;
+    let parts = package::Parts::from([
+        (
+            "[Content_Types].xml".to_owned(),
+            Some(types.as_bytes().to_vec()),
+        ),
+        (
+            "word/_rels/document.xml.rels".to_owned(),
+            Some(relations.as_bytes().to_vec()),
+        ),
+        ("word/media/image1.png".to_owned(), Some(picture.to_vec())),
+    ]);
+    package::rewrite(&docx_file(body), &parts).unwrap()
 }
 
 const THREE: &str = r#"<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p><w:p w:rsidR="00AB"><w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:lang w:val="el-GR"/></w:rPr><w:t xml:space="preserve">bold words </w:t></w:r><w:r><w:t>and plain</w:t></w:r><w:bookmarkStart w:id="1" w:name="x"/></w:p><w:p><w:r><w:t>Last</w:t></w:r></w:p>"#;
@@ -231,6 +260,31 @@ fn a_view_can_send_steps_and_the_saved_file_reads_the_same() {
     let again = read(&new_file);
     assert_eq!(blocks(&again)[0]["text"], "TA itle");
     assert_eq!(blocks(&again)[0]["style"], "Heading1");
+}
+
+#[test]
+fn undoing_superscript_over_subscript_is_taken_and_names_its_block() {
+    let mut model = read(&docx_file(THREE));
+    let first = first_id(&model);
+    let mark = |kind: &str, name: &str| json!({ "stepType": kind, "from": 1, "to": 3, "mark": { "type": name } });
+    stepped(&mut model, vec![mark("addMark", "subscript")]);
+    let subscript = model.doc.clone();
+    stepped(&mut model, vec![mark("addMark", "superscript")]);
+    let undo = json!({
+        "stepType": "markSet",
+        "steps": [mark("removeMark", "superscript"), mark("addMark", "subscript")],
+    });
+    let change = Change::Steps {
+        steps: vec![undo],
+        touched: Vec::new(),
+        keep: BTreeMap::default(),
+        sources: BTreeMap::default(),
+    };
+    match applied(&mut model, change).unwrap() {
+        Change::Steps { touched, .. } => assert_eq!(touched, [first]),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(model.doc, subscript);
 }
 
 #[test]
@@ -892,35 +946,12 @@ fn a_run_with_a_child_that_the_tree_does_not_hold_stays_whole() {
 
 #[test]
 fn a_run_with_words_and_pictures_keeps_each_once_through_saves() {
-    let picture = |id: u32| {
-        format!(
-            concat!(
-                r#"<w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">"#,
-                r#"<wp:extent cx="952500" cy="952500"/><wp:docPr id="{id}" name="Picture {id}"/>"#,
-                r#"<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">"#,
-                r#"<a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId9"/>"#,
-                r#"</a:graphicData></a:graphic></wp:inline></w:drawing>"#,
-            ),
-            id = id
-        )
-    };
     let body = format!(
         r#"<w:p><w:r w:rsidR="00AB"><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Figure 1: </w:t>{}{}</w:r></w:p><w:p><w:r><w:t>Next</w:t></w:r></w:p>"#,
-        picture(1),
-        picture(2)
+        drawing(1),
+        drawing(2)
     );
-    let relations = r#"<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>"#;
-    let parts = package::Parts::from([
-        (
-            "word/_rels/document.xml.rels".to_owned(),
-            Some(relations.as_bytes().to_vec()),
-        ),
-        (
-            "word/media/image1.png".to_owned(),
-            Some(b"picture".to_vec()),
-        ),
-    ]);
-    let mut file = package::rewrite(&docx_file(&body), &parts).unwrap();
+    let mut file = with_picture(&body, b"picture");
     for style in ["Caption", "Normal"] {
         let mut model = read(&file);
         let block = first_id(&model);
@@ -1031,4 +1062,192 @@ fn a_new_link_keeps_one_relationship_over_many_saves() {
     assert_eq!(relations.matches("https://kodosi.com").count(), 1);
     assert!(relations.contains(r#"Id="rIdDoc1""#));
     assert!(part(&second, "word/document.xml").contains(r#"r:id="rIdDoc1""#));
+}
+
+const PNG: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+#[test]
+fn a_change_that_the_file_could_not_save_is_refused_and_changes_nothing() {
+    let mut model = read(&docx_file(THREE));
+    let before = model.doc.clone();
+    let [_, second, third] = starts(&model)[..] else {
+        panic!("three blocks");
+    };
+    let inserted = |at: usize, node: Value| json!({ "stepType": "replace", "from": at, "to": at, "slice": { "content": [node] } });
+    let words = inserted(second + 1, json!({ "type": "text", "text": "fine " }));
+    let picture = json!({ "type": "image", "attrs": { "asset": null, "width": 9, "height": 9, "raw": null } });
+    let link = json!({ "type": "link", "attrs": { "href": null, "relation": null } });
+    let wide = json!({
+        "type": "table",
+        "content": [{ "type": "tableRow", "content": [{
+            "type": "tableCell",
+            "attrs": { "span": 4_000_000_000_u64 },
+            "content": [{ "type": "paragraph" }],
+        }] }],
+    });
+    for steps in [
+        vec![inserted(second + 1, picture.clone())],
+        vec![words, inserted(second + 1, picture)],
+        vec![inserted(
+            second + 1,
+            json!({ "type": "inlineOpaque", "attrs": { "raw": null } }),
+        )],
+        vec![inserted(
+            second + 1,
+            json!({ "type": "inlineOpaque", "attrs": { "raw": "0123456789abcdef" } }),
+        )],
+        vec![json!({ "stepType": "addMark", "from": second + 1, "to": second + 5, "mark": link })],
+        vec![
+            json!({ "stepType": "attr", "pos": second, "attr": "props", "value": "0123456789abcdef" }),
+        ],
+        vec![inserted(third, wide)],
+        vec![inserted(second + 1, json!({ "type": "video" }))],
+    ] {
+        let change = Change::Steps {
+            steps: steps.clone(),
+            touched: Vec::new(),
+            keep: BTreeMap::default(),
+            sources: BTreeMap::default(),
+        };
+        assert!(
+            matches!(applied(&mut model, change), Err(Refused::Invalid(_))),
+            "{steps:?}"
+        );
+        assert_eq!(model.doc, before);
+    }
+}
+
+#[test]
+fn a_paste_of_pieces_and_pictures_that_the_document_holds_is_taken_and_saved() {
+    let body = format!(
+        r#"<w:p><w:r><w:t xml:space="preserve">Figure: </w:t>{}</w:r><w:bookmarkStart w:id="1" w:name="figure"/></w:p><w:p><w:r><w:t>Next</w:t></w:r></w:p>"#,
+        drawing(1)
+    );
+    let file = with_picture(&body, PNG);
+    let mut assets = Assets::default();
+    let mut model = Docx::read(&file, &mut assets).unwrap();
+    let doc = model.doc.to_json(schema());
+    let held = |name: &str| {
+        doc["content"][0]["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["type"] == name)
+            .unwrap()["attrs"]
+            .clone()
+    };
+    let (picture, bookmark) = (held("image"), held("inlineOpaque"));
+    let at = starts(&model)[1] + 1;
+    let pasted = json!([
+        {
+            "type": "image",
+            "attrs": { "asset": picture["asset"], "width": 100, "height": 100, "raw": null },
+        },
+        { "type": "inlineOpaque", "attrs": bookmark },
+        {
+            "type": "text",
+            "text": "site",
+            "marks": [{ "type": "link", "attrs": { "href": "https://example.com/", "relation": null } }],
+        },
+    ]);
+    let change = Change::Steps {
+        steps: vec![
+            json!({ "stepType": "replace", "from": at, "to": at, "slice": { "content": pasted } }),
+        ],
+        touched: Vec::new(),
+        keep: BTreeMap::default(),
+        sources: BTreeMap::default(),
+    };
+    Docx::apply(&mut model, change, &[], &mut assets).unwrap();
+    let saved = Docx::write(&model, &file, &assets).unwrap();
+    assert_eq!(
+        part(&saved, "word/document.xml")
+            .matches("<w:drawing>")
+            .count(),
+        2
+    );
+    assert!(part(&saved, "word/_rels/document.xml.rels").contains("https://example.com/"));
+}
+
+#[test]
+fn a_link_keeps_its_relation_only_while_the_relation_goes_to_its_address() {
+    let file = with_picture(THREE, PNG);
+    let mut model = read(&file);
+    let start = starts(&model)[2] + 1;
+    let link =
+        json!({ "type": "link", "attrs": { "href": "https://example.com/", "relation": "rId9" } });
+    stepped(
+        &mut model,
+        vec![json!({ "stepType": "addMark", "from": start, "to": start + 4, "mark": link })],
+    );
+    let saved = saved(&model, &file);
+    assert!(part(&saved, "word/document.xml").contains(r#"r:id="rIdDoc1""#));
+    assert!(part(&saved, "word/_rels/document.xml.rels").contains("https://example.com/"));
+}
+
+#[test]
+fn a_table_with_a_cell_wider_than_a_view_draws_stays_whole() {
+    let file = docx_file(
+        r#"<w:tbl><w:tr><w:tc><w:tcPr><w:gridSpan w:val="4000000000"/></w:tcPr><w:p><w:r><w:t>wide</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>"#,
+    );
+    let mut model = read(&file);
+    assert_eq!(model.doc.to_json(schema())["content"][0]["type"], "opaque");
+    let at = starts(&model)[1] + 1;
+    stepped(
+        &mut model,
+        vec![
+            json!({ "stepType": "replace", "from": at, "to": at, "slice": { "content": [{ "type": "text", "text": "Still " }] } }),
+        ],
+    );
+    assert!(
+        part(&saved(&model, &file), "word/document.xml")
+            .contains(r#"<w:gridSpan w:val="4000000000"/>"#)
+    );
+}
+
+#[test]
+fn a_person_or_an_agent_cannot_send_the_pieces_that_only_a_merge_brings() {
+    let pieces = BTreeMap::from([("0123456789abcdef".to_owned(), "<w:p/>".to_owned())]);
+    let steps = |keep, sources| Change::Steps {
+        steps: Vec::new(),
+        touched: Vec::new(),
+        keep,
+        sources,
+    };
+    let ops = Change::Ops {
+        ops: Vec::new(),
+        track: false,
+        author: String::new(),
+    };
+    assert!(Docx::sendable(&steps(BTreeMap::new(), BTreeMap::new())).is_ok());
+    assert!(Docx::sendable(&ops).is_ok());
+    assert!(Docx::sendable(&steps(pieces.clone(), BTreeMap::new())).is_err());
+    assert!(Docx::sendable(&steps(BTreeMap::new(), pieces.clone())).is_err());
+    let merge = Change::Merge {
+        ops: Vec::new(),
+        keep: pieces,
+        sources: BTreeMap::new(),
+    };
+    assert!(Docx::sendable(&merge).is_err());
+}
+
+/// The view checks a paste against what the file takes before it sends it, so it takes those
+/// rules from here.
+#[test]
+fn the_view_gets_what_the_file_takes() {
+    let starts: Vec<&[u8]> = crate::write::PICTURES
+        .iter()
+        .map(|(start, _)| *start)
+        .collect();
+    let folder = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../views/docx/src/generated"
+    );
+    std::fs::create_dir_all(folder).unwrap();
+    let text = format!(
+        "// This file was generated from documents/crates/docx. Do not edit this file manually.\n\nexport const MOST_SPAN = {};\nexport const PICTURE_STARTS = {};\n",
+        crate::writable::MOST_SPAN,
+        serde_json::to_string(&starts).unwrap()
+    );
+    std::fs::write(Path::new(folder).join("writable.ts"), text).unwrap();
 }

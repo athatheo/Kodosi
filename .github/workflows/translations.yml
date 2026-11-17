@@ -1,0 +1,46 @@
+name: Translations
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - runtime/src/**
+      - runtime/crates/**
+      - runtime/texts/**
+      - documents/views/*/src/**
+      - sign-in/src/login/i18n.ts
+      - sign-in/src/account/words.ts
+      - sign-in/src/account/words/**
+      - sign-in/src/email/messages/**
+      - backend/src/**/*.cs
+      - clients/apple/Sources/*/Resources/*.xcstrings
+      - clients/macos/Resources/*.xcstrings
+      - clients/ios/Resources/*.xcstrings
+      - clients/qt/i18n/**
+      - clients/android/app/src/main/res/values*/strings.xml
+      - scripts/check-translations.py
+      - justfile
+      - .github/workflows/translations.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just
+          fallback: none
+      - run: just translations-check

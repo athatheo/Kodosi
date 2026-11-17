@@ -76,9 +76,11 @@ PostgreSQL. It relays terminal traffic without storing it.
 
 Devices encrypt and sign project messages, tasks and repository links. The backend
 stores the ciphertext, numbers the items and tells members' devices that a project
-changed; each device fetches the newer items. Issue actions run on the participant's
-computer with its own credentials. See [Security](SECURITY.md) and the
-[encryption design](CRYPTOGRAPHY.md).
+changed; each device fetches the newer items. A deleted message is its author's next
+version of it and keeps its place. A person who clears the conversation leaves the
+backend a position, so that each of their devices hides the same messages. Issue actions
+run on the participant's computer with its own credentials. See [Security](SECURITY.md)
+and the [encryption design](CRYPTOGRAPHY.md).
 
 ## Agents
 
@@ -103,10 +105,14 @@ file, over that same channel.
 ### Live documents
 
 [documents/](../documents/) is a separate system: its crates and views import nothing of
-Kodosi. One task on the host owns each open file. Every change goes through it in order
-and then to every view, so there is no CRDT: a change that names a position is valid only
-on the latest state, and otherwise the view moves its edit and sends it again. The host
-keeps a journal, saves the file in place and merges what another program writes.
+Kodosi. One task on the host owns each open file. Each change goes through it in order,
+and what it takes goes on to every view, so there is no CRDT: a change that names a
+position is valid only on the latest state, and otherwise the view moves its edit and
+sends it again. A change that the file could not save goes back to its sender alone. The
+host takes each client's batch at most once and remembers that when the document closes
+and opens again, so a view drops a batch that was refused, or that the host may have taken
+already, and says so, rather than send it again. The host keeps a journal, saves the file
+in place and merges what another program writes.
 
 The views are one static page in each app, in a closed web page with no way to the
 network. Their frames go through the app to the host, over the terminal's encrypted

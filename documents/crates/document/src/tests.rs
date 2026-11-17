@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    Answer, Assets, CONTRACT, Catchup, Changed, Document, Effect, Format, Frame, Guide, Input,
-    Ordered, PipeId, Refused, RefusedReason, Restored, Rev, Seq, Snapshot, ToClient, ToDocument,
-    Unreadable, Unwritable, Viewer, contract,
+    Answer, Assets, CONTRACT, Catchup, Changed, ClosedReason, Document, Effect, Format, Frame,
+    Guide, Input, Ordered, PipeId, Refused, RefusedReason, Restored, Rev, Seq, Snapshot, ToClient,
+    ToDocument, Unreadable, Unwritable, Viewer, contract,
 };
 
 /// A small format with both kinds of change: cells that a key names, and lines that a position
-/// names.
+/// names. Only the server makes a merged cell.
 struct Sheet;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,6 +25,7 @@ enum Change {
     Set { key: String, value: String },
     Insert { at: usize, line: String },
     Seal,
+    Merged { key: String, value: String },
 }
 
 impl Format for Sheet {
@@ -40,6 +41,13 @@ impl Format for Sheet {
         Snapshot(json!(model))
     }
 
+    fn sendable(change: &Change) -> Result<(), String> {
+        match change {
+            Change::Merged { .. } => Err("only the server merges".to_owned()),
+            _ => Ok(()),
+        }
+    }
+
     fn apply(
         model: &mut Model,
         change: Change,
@@ -47,7 +55,7 @@ impl Format for Sheet {
         _assets: &mut Assets,
     ) -> Result<Change, Refused> {
         match &change {
-            Change::Set { key, value } => {
+            Change::Set { key, value } | Change::Merged { key, value } => {
                 model.cells.insert(key.clone(), value.clone());
             }
             Change::Insert { at, line } => {
@@ -136,7 +144,7 @@ fn viewer(name: &str) -> Viewer {
 }
 
 fn opened() -> Document<Sheet> {
-    Document::open(file_of(&Model::default()), 1, Assets::default()).unwrap()
+    Document::open(file_of(&Model::default()), 1, HashMap::new()).unwrap()
 }
 
 fn frame(message: &ToDocument) -> Vec<u8> {
@@ -144,11 +152,16 @@ fn frame(message: &ToDocument) -> Vec<u8> {
 }
 
 fn join_frame(client: &str, epoch: u64, rev: Rev) -> Vec<u8> {
+    join_frame_of(client, epoch, rev, true)
+}
+
+fn join_frame_of(client: &str, epoch: u64, rev: Rev, fresh: bool) -> Vec<u8> {
     frame(&ToDocument::Join {
         contract: CONTRACT,
         client: client.to_owned(),
         epoch,
         rev,
+        fresh,
     })
 }
 
@@ -287,27 +300,49 @@ fn a_viewer_that_cannot_edit_is_refused() {
 }
 
 #[test]
-fn another_contract_number_cannot_join() {
+fn a_change_that_only_the_server_makes_is_refused_from_a_sender() {
     let mut document = opened();
-    document.step(Input::Connected {
-        pipe: 1,
-        viewer: viewer("ana"),
-    });
-    let effects = message_to(
-        &mut document,
-        1,
-        frame(&ToDocument::Join {
-            contract: CONTRACT + 1,
-            client: "ana".to_owned(),
-            epoch: 0,
-            rev: 0,
-        }),
-    );
+    connect(&mut document, 1, "ana");
+    let merged = Change::Merged {
+        key: "a1".to_owned(),
+        value: "x".to_owned(),
+    };
+    let effects = message_to(&mut document, 1, change_frame(1, 0, &merged));
     assert!(matches!(
         messages_for(1, &effects).as_slice(),
-        [ToClient::Closed { .. }]
+        [ToClient::Refused {
+            reason: RefusedReason::Invalid,
+            ..
+        }]
     ));
-    assert!(effects.contains(&Effect::Drop { pipe: 1 }));
+    assert_eq!(document.rev(), 0);
+}
+
+#[test]
+fn another_contract_number_cannot_join_and_learns_which_side_to_update() {
+    let mut document = opened();
+    for (pipe, contract, reason) in [
+        (1, CONTRACT - 1, ClosedReason::ClientOutdated),
+        (2, CONTRACT + 1, ClosedReason::HostOutdated),
+    ] {
+        document.step(Input::Connected {
+            pipe,
+            viewer: viewer("ana"),
+        });
+        let effects = message_to(
+            &mut document,
+            pipe,
+            frame(&ToDocument::Join {
+                contract,
+                client: "ana".to_owned(),
+                epoch: 0,
+                rev: 0,
+                fresh: true,
+            }),
+        );
+        assert_eq!(messages_for(pipe, &effects), [ToClient::Closed { reason }]);
+        assert!(effects.contains(&Effect::Drop { pipe }));
+    }
 }
 
 #[test]
@@ -325,7 +360,7 @@ fn a_view_that_comes_back_gets_only_what_it_missed() {
     match messages_for(2, &effects).as_slice() {
         [
             ToClient::Joined {
-                seq: 2,
+                seq: Some(2),
                 rev: 2,
                 catchup: Catchup::Missed { changes },
                 ..
@@ -333,6 +368,28 @@ fn a_view_that_comes_back_gets_only_what_it_missed() {
         ] => assert_eq!(changes.len(), 1),
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn a_view_learns_whether_the_document_knows_its_client() {
+    let seq_of = |pipe: PipeId, effects: &[Effect]| match messages_for(pipe, effects).as_slice() {
+        [ToClient::Joined { seq, .. }] => *seq,
+        other => panic!("{other:?}"),
+    };
+    let mut document = opened();
+    let mut join = |pipe: PipeId, client: &str, fresh: bool| {
+        document.step(Input::Connected {
+            pipe,
+            viewer: viewer(client),
+        });
+        let effects = message_to(&mut document, pipe, join_frame_of(client, 1, 0, fresh));
+        document.step(Input::Left { pipe });
+        seq_of(pipe, &effects)
+    };
+    assert_eq!(join(1, "ana", true), None);
+    assert_eq!(join(2, "ana", false), Some(0));
+    assert_eq!(join(3, "ben", false), None);
+    assert_eq!(join(4, "ben", false), None);
 }
 
 #[test]
@@ -586,7 +643,7 @@ impl View {
     fn applied(&mut self, changed: &Changed) {
         let change: Change = serde_json::from_value(changed.body.clone()).unwrap();
         match change {
-            Change::Set { key, value } => {
+            Change::Set { key, value } | Change::Merged { key, value } => {
                 self.model.cells.insert(key, value);
             }
             Change::Insert { at, line } => {
@@ -652,7 +709,7 @@ impl View {
                         }
                     }
                 }
-                self.take_pending(seq);
+                self.take_pending(seq.unwrap_or(0));
                 self.resend()
                     .or_else(|| self.next_frame())
                     .into_iter()
@@ -712,7 +769,7 @@ impl World {
     fn new(seed: u64) -> Self {
         let file = file_of(&Model::default());
         Self {
-            document: Document::open(file.clone(), 1, Assets::default()).unwrap(),
+            document: Document::open(file.clone(), 1, HashMap::new()).unwrap(),
             original: file.clone(),
             records: Vec::new(),
             saved: Vec::new(),
@@ -747,7 +804,7 @@ impl World {
                     let effects = self.document.step(Input::Saved { rev });
                     self.run_effects(effects);
                 }
-                Effect::KeepAsset(_) | Effect::Unsaved | Effect::FileTaken | Effect::Seal => {}
+                Effect::Unsaved | Effect::FileTaken | Effect::Seal => {}
             }
         }
     }
@@ -855,7 +912,6 @@ impl World {
                 saved: self.saved.clone(),
             },
             &self.records,
-            Assets::default(),
         )
         .unwrap();
     }

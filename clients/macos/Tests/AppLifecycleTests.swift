@@ -12,7 +12,7 @@ import Testing
     #expect(!ProductInput.validName("one\ntwo"))
 }
 
-@Test @MainActor func `a hidden terminal leaves the list and the stage until it is back but stays in its project`() throws {
+@Test func `a hidden terminal leaves the list and the stage until it is back but stays in its project`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "HiddenTerminal"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -42,7 +42,7 @@ import Testing
     #expect(app.listedSessions.map(\.id) == [id])
 }
 
-@Test @MainActor func `a saved sign-in that comes back is not shown as signed out`() throws {
+@Test func `a saved sign-in that comes back is not shown as signed out`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "RestoringSignIn"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -60,7 +60,7 @@ import Testing
     #expect(app.account.credentialStore == nil)
 }
 
-@Test @MainActor func `a closing terminal leaves the listed terminals at once`() throws {
+@Test func `a closing terminal leaves the listed terminals at once`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "ClosingTerminal"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -83,7 +83,7 @@ import Testing
     #expect(app.session(id)?.status == .closing)
 }
 
-@Test @MainActor func `signed out startup and refresh only list local sessions`() throws {
+@Test func `signed out startup and refresh only list local sessions`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "SignedOutRefresh"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -110,7 +110,7 @@ import Testing
     app.shutdownProcess()
 }
 
-@Test @MainActor func `cold deep link waits for authentication then opens remote`() async throws {
+@Test func `cold deep link waits for authentication then opens remote`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "ColdLink"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -155,7 +155,7 @@ import Testing
     app.shutdownProcess()
 }
 
-@Test @MainActor func `a remote terminal that is not on the stage when it opens is disconnected`() async throws {
+@Test func `a remote terminal that is not on the stage when it opens is disconnected`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "OpenedOffStage"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -192,7 +192,7 @@ import Testing
     #expect(app.workbench.stagedSessionIds.isEmpty)
 }
 
-@Test @MainActor func `an open of a listed terminal fails without a notice, and only a link to an unknown terminal puts one up`() async throws {
+@Test func `an open of a listed terminal fails without a notice, and only a link to an unknown terminal puts one up`() async throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "QuietOpen"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -255,7 +255,7 @@ import Testing
     #expect(app.errorMessage == failure)
 }
 
-@Test @MainActor func `the host hears which terminals are in the window and whether the person is in the app`() throws {
+@Test func `the host hears which terminals are in the window and whether the person is in the app`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "VisibleReport"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -289,7 +289,7 @@ import Testing
     #expect(reports.count == sent)
 }
 
-@Test @MainActor func `a terminal with no room on the stage says that it did not open`() throws {
+@Test func `a terminal with no room on the stage says that it did not open`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "FullStage"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -305,7 +305,7 @@ import Testing
     #expect(app.workbench.stagedSessionIds == Array(ids.prefix(6)))
 }
 
-@Test @MainActor func `a start that fails shows its error on its page and leaves no notice for later`() throws {
+@Test func `a start that fails shows its error on its page and leaves no notice for later`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "FailedStart"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -315,7 +315,7 @@ import Testing
     #expect(app.errorMessage == nil)
 }
 
-@Test @MainActor func `changed account drops old catalog and directory state`() throws {
+@Test func `changed account drops old catalog and directory state`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "AccountFence"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -339,7 +339,7 @@ import Testing
     app.shutdownProcess()
 }
 
-@Test @MainActor func `friend snapshot carries identity state and only a requested invite is copied`() throws {
+@Test func `friend snapshot carries identity state and only a requested invite is copied`() throws {
     let defaults = try #require(EphemeralUserDefaults(prefix: "FriendIdentity"))
     let bootstrap = try RuntimeStorageBootstrap.resolve(environment: [:], installEnvironment: false)
     let app = AppDependencies(defaults: defaults, storageBootstrap: bootstrap)
@@ -374,7 +374,7 @@ import Testing
     #expect(app.people.friends.count == 2)
 }
 
-@Test @MainActor func `kodosi quits without asking when macOS ends the session or opens it again for a permission`() {
+@Test func `kodosi quits without asking when macOS ends the session or opens it again for a permission`() {
     func quit(_ reason: OSType?) -> NSAppleEventDescriptor {
         let event = NSAppleEventDescriptor(
             eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEQuitApplication), targetDescriptor: nil,

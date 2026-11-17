@@ -8,7 +8,9 @@ mailbox=$rig-mailbox
 network=$rig
 port=${KODOSI_SIGN_IN_KEYCLOAK_PORT:-8284}
 mailbox_port=${KODOSI_SIGN_IN_MAILBOX_PORT:-8285}
-image=quay.io/keycloak/keycloak:26.8.1
+maven=$(<tools/maven/image)
+mailpit=axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+image=quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0
 jar=dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar
 check_jar=dev/turnstile/build/kodosi-turnstile-stand-in.jar
 code_jar=extension/target/kodosi-mail-code.jar
@@ -20,7 +22,7 @@ broker=kodosi-first-broker-login
 people=dev/people.txt
 # Keycloak e-mails the lockout notes only when this option names them, and then only what it
 # names. UPDATE_PASSWORD or UPDATE_TOTP too would send two e-mails for one change.
-notes=UPDATE_CREDENTIAL,REMOVE_CREDENTIAL,USER_DISABLED_BY_TEMPORARY_LOCKOUT
+notes=UPDATE_CREDENTIAL,REMOVE_CREDENTIAL,USER_DISABLED_BY_TEMPORARY_LOCKOUT,USER_DISABLED_BY_PERMANENT_LOCKOUT
 
 kc() { docker exec "$name" /opt/keycloak/bin/kcadm.sh "$@"; }
 calm() { "$@" 2> >(grep -v -e '^Created new' -e '^Logging into' >&2) >/dev/null; }
@@ -101,7 +103,10 @@ docker rm -f "$name" "$mailbox" >/dev/null 2>&1 || true
 docker network rm "$network" >/dev/null 2>&1 || true
 [ "${1:-}" = down ] && exit
 
-[ -f "$jar" ] && [ -z "$(find src index.html -newer "$jar" -print -quit)" ] || bun run theme
+# Keycloakify finds Maven only on PATH, and by default it keeps Maven's downloads in its cache,
+# which the container does not see.
+[ -f "$jar" ] && [ -z "$(find src index.html -newer "$jar" -print -quit)" ] ||
+  PATH="$PWD/tools/maven:$PATH" KEYCLOAKIFY_USE_DEFAULT_MAVEN_REPO=true bun run theme
 
 [ -f "$code_jar" ] && [ -z "$(find extension/src extension/pom.xml -newer "$code_jar" -print -quit)" ] ||
   extension/maven.sh -q package
@@ -113,7 +118,7 @@ if [ ! -f "$check_jar" ] || [ -n "$(find dev/turnstile/StandIn.java dev/turnstil
   docker rm "$rig-libraries" >/dev/null
   mkdir -p "$(dirname "$check_jar")"
   docker run --rm -v "$PWD/dev/turnstile:/src" -v "$libraries:/libraries:ro" \
-    maven:3.9-eclipse-temurin-21 sh -c 'set -e; mkdir -p /tmp/classes
+    "$maven" sh -c 'set -e; mkdir -p /tmp/classes
       javac --release 21 -cp "/libraries/main/*" -d /tmp/classes /src/StandIn.java
       cp -r /src/META-INF /tmp/classes/
       jar cf /src/build/kodosi-turnstile-stand-in.jar -C /tmp/classes .'
@@ -123,7 +128,7 @@ fi
 admin=$(openssl rand -hex 16)
 docker network create "$network" >/dev/null
 docker run -d --name "$mailbox" --network "$network" -p "127.0.0.1:$mailbox_port:8025" \
-  axllent/mailpit:v1.31.6 >/dev/null
+  "$mailpit" >/dev/null
 docker run -d --name "$name" --network "$network" -p "127.0.0.1:$port:8080" \
   -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD="$admin" \
   -e KODOSI_TERMS_URL=https://kodosi.com/terms -e KODOSI_PRIVACY_URL=https://kodosi.com/privacy \
@@ -150,6 +155,7 @@ calm kc create realms -s realm=$realm -s enabled=true -s displayName=Kodosi \
   -s bruteForceProtected=true -s permanentLockout=false -s failureFactor=10 \
   -s waitIncrementSeconds=60 -s maxFailureWaitSeconds=300 -s maxDeltaTimeSeconds=43200 \
   -s quickLoginCheckMilliSeconds=1000 -s minimumQuickLoginWaitSeconds=60 \
+  -s maxSecondaryAuthFailures=100 \
   -s 'passwordPolicy=length(12) and maxLength(128) and notUsername and notEmail' \
   -s oauth2DeviceCodeLifespan=900 -s actionTokenGeneratedByUserLifespan=900 \
   -s accessCodeLifespanLogin=3600 -s accessCodeLifespanUserAction=1800 \
@@ -191,6 +197,13 @@ calm kc create clients -r $realm -s clientId=kodosi-app -s name=Kodosi -s public
   -s 'attributes={"oauth2.device.authorization.grant.enabled":"true","use.refresh.tokens":"true","pkce.code.challenge.method":"S256"}' \
   -s 'defaultClientScopes=["basic","profile"]' -s 'optionalClientScopes=["offline_access"]' \
   -s 'protocolMappers=[{"name":"kodosi-app audience","protocol":"openid-connect","protocolMapper":"oidc-audience-mapper","config":{"included.client.audience":"kodosi-app","id.token.claim":"false","access.token.claim":"true","introspection.token.claim":"true"}}]'
+
+backend_secret=$(openssl rand -hex 16)
+calm kc create clients -r $realm -s clientId=kodosi-backend -s publicClient=false \
+  -s serviceAccountsEnabled=true -s standardFlowEnabled=false -s directAccessGrantsEnabled=false \
+  -s "secret=$backend_secret" -s 'optionalClientScopes=["kc-admin-api"]'
+calm kc add-roles -r $realm --uusername service-account-kodosi-backend --cclientid realm-management \
+  --rolename view-events
 
 # A built-in flow takes no new step, so the realm uses copies. A copy loses the place of the terms
 # step after the step that makes the account.
@@ -284,3 +297,4 @@ echo "The account page: http://localhost:$port/realms/$realm/account"
 echo "A device sign-in: ./keycloak.sh code"
 echo "The mailbox:      http://localhost:$mailbox_port"
 echo "The people and their passwords: sign-in/$people"
+echo "The backend's client for account deletions: kodosi-backend, secret $backend_secret"

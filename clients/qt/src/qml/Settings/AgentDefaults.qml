@@ -24,11 +24,11 @@ ListGroup {
     readonly property string permissions: plan ? plan.permissions : ""
     readonly property string output: plan ? plan.output : ""
 
-    function loadModels() {
+    function loadModels(): void {
         if (visible && agent.length > 0)
             Models.Launcher.loadModels(agent)
     }
-    function modelRows() {
+    function modelRows(): var {
         const rows = [{ id: "menu.default", kind: "choice", title: qsTr("Default"), current: modelId.length === 0 }]
         if (!modelSet)
             rows.push({ id: "menu.models", kind: "note", working: loadingModels,
@@ -38,10 +38,10 @@ ListGroup {
                 detail: entry.label.toLowerCase() === entry.id.toLowerCase() ? "" : entry.id })
         return rows
     }
-    function permissionLabel(id) {
+    function permissionLabel(id: string): string {
         return id === "unrestricted" ? qsTr("Unrestricted") : id === "auto" ? qsTr("Auto") : qsTr("Ask")
     }
-    function permissionDetail(id) {
+    function permissionDetail(id: string): string {
         if (id === "unrestricted")
             return qsTr("Never asks, and runs every command as you.")
         if (id !== "auto")
@@ -54,10 +54,10 @@ ListGroup {
             return qsTr("Edits files on its own and asks before it runs commands.")
         return qsTr("Accepts its own actions, except what you denied.")
     }
-    function outputLabel(id) {
+    function outputLabel(id: string): string {
         return id === "quiet" ? qsTr("Quiet") : id === "detailed" ? qsTr("Detailed") : qsTr("Standard")
     }
-    function outputDetail(id) {
+    function outputDetail(id: string): string {
         return id === "quiet" ? qsTr("Shows less of its work.") : id === "detailed" ? qsTr("Shows each step of its work in full.")
             : qsTr("Shows its work as the agent is set up.")
     }

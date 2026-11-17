@@ -14,7 +14,11 @@ mod windows;
 use windows as imp;
 
 pub fn home_dir() -> io::Result<PathBuf> {
-    imp::home_dir()
+    // std passes over an empty HOME but gives an empty home folder of the user database as it
+    // is, and an empty path would put the data root in the working folder.
+    std::env::home_dir()
+        .filter(|home| !home.is_empty())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "cannot find the home folder"))
 }
 
 pub fn default_data_root() -> io::Result<PathBuf> {

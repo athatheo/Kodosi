@@ -20,7 +20,6 @@ private struct TitleBarGap: ViewModifier {
     }
 }
 
-@MainActor
 private enum TitleBarGaps {
     private static var gaps: [UUID: CGRect] = [:]
     private static var watching: Any?

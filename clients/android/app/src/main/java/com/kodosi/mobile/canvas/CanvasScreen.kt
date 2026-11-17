@@ -8,19 +8,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -46,8 +39,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kodosi.mobile.AppModel
@@ -55,12 +46,10 @@ import com.kodosi.mobile.R
 import com.kodosi.mobile.runtime.RuntimeFailure
 import com.kodosi.mobile.runtime.fields
 import com.kodosi.mobile.ui.ActionIcon
-import com.kodosi.mobile.ui.AppIcon
 import com.kodosi.mobile.ui.AppSymbol
 import com.kodosi.mobile.ui.DockItem
 import com.kodosi.mobile.ui.EmptyState
 import com.kodosi.mobile.ui.ErrorNote
-import com.kodosi.mobile.ui.KodosiCard
 import com.kodosi.mobile.ui.KodosiMenu
 import com.kodosi.mobile.ui.KodosiMenuItem
 import com.kodosi.mobile.ui.KodosiTextButton
@@ -133,6 +122,23 @@ fun CanvasScreen(model: AppModel, sessionId: String, back: () -> Unit, ask: () -
     }
     var saving by remember { mutableStateOf<CanvasItem?>(null) }
     var selection by remember(item?.key) { mutableStateOf<suspend () -> String?>({ null }) }
+
+    fun askAbout(key: String?, words: suspend () -> String?) {
+        val terminal = session ?: return
+        scope.launch {
+            model.runAction {
+                val place = key ?: canvas?.browser?.tabs?.firstOrNull { it.active }?.url.orEmpty()
+                val line = words()?.replace(Regex("[\\p{Cntrl}\\s]+"), " ")?.trim()?.take(600)
+                val prompt = if (line.isNullOrEmpty()) {
+                    resources.getString(R.string.canvas_question, place)
+                } else {
+                    resources.getString(R.string.canvas_question_words, place, line)
+                }
+                model.terminals.act("session.input", terminal, fields("text" to prompt.trimEnd() + " "))
+                ask()
+            }
+        }
+    }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
         val target = saving
         saving = null
@@ -268,31 +274,8 @@ fun CanvasScreen(model: AppModel, sessionId: String, back: () -> Unit, ask: () -
                     ) {
                         KodosiMenuItem(text = { Text(stringResource(R.string.ask_about_this)) }, onClick = {
                             menu = false
-                            scope.launch {
-                                model.runAction {
-                                    val place =
-                                        menuItem?.key ?: canvas?.browser?.tabs?.firstOrNull { it.active }?.url.orEmpty()
-                                    val words = (if (menuItem == item) selection() else null)?.replace(
-                                        Regex("[\\p{Cntrl}\\s]+"),
-                                        " "
-                                    )?.trim()?.take(600)?.takeIf {
-                                        it.isNotEmpty()
-                                    }
-                                    val prompt = if (words ==
-                                        null
-                                    ) {
-                                        resources.getString(R.string.canvas_question, place)
-                                    } else {
-                                        resources.getString(R.string.canvas_question_words, place, words)
-                                    }
-                                    model.terminals.act(
-                                        "session.input",
-                                        session,
-                                        fields("text" to prompt.trimEnd() + " ")
-                                    )
-                                    ask()
-                                }
-                            }
+                            val words = if (menuItem == item) selection else ({ null })
+                            askAbout(menuItem?.key, words)
                         })
                     }
                     if (menuItem !=
@@ -350,7 +333,16 @@ fun CanvasScreen(model: AppModel, sessionId: String, back: () -> Unit, ask: () -
                         selection = it
                     })
 
-                    part == "browser" && canvas?.browser != null -> BrowserScreen(model, sessionId, canvas.browser)
+                    part == "browser" && canvas?.browser != null -> BrowserScreen(
+                        model,
+                        sessionId,
+                        canvas.browser,
+                        ask = if (session?.canControl == true && session.agent.isAgent) {
+                            { words -> askAbout(null) { words } }
+                        } else {
+                            null
+                        }
+                    )
 
                     else -> EmptyState(stringResource(R.string.canvas_empty), symbol = AppSymbol.CANVAS) {
                         if (session?.canControl == true) {

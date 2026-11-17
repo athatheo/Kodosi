@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use rusqlite::{Connection, OpenFlags, config::DbConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -138,15 +139,12 @@ pub fn copied_sites(profiles: &Path, profile: &str) -> usize {
     sites(keys.iter().map(|key| key.domain.as_str()))
 }
 
-fn home() -> PathBuf {
-    let name = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
-    std::env::var_os(name).map_or_else(PathBuf::new, PathBuf::from)
-}
-
 /// Nothing here reads the data of a browser that macOS keeps from Kodosi, so looking never makes
 /// macOS refuse or warn.
 pub fn sign_in_sources() -> Vec<SignInSource> {
-    let home = home();
+    let Some(home) = std::env::home_dir().filter(|home| !home.is_empty()) else {
+        return Vec::new();
+    };
     let mut sources = chromium::sources(&home);
     sources.extend(firefox::sources(&home));
     sources.extend(safari::sources(&home));
@@ -183,6 +181,17 @@ fn store_copy(store: &Path, working: &Path) -> Result<PathBuf, CopyError> {
         }
     }
     Ok(copy)
+}
+
+/// Opens a store of another program for reading. Any program of the person can write it, so
+/// its schema runs no function that SQLite does not mark as safe for any schema.
+fn open_store(store: &Path) -> rusqlite::Result<Connection> {
+    let connection = Connection::open_with_flags(
+        store,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    connection.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    Ok(connection)
 }
 
 /// Copies only the bytes of a file. macOS refuses a copy of the extended attributes of another

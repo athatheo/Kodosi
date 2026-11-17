@@ -66,7 +66,7 @@ final class AppModel {
         }
         let inbox = inbox
         let runtime = runtime
-        eventTask = Task { [weak self] in
+        eventTask = Task(name: "Runtime events") { [weak self] in
             while !Task.isCancelled, !runtime.isRunning {
                 try? await Task.sleep(for: .milliseconds(10))
             }

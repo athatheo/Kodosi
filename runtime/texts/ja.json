@@ -309,6 +309,7 @@
 "Wait for the terminal snapshot before sending a picture.": "画像を送る前に、ターミナルのスナップショットを待ってください。",
 "Wait for the terminal snapshot before sending input.": "入力を送る前に、ターミナルのスナップショットを待ってください。",
 "You are signed in to Kodosi": "Kodosi にサインインしました",
+"You can delete only your own messages.": "削除できるのは自分のメッセージだけです。",
 "You cannot leave your own terminal.": "自分のターミナルからは退出できません。",
 "You chose more people than a terminal can have ({most}).": "1 つのターミナルに追加できる人数（{most}）を超えて選んでいます。",
 "You have not trusted this person yet.": "この人はまだ信頼していません。",

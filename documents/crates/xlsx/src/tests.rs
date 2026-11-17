@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{io::Write as _, time::Duration};
 
 use document::{Assets, Format, Ordered, Refused};
 use package::Package;
@@ -23,10 +23,7 @@ fn xlsx_file() -> Vec<u8> {
 }
 
 fn xlsx_file_with(sheet: &str, workbook: &str, styles: &str) -> Vec<u8> {
-    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    for (name, bytes) in [
+    xlsx_package(&[
         ("[Content_Types].xml", TYPES),
         ("_rels/.rels", ROOT_RELATIONS),
         ("xl/workbook.xml", workbook),
@@ -34,8 +31,15 @@ fn xlsx_file_with(sheet: &str, workbook: &str, styles: &str) -> Vec<u8> {
         ("xl/worksheets/sheet1.xml", sheet),
         ("xl/sharedStrings.xml", STRINGS),
         ("xl/styles.xml", styles),
-    ] {
-        writer.start_file(name, options).unwrap();
+    ])
+}
+
+fn xlsx_package(parts: &[(&str, &str)]) -> Vec<u8> {
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for (name, bytes) in parts {
+        writer.start_file(*name, options).unwrap();
         writer.write_all(bytes.as_bytes()).unwrap();
     }
     writer.finish().unwrap().into_inner()
@@ -189,6 +193,75 @@ fn a_save_keeps_the_stored_results_that_an_edit_does_not_change() {
 }
 
 #[test]
+fn a_save_that_cannot_work_out_the_formulas_asks_the_program_that_opens_it_to() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "");
+    for (before, asking) in [
+        ("", r#"<calcPr fullCalcOnLoad="1"/>"#),
+        (
+            r#"<calcPr calcId="191029"/>"#,
+            r#"<calcPr fullCalcOnLoad="1" calcId="191029"/>"#,
+        ),
+    ] {
+        let workbook = WORKBOOK.replace("</sheets>", &format!("</sheets>{before}"));
+        let file = xlsx_file_with(&sheet, &workbook, STYLES);
+        let mut model = read(&file);
+        ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+        let unfinished = crate::write::write(&model, &file, Duration::ZERO).unwrap();
+        assert!(
+            part(&unfinished, "xl/workbook.xml").contains(&format!("</sheets>{asking}</workbook>"))
+        );
+        assert!(
+            part(&unfinished, "xl/worksheets/sheet1.xml").contains(r#"<c r="A3"><f>A1+A2</f></c>"#)
+        );
+        let finished = saved(&model, &unfinished);
+        assert!(
+            part(&finished, "xl/workbook.xml").contains(&format!("</sheets>{before}</workbook>"))
+        );
+        assert!(
+            part(&finished, "xl/worksheets/sheet1.xml")
+                .contains(r#"<c r="A3"><f>A1+A2</f><v>12</v></c>"#)
+        );
+    }
+}
+
+#[test]
+fn a_workbook_asks_to_be_worked_out_while_a_formula_keeps_its_value() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="D1"><f>KODOSIUNKNOWN(A2)</f><v>7</v></c>"#,
+    );
+    let workbook = WORKBOOK.replace("</sheets>", r#"</sheets><calcPr fullCalcOnLoad="1"/>"#);
+    let file = xlsx_file_with(&sheet, &workbook, STYLES);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert!(part(&saved(&model, &file), "xl/workbook.xml").contains("fullCalcOnLoad"));
+}
+
+#[test]
+fn an_answer_says_when_the_formulas_could_not_be_worked_out_in_time() {
+    let file = xlsx_file();
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    let everything = Query::Read {
+        sheet: None,
+        range: None,
+    };
+    let unfinished = crate::ops::answer(&model, &everything, Duration::ZERO);
+    let formula = unfinished["sheets"][0]["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cell| cell["cell"] == "A3")
+        .unwrap();
+    assert_eq!(formula["value"], serde_json::Value::Null);
+    assert!(unfinished["problem"].is_string());
+    let unchecked = crate::ops::answer(&model, &Query::Check, Duration::ZERO);
+    assert!(unchecked.get("errors").is_none() && unchecked["problem"].is_string());
+    assert!(Xlsx::query(&model, everything).0.get("problem").is_none());
+    assert!(Xlsx::query(&model, Query::Check).0.get("problem").is_none());
+}
+
+#[test]
 fn a_read_sees_results_before_any_save() {
     let file = xlsx_file();
     let mut model = read(&file);
@@ -213,6 +286,29 @@ fn a_formula_uses_the_names_of_the_workbook_and_keeps_what_it_cannot_work_out() 
 }
 
 #[test]
+fn a_workbook_that_counts_days_from_1904_gets_a_date_in_its_count() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="C1"><f>DATE(2020,1,1)</f><v>0</v></c>"#,
+    );
+    let workbook = WORKBOOK.replace("<sheets>", r#"<workbookPr date1904="1"/><sheets>"#);
+    let mut model = read(&xlsx_file_with(&sheet, &workbook, STYLES));
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert_eq!(cell_value(&model, "C1"), 42369.0);
+}
+
+#[test]
+fn formulas_in_a_loop_keep_their_values() {
+    let sheet = SHEET.replace(" x14ac:custom=\"kept\"", "").replace(
+        r#"<c r="B1" t="s"><v>0</v></c>"#,
+        r#"<c r="B1" t="s"><v>0</v></c><c r="C1"><f>D1</f><v>7</v></c><c r="D1"><f>C1</f><v>7</v></c>"#,
+    );
+    let mut model = read(&xlsx_file_with(&sheet, WORKBOOK, STYLES));
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    assert_eq!(cell_value(&model, "C1"), 7.0);
+}
+
+#[test]
 fn new_text_keeps_the_shared_strings_as_they_are() {
     let file = xlsx_file();
     let mut model = read(&file);
@@ -223,6 +319,65 @@ fn new_text_keeps_the_shared_strings_as_they_are() {
         r#"<c r="C1" t="inlineStr"><is><t xml:space="preserve">a &lt;b&gt;</t></is></c>"#
     ));
     assert_eq!(cell_value(&read(&new_file), "C1"), "a <b>");
+}
+
+#[test]
+fn a_cell_goes_into_a_sheet_that_has_no_rows() {
+    let empty = r#"<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1"/><sheetData/></worksheet>"#;
+    let file = xlsx_file_with(empty, WORKBOOK, STYLES);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("B2", Value::Number(10.0))]).unwrap();
+    let xml = part(&saved(&model, &file), "xl/worksheets/sheet1.xml");
+    assert!(xml.contains(r#"<sheetData><row r="2"><c r="B2"><v>10</v></c></row></sheetData>"#));
+}
+
+#[test]
+fn a_workbook_saves_with_its_chart_sheet_as_it_is() {
+    let chart_sheet = r#"<?xml version="1.0"?><chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"/></sheetViews><drawing r:id="rId1"/></chartsheet>"#;
+    let workbook = WORKBOOK.replace(
+        "</sheets>",
+        r#"<sheet name="Chart" sheetId="2" r:id="rId4"/></sheets>"#,
+    );
+    let relations = RELATIONS.replace(
+        "</Relationships>",
+        r#"<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/></Relationships>"#,
+    );
+    let file = xlsx_package(&[
+        ("[Content_Types].xml", TYPES),
+        ("_rels/.rels", ROOT_RELATIONS),
+        ("xl/workbook.xml", &workbook),
+        ("xl/_rels/workbook.xml.rels", &relations),
+        (
+            "xl/worksheets/sheet1.xml",
+            &SHEET.replace(" x14ac:custom=\"kept\"", ""),
+        ),
+        ("xl/chartsheets/sheet1.xml", chart_sheet),
+        ("xl/sharedStrings.xml", STRINGS),
+        ("xl/styles.xml", STYLES),
+    ]);
+    let mut model = read(&file);
+    ops(&mut model, vec![set("A2", Value::Number(10.0))]).unwrap();
+    let new_file = saved(&model, &file);
+    assert!(part(&new_file, "xl/worksheets/sheet1.xml").contains(r#"<c r="A2"><v>10</v></c>"#));
+    assert_eq!(part(&new_file, "xl/chartsheets/sheet1.xml"), chart_sheet);
+    for op in [
+        Op::SetCell {
+            sheet: "Chart".to_owned(),
+            cell: "A1".to_owned(),
+            value: Some(Value::Number(1.0)),
+            formula: None,
+        },
+        Op::InsertRows {
+            sheet: "Chart".to_owned(),
+            at: 0,
+            count: 1,
+        },
+    ] {
+        assert!(matches!(
+            ops(&mut model, vec![op]),
+            Err(Refused::Invalid(_))
+        ));
+    }
 }
 
 #[test]

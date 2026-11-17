@@ -1,9 +1,14 @@
+use std::collections::BTreeMap;
+
 use document::{Guide, Ordered, Refused, guide_field as field, guide_op as op};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use text::{Fragment, Node, Slice, Step};
 
-use crate::model::{Change, Model, Query, SLIDE_IDS, Shape, ShapeFields, number_in, schema};
+use crate::{
+    model::{Change, Model, Query, SLIDE_IDS, Shape, ShapeFields, number_in, schema},
+    writable::writable_fill,
+};
 
 const EMU_PER_POINT: i64 = 12_700;
 const SMALL_TEXT: usize = 8;
@@ -105,7 +110,7 @@ pub(crate) fn guide() -> Guide {
             ),
             op(
                 "setFill",
-                "Sets the color of a shape",
+                "Sets the color of a shape that is not a table or a chart",
                 vec![
                     slide(),
                     shape(),
@@ -251,6 +256,7 @@ fn set_text(model: &Model, slide: &str, shape: &str, text: &str) -> Result<Chang
         slide: slide.to_owned(),
         shape: shape.to_owned(),
         steps: vec![step.to_json(schema())],
+        keep: BTreeMap::new(),
     })
 }
 
@@ -289,8 +295,7 @@ fn replace_in_tree(tree: &Node, find: &str, with: &str) -> Result<Vec<Value>, St
             .node_at(from)
             .ok()
             .flatten()
-            .map(|node| node.marks().to_vec())
-            .unwrap_or_default();
+            .map_or_default(|node| node.marks().to_vec());
         let slice = if with.is_empty() {
             Slice::empty()
         } else {
@@ -329,6 +334,7 @@ fn replace_everywhere(
                     slide: slide.id.clone(),
                     shape: shape.id.clone(),
                     steps,
+                    keep: BTreeMap::new(),
                 });
             }
         }
@@ -432,6 +438,7 @@ pub(crate) fn to_changes(model: &Model, ops: &[Op]) -> Result<Vec<Change>, Strin
                 color,
             } => {
                 shape_of(model, slide, shape)?;
+                writable_fill(color)?;
                 changes.push(Change::Shape {
                     slide: slide.clone(),
                     shape: shape.clone(),
@@ -470,10 +477,12 @@ pub(crate) fn to_changes(model: &Model, ops: &[Op]) -> Result<Vec<Change>, Strin
                     text: Some(plain_tree(text)?),
                     look: Value::Null,
                     order: order as u64,
+                    source: None,
                 };
                 changes.push(Change::AddShape {
                     slide: slide.clone(),
                     shape: shape.snapshot(),
+                    keep: BTreeMap::new(),
                 });
             }
             Op::RemoveShape { slide, shape } => {

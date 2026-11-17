@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Builds the view bundle of live documents, when its sources changed, and copies it."""
 
+# Xcode runs this with its own Python 3.9.
 import argparse
 import os
 import shutil
@@ -27,7 +28,7 @@ def build() -> None:
     bun = shutil.which("bun")
     if bun is None:
         sys.exit("Install Bun to build the document views.")
-    subprocess.run([bun, "install", "--frozen-lockfile"], cwd=VIEWS, check=True)
+    subprocess.run([bun, "ci"], cwd=VIEWS, check=True)
     subprocess.run([bun, "run", "build"], cwd=VIEWS, check=True)
 
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 struct CanvasBody: View, Animatable {
     static let band: CGFloat = 38
-    static let waist: CGFloat = 14
+    nonisolated static let waist: CGFloat = 14
     static let split: CGFloat = 10
     /// The room that a header leaves free at the waist.
     static let clearance: CGFloat = 10
@@ -62,7 +62,7 @@ struct CanvasBody: View, Animatable {
     }
 }
 
-private struct Outline: Shape {
+private nonisolated struct Outline: Shape {
     let lobes: Lobes
     let tab: CGRect?
 
@@ -75,22 +75,15 @@ private struct Outline: Shape {
     }
 }
 
-struct Lobes: Shape {
+@Animatable
+nonisolated struct Lobes: Shape {
     var seam: CGFloat
     var depth: CGFloat
-    var radius: CGFloat
+    @AnimatableIgnored var radius: CGFloat
 
     static let reach: CGFloat = 20
     static let floor: CGFloat = 5
     static let floorReach: CGFloat = 12
-
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(seam, depth) }
-        set {
-            seam = newValue.first
-            depth = newValue.second
-        }
-    }
 
     func path(in rect: CGRect) -> Path {
         let r = min(radius, rect.width / 2, rect.height / 2)
@@ -142,7 +135,7 @@ struct Lobes: Shape {
 
 /// The neck meets the body only where the body's edge is straight, between the rounded corners of
 /// `radius`.
-struct Neck: Shape {
+nonisolated struct Neck: Shape {
     var tab: CGRect
     var radius: CGFloat
 

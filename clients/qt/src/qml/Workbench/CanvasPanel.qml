@@ -2,8 +2,9 @@ pragma ComponentBehavior: Bound
 
 import Kodosi 1.0
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Templates as T
 import Kodosi.Models 1.0 as Models
 
 Item {
@@ -34,22 +35,22 @@ Item {
     signal hide()
     signal asked()
 
-    function markSeen() {
+    function markSeen(): void {
         if (currentKey.length > 0)
             Models.Canvas.saw(sessionId, currentKey);
     }
-    function documentKind(kind) {
+    function documentKind(kind: string): bool {
         return kind === "document" || kind === "sheet" || kind === "presentation";
     }
-    function kindName(kind, view) {
+    function kindName(kind: string, view: string): string {
         return view === "text" ? qsTr("Text") : kind === "picture" ? qsTr("Picture") : kind === "pdf" ? qsTr("PDF")
             : kind === "document" ? qsTr("Document") : kind === "sheet" ? qsTr("Sheet")
             : kind === "presentation" ? qsTr("Presentation") : qsTr("Page");
     }
-    function glyph(kind) {
+    function glyph(kind: string): string {
         return kind === "picture" || root.documentKind(kind) ? kind : "page";
     }
-    function load() {
+    function load(): void {
         failure = "";
         if (!current || !current.item || current.missing || documentView.length > 0)
             return;
@@ -60,11 +61,11 @@ Item {
             ++readyCount;
         }
     }
-    function liveView(item) {
+    function liveView(item: var): string {
         return item && item.missing !== true && Models.CanvasWeb.available
             && Models.DesktopSettings.shownViews[item.view] === true ? item.view : "";
     }
-    function placeDocument() {
+    function placeDocument(): void {
         const key = !shelf && documentView.length > 0 ? currentKey : "";
         if (key === placedKey)
             return;
@@ -74,11 +75,8 @@ Item {
         if (key.length > 0)
             DocumentViews.show(sessionId, key, documentView, documentPlace);
     }
-    function ask(key) {
-        const send = words => {
-            if (Models.SessionActions.input(root.sessionId, Models.Canvas.question(root.sessionId, key, words)))
-                root.asked();
-        };
+    function ask(key: string): void {
+        const send = words => root.askAbout(key, words);
         const page = body.item as CanvasPage;
         if (key === root.placedKey)
             DocumentViews.selection(root.sessionId, key, send);
@@ -87,13 +85,17 @@ Item {
         else
             send("");
     }
-    function size(bytes) {
+    function askAbout(key: string, words: string): void {
+        if (Models.SessionActions.input(root.sessionId, Models.Canvas.question(root.sessionId, key, words)))
+            root.asked();
+    }
+    function size(bytes: real): string {
         return bytes >= 1048576 ? qsTr("%1 MB").arg((bytes / 1048576).toFixed(1))
             : bytes >= 1024 ? qsTr("%1 KB").arg(Math.round(bytes / 1024)) : qsTr("%1 bytes").arg(bytes);
     }
-    function openFileMenu(item) {
-        fileMenu.item = item;
-        fileMenu.popup();
+    function openFileMenu(file: var, source: Item, position: point): void {
+        fileMenu.item = file;
+        fileMenu.popupFor(source, position);
     }
 
     objectName: "canvas." + sessionId
@@ -291,13 +293,6 @@ Item {
                     Flickable {
                         id: tabsArea
 
-                        function reveal(tab) {
-                            if (tab.x < contentX)
-                                contentX = tab.x;
-                            else if (tab.x + tab.width > contentX + width)
-                                contentX = tab.x + tab.width - width;
-                        }
-
                         Layout.fillWidth: true
                         Layout.preferredHeight: 26
                         contentWidth: tabs.implicitWidth
@@ -373,13 +368,14 @@ Item {
                                         BreathingDot { x: parent.width - 8; y: 2; size: 6; color: KodosiTheme.glowOrange; visible: tab.fresh }
                                     }
                                     onClicked: Models.Canvas.pick(root.sessionId, modelData.key)
+                                    T.ContextMenu.onRequested: position => root.openFileMenu(tab.modelData, tab, position)
                                     onSelectedChanged: {
                                         if (selected)
-                                            Qt.callLater(tabsArea.reveal, tab);
+                                            Qt.callLater(tabsArea.positionViewAtChild, tab, Flickable.Contain);
                                     }
                                     Component.onCompleted: {
                                         if (selected)
-                                            Qt.callLater(tabsArea.reveal, tab);
+                                            Qt.callLater(tabsArea.positionViewAtChild, tab, Flickable.Contain);
                                     }
 
                                     RemoveKey {
@@ -390,10 +386,6 @@ Item {
                                         visible: tab.closing
                                         objectName: "canvas.remove." + tab.modelData.key
                                         onClicked: Models.Canvas.remove(root.sessionId, tab.modelData.key)
-                                    }
-                                    TapHandler {
-                                        acceptedButtons: Qt.RightButton
-                                        onTapped: root.openFileMenu(tab.modelData)
                                     }
                                 }
                             }
@@ -504,6 +496,7 @@ Item {
                                     }
                                     background: Item {}
                                     onClicked: Models.Canvas.pick(root.sessionId, modelData.key)
+                                    T.ContextMenu.onRequested: position => root.openFileMenu(card.modelData, card, position)
 
                                     RemoveKey {
                                         x: -6
@@ -514,10 +507,6 @@ Item {
                                         backed: true
                                         objectName: "canvas.card.remove." + card.modelData.key
                                         onClicked: Models.Canvas.remove(root.sessionId, card.modelData.key)
-                                    }
-                                    TapHandler {
-                                        acceptedButtons: Qt.RightButton
-                                        onTapped: root.openFileMenu(card.modelData)
                                     }
                                 }
                             }
@@ -580,6 +569,9 @@ Item {
         CanvasBrowser {
             sessionId: root.sessionId
             browser: root.current.browser
+            askTitle: root.agent && root.session.canControl === true
+                ? qsTr("Ask %1 about this").arg(Models.DesktopSettings.agentLabel(root.session.program)) : ""
+            onAsking: words => root.askAbout("browser", words)
         }
     }
     Component {

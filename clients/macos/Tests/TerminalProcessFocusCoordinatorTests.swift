@@ -2,7 +2,7 @@ import Foundation
 import KodosiTerminalSessions
 import Testing
 
-@Test @MainActor
+@Test
 func `rejected focus retries once then revokes only the current lease`() {
     var requests: [(TerminalProcessFocusLease, String)] = []
     var revoked = 0
@@ -26,7 +26,7 @@ func `rejected focus retries once then revokes only the current lease`() {
     #expect(requests.count == 3)
 }
 
-@Test @MainActor
+@Test
 func `accepted pending terminal blur refocuses reacquired lease`() {
     var focusLeases: [TerminalProcessFocusLease] = []
     var blurAuthorities: [TerminalProcessFocusReleaseAuthority] = []
@@ -75,7 +75,7 @@ func `accepted pending terminal blur refocuses reacquired lease`() {
     #expect(blurAuthorities.map(\.generation) == [1, 2])
 }
 
-@Test @MainActor
+@Test
 func `terminally rejected blur retries without reacquisition`() {
     var blurAuthorities: [TerminalProcessFocusReleaseAuthority] = []
     var blurCompletions: [(Bool) -> Void] = []
@@ -114,7 +114,7 @@ func `terminally rejected blur retries without reacquisition`() {
     #expect(blurAuthorities.count == 2)
 }
 
-@Test @MainActor
+@Test
 func `stale blur callback cannot displace replacement blur generation`() {
     var focusCount = 0
     var blurAuthorities: [TerminalProcessFocusReleaseAuthority] = []
@@ -153,7 +153,7 @@ func `stale blur callback cannot displace replacement blur generation`() {
     blurCompletions[1](true)
 }
 
-@Test @MainActor
+@Test
 func `retired incarnation blur retries cannot refocus replacement incarnation`() {
     var focusLeases: [TerminalProcessFocusLease] = []
     var blurCalls: [(TerminalProcessFocusReleaseAuthority, (Bool) -> Void)] = []

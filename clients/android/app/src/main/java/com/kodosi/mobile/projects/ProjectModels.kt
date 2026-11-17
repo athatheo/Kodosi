@@ -23,15 +23,19 @@ data class ProjectMember(
 @Serializable
 data class ProjectMessage(
     val id: String,
-    val sequence: Long,
+    val position: Long,
     val authorId: String,
     val authorName: String,
     val agent: String? = null,
     val terminalId: String? = null,
     val text: String,
-    val createdAt: String
+    val createdAt: String,
+    val deleted: Boolean = false
 ) {
     fun isOwn(userId: String?): Boolean = agent == null && authorId == userId
+
+    /** A person deletes their own messages and those of their agents. */
+    fun deletable(userId: String?): Boolean = !deleted && authorId == userId
 }
 
 @Serializable
@@ -74,15 +78,23 @@ data class ProjectSnapshot(
     val tasks: List<ProjectTask> = emptyList(),
     val repositories: List<ProjectRepository> = emptyList(),
     val hasOlder: Boolean = false,
-    val historyTrimmed: Boolean = false
+    val historyTrimmed: Boolean = false,
+    val replacements: List<ProjectMessage> = emptyList(),
+    val clearedPosition: Long = 0
 ) {
-    fun merging(previous: ProjectSnapshot): ProjectSnapshot = copy(
-        messages = (previous.messages + messages).associateBy { it.id }.values.sortedBy { it.sequence },
-        tasks = (previous.tasks + tasks).groupBy { it.id }.values.map { versions -> versions.maxBy { it.version } }
-            .sortedBy { it.id },
-        hasOlder = previous.hasOlder && hasOlder,
-        historyTrimmed = previous.historyTrimmed || historyTrimmed
-    )
+    fun merging(previous: ProjectSnapshot): ProjectSnapshot {
+        val cleared = maxOf(previous.clearedPosition, clearedPosition)
+        val kept = (previous.messages + messages).associateBy { it.id }.toMutableMap()
+        replacements.filter { it.id in kept }.forEach { kept[it.id] = it }
+        return copy(
+            messages = kept.values.filter { it.position > cleared }.sortedBy { it.position },
+            tasks = (previous.tasks + tasks).groupBy { it.id }.values.map { versions -> versions.maxBy { it.version } }
+                .sortedBy { it.id },
+            hasOlder = previous.hasOlder && hasOlder,
+            historyTrimmed = previous.historyTrimmed || historyTrimmed,
+            clearedPosition = cleared
+        )
+    }
 }
 
 data class ProjectDetail(val project: Project, val members: List<ProjectMember>)

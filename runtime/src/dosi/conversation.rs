@@ -46,11 +46,7 @@ pub(super) struct Conversation {
 }
 
 pub(super) fn now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| {
-            i64::try_from(since.as_millis()).unwrap_or(i64::MAX)
-        })
+    i64::try_from(crate::identity::now_ms()).unwrap_or(i64::MAX)
 }
 
 pub(super) fn time_of(id: &str) -> Option<i64> {
@@ -65,11 +61,7 @@ pub(super) fn clip(text: &str, bytes: usize) -> String {
     if text.len() <= bytes {
         return text.to_owned();
     }
-    let mut end = bytes;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}…", &text[..end])
+    format!("{}…", &text[..text.floor_char_boundary(bytes)])
 }
 
 impl Conversation {
@@ -241,9 +233,7 @@ impl Conversation {
     }
 
     fn bound(&mut self) {
-        while self.entries.len() > MAX_ITEMS {
-            self.entries.pop_front();
-        }
+        self.entries.retain_back(MAX_ITEMS);
     }
 
     #[cfg(feature = "host")]

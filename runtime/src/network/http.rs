@@ -292,7 +292,7 @@ impl Http {
             &challenge_id,
             &challenge_bytes,
         )?;
-        let signature = crypto::sign_control_message(credentials.keys.signing_pkcs8(), &preimage)?;
+        let signature = crypto::sign(credentials.keys.signing_key(), &preimage)?;
         let opened: Value = self
             .bearer(
                 Method::POST,
@@ -363,13 +363,8 @@ async fn decode<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
 }
 
 pub(crate) fn supported(own: u32, oldest: u64, current: u64) -> Result<()> {
-    if u64::from(own) < oldest {
-        Err(Error::UpdateRequired)
-    } else if u64::from(own) > current {
-        Err(Error::ServerOutdated)
-    } else {
-        Ok(())
-    }
+    (u64::from(own) >= oldest).ok_or(Error::UpdateRequired)?;
+    (u64::from(own) <= current).ok_or(Error::ServerOutdated)
 }
 
 fn backend_message(status: u16, body: &Value) -> Text {
@@ -513,6 +508,7 @@ fn backend_refusals() -> Vec<Text> {
         text!("Too many open views."),
         text!("Too many pending device approvals."),
         text!("Unblock this person first."),
+        text!("You can delete only your own messages."),
         text!("You cannot leave your own terminal."),
         text!("You have too many terminals."),
         text!("You tried too many user names. You can try another one in 30 minutes."),

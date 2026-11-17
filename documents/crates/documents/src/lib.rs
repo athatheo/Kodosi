@@ -2,6 +2,7 @@
 
 mod journal;
 mod live;
+mod memory;
 mod task;
 
 use std::{
@@ -17,6 +18,7 @@ use std::{
 pub use document::Viewer;
 use document::{Input, PipeId};
 pub use live::{Formats, Live, Opener, format};
+use memory::Memory;
 use sha2::{Digest as _, Sha256};
 use task::Command;
 use tokio::sync::mpsc;
@@ -49,6 +51,7 @@ struct Open {
 struct Shared {
     state: PathBuf,
     formats: Formats,
+    memory: Arc<Memory>,
     open: Mutex<HashMap<PathBuf, Open>>,
     /// One document starts at a time, so viewers of one file never start it twice.
     starting: tokio::sync::Mutex<()>,
@@ -62,9 +65,11 @@ pub struct Documents {
 
 impl Documents {
     pub fn new(state_folder: impl Into<PathBuf>, formats: Formats) -> Self {
+        let state: PathBuf = state_folder.into();
         Self {
             shared: Arc::new(Shared {
-                state: state_folder.into(),
+                memory: Arc::new(Memory::new(state.clone())),
+                state,
                 formats,
                 open: Mutex::default(),
                 starting: tokio::sync::Mutex::default(),
@@ -113,7 +118,8 @@ impl Documents {
             return Err(OpenError::TooLarge);
         }
         let folder = self.shared.state.join(name_of(path));
-        let commands = task::start(path.to_owned(), folder, format).await?;
+        let memory = Arc::clone(&self.shared.memory);
+        let commands = task::start(path.to_owned(), folder, format, memory).await?;
         let open = Open {
             commands: commands.clone(),
         };
@@ -161,11 +167,7 @@ pub fn real_path(path: &Path) -> io::Result<PathBuf> {
 }
 
 fn name_of(path: &Path) -> String {
-    let digest = Sha256::digest(path.as_os_str().as_encoded_bytes());
-    digest
-        .iter()
-        .take(16)
-        .fold(String::new(), |text, byte| text + &format!("{byte:02x}"))
+    document::hex(&Sha256::digest(path.as_os_str().as_encoded_bytes())[..16])
 }
 
 pub struct Pipe {

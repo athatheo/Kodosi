@@ -1,13 +1,18 @@
 package com.kodosi.mobile.canvas
 
+import android.graphics.BitmapFactory
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Base64
 import android.view.Surface
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import com.kodosi.mobile.runtime.RuntimeJson
 import com.kodosi.mobile.runtime.fields
 import com.kodosi.mobile.runtime.number
+import com.kodosi.mobile.runtime.objects
 import com.kodosi.mobile.runtime.string
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -22,17 +27,21 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class BrowserFeed(private val store: CanvasStore, private val session: String, private val scope: CoroutineScope) :
     AutoCloseable {
-    private val mutableWindow = MutableStateFlow(fields())
-    val window: StateFlow<JsonObject> = mutableWindow
-    private val mutablePicture = MutableStateFlow(false)
-    val picture: StateFlow<Boolean> = mutablePicture
-    private val mutableTouches = MutableStateFlow(0L)
-    val touches: StateFlow<Long> = mutableTouches
-    private val mutableCopies = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    val copies: SharedFlow<String> = mutableCopies
+    val window: StateFlow<JsonObject>
+        field = MutableStateFlow(fields())
+    val icons: StateFlow<Map<String, ImageBitmap>>
+        field = MutableStateFlow(emptyMap<String, ImageBitmap>())
+    val picture: StateFlow<Boolean>
+        field = MutableStateFlow(false)
+    val touches: StateFlow<Long>
+        field = MutableStateFlow(0L)
+    val copies: SharedFlow<String>
+        field = MutableSharedFlow<String>(extraBufferCapacity = 8)
     private val link = store.link(session, "browser")
     private var joining: Job? = null
     private var active = false
@@ -51,12 +60,12 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
 
     fun surface(surface: Surface?, width: Int, height: Int, density: Float) {
         decoder?.close()
-        mutablePicture.value = false
+        picture.value = false
         decoder = surface?.let {
             BrowserDecoder(it) { failed ->
                 scope.launch {
                     if (decoder === failed) {
-                        mutablePicture.value = false
+                        picture.value = false
                         restart()
                     }
                 }
@@ -67,7 +76,7 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
     }
 
     fun rendered() {
-        if (active) mutablePicture.value = true
+        if (active) picture.value = true
     }
 
     /**
@@ -97,12 +106,12 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
         } else {
             joining?.cancel()
             link.detach()
-            mutablePicture.value = false
+            picture.value = false
         }
     }
 
     fun input(value: JsonObject) {
-        mutableTouches.value++
+        touches.value++
         post(fields("type" to "input", "input" to value))
         if (value.string("kind") == "mouse") {
             when (value.string("action")) {
@@ -123,7 +132,7 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
     private fun join() {
         joining?.cancel()
         if (!active) return
-        mutablePicture.value = false
+        picture.value = false
         joining = scope.launch {
             var wait = 1000L
             while (active) {
@@ -144,14 +153,28 @@ class BrowserFeed(private val store: CanvasStore, private val session: String, p
         }
     }
 
+    private fun keepIcons(state: JsonObject) {
+        val kept = icons.value.toMutableMap()
+        (state["icons"] as? JsonObject)?.forEach { (tab, png) ->
+            val bytes = runCatching { Base64.decode((png as? JsonPrimitive)?.contentOrNull.orEmpty(), Base64.DEFAULT) }
+                .getOrNull()
+            val icon = bytes?.takeIf { it.isNotEmpty() }?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            if (icon == null) kept.remove(tab) else kept[tab] = icon.asImageBitmap()
+        }
+        val open = state.objects("tabs").mapNotNull { it.string("id") }.toSet()
+        kept.keys.retainAll(open)
+        if (kept != icons.value) icons.value = kept
+    }
+
     private fun receive(bytes: ByteArray) {
         if (!active || bytes.isEmpty()) return
         if (bytes[0] == 0.toByte()) {
             runCatching {
                 RuntimeJson.parseToJsonElement(bytes.copyOfRange(1, bytes.size).decodeToString()) as? JsonObject
             }.getOrNull()?.let {
-                mutableWindow.value = it
-                it.string("copied")?.let(mutableCopies::tryEmit)
+                window.value = it
+                keepIcons(it)
+                it.string("copied")?.let(copies::tryEmit)
             }
             return
         }

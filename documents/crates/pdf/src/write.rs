@@ -1,5 +1,7 @@
 use document::Unwritable;
-use lopdf::{Dictionary, Document, IncrementalDocument, Object, ObjectId, StringFormat};
+use lopdf::{
+    Dictionary, Document, IncrementalDocument, Object, ObjectId, StringFormat, text_string,
+};
 
 use crate::{
     model::{Model, Note, Page},
@@ -15,15 +17,6 @@ fn failed(error: impl std::fmt::Display) -> Unwritable {
 fn object_id(id: &str) -> Option<ObjectId> {
     let (number, generation) = id.trim_start_matches('a').split_once('-')?;
     Some((number.parse().ok()?, generation.parse().ok()?))
-}
-
-pub(crate) fn pdf_text(text: &str) -> Object {
-    if text.is_ascii() {
-        return Object::String(text.as_bytes().to_vec(), StringFormat::Literal);
-    }
-    let mut bytes = vec![0xfe, 0xff];
-    bytes.extend(text.encode_utf16().flat_map(u16::to_be_bytes));
-    Object::String(bytes, StringFormat::Hexadecimal)
 }
 
 fn color_parts(color: &str) -> Option<Vec<Object>> {
@@ -52,8 +45,8 @@ fn note_dictionary(note: &Note, page: ObjectId) -> Dictionary {
         "Rect",
         Object::Array(vec![real(left), real(bottom), real(right), real(top)]),
     );
-    annotation.set("Contents", pdf_text(&note.text));
-    annotation.set("T", pdf_text(&note.author));
+    annotation.set("Contents", text_string(&note.text));
+    annotation.set("T", text_string(&note.author));
     annotation.set("P", Object::Reference(page));
     annotation.set("F", Object::Integer(4));
     if let Some(parts) = note.color.as_deref().and_then(color_parts) {
@@ -165,11 +158,7 @@ fn find_field(
     let reference = object.as_reference().ok();
     let (_, resolved) = document.dereference(object).ok()?;
     let field = resolved.as_dict().ok()?;
-    let own = field
-        .get(b"T")
-        .ok()
-        .and_then(|name| name.as_str().ok())
-        .map(crate::read::text_of);
+    let own = field.get(b"T").ok().and_then(crate::read::text_of);
     let name = match (&own, prefix.is_empty()) {
         (Some(own), true) => own.clone(),
         (Some(own), false) => format!("{prefix}.{own}"),
@@ -233,7 +222,7 @@ fn save_fields(model: &Model, update: &mut IncrementalDocument) -> Result<(), St
             .get_dictionary_mut(found)
             .map_err(error)?;
         match value {
-            Some(value) => dictionary.set("V", pdf_text(value)),
+            Some(value) => dictionary.set("V", text_string(value)),
             None => {
                 dictionary.remove(b"V");
             }

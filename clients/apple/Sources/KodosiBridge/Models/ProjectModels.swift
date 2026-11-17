@@ -3,6 +3,8 @@ import Foundation
 public struct ProjectSnapshot: Decodable {
     public let projectId: String
     public var messages: [ProjectMessage]
+    public let replacements: [ProjectMessage]
+    public var clearedPosition: UInt64
     public var tasks: [ProjectTask]
     public let repositories: [ProjectRepository]
     public var hasOlder: Bool
@@ -13,11 +15,15 @@ public extension ProjectSnapshot {
     mutating func merge(_ previous: ProjectSnapshot) {
         hasOlder = previous.hasOlder && hasOlder
         historyTrimmed = previous.historyTrimmed || historyTrimmed
+        clearedPosition = max(previous.clearedPosition, clearedPosition)
         var messages = Dictionary(previous.messages.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         for message in self.messages {
             messages[message.id] = message
         }
-        self.messages = messages.values.sorted { $0.sequence < $1.sequence }
+        for message in replacements where messages[message.id] != nil {
+            messages[message.id] = message
+        }
+        self.messages = messages.values.filter { $0.position > clearedPosition }.sorted { $0.position < $1.position }
         var tasks = Dictionary(previous.tasks.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         for task in self.tasks where tasks[task.id].map({ $0.version <= task.version }) ?? true {
             tasks[task.id] = task
@@ -26,19 +32,20 @@ public extension ProjectSnapshot {
     }
 
     func newMessages(after previous: ProjectSnapshot, userId: String?) -> Int {
-        let latest = previous.messages.map(\.sequence).max() ?? 0
-        return messages.count { $0.sequence > latest && !$0.isWritten(by: userId) }
+        let latest = previous.messages.map(\.position).max() ?? 0
+        return messages.count { $0.position > latest && !$0.deleted && !$0.isWritten(by: userId) }
     }
 }
 
 public struct ProjectMessage: Decodable, Identifiable {
     public let id: String
-    public let sequence: UInt64
+    public let position: UInt64
     public let authorId: String
     public let authorName: String
     public let agent: String?
     public let terminalId: String?
     public let text: String
+    public let deleted: Bool
     public let createdAt: String
 
     public func isWritten(by userId: String?) -> Bool {

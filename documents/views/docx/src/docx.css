@@ -50,6 +50,10 @@
   border: 1px dashed #bbbbbb;
 }
 
+.docx-page div[data-opaque]:empty::before {
+  content: "…";
+}
+
 .docx-page img {
   max-width: 100%;
   height: auto;

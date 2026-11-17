@@ -111,7 +111,7 @@ struct TerminalsHome: View {
         .accessibilityIdentifier(identifier)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func actions(for session: RuntimeSession) -> some View {
         if session.isOwner {
             Button("Rename", systemImage: "pencil") { prompt = .rename(session) }
@@ -127,7 +127,7 @@ struct TerminalsHome: View {
         }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func emptyContent(isEmpty: Bool) -> some View {
         if isEmpty, !store.loaded || !store.listed {
             TerminalsLoading()

@@ -299,7 +299,7 @@ public final class TerminalSessionManager {
         guard let managed = sessions[sessionId], managed.token.isActive,
               renderStateBySession[sessionId] == .rendered else { return }
         managed.pendingResize?.cancel()
-        managed.pendingResize = Task { @MainActor [weak self] in
+        managed.pendingResize = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(25))
             guard let self, !Task.isCancelled, managed.token.isActive, managed.renderer.nativeSurfaceGeneration == surfaceGeneration else { return }
             deliverResize(viewport, to: managed, sessionId: sessionId, surfaceGeneration: surfaceGeneration)

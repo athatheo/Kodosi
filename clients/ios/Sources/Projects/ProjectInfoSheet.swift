@@ -11,6 +11,7 @@ struct ProjectInfoSheet: View {
     @State private var invited: Set<String> = []
     @State private var renaming = false
     @State private var confirmingEnd = false
+    @State private var confirmingClear = false
     @State private var removing: ProjectMemberEntry?
     @State private var memberAction = MemberAction()
     @State private var busy = false
@@ -67,6 +68,12 @@ struct ProjectInfoSheet: View {
                             .buttonStyle(ListRowButtonStyle())
                             .accessibilityIdentifier("projects.rename")
                         }
+                        Button { confirmingClear = true } label: {
+                            ListRow(String(localized: "Clear chat…"), symbol: "eraser", tint: TileTint.graphite)
+                        }
+                        .buttonStyle(ListRowButtonStyle())
+                        .disabled(projects.snapshots[projectId]?.messages.isEmpty ?? true)
+                        .accessibilityIdentifier("projects.clear")
                         Button { confirmingEnd = true } label: {
                             ListRow(owner ? String(localized: "Delete project…") : String(localized: "Leave project…"),
                                     symbol: owner ? "trash.fill" : "rectangle.portrait.and.arrow.right", tint: TileTint.red,
@@ -107,15 +114,14 @@ struct ProjectInfoSheet: View {
                     Text("You lose its terminals and conversation until someone invites you again.")
                 }
             }
-            .confirmationDialog(
-                String(localized: "Remove \(removing?.personName ?? "")?"),
-                isPresented: Binding(get: { removing != nil }, set: {
-                    if !$0 {
-                        removing = nil
-                    }
-                }),
-                titleVisibility: .visible, presenting: removing,
-            ) { member in
+            .confirmationDialog("Clear the chat for you?", isPresented: $confirmingClear, titleVisibility: .visible) {
+                Button("Clear chat", role: .destructive) {
+                    perform { try await projects.clearConversation(projectId) }
+                }
+            } message: {
+                Text("The messages up to now disappear from all your devices. Everyone else keeps them.")
+            }
+            .confirmationDialog(String(localized: "Remove \(removing?.personName ?? "")?"), item: $removing, titleVisibility: .visible) { member in
                 Button("Remove from project", role: .destructive) {
                     perform { try await projects.remove(member, from: projectId) }
                 }
@@ -130,7 +136,7 @@ struct ProjectInfoSheet: View {
         .animation(theme.motion.spring, value: failure)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var inviteSection: some View {
         let candidates = projects.invitable(model.people.friends, to: projectId)
         ListGroup(title: "Invite friends") {

@@ -20,6 +20,7 @@ import {
   Outbox,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -145,6 +146,7 @@ function boxOf(from: [number, number], to: [number, number]): Rect {
 }
 
 class PdfEditor implements Editor, Pictures {
+  private readonly client: Client;
   private readonly pagesRoot: HTMLElement;
   private readonly bar: Bar;
   private readonly status: Status;
@@ -166,10 +168,8 @@ class PdfEditor implements Editor, Pictures {
   private here: Place = {};
   private opened: Promise<void> = Promise.resolve();
 
-  constructor(
-    root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.client = client;
     this.status = new Status(root);
     this.bar = new Bar(root, say("Pages"));
     root.append(this.bar.element);
@@ -294,8 +294,10 @@ class PdfEditor implements Editor, Pictures {
     this.change({ kind: "work", work: { kind: "order", pages } });
   }
 
-  load(raw: unknown, person: Person): void {
+  load(raw: unknown, person: Person, sent: Sent): void {
+    if (this.outbox.loaded(sent)) this.status.kept("");
     this.snapshot = raw as Snapshot;
+    for (const change of this.outbox.unanswered()) this.showChange(change);
     this.canEdit = person.canEdit;
     this.showBar();
     this.opened = this.openFile();

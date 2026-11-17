@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use document::{
     Assets, CONTRACT, Document, Format, Input, Ordered, Refused, ToDocument, Viewer, contract,
 };
@@ -93,7 +95,7 @@ fn a_long_file_does_not_open_live_but_stays_live_when_it_grows() {
     let longer = format!("{most}x\n");
     assert!(Plain::opens(longer.as_bytes()).is_err());
     assert!(Plain::opens("x".repeat(600 * 1024).as_bytes()).is_err());
-    let mut document = Document::<Plain>::open(most.into_bytes(), 1, Assets::default()).unwrap();
+    let mut document = Document::<Plain>::open(most.into_bytes(), 1, HashMap::new()).unwrap();
     document.step(Input::FileChanged {
         file: longer.into_bytes(),
         writer: "script".to_owned(),
@@ -289,7 +291,7 @@ fn message(document: &mut Document<Plain>, message: &ToDocument) {
 fn an_outside_write_merges_from_the_saved_state_that_its_writer_read() {
     let original = "title\nb\nc\nd\n";
     let mut document =
-        Document::<Plain>::open(original.as_bytes().to_vec(), 1, Assets::default()).unwrap();
+        Document::<Plain>::open(original.as_bytes().to_vec(), 1, HashMap::new()).unwrap();
     document.step(Input::Connected {
         pipe: 1,
         viewer: viewer("ana"),
@@ -301,6 +303,7 @@ fn an_outside_write_merges_from_the_saved_state_that_its_writer_read() {
             client: "ana".to_owned(),
             epoch: 0,
             rev: 0,
+            fresh: true,
         },
     );
     let mut retitled = |seq, base, title: &str| {
@@ -399,8 +402,8 @@ fn a_diff_keeps_as_many_lines_as_the_texts_share_and_its_stretches_make_the_new_
         u8::try_from((seed >> 33) % below).unwrap()
     };
     for _ in 0..200 {
-        let old: Vec<u8> = (0..next(30)).map(|_| next(4)).collect();
-        let new: Vec<u8> = (0..next(30)).map(|_| next(4)).collect();
+        let old = Vec::from_fn(usize::from(next(30)), |_| next(4));
+        let new = Vec::from_fn(usize::from(next(30)), |_| next(4));
         let kept = diff::kept(&old, &new);
         assert_eq!(kept.len(), common(&old, &new), "{old:?} {new:?}");
         assert!(kept.iter().all(|(at, to)| old[*at] == new[*to]));

@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 FROM rust:slim-trixie@sha256:e6cd1d294a300601eaaa4a294b337e5f0826f427fb2d481e9f76e69e7981e244
 
 RUN apt-get update \
@@ -9,8 +9,13 @@ ARG RUST_VERSION
 RUN rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy,rustfmt,llvm-tools-preview \
         --target x86_64-pc-windows-msvc,aarch64-pc-windows-msvc \
     && rustup default "$RUST_VERSION" \
-    && cargo install --locked cargo-xwin --version 0.23.1
+    && cargo install cargo-xwin --version 0.23.1
 
 ENV CARGO_TARGET_DIR=/src/runtime/target/windows-cross \
     XWIN_CACHE_DIR=/cache/xwin \
     XWIN_ACCEPT_LICENSE=true
+# cargo-xwin keeps the CRT and SDK of the cache that it filled, so other versions take effect
+# after docker volume rm kodosi-xwin-cache.
+ENV XWIN_VERSION=17 \
+    XWIN_SDK_VERSION=10.0.26100 \
+    XWIN_CRT_VERSION=14.44.17.14

@@ -1,14 +1,14 @@
 import Foundation
 import GhosttyKit
+import Synchronization
 
 public final class InMemoryTerminalSession: @unchecked Sendable {
     private static let slowSurfaceWriteThreshold: Duration = .milliseconds(500)
 
-    private let resizeLock = NSLock()
     private let surfaceAccess: InMemoryTerminalSurfaceAccess
     private let shownLock = NSLock()
     private var shownSurface: ghostty_surface_t?
-    private var lastResize: InMemoryTerminalViewport?
+    private let lastResize = Mutex<InMemoryTerminalViewport?>(nil)
     private let writeHandler: @Sendable (Data) -> Void
     private let resizeHandler: @Sendable (InMemoryTerminalViewport) -> Void
 
@@ -82,7 +82,7 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
 
     /// The size that this terminal's view last asked for.
     public var viewport: InMemoryTerminalViewport? {
-        resizeLock.withLock { lastResize }
+        lastResize.withLock { $0 }
     }
 
     public func readViewportText() -> String? {
@@ -232,18 +232,19 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     }
 
     private func dispatchResize(_ resize: InMemoryTerminalViewport) {
-        resizeLock.lock()
-        let mergedResize = mergedResize(resize)
-        guard mergedResize != lastResize else {
-            resizeLock.unlock()
+        let (mergedResize, changed) = lastResize.withLock { last in
+            let merged = Self.mergedResize(resize, last: last)
+            guard merged != last else { return (merged, false) }
+            last = merged
+            return (merged, true)
+        }
+        guard changed else {
             TerminalDebugLog.log(
                 .metrics,
                 "resize unchanged cols=\(mergedResize.columns) rows=\(mergedResize.rows) pixels=\(mergedResize.widthPixels)x\(mergedResize.heightPixels) cell=\(mergedResize.cellWidthPixels)x\(mergedResize.cellHeightPixels)"
             )
             return
         }
-        lastResize = mergedResize
-        resizeLock.unlock()
 
         TerminalDebugLog.log(
             .metrics,
@@ -252,7 +253,10 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
         resizeHandler(mergedResize)
     }
 
-    private func mergedResize(_ resize: InMemoryTerminalViewport) -> InMemoryTerminalViewport {
+    private static func mergedResize(
+        _ resize: InMemoryTerminalViewport,
+        last lastResize: InMemoryTerminalViewport?
+    ) -> InMemoryTerminalViewport {
         guard let lastResize else { return resize }
 
         return InMemoryTerminalViewport(

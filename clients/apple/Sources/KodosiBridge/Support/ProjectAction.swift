@@ -12,6 +12,12 @@ public enum ProjectAction {
         ["type": .string("post"), "text": .string(text)]
     }
 
+    public static func deleteMessage(_ messageId: String) -> [String: JSONValue] {
+        ["type": .string("deleteMessage"), "messageId": .string(messageId)]
+    }
+
+    public static let clearConversation: [String: JSONValue] = ["type": .string("clearConversation")]
+
     public static func read(before: UInt64? = nil) -> [String: JSONValue] {
         var action: [String: JSONValue] = ["type": .string("read")]
         if let before {

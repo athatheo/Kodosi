@@ -102,6 +102,7 @@
     <string name="close">关闭</string>
     <string name="remove">移除</string>
     <string name="copy">复制</string>
+    <string name="copy_link">复制链接</string>
     <string name="rename">重命名</string>
     <string name="delete">删除</string>
     <string name="working">工作中</string>
@@ -133,6 +134,13 @@
     <string name="write_message">写消息</string>
     <string name="load_older">加载更早的消息</string>
     <string name="history_trimmed">最早的消息已移除，以使此项目保持在限制范围内。</string>
+    <string name="delete_message">删除消息</string>
+    <string name="delete_message_title">删除这条消息？</string>
+    <string name="delete_message_notice">项目中的每个人都会看到有一条消息已被删除。</string>
+    <string name="message_deleted">消息已删除</string>
+    <string name="clear_chat">清空聊天</string>
+    <string name="clear_chat_title">为你清空聊天？</string>
+    <string name="clear_chat_notice">到目前为止的消息会从你的所有设备上消失。其他人仍会保留。</string>
     <string name="create_task">创建任务</string>
     <string name="no_tasks">还没有任务</string>
     <string name="closed_tasks">已关闭的任务</string>
@@ -292,8 +300,11 @@
     <string name="browser_dialog">页面询问</string>
     <string name="choose_file">选择文件</string>
     <string name="browser_menu">页面菜单</string>
+    <string name="browser_shared">已共享</string>
+    <string name="browser_shared_explained">此终端已共享，因此它的浏览器有独立于你的登录信息。终端中的每个人都会使用这些登录信息。</string>
     <string name="terminal_actions">终端操作</string>
     <string name="interrupt">中断</string>
+    <string name="remove_from_project">从项目移除</string>
     <string name="close_terminal">关闭终端</string>
     <string name="close_terminal_message">这将为所有人结束此终端及其程序。</string>
     <string name="hide_terminal">隐藏至上线</string>

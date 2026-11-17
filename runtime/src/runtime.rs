@@ -1207,11 +1207,7 @@ pub async fn start(config: Config) -> Result<RuntimeHandle> {
     let project_seen = project_seen::ProjectSeen::load(&config.data_root);
     let scope = Scope {
         user: None,
-        epoch: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |since| {
-                u64::try_from(since.as_millis()).unwrap_or_default()
-            }),
+        epoch: crate::identity::now_ms(),
         network_generation: network.generation(),
     };
     let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
@@ -2094,7 +2090,7 @@ impl Runtime {
                         .canvas
                         .paths()
                         .into_iter()
-                        .filter_map(|path| path.into_os_string().into_string().ok())
+                        .filter_map(|path| path.into_string().ok())
                         .collect(),
                     browser: local.terminal.canvas.address(),
                     quiet_settings,
@@ -2150,9 +2146,19 @@ impl Runtime {
         let Some(id) = content["projectId"].as_str() else {
             return;
         };
+        let Ok(project) = Uuid::parse_str(id) else {
+            return;
+        };
         let messages = content["messages"]
             .as_array()
             .map_or(&[][..], Vec::as_slice);
+        let deleted = messages
+            .iter()
+            .chain(content["replacements"].as_array().into_iter().flatten())
+            .filter(|message| message["deleted"] == true)
+            .filter_map(|message| message["position"].as_u64())
+            .collect::<HashSet<_>>();
+        self.mentions.forget_deleted(project, &deleted);
         let fresh = self.mentions.new_messages(id, messages);
         if fresh.is_empty() {
             return;
@@ -2199,15 +2205,14 @@ impl Runtime {
                         terminal,
                         sender.clone(),
                         text.to_owned(),
-                        message["sequence"].as_u64().unwrap_or_default(),
+                        message["position"].as_u64().unwrap_or_default(),
                         author.to_owned(),
                     ));
                 }
             }
         }
-        let project = Uuid::parse_str(id).ok();
         let now = tokio::time::Instant::now();
-        for (terminal, from, text, sequence, author) in kept {
+        for (terminal, from, text, position, author) in kept {
             let name = self.local[&terminal]
                 .entry
                 .project_name
@@ -2216,13 +2221,14 @@ impl Runtime {
                 .unwrap_or_else(|| "project".to_owned());
             let mention = messages::Mention {
                 project: name,
+                project_id: project,
                 from,
                 text,
-                sequence,
+                position,
             };
             if Some(author.as_str()) == self.scope.user.as_deref() {
                 self.mentions.keep(terminal, mention);
-            } else if let Some(project) = project {
+            } else {
                 self.mentions.wait_for_check(messages::Unchecked {
                     project,
                     author,
@@ -2765,11 +2771,7 @@ impl Runtime {
             .get(&id)
             .map(|local| local.terminal.incarnation_id)
             .or(expected);
-        if expected.ok_or(Error::NotFound)? == incarnation {
-            Ok(())
-        } else {
-            Err(Error::Stale)
-        }
+        (expected.ok_or(Error::NotFound)? == incarnation).ok_or(Error::Stale)
     }
 
     fn error(&self, command: &Command, error: &Error) {
@@ -2983,40 +2985,51 @@ impl Runtime {
             return;
         };
         let user = self.scope.user.clone();
-        let Some(latest) = content["messages"]
+        let known = self.project_latest.get(&id).copied().unwrap_or_default();
+        let latest = content["messages"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|message| {
-                message["agent"].is_string() || message["authorId"].as_str() != user.as_deref()
+                message["deleted"] != true
+                    && (message["agent"].is_string()
+                        || message["authorId"].as_str() != user.as_deref())
             })
-            .filter_map(|message| message["sequence"].as_u64())
+            .filter_map(|message| message["position"].as_u64())
             .max()
-        else {
-            return;
-        };
-        let known = self.project_latest.get(&id).copied().unwrap_or_default();
-        if latest <= known {
-            return;
+            .filter(|latest| *latest > known);
+        if let Some(latest) = latest {
+            self.project_latest.insert(id.clone(), latest);
         }
-        self.project_latest.insert(id.clone(), latest);
-        if let Some(seen) = self.seen_projects()
-            && !seen.contains_key(&id)
-        {
-            seen.insert(id, latest);
+        let first = latest.filter(|_| {
+            self.seen_projects()
+                .is_some_and(|seen| !seen.contains_key(&id))
+        });
+        let cleared = content["clearedPosition"].as_u64().unwrap_or_default();
+        let mark = first.unwrap_or_default().max(cleared);
+        let marked = mark > 0
+            && self.seen_projects().is_some_and(|seen| {
+                let seen = seen.entry(id).or_default();
+                let later = mark > *seen;
+                *seen = (*seen).max(mark);
+                later
+            });
+        if marked {
             self.project_seen.save();
         }
-        self.publish_projects();
+        if latest.is_some() || marked {
+            self.publish_projects();
+        }
     }
 
-    fn see_project(&mut self, project: &str, sequence: u64) -> Result<()> {
+    fn see_project(&mut self, project: &str, position: u64) -> Result<()> {
         let seen = self
             .seen_projects()
             .ok_or_else(|| Error::Refused(text!("Sign in to use projects.")))?;
-        if seen.get(project).is_some_and(|seen| *seen >= sequence) {
+        if seen.get(project).is_some_and(|seen| *seen >= position) {
             return Ok(());
         }
-        seen.insert(project.to_owned(), sequence);
+        seen.insert(project.to_owned(), position);
         self.project_seen.save();
         self.publish_projects();
         Ok(())

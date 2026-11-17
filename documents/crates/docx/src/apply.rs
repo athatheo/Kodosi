@@ -1,12 +1,13 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use document::{Ordered, Refused};
+use document::{Assets, Ordered, Refused};
 use serde_json::{Map, Value};
 use text::{Node, Step};
 
 use crate::{
     model::{Change, Model, Source, schema},
     ops::{self, Op},
+    writable::{Held, writable_change},
 };
 
 /// Blocks in the middle of two files that a full compare still handles.
@@ -52,6 +53,7 @@ pub(crate) fn apply(
     model: &mut Model,
     change: Change,
     since: &[Ordered<Change>],
+    assets: &Assets,
 ) -> Result<Change, Refused> {
     match change {
         Change::Steps {
@@ -69,6 +71,12 @@ pub(crate) fn apply(
                 ));
             }
             let (doc, touched) = run_steps(&model.doc, &steps).map_err(invalid)?;
+            let held = Held {
+                raws: &model.raws,
+                keep: &keep,
+                assets,
+            };
+            writable_change(&model.doc, &doc, &held).map_err(Refused::Invalid)?;
             model.doc = doc;
             model.raws.extend(keep.clone());
             add_sources(model, &sources);
@@ -98,6 +106,12 @@ pub(crate) fn apply(
             let steps =
                 ops::to_steps(&model.doc, &ops, track, &author).map_err(Refused::Invalid)?;
             let (doc, touched) = run_steps(&model.doc, &steps).map_err(invalid)?;
+            let held = Held {
+                raws: &model.raws,
+                keep: &BTreeMap::new(),
+                assets,
+            };
+            writable_change(&model.doc, &doc, &held).map_err(Refused::Invalid)?;
             model.doc = doc;
             Ok(Change::Steps {
                 steps,
@@ -109,6 +123,12 @@ pub(crate) fn apply(
         Change::Merge { ops, keep, sources } => {
             let steps = ops::merge_steps(&model.doc, &ops).map_err(Refused::Invalid)?;
             let (doc, touched) = run_steps(&model.doc, &steps).map_err(invalid)?;
+            let held = Held {
+                raws: &model.raws,
+                keep: &keep,
+                assets,
+            };
+            writable_change(&model.doc, &doc, &held).map_err(Refused::Invalid)?;
             model.doc = doc;
             model.raws.extend(keep.clone());
             add_sources(model, &sources);
@@ -170,7 +190,7 @@ fn common_blocks(from: &[String], to: &[String]) -> Vec<(usize, usize)> {
         tail += 1;
     }
     let (from_end, to_end) = (from.len() - tail, to.len() - tail);
-    let mut pairs: Vec<(usize, usize)> = (0..start).map(|index| (index, index)).collect();
+    let mut pairs = Vec::from_fn(start, |index| (index, index));
     let (rows, columns) = (from_end - start, to_end - start);
     if rows.saturating_mul(columns) <= MOST_COMPARED && rows > 0 && columns > 0 {
         let mut table = vec![vec![0_u32; columns + 1]; rows + 1];

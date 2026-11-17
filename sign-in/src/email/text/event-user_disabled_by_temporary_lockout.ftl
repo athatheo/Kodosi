@@ -1,6 +1,6 @@
 <#ftl output_format="plainText">
 <#import "../sentences.ftl" as say>
-${msg("eventUserDisabledByTemporaryLockoutSubject")}
+${subject}
 
 ${msg("kdsTemporaryLockoutText", say.moment())}
 

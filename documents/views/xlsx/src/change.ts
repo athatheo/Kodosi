@@ -176,6 +176,53 @@ export function moveChange(
   return change;
 }
 
+/**
+ * Waiting changes go on only to sheets that the workbook holds, in their order, with the sheets
+ * that they add and remove themselves. A workbook keeps its last sheet.
+ */
+export class SheetFitting {
+  private readonly held: Set<string>;
+  /** Whether an edit went because its sheet is gone. */
+  lost = false;
+
+  constructor(sheets: Iterable<string>) {
+    this.held = new Set(sheets);
+  }
+
+  fit(change: Change): Change | null {
+    switch (change.kind) {
+      case "group": {
+        const changes = change.changes.flatMap((inner) => this.fit(inner) ?? []);
+        return changes.length > 0 ? { kind: "group", changes } : null;
+      }
+      case "addSheet":
+        if (this.held.has(change.id)) return null;
+        this.held.add(change.id);
+        return change;
+      case "removeSheet":
+        if (!this.held.has(change.sheet)) return null;
+        if (this.held.size === 1) return this.gone();
+        this.held.delete(change.sheet);
+        return change;
+      default:
+        return this.held.has(change.sheet) ? change : this.gone();
+    }
+  }
+
+  private gone(): null {
+    this.lost = true;
+    return null;
+  }
+}
+
+export function withoutSheet(change: Change, sheet: string): Change | null {
+  if (change.kind === "group") {
+    const changes = change.changes.flatMap((inner) => withoutSheet(inner, sheet) ?? []);
+    return changes.length > 0 ? { kind: "group", changes } : null;
+  }
+  return "sheet" in change && change.sheet === sheet ? null : change;
+}
+
 export function movesLines(change: Change): boolean {
   if (change.kind === "group") return change.changes.some(movesLines);
   return change.kind === "rows" || change.kind === "columns";

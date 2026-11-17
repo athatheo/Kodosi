@@ -13,6 +13,7 @@ struct ProjectMessageRow: View {
     let workspace: ProjectWorkspace
     @State private var hovered = false
     @State private var madeTask = false
+    @State private var confirmingDelete = false
 
     private var date: Date? {
         ProjectDates.parse(message.createdAt)
@@ -35,13 +36,15 @@ struct ProjectMessageRow: View {
     }
 
     var body: some View {
-        let mentioned = !isMine && ProjectMentions.mentionsSelf(message.text, targets: targets)
+        let mentioned = !isMine && !message.deleted && ProjectMentions.mentionsSelf(message.text, targets: targets)
         VStack(spacing: 0) {
             if ProjectDates.startsDay(message, after: previous), let date {
                 ProjectDayDivider(date: date)
             }
             Group {
-                if isMine {
+                if message.deleted {
+                    deleted
+                } else if isMine {
                     mine
                 } else {
                     theirs
@@ -50,7 +53,7 @@ struct ProjectMessageRow: View {
             .projectMention(mentioned)
             .padding(.top, startsGroup ? 12 : 3)
             .overlay(alignment: .topTrailing) {
-                if hovered {
+                if hovered, !message.deleted {
                     actions.offset(y: startsGroup ? 2 : -10).transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
                 }
             }
@@ -60,6 +63,15 @@ struct ProjectMessageRow: View {
         .animation(theme.motion.hover, value: hovered)
         .transition(AnyTransition.rise)
         .accessibilityIdentifier("project.message.\(AccessibilityIdentifier.token(message.id))")
+        .confirmationDialog("Delete this message?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete message", role: .destructive, action: delete)
+        } message: { Text("Everyone in the project sees that a message was deleted.") }
+    }
+
+    private var deleted: some View {
+        ProjectDeletedNote(alignment: isMine ? .trailing : .leading)
+            .padding(.leading, isMine ? 0 : 38)
+            .padding(.trailing, isMine ? 4 : 0)
     }
 
     private var mine: some View {
@@ -127,11 +139,19 @@ struct ProjectMessageRow: View {
                         deps.workbench.reporting = ReportTarget(userId: author.userId, handle: author.handle, name: name)
                     }
                 } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.colors.inkMuted)
-                        .frame(width: 24, height: 24).contentShape(Circle())
+                    more
                 }
                 .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
                 .accessibilityLabel(Text("Options for \(name)"))
+                .accessibilityIdentifier("project.message.more")
+            } else if deps.projects.canDelete(message) {
+                Menu {
+                    Button("Delete message…", role: .destructive) { confirmingDelete = true }
+                } label: {
+                    more
+                }
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                .accessibilityLabel(Text("Message options"))
                 .accessibilityIdentifier("project.message.more")
             }
         }
@@ -139,8 +159,21 @@ struct ProjectMessageRow: View {
         .raisedCapsule(fill: theme.colors.lifted, elevation: .lifted)
     }
 
+    private var more: some View {
+        Image(systemName: "ellipsis").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.colors.inkMuted)
+            .frame(width: 24, height: 24).contentShape(Circle())
+    }
+
+    private func delete() {
+        Task {
+            do {
+                try await deps.projects.delete(message, in: projectId)
+            } catch { state.failure = error.localizedDescription }
+        }
+    }
+
     private func makeTask() {
-        Task { @MainActor in
+        Task {
             do {
                 try await deps.projects.makeTask(from: message, in: projectId)
                 madeTask = true

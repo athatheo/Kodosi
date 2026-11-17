@@ -30,7 +30,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
     private async Task<Project> LockAsync(Guid id, CancellationToken ct)
     {
         if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("A project change requires a transaction.");
-        return await db.Projects.FromSqlInterpolated($"SELECT * FROM projects WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+        return await db.Projects.FromSql($"SELECT * FROM projects WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw ApiException.Missing();
     }
 
@@ -42,7 +42,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
     private async Task<HashSet<Guid>> TerminalPeopleAsync(Guid id, CancellationToken ct)
     {
         var terminals = TerminalsOf(id).Select(x => x.Id);
-        return (await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToListAsync(ct)).ToHashSet();
+        return await TerminalAccess.People(db).Where(x => terminals.Contains(x.SessionId)).Select(x => x.UserId).Distinct().ToHashSetAsync(ct);
     }
 
     public async Task<object> ListAsync(Guid userId, CancellationToken ct)
@@ -199,6 +199,7 @@ public sealed partial class ProjectService(KodosiDbContext db, ConnectionDirecto
         var terminals = await TerminalsOf(id).ToListAsync(ct);
         await db.ProjectMembers.Where(x => x.ProjectId == id && x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.ProjectInvitations.Where(x => x.ProjectId == id && x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.ClearedConversations.Where(x => x.ProjectId == id && x.UserId == userId).ExecuteDeleteAsync(ct);
         foreach (var terminal in terminals)
         {
             if (terminal.OwnerUserId == userId) SessionService.LeaveProject(terminal);
@@ -258,6 +259,12 @@ internal static class ProjectEndpoints
             CancellationToken ct) => Results.Ok(await projects.ContentAsync(id, caller.User.Id, kind, after ?? 0, before, limit, ct)));
         group.MapPut("/{id:guid}/content/{itemId:guid}", async (Guid id, Guid itemId, ProjectService.ContentWrite body, DeviceCaller caller, ProjectService projects,
             CancellationToken ct) => Results.Ok(await projects.PutContentAsync(id, itemId, caller.User.Id, body, ct, caller.Device)));
+        group.MapPut("/{id:guid}/cleared", async (Guid id, ProjectService.ConversationClear body, DeviceCaller caller, ProjectService projects,
+            CancellationToken ct) =>
+        {
+            await projects.ClearConversationAsync(id, caller.User.Id, body.Position, ct);
+            return Results.NoContent();
+        });
         group.MapGet("/", async (DeviceCaller caller, ProjectService projects, CancellationToken ct) =>
             Results.Ok(await projects.ListAsync(caller.User.Id, ct)));
         group.MapPost("/", async (ProjectService.CreateProject body, DeviceCaller caller, ProjectService projects, CancellationToken ct) =>

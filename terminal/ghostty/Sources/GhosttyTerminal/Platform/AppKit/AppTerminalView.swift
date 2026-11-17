@@ -8,6 +8,9 @@ open class AppTerminalView: NSView {
     var metalLayer: CAMetalLayer?
     var inputHandler: TerminalKeyEventHandler?
     var lastPerformKeyEvent: TimeInterval?
+    var pointer: NSCursor = .iBeam {
+        didSet { window?.invalidateCursorRects(for: self) }
+    }
     public var onFocusChange: ((Bool) -> Void)?
 
     open weak var delegate: (any TerminalSurfaceViewDelegate)? {
@@ -63,6 +66,12 @@ open class AppTerminalView: NSView {
 
         inputHandler = TerminalKeyEventHandler(view: self)
         setupTrackingArea()
+        core.bridge.onMouseShapeChange = { [weak self] shape in
+            self?.pointer = Self.pointer(for: shape)
+        }
+        core.bridge.onMouseVisibilityChange = { visible in
+            NSCursor.setHiddenUntilMouseMoves(!visible)
+        }
 
         core.isAttached = { [weak self] in self?.window != nil }
         core.displayIDProvider = { [weak self] in

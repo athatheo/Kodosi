@@ -72,7 +72,7 @@ struct DosiComposer: View {
         .animation(theme.motion.hover, value: focused.wrappedValue)
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var action: some View {
         if stops {
             Button { deps.dosi.stop() } label: {

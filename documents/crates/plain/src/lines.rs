@@ -44,7 +44,7 @@ impl Text {
     }
 
     pub(crate) fn lines(&self) -> Vec<&str> {
-        (0..self.count()).map(|line| self.line(line)).collect()
+        Vec::from_fn(self.count(), |line| self.line(line))
     }
 
     pub(crate) fn start(&self, line: usize) -> usize {
@@ -166,9 +166,9 @@ pub(crate) fn line_positions(doc: &Node) -> Vec<usize> {
 }
 
 pub(crate) fn lines_of(text: &str) -> Vec<&str> {
-    let text = text.strip_suffix('\n').unwrap_or(text);
-    text.split('\n')
-        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+    text.trim_suffix('\n')
+        .split('\n')
+        .map(|line| line.trim_suffix('\r'))
         .collect()
 }
 

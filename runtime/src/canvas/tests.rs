@@ -374,6 +374,38 @@ async fn a_browser_that_came_back_asleep_keeps_its_page_for_the_next_start() {
 }
 
 #[tokio::test]
+async fn the_browser_of_a_terminal_that_becomes_shared_says_it_keeps_its_own_sign_ins() {
+    let folder = tempfile::tempdir().unwrap();
+    let canvas = CanvasHandle::spawn(
+        uuid::Uuid::now_v7(),
+        folder.path(),
+        crate::canvas::CanvasServices::new(folder.path(), true),
+    );
+    canvas.restore(
+        Vec::new(),
+        Some("https://example.com".to_owned()),
+        uuid::Uuid::now_v7(),
+    );
+    let mut state = canvas.state();
+    let own = |canvas: &crate::canvas::Canvas| {
+        canvas.browser.as_ref().map(|browser| browser.own_sign_ins)
+    };
+    state
+        .wait_for(|canvas| own(canvas) == Some(false))
+        .await
+        .unwrap();
+
+    canvas.set_shared(true);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        state.wait_for(|canvas| own(canvas) == Some(true)),
+    )
+    .await
+    .expect("the browser says that it keeps its own sign-ins")
+    .unwrap();
+}
+
+#[tokio::test]
 async fn showing_the_browser_opens_the_canvas_at_it_and_keeps_its_page() {
     let folder = tempfile::tempdir().unwrap();
     let services = crate::canvas::CanvasServices {
@@ -725,6 +757,16 @@ fn markdown_and_text_become_pages_with_the_template_look() {
 }
 
 #[test]
+fn a_markdown_page_keeps_the_flags_and_shell_tests_of_its_text() {
+    let page = String::from_utf8(page::page(
+        "notes.md",
+        b"Run it with --force when [[ -f file ]] holds.",
+    ))
+    .unwrap();
+    assert!(page.contains("<p>Run it with --force when [[ -f file ]] holds.</p>"));
+}
+
+#[test]
 fn a_page_that_loads_from_the_network_is_named() {
     assert_eq!(
         page::network_reference(br#"<script src="https://cdn.example/x.js"></script>"#),
@@ -786,6 +828,26 @@ fn the_browser_keeps_its_session_and_hides_what_an_agent_types() {
     assert_eq!(words(&["click", "@e2", "--new-tab"]), "click @e2");
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn a_long_answer_of_agent_browser_is_cut_at_a_character_and_still_ends() {
+    let mut command = tokio::process::Command::new("sh");
+    command
+        .args([
+            "-c",
+            "yes 'a\u{1D11E}' | head -c 3000000 && printf problem >&2 && exit 3",
+        ])
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    let run = browser::finished(command, std::time::Duration::from_secs(20))
+        .await
+        .unwrap();
+    assert_eq!(run.code, 3);
+    assert!(run.output.ends_with("\n…"));
+    assert!(run.output.len() <= browser::MOST_OUTPUT + "\n…".len());
+    assert!(!run.output.contains(char::REPLACEMENT_CHARACTER));
+}
+
 #[tokio::test]
 async fn a_browser_ends_at_once_while_kodosi_browser_comes() {
     let folder = tempfile::tempdir().unwrap();
@@ -799,6 +861,7 @@ async fn a_browser_ends_at_once_while_kodosi_browser_comes() {
             folder: tokio::sync::watch::channel(folder.path().to_owned()).1,
             shared: tokio::sync::watch::channel(false).1,
             show: Box::new(|_| {}),
+            last_tab_closed: Box::new(|_| {}),
         },
         Places::of(folder.path(), browser::agent_browser()),
         host,

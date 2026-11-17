@@ -12,8 +12,6 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
-import android.view.View
-import android.view.ViewGroup
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
@@ -21,9 +19,10 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,9 +37,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,20 +54,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -98,7 +99,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 @Composable
-fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
+fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser, ask: ((String?) -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -106,12 +107,13 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
     val history by model.preferences.browserHistory.collectAsStateWithLifecycle()
     val feed = remember(session) { BrowserFeed(model.canvas, session, scope) }
     val window by feed.window.collectAsStateWithLifecycle()
+    val icons by feed.icons.collectAsStateWithLifecycle()
     val picture by feed.picture.collectAsStateWithLifecycle()
-    var address by remember { mutableStateOf(browser.tabs.firstOrNull { it.active }?.url.orEmpty()) }
-    var edited by remember { mutableStateOf(false) }
+    val address = remember { BrowserAddress(browser.tabs.firstOrNull { it.active }?.url.orEmpty()) }
     var addressFocused by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<BrowserSurface?>(null) }
-    var dialogText by remember { mutableStateOf("") }
+    val dialogText = rememberTextFieldState()
+    var explaining by remember { mutableStateOf(false) }
     val feedTabs = window.objects("tabs")
     val tabs = remember(feedTabs, browser.tabs) {
         feedTabs.map {
@@ -143,12 +145,12 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
         }
     }
     LaunchedEffect(tabs, feedTabs) {
-        if (!edited) address = tabs.firstOrNull { it.active }?.url ?: address
+        tabs.firstOrNull { it.active }?.url?.let(address::follow)
         feedTabs.firstOrNull { it.flag("active") && !it.flag("loading") }?.let {
             model.preferences.browsed(it.string("title").orEmpty(), it.string("address").orEmpty())
         }
     }
-    LaunchedEffect(dialog) { dialogText = dialog?.string("text").orEmpty() }
+    LaunchedEffect(dialog) { dialogText.setTextAndPlaceCursorAtEnd(dialog?.string("text").orEmpty()) }
     LaunchedEffect(feed) {
         feed.copies.collect {
             context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("", it))
@@ -161,13 +163,12 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
     }
     val colors = KodosiTheme.colors
     val suggestions = history.filter {
-        val query = if (edited) address.trim() else ""
+        val query = if (address.edited) address.state.text.toString().trim() else ""
         query.isEmpty() || it.address.contains(query, ignoreCase = true) || it.title.contains(query, ignoreCase = true)
     }.take(6)
     val open: (String) -> Unit = {
-        address = it
+        address.place(it)
         feed.input(fields("kind" to "open", "address" to it))
-        edited = false
         addressFocused = false
         focus.clearFocus()
         keyboard?.hide()
@@ -186,21 +187,16 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                         tab.active,
                         choose = { feed.input(fields("kind" to "tab", "id" to tab.id)) },
                         icon = {
+                            val icon = icons[tab.id]
                             if (feedTabs.any { it.string("id") == tab.id && it.flag("loading") }) {
                                 KodosiSpinner(Modifier.size(12.dp))
+                            } else if (icon != null) {
+                                Image(icon, null, Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)))
                             } else {
                                 AppIcon(AppSymbol.BROWSER, Modifier.size(12.dp), tint = colors.accent)
                             }
                         },
-                        close = if (tabs.size > 1) {
-                            (
-                                {
-                                    feed.input(fields("kind" to "closeTab", "id" to tab.id))
-                                }
-                                )
-                        } else {
-                            null
-                        }
+                        close = { feed.input(fields("kind" to "closeTab", "id" to tab.id)) }
                     )
                 }
             }
@@ -223,16 +219,12 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
             ActionIcon(AppSymbol.REFRESH, R.string.browser_reload, {
                 feed.input(fields("kind" to "reload"))
             }, enabled = awake)
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 Box(Modifier.widthIn(max = 620.dp).fillMaxWidth()) {
                     val addressLabel = stringResource(R.string.browser_address)
                     BasicTextField(
-                        address,
-                        {
-                            address = it
-                            edited = true
-                        },
-                        singleLine = true,
+                        address.state,
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         enabled = awake,
                         textStyle = KodosiType.footnote.copy(color = colors.ink),
                         cursorBrush = SolidColor(colors.accent),
@@ -250,8 +242,8 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                             autoCorrectEnabled = false,
                             imeAction = ImeAction.Go
                         ),
-                        keyboardActions = KeyboardActions(onGo = { open(address) }),
-                        decorationBox = { input ->
+                        onKeyboardAction = { open(address.state.text.toString()) },
+                        decorator = { input ->
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -259,7 +251,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                                 AppIcon(
                                     if (addressFocused) {
                                         AppSymbol.SEARCH
-                                    } else if (address.startsWith(
+                                    } else if (address.state.text.startsWith(
                                             "https://",
                                             true
                                         )
@@ -272,7 +264,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                                     tint = colors.inkFaint
                                 )
                                 Box(Modifier.weight(1f)) {
-                                    if (address.isEmpty()) {
+                                    if (address.state.text.isEmpty()) {
                                         Text(
                                             addressLabel,
                                             style = KodosiType.footnote,
@@ -306,6 +298,18 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                             }, onClick = { open(page.address) })
                         }
                     }
+                }
+            }
+            if (browser.ownSignIns) {
+                Row(
+                    Modifier.clip(CircleShape).background(colors.ink.copy(alpha = 0.06f))
+                        .clickable(role = Role.Button) { explaining = true }
+                        .heightIn(min = 36.dp).padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppIcon(AppSymbol.FRIENDS, Modifier.size(11.dp), tint = colors.inkMuted)
+                    Text(stringResource(R.string.browser_shared), style = KodosiType.footnote, color = colors.inkMuted)
                 }
             }
             ActionIcon(AppSymbol.KEYBOARD, R.string.keyboard, { view?.keyboard() }, enabled = awake)
@@ -342,7 +346,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
             text = {
                 Column {
                     Text(dialog.string("message").orEmpty())
-                    if (dialog.string("kind") == "prompt") KodosiField(dialogText, { dialogText = it })
+                    if (dialog.string("kind") == "prompt") KodosiField(dialogText)
                 }
             },
             confirmButton = {
@@ -351,7 +355,7 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
                         fields(
                             "kind" to "dialog",
                             "accept" to true,
-                            "text" to dialogText
+                            "text" to dialogText.text.toString()
                         )
                     )
                 }) { Text(stringResource(R.string.ok)) }
@@ -363,29 +367,58 @@ fun BrowserScreen(model: AppModel, session: String, browser: CanvasBrowser) {
             }
         )
     }
-    if (menu != null) {
+    if (explaining) {
         KodosiDialog(
-            onDismissRequest = { feed.input(fields("kind" to "choose", "menu" to menu.number("id"))) },
+            onDismissRequest = { explaining = false },
+            title = { Text(stringResource(R.string.browser_shared)) },
+            text = { Text(stringResource(R.string.browser_shared_explained)) },
+            confirmButton = {
+                KodosiTextButton(onClick = { explaining = false }) { Text(stringResource(R.string.ok)) }
+            }
+        )
+    }
+    if (menu != null) {
+        val choose = { choice: Int? ->
+            feed.input(fields("kind" to "choose", "menu" to menu.number("id"), "choice" to choice))
+        }
+        val pointed = menu["context"] as? JsonObject
+        KodosiDialog(
+            onDismissRequest = { choose(null) },
             title = { Text(stringResource(R.string.browser_menu)) },
             text = {
                 Column {
-                    menu.objects("items").forEachIndexed { index, item ->
+                    if (pointed == null) {
+                        menu.objects("items").forEachIndexed { index, item ->
+                            KodosiTextButton(onClick = { choose(index) }, enabled = item.flag("enabled")) {
+                                Text(item.string("label").orEmpty())
+                            }
+                        }
+                    } else {
+                        val selection = pointed.string("selection").orEmpty()
+                        val link = pointed.string("link")
+                        KodosiTextButton(onClick = { choose(0) }, enabled = selection.isNotEmpty()) {
+                            Text(stringResource(R.string.copy))
+                        }
+                        if (link != null) {
+                            KodosiTextButton(onClick = { choose(1) }) { Text(stringResource(R.string.copy_link)) }
+                        }
                         KodosiTextButton(onClick = {
-                            feed.input(
-                                fields(
-                                    "kind" to "choose",
-                                    "menu" to menu.number("id"),
-                                    "choice" to index
-                                )
-                            )
-                        }, enabled = item.flag("enabled")) { Text(item.string("label").orEmpty()) }
+                            choose(null)
+                            val clip = context.getSystemService(ClipboardManager::class.java).primaryClip
+                            val words = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)
+                            if (!words.isNullOrEmpty()) feed.input(fields("kind" to "text", "text" to words.toString()))
+                        }) { Text(stringResource(R.string.paste)) }
+                        if (ask != null) {
+                            KodosiTextButton(onClick = {
+                                choose(null)
+                                ask(selection.ifEmpty { link })
+                            }) { Text(stringResource(R.string.ask_about_this)) }
+                        }
                     }
                 }
             },
             confirmButton = {
-                KodosiTextButton(onClick = {
-                    feed.input(fields("kind" to "choose", "menu" to menu.number("id")))
-                }) { Text(stringResource(R.string.cancel)) }
+                KodosiTextButton(onClick = { choose(null) }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

@@ -5,12 +5,12 @@ public struct ListGroup<Content: View>: View {
     public var title: LocalizedStringKey?
     public var footer: LocalizedStringKey?
 
-    @ViewBuilder public let content: () -> Content
+    @ContentBuilder public let content: () -> Content
 
     public init(
         title: LocalizedStringKey? = nil,
         footer: LocalizedStringKey? = nil,
-        @ViewBuilder content: @escaping () -> Content,
+        @ContentBuilder content: @escaping () -> Content,
     ) {
         self.title = title
         self.footer = footer
@@ -24,7 +24,7 @@ public struct ListGroup<Content: View>: View {
             }
             VStack(spacing: 0) {
                 Group(subviews: content()) { subviews in
-                    ForEach(Array(subviews.enumerated()), id: \.element.id) { index, subview in
+                    ForEach(subviews.enumerated(), id: \.element.id) { index, subview in
                         subview
                         if index < subviews.count - 1 {
                             Rectangle().fill(theme.colors.hairline.opacity(0.55)).frame(height: 0.5).padding(.leading, 54)
@@ -54,16 +54,16 @@ public struct ListRow<Leading: View, Trailing: View>: View {
     public var monoSubtitle = false
     public var titleColor: Color?
 
-    @ViewBuilder public let leading: () -> Leading
-    @ViewBuilder public let trailing: () -> Trailing
+    @ContentBuilder public let leading: () -> Leading
+    @ContentBuilder public let trailing: () -> Trailing
 
     public init(
         title: String,
         subtitle: String? = nil,
         monoSubtitle: Bool = false,
         titleColor: Color? = nil,
-        @ViewBuilder leading: @escaping () -> Leading,
-        @ViewBuilder trailing: @escaping () -> Trailing,
+        @ContentBuilder leading: @escaping () -> Leading,
+        @ContentBuilder trailing: @escaping () -> Trailing,
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -128,7 +128,7 @@ public struct ListRow<Leading: View, Trailing: View>: View {
 public extension ListRow where Leading == IconTile {
     init(
         _ title: String, subtitle: String? = nil, monoSubtitle: Bool = false, symbol: String, tint: Color? = nil, titleColor: Color? = nil,
-        @ViewBuilder trailing: @escaping () -> Trailing,
+        @ContentBuilder trailing: @escaping () -> Trailing,
     ) {
         self.init(title: title, subtitle: subtitle, monoSubtitle: monoSubtitle, titleColor: titleColor,
                   leading: { IconTile(symbol: symbol, tint: tint, size: 28) }, trailing: trailing)
@@ -228,9 +228,9 @@ public struct PageHeader<Trailing: View>: View {
     public let title: LocalizedStringKey
     public var facts: String?
 
-    @ViewBuilder public let trailing: () -> Trailing
+    @ContentBuilder public let trailing: () -> Trailing
 
-    public init(title: LocalizedStringKey, facts: String? = nil, @ViewBuilder trailing: @escaping () -> Trailing) {
+    public init(title: LocalizedStringKey, facts: String? = nil, @ContentBuilder trailing: @escaping () -> Trailing) {
         self.title = title
         self.facts = facts
         self.trailing = trailing

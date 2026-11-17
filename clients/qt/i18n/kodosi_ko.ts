@@ -491,6 +491,14 @@
         <translation>주소</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>이 터미널은 공유되어 있어서 브라우저에 내 것과 별개인 로그인 정보가 있어요. 터미널의 모든 사람이 이 정보를 사용해요.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>공유됨</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>탭 %1개</translation>
     </message>
@@ -505,6 +513,18 @@
     <message>
         <source>Shared browser</source>
         <translation>공유 브라우저</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>링크 복사</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>붙여넣기</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -801,6 +821,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>복사</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>잘라내기</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -821,6 +855,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi가 이 링크를 열지 못했어요.</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>삭제</translation>
     </message>
 </context>
 <context>
@@ -2379,6 +2420,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>붙여넣기</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -2762,6 +2810,14 @@
         <translation>지침을 복사해서 에이전트에 붙여넣으세요.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>채팅 옵션</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>채팅 지우기…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>대화를 불러오지 못했어요</translation>
     </message>
@@ -2798,6 +2854,10 @@
         <translation>새 메시지를 위해 Kodosi가 가장 오래된 메시지를 지웠어요.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>삭제된 메시지</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>%1에게</translation>
     </message>
@@ -2825,6 +2885,14 @@
         <source>Report…</source>
         <translation>신고…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>메시지 옵션</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>메시지 삭제…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2846,6 +2914,30 @@
     <message>
         <source>Send message</source>
         <translation>메시지 보내기</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>이 메시지를 삭제할까요?</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>메시지 삭제</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>프로젝트의 모든 사람에게 메시지가 삭제되었다고 표시돼요.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>내 채팅을 지울까요?</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>채팅 지우기</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>지금까지의 메시지가 내 모든 기기에서 사라져요. 다른 사람에게는 남아 있어요.</translation>
     </message>
 </context>
 <context>
@@ -3130,6 +3222,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>확인(&amp;O)</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>취소(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>닫기(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>확인</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>취소</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>닫기</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3152,6 +3274,13 @@
         <translation>
             <numerusform>이 컴퓨터의 터미널 %n개가 멈춰요. Kodosi를 열면 다시 시작돼요.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>다시 실행</translation>
     </message>
 </context>
 <context>
@@ -3224,6 +3353,13 @@
     <message>
         <source>No repositories found</source>
         <translation>저장소를 찾을 수 없어요</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>모두 선택</translation>
     </message>
 </context>
 <context>
@@ -4112,6 +4248,13 @@
     <message>
         <source>Fast mode</source>
         <translation>빠른 모드</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>실행 취소</translation>
     </message>
 </context>
 <context>

@@ -78,6 +78,11 @@ public final class ProjectStore {
         message.isWritten(by: userId)
     }
 
+    /// A person deletes their own messages and those of their agents.
+    public func canDelete(_ message: ProjectMessage) -> Bool {
+        !message.deleted && message.authorId == userId
+    }
+
     public func member(_ userId: String, in projectId: String) -> ProjectMemberEntry? {
         details[projectId]?.members.first { $0.userId == userId }
     }
@@ -94,10 +99,10 @@ public final class ProjectStore {
 
     public func markRead(_ projectId: String) {
         view(projectId).unread = 0
-        guard isFront(), let sequence = snapshots[projectId]?.messages.map(\.sequence).max(),
-              project(projectId)?.unread == true || sequence > seen[projectId] ?? 0 else { return }
-        seen[projectId] = sequence
-        commands.perform("project.seen", ["projectId": .string(projectId), "sequence": .uint(sequence)])
+        guard isFront(), let position = snapshots[projectId]?.messages.map(\.position).max(),
+              project(projectId)?.unread == true || position > seen[projectId] ?? 0 else { return }
+        seen[projectId] = position
+        commands.perform("project.seen", ["projectId": .string(projectId), "position": .uint(position)])
     }
 
     public func markShownRead() {
@@ -244,6 +249,9 @@ public final class ProjectStore {
         let projectId = next.projectId
         let state = view(projectId)
         if let previous = snapshots[projectId] {
+            if next.clearedPosition > previous.clearedPosition {
+                state.unread = 0
+            }
             if !state.reading {
                 state.unread += next.newMessages(after: previous, userId: userId)
             }

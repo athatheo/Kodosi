@@ -51,35 +51,20 @@ struct AppShell: View {
         .kodosiPopoverLayer()
         .buttonStyle(.kodosi(.secondary))
         .textFieldStyle(WellTextFieldStyle()).toggleStyle(KodosiSwitchStyle())
-        .confirmationDialog(
-            projectShareTitle, isPresented: Binding(get: { workbench.projectShare != nil }, set: {
-                if !$0 {
-                    workbench.projectShare = nil
-                }
-            }), titleVisibility: .visible, presenting: workbench.projectShare,
-        ) { share in
+        .confirmationDialog(projectShareTitle, item: $workbench.projectShare, titleVisibility: .visible) { share in
             Button("Share") { deps.share(share) }
             Button("Cancel", role: .cancel) {}
         } message: { share in
             Text(projectShareMessage(share))
         }
-        .blockConfirmation(isPresented: Binding(get: { workbench.blocking != nil }, set: {
-            if !$0 {
-                workbench.blocking = nil
-            }
-        }), name: workbench.blocking?.name ?? "") {
-            if let target = workbench.blocking {
-                deps.people.block(handle: target.handle)
-            }
-            workbench.blocking = nil
-        }
+        .blockConfirmation(item: $workbench.blocking, name: \.name) { target in deps.people.block(handle: target.handle) }
         .onChange(of: workbench.stagedSessionIds) { _, _ in deps.reconcileTerminals() }
         .onChange(of: workbench.focusedSessionId) { _, _ in deps.reconcileTerminals() }
         .background(VisibleReporter())
         .onChange(of: terminalsInteractive, initial: true) { _, open in workbench.stageTakesKeys = open }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var destination: some View {
         let workbench = deps.workbench
         switch workbench.section {
@@ -146,7 +131,7 @@ struct AppShell: View {
         return workbench.launcher == nil ? nil : .launcher
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private func sheetLayer(_ sheet: Sheet) -> some View {
         let workbench = deps.workbench
         switch sheet {

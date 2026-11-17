@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde_json::Value;
-use shared_browser::{Place, State, ToView, Viewer, Window};
+use shared_browser::{Driver, Place, State, ToView, Viewer, Window};
 use tokio::{
     sync::{mpsc, watch},
     time::Instant,
@@ -26,7 +26,10 @@ const COMMAND_LIMIT: Duration = Duration::from_mins(2);
 const QUICK_LIMIT: Duration = Duration::from_secs(30);
 /// While people look, the agent's pointer reaches the element before the agent acts on it.
 const POINTER_LEAD: Duration = Duration::from_millis(280);
-const MOST_OUTPUT: usize = 1024 * 1024;
+pub(super) const MOST_OUTPUT: usize = 1024 * 1024;
+/// A character of up to four bytes that crosses the limit is read whole, so that the cut drops it
+/// instead of showing a broken character.
+const MOST_READ: usize = MOST_OUTPUT + 3;
 const FIRST_SIZE: (u32, u32) = (1280, 720);
 /// agent-browser leaves the browser when the agent is idle, because a page can notice a client
 /// on its debug port.
@@ -37,6 +40,7 @@ pub(super) const KEPT_PROFILE: &str = "person";
 /// program or lifetime.
 const NOT_HERE: &[&str] = &[
     "--cdp",
+    "--cdp-headers",
     "--session",
     "--session-name",
     "--profile",
@@ -144,9 +148,9 @@ struct Activity {
     shown_downloads: HashSet<String>,
 }
 
-struct Run {
-    code: i32,
-    output: String,
+pub(super) struct Run {
+    pub(super) code: i32,
+    pub(super) output: String,
 }
 
 pub(super) struct Terminal {
@@ -154,6 +158,7 @@ pub(super) struct Terminal {
     pub(super) folder: watch::Receiver<PathBuf>,
     pub(super) shared: watch::Receiver<bool>,
     pub(super) show: Box<dyn Fn(PathBuf) + Send + Sync>,
+    pub(super) last_tab_closed: Box<dyn Fn(Weak<Browser>) + Send + Sync>,
 }
 
 pub(super) struct Browser {
@@ -176,6 +181,7 @@ impl Browser {
         stamp: Stamp,
     ) -> Arc<Self> {
         let (width, height) = FIRST_SIZE;
+        let own_sign_ins = *terminal.shared.borrow();
         Arc::new(Self {
             terminal,
             places,
@@ -190,6 +196,7 @@ impl Browser {
                 doing: None,
                 last: None,
                 problem: None,
+                own_sign_ins,
             }),
             stamp,
             commands: tokio::sync::Mutex::new(()),
@@ -318,7 +325,7 @@ impl Browser {
         });
     }
 
-    async fn point(&self, folder: &Path, driver: &str, target: &str) -> Option<BrowserPoint> {
+    async fn point(&self, folder: &Path, driver: &Driver, target: &str) -> Option<BrowserPoint> {
         let run = self
             .agent_browser(
                 folder,
@@ -361,7 +368,7 @@ impl Browser {
         let _one = self.commands.lock().await;
         let window = self.window().await?;
         window.driven().await;
-        let driver = window.driver().to_owned();
+        let driver = window.driver().clone();
         let acting =
             !(LOOKS.contains(&command.as_str()) || (command == "tab" && arguments.len() == 1));
         let (used, introduced) = self.activity(|activity| {
@@ -510,6 +517,14 @@ impl Browser {
         problem
     }
 
+    /// A terminal that becomes shared or private changes the profile of its browser, so the
+    /// browser sleeps and wakes with the other one.
+    pub(super) async fn change_profile(&self) {
+        let shared = *self.terminal.shared.borrow();
+        self.change(|state| state.own_sign_ins = shared);
+        self.sleep().await;
+    }
+
     pub(super) async fn sleep(&self) {
         let window = self.window.lock().await.take();
         if let Some(window) = window {
@@ -555,7 +570,7 @@ impl Browser {
         &self,
         folder: &Path,
         arguments: &[String],
-        driver: &str,
+        driver: &Driver,
         limit: Duration,
     ) -> Result<Run, Text> {
         if !self.places.binary.is_file() {
@@ -563,13 +578,17 @@ impl Browser {
         }
         prepare(&self.places).await?;
         let mut command = agent_browser_command(&self.places.binary, &self.places.sockets);
+        // Other users of the computer can read a command line, but not the environment.
         command
+            .env("AGENT_BROWSER_CDP", driver.address())
+            .env(
+                "AGENT_BROWSER_CDP_HEADERS",
+                serde_json::json!({ "Authorization": driver.authorization() }).to_string(),
+            )
             .arg("--session")
             .arg(self.terminal.id.simple().to_string())
             .arg("--config")
             .arg(&self.places.config)
-            .arg("--cdp")
-            .arg(driver)
             .args(arguments)
             .current_dir(if folder.is_dir() {
                 folder
@@ -599,7 +618,12 @@ async fn follow(browser: Weak<Browser>, window: Window, closed: CancellationToke
             }
         }
     }
-    if let Some(browser) = browser.upgrade() {
+    let Some(browser) = browser.upgrade() else {
+        return;
+    };
+    if window.emptied() {
+        (browser.terminal.last_tab_closed)(Arc::downgrade(&browser));
+    } else {
         browser.change(|state| {
             state.state = BrowserState::Asleep;
             state.doing = None;
@@ -608,11 +632,7 @@ async fn follow(browser: Weak<Browser>, window: Window, closed: CancellationToke
 }
 
 fn cut(text: &str, most: usize) -> String {
-    let mut end = text.len().min(most);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    text[..end].to_owned()
+    text[..text.floor_char_boundary(most)].to_owned()
 }
 
 /// `--all` with `close` would close the browsers of the other terminals.
@@ -658,36 +678,56 @@ pub(crate) async fn answer_alone(
     Ok((run.output, run.code))
 }
 
-async fn finished(mut command: tokio::process::Command, limit: Duration) -> Result<Run, Text> {
-    let child = command
+/// The rest is read only so that agent-browser never waits on a full pipe.
+async fn read_most(
+    pipe: Option<impl tokio::io::AsyncRead + Unpin>,
+) -> std::io::Result<(Vec<u8>, bool)> {
+    use tokio::io::AsyncReadExt as _;
+
+    let mut kept = Vec::new();
+    let Some(mut pipe) = pipe else {
+        return Ok((kept, false));
+    };
+    (&mut pipe)
+        .take(MOST_READ as u64)
+        .read_to_end(&mut kept)
+        .await?;
+    let rest = tokio::io::copy(&mut pipe, &mut tokio::io::sink()).await?;
+    Ok((kept, rest > 0))
+}
+
+pub(super) async fn finished(
+    mut command: tokio::process::Command,
+    limit: Duration,
+) -> Result<Run, Text> {
+    let mut child = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| Text::plain(format!("agent-browser did not start: {error}")))?;
-    let output = tokio::time::timeout(limit, child.wait_with_output())
-        .await
-        .map_err(|_| {
-            Text::plain(format!(
-                "agent-browser did not answer in {} s.",
-                limit.as_secs()
-            ))
-        })?
-        .map_err(|error| Text::plain(format!("agent-browser failed: {error}")))?;
-    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let errors = String::from_utf8_lossy(&output.stderr);
+    let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
+    let (status, (output, output_cut), (errors, errors_cut)) = tokio::time::timeout(limit, async {
+        tokio::try_join!(child.wait(), read_most(stdout), read_most(stderr))
+    })
+    .await
+    .map_err(|_| {
+        Text::plain(format!(
+            "agent-browser did not answer in {} s.",
+            limit.as_secs()
+        ))
+    })?
+    .map_err(|error| Text::plain(format!("agent-browser failed: {error}")))?;
+    let mut text = String::from_utf8_lossy_owned(output);
+    let errors = String::from_utf8_lossy(&errors);
     if !errors.trim().is_empty() {
         push_line(&mut text, errors.trim_end());
     }
-    if text.len() > MOST_OUTPUT {
-        let mut end = MOST_OUTPUT;
-        while !text.is_char_boundary(end) {
-            end -= 1;
-        }
-        text.truncate(end);
+    if output_cut || errors_cut || text.len() > MOST_OUTPUT {
+        text.truncate(text.floor_char_boundary(MOST_OUTPUT));
         text.push_str("\n…");
     }
     Ok(Run {
-        code: output.status.code().unwrap_or(1),
+        code: status.code().unwrap_or(1),
         output: text.trim_end().to_owned(),
     })
 }
@@ -702,6 +742,8 @@ fn agent_browser_command(binary: &Path, sockets: &Path) -> tokio::process::Comma
     command
         .env("AGENT_BROWSER_SOCKET_DIR", sockets)
         .env("AGENT_BROWSER_IDLE_TIMEOUT_MS", DAEMON_IDLE_MS)
+        // Kodosi updates Kodosi Browser itself, from its feed.
+        .env("AGENT_BROWSER_NO_VERSION_CHECK", "1")
         .stdin(Stdio::null())
         .kill_on_drop(true);
     kodosi_os::process::without_terminal(command.as_std_mut());

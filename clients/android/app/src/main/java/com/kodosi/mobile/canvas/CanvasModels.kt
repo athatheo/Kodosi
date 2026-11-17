@@ -48,7 +48,8 @@ data class CanvasBrowser(
     val changed: Long,
     val tabs: List<BrowserTab> = emptyList(),
     val doing: JsonObject? = null,
-    val problem: String? = null
+    val problem: String? = null,
+    val ownSignIns: Boolean = false
 )
 
 @Serializable

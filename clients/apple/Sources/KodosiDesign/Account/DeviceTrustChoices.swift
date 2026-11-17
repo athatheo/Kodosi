@@ -62,7 +62,7 @@ public struct DeviceTrustChoices: View {
             }
     }
 
-    @ViewBuilder
+    @ContentBuilder
     private var content: some View {
         switch trust {
         case .choose:

@@ -12,7 +12,6 @@ final class TerminalRendererDelegateProxy:
     TerminalSurfaceGridResizeDelegate,
     TerminalSurfaceLifecycleDelegate,
     TerminalSurfaceOpenURLDelegate,
-    TerminalSurfaceHoverLinkDelegate,
     TerminalSurfaceClipboardReadDelegate,
     TerminalSurfacePictureDelegate
 {
@@ -42,7 +41,7 @@ final class TerminalRendererDelegateProxy:
 
     func endViewUpdate() {
         let generation = updateGeneration
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             await Task.yield()
             guard let self, updateGeneration == generation else { return }
             isDeferring = false
@@ -84,10 +83,6 @@ final class TerminalRendererDelegateProxy:
         }
     }
 
-    func terminalDidUpdateHoverLink(_ url: String?) {
-        forward { $0.terminalDidUpdateHoverLink(url) }
-    }
-
     func terminalDidPastePicture(_ picture: Data) {
         picturePasted?(picture)
     }
@@ -107,13 +102,5 @@ final class TerminalRendererDelegateProxy:
         } else {
             invoke()
         }
-    }
-}
-
-extension TerminalViewState: @retroactive TerminalSurfaceHoverLinkDelegate {
-    public func terminalDidUpdateHoverLink(_ url: String?) {
-        #if os(macOS)
-            (url == nil ? NSCursor.arrow : NSCursor.pointingHand).set()
-        #endif
     }
 }

@@ -9,7 +9,7 @@ Item {
     required property var item
     property bool local: false
 
-    function size(bytes) {
+    function size(bytes: real): string {
         return bytes >= 1048576 ? qsTr("%1 MB").arg((bytes / 1048576).toFixed(1))
             : bytes >= 1024 ? qsTr("%1 KB").arg(Math.round(bytes / 1024)) : qsTr("%1 bytes").arg(bytes);
     }

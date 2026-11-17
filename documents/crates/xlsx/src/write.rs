@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Write as _,
+    time::{Duration, Instant},
 };
 
 use document::Unwritable;
@@ -8,7 +9,7 @@ use package::{Package, Parts, RELATIONSHIPS, escape, rewrite};
 use roxmltree::{Document, Node as Xml};
 
 use crate::{
-    calculate::calculated,
+    calculate::{calculated, without_results},
     formats,
     formula::{cell_name, column_name, parse_cell, parse_range, range_name},
     model::{Cell, Look, Model, Sheet, Value},
@@ -48,6 +49,19 @@ const AFTER_MERGES: [&str; 22] = [
     "oleObjects",
     "controls",
     "tableParts",
+    "extLst",
+];
+
+/// What the file format puts after `calcPr`, the first of which a new one stands before.
+const AFTER_CALCULATION: [&str; 9] = [
+    "oleSize",
+    "customWorkbookViews",
+    "pivotCaches",
+    "smartTagPr",
+    "smartTagTypes",
+    "webPublishing",
+    "fileRecoveryPr",
+    "webPublishObjects",
     "extLst",
 ];
 
@@ -255,7 +269,7 @@ fn patch_sheet(xml: &str, sheet: &Sheet, strings: &[String]) -> Result<Option<St
         }
     }
     if !waiting.is_empty() {
-        add_rows(xml, data, sheet, &waiting, &mut edits)?;
+        add_rows(xml, data, sheet, &waiting, &mut edits);
     }
     if edits.is_empty() {
         return Ok(None);
@@ -286,27 +300,24 @@ fn dimension_edit(
     Some((dimension.range(), text))
 }
 
-fn close_row_edit(
-    xml: &str,
-    row: Xml<'_, '_>,
-    last_end: Option<usize>,
-    added: String,
-) -> (std::ops::Range<usize>, String) {
-    if let Some(end) = last_end {
-        return (end..end, added);
-    }
-    let range = row.range();
+fn appended(xml: &str, element: Xml<'_, '_>, added: String) -> Edit {
+    let range = element.range();
     let text = &xml[range.clone()];
     if let Some(open) = text.strip_suffix("/>") {
-        let name = row.tag_name().name();
-        let tag = text
-            .get(1..)
-            .and_then(|rest| rest.split([' ', '/', '>']).next())
-            .unwrap_or(name);
-        (range, format!("{open}>{added}</{tag}>"))
+        (
+            range,
+            format!("{open}>{added}</{}>", tag_name(xml, element)),
+        )
     } else {
         let closing = range.start + text.rfind("</").unwrap_or(text.len());
         (closing..closing, added)
+    }
+}
+
+fn close_row_edit(xml: &str, row: Xml<'_, '_>, last_end: Option<usize>, added: String) -> Edit {
+    match last_end {
+        Some(end) => (end..end, added),
+        None => appended(xml, row, added),
     }
 }
 
@@ -315,39 +326,33 @@ fn add_rows(
     data: Xml<'_, '_>,
     sheet: &Sheet,
     waiting: &BTreeMap<u32, BTreeMap<u32, &Cell>>,
-    edits: &mut Vec<(std::ops::Range<usize>, String)>,
-) -> Result<(), String> {
+    edits: &mut Vec<Edit>,
+) {
     let rows: Vec<(u32, Xml<'_, '_>)> = locals(data, "row")
         .filter_map(|row| {
             let number = row.attribute("r")?.parse::<u32>().ok()?.checked_sub(1)?;
             Some((number, row))
         })
         .collect();
+    let mut last = String::new();
     for (row, cells) in waiting {
         let mut text = format!("{}>", row_tag(sheet, *row));
         for (column, cell) in cells {
             text.push_str(&cell_xml(*row, *column, cell));
         }
         text.push_str("</row>");
-        let next = rows.iter().find(|(number, _)| number > row);
-        let at = match next {
-            Some((_, element)) => element.range().start,
-            None => end_of_rows(xml, data, &rows)?,
-        };
-        edits.push((at..at, text));
+        match rows.iter().find(|(number, _)| number > row) {
+            Some((_, next)) => edits.push((next.range().start..next.range().start, text)),
+            None => last.push_str(&text),
+        }
     }
-    Ok(())
-}
-
-fn end_of_rows(xml: &str, data: Xml<'_, '_>, rows: &[(u32, Xml<'_, '_>)]) -> Result<usize, String> {
-    if let Some((_, last)) = rows.last() {
-        return Ok(last.range().end);
+    if last.is_empty() {
+        return;
     }
-    let text = &xml[data.range()];
-    if text.ends_with("/>") {
-        return Err("the sheet data has no end tag".to_owned());
-    }
-    Ok(data.range().start + text.rfind("</").unwrap_or(text.len()))
+    edits.push(match rows.last() {
+        Some((_, element)) => (element.range().end..element.range().end, last),
+        None => appended(xml, data, last),
+    });
 }
 
 fn anchor_edits(xml: &str, root: Xml<'_, '_>, sheet: &Sheet) -> Vec<Edit> {
@@ -555,7 +560,7 @@ fn layout_edits(xml: &str, sheet: &Sheet) -> Result<Vec<Edit>, String> {
         .map(|line| (*line, BTreeMap::new()))
         .collect();
     if !missing.is_empty() {
-        add_rows(xml, data, sheet, &missing, &mut edits)?;
+        add_rows(xml, data, sheet, &missing, &mut edits);
     }
     Ok(edits)
 }
@@ -725,14 +730,17 @@ fn workbook_edits(
     Ok(())
 }
 
+fn workbook_so_far(package: &mut Package<'_>, parts: &Parts) -> Result<String, String> {
+    if let Some(bytes) = parts.get(WORKBOOK_PART).and_then(Option::as_ref) {
+        return Ok(String::from_utf8_lossy(bytes).into_owned());
+    }
+    package
+        .text(WORKBOOK_PART)
+        .ok_or_else(|| "the workbook is missing".to_owned())
+}
+
 fn names_edit(model: &Model, package: &mut Package<'_>, parts: &mut Parts) -> Result<(), String> {
-    let edited = parts.get(WORKBOOK_PART).and_then(Option::as_ref);
-    let xml = match edited {
-        Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-        None => package
-            .text(WORKBOOK_PART)
-            .ok_or("the workbook is missing")?,
-    };
+    let xml = workbook_so_far(package, parts)?;
     let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
     let Some(names) = local(parsed.root_element(), "definedNames") else {
         return Ok(());
@@ -751,6 +759,68 @@ fn names_edit(model: &Model, package: &mut Package<'_>, parts: &mut Parts) -> Re
             Some(spliced(&xml, edits).into_bytes()),
         );
     }
+    Ok(())
+}
+
+/// Whether the workbook asks the program that opens it to work out each formula.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Recalculation {
+    Asked,
+    NotAsked,
+    AsTheFileHasIt,
+}
+
+fn recalculation_edit(
+    package: &mut Package<'_>,
+    parts: &mut Parts,
+    recalculation: Recalculation,
+) -> Result<(), String> {
+    let asked = match recalculation {
+        Recalculation::Asked => true,
+        Recalculation::NotAsked => false,
+        Recalculation::AsTheFileHasIt => return Ok(()),
+    };
+    let xml = workbook_so_far(package, parts)?;
+    let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
+    let root = parsed.root_element();
+    let properties = local(root, "calcPr");
+    let request = properties.and_then(|properties| {
+        properties.attributes().find(|attribute| {
+            attribute.namespace().is_none() && attribute.name() == "fullCalcOnLoad"
+        })
+    });
+    if request.is_some_and(|request| matches!(request.value(), "1" | "true")) == asked {
+        return Ok(());
+    }
+    let edit = match (properties, request) {
+        (Some(_), Some(request)) if asked => (request.range_value(), "1".to_owned()),
+        (Some(properties), Some(_)) if properties.attributes().len() == 1 => {
+            (properties.range(), String::new())
+        }
+        (Some(_), Some(request)) => {
+            let start = xml[..request.range().start].trim_end().len();
+            (start..request.range().end, String::new())
+        }
+        (Some(properties), None) => {
+            let at = properties.range().start + 1 + tag_name(&xml, properties).len();
+            (at..at, r#" fullCalcOnLoad="1""#.to_owned())
+        }
+        (None, _) => {
+            let at = root
+                .children()
+                .filter(Xml::is_element)
+                .find(|element| AFTER_CALCULATION.contains(&element.tag_name().name()))
+                .map_or_else(
+                    || root.range().start + xml[root.range()].rfind("</").unwrap_or(0),
+                    |element| element.range().start,
+                );
+            (at..at, r#"<calcPr fullCalcOnLoad="1"/>"#.to_owned())
+        }
+    };
+    parts.insert(
+        WORKBOOK_PART.to_owned(),
+        Some(spliced(&xml, vec![edit]).into_bytes()),
+    );
     Ok(())
 }
 
@@ -853,11 +923,10 @@ fn cell_format_xml(look: &Look, font: usize, fill: usize, format: u32) -> String
 /// New looks go after the ones that the file holds, so that each look keeps its index.
 fn add_looks(model: &Model, package: &mut Package<'_>, parts: &mut Parts) -> Result<(), String> {
     let Some(xml) = package.text(STYLES_PART) else {
-        return if model.looks.is_empty() {
-            Ok(())
-        } else {
-            Err("the file has no styles".to_owned())
-        };
+        return model
+            .looks
+            .is_empty()
+            .ok_or_else(|| "the file has no styles".to_owned());
     };
     let parsed = Document::parse(&xml).map_err(|error| error.to_string())?;
     let root = parsed.root_element();
@@ -950,11 +1019,15 @@ fn strip_counts(xml: &str) -> Result<String, String> {
     Ok(new_xml)
 }
 
-fn write_parts(model: &Model, file: &[u8]) -> Result<Option<Vec<u8>>, String> {
+fn write_parts(
+    model: &Model,
+    file: &[u8],
+    recalculation: Recalculation,
+) -> Result<Option<Vec<u8>>, String> {
     let mut package = Package::open(file).map_err(|error| error.to_string())?;
     let strings = strings_of(&mut package);
     let mut parts = Parts::new();
-    for sheet in &model.sheets {
+    for sheet in model.sheets.iter().filter(|sheet| !sheet.chart) {
         let part = sheet.part_name();
         let Some(xml) = package.text(&part) else {
             continue;
@@ -965,6 +1038,7 @@ fn write_parts(model: &Model, file: &[u8]) -> Result<Option<Vec<u8>>, String> {
     }
     workbook_edits(model, &mut package, &mut parts)?;
     names_edit(model, &mut package, &mut parts)?;
+    recalculation_edit(&mut package, &mut parts, recalculation)?;
     add_looks(model, &mut package, &mut parts)?;
     if parts.is_empty() {
         return Ok(None);
@@ -975,19 +1049,38 @@ fn write_parts(model: &Model, file: &[u8]) -> Result<Option<Vec<u8>>, String> {
 }
 
 /// A formula keeps the result that the file holds when the edits did not change what it works out
-/// to, so a save changes only the results that follow an edit.
-pub(crate) fn write(model: &Model, file: &[u8]) -> Result<Vec<u8>, Unwritable> {
-    let mut current = calculated(model);
-    if let Ok(saved) = read::read(file) {
-        keep_saved_results(&mut current, &saved);
-    }
-    Ok(write_parts(&current, file)
+/// to, so a save changes only the results that follow an edit. When the engine cannot work out the
+/// formulas, a result from before an edit would be wrong, so the save leaves each one out and the
+/// file asks the program that opens it to work them out. `LibreOffice` ignores that request, but it
+/// works out a formula that has no result. Once the engine works out every formula, each result is
+/// current, so the file stops asking.
+pub(crate) fn write(model: &Model, file: &[u8], time: Duration) -> Result<Vec<u8>, Unwritable> {
+    let started = Instant::now();
+    let (current, recalculation) = match calculated(model, time) {
+        Some(calculation) => {
+            let mut current = calculation.model;
+            if let Ok(saved) = read::read(file) {
+                let left = time.saturating_sub(started.elapsed());
+                keep_saved_results(&mut current, &saved, left);
+            }
+            let recalculation = if calculation.every_formula {
+                Recalculation::NotAsked
+            } else {
+                Recalculation::AsTheFileHasIt
+            };
+            (current, recalculation)
+        }
+        None => (without_results(model), Recalculation::Asked),
+    };
+    Ok(write_parts(&current, file, recalculation)
         .map_err(failed)?
         .unwrap_or_else(|| file.to_vec()))
 }
 
-fn keep_saved_results(current: &mut Model, saved: &Model) {
-    let worked_out = calculated(saved);
+fn keep_saved_results(current: &mut Model, saved: &Model, time: Duration) {
+    let Some(worked_out) = calculated(saved, time).map(|calculation| calculation.model) else {
+        return;
+    };
     for sheet in current.sheets.iter_mut().filter(|sheet| !sheet.moved) {
         let Some(index) = saved
             .sheets
@@ -1002,6 +1095,7 @@ fn keep_saved_results(current: &mut Model, saved: &Model) {
                 (stored.cells.get(place), results.cells.get(place))
                 && cell.formula.is_some()
                 && cell.formula == stored.formula
+                && stored.value.is_some()
                 && cell.value == result.value
             {
                 cell.value.clone_from(&stored.value);

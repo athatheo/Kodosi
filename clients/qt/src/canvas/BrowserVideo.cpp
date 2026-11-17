@@ -6,9 +6,11 @@
 
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QQuickWindow>
 #include <QSGSimpleTextureNode>
+#include <QSet>
 #include <QTimer>
 #include <QtEndian>
 
@@ -173,9 +175,31 @@ void BrowserVideo::received(const QString& pipe, const QByteArray& message)
         const auto state = QJsonDocument::fromJson(message.mid(1)).object();
         m_window = state.toVariantMap();
         emit windowChanged();
+        keepIcons(state.value(QStringLiteral("icons")).toObject(), state.value(QStringLiteral("tabs")).toArray());
         const auto copied = state.value(QStringLiteral("copied")).toString();
         if (!copied.isEmpty())
             QGuiApplication::clipboard()->setText(copied);
+    }
+}
+
+void BrowserVideo::keepIcons(const QJsonObject& changed, const QJsonArray& tabs)
+{
+    auto kept = m_icons;
+    for (auto icon = changed.begin(); icon != changed.end(); ++icon) {
+        const auto png = icon.value().toString();
+        if (png.isEmpty())
+            kept.remove(icon.key());
+        else
+            kept.insert(icon.key(), QStringLiteral("data:image/png;base64,") + png);
+    }
+    QSet<QString> open;
+    for (const auto& tab : tabs)
+        open.insert(tab.toObject().value(QStringLiteral("id")).toString());
+    for (auto icon = kept.begin(); icon != kept.end();)
+        icon = open.contains(icon.key()) ? std::next(icon) : kept.erase(icon);
+    if (kept != m_icons) {
+        m_icons = kept;
+        emit iconsChanged();
     }
 }
 

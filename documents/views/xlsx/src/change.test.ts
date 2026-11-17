@@ -1,5 +1,15 @@
 import { expect, test } from "bun:test";
-import { type Change, linkAt, linksOf, moveLink, movePlace, rangeOf, touches } from "./change";
+import {
+  type Change,
+  linkAt,
+  linksOf,
+  moveLink,
+  movePlace,
+  rangeOf,
+  SheetFitting,
+  touches,
+  withoutSheet,
+} from "./change";
 
 const sheet = "1";
 
@@ -72,4 +82,47 @@ test("a link belongs to its cells and moves with them", () => {
   });
   expect(moveLink(place, { kind: "columns", sheet: "2", at: 0, count: 1 })).toBe(place);
   expect(moveLink(place, { kind: "removeSheet", sheet })).toBeNull();
+});
+
+test("waiting changes fit the sheets that the document holds, in their order", () => {
+  const fitting = new SheetFitting(["1", "2"]);
+  const row = (sheet: string): Change => ({ kind: "rows", sheet, at: 3, count: 1 });
+  const waiting: Change[] = [
+    { kind: "group", changes: [row("1"), row("gone")] },
+    { kind: "merges", sheet: "gone", add: [[0, 0, 1, 1]] },
+    { kind: "addSheet", id: "3", name: "Notes" },
+    { kind: "cells", sheet: "3", cells: [{ row: 0, column: 0, value: 1 }] },
+    { kind: "removeSheet", sheet: "2" },
+    row("2"),
+  ];
+  expect(waiting.map((change) => fitting.fit(change))).toEqual([
+    { kind: "group", changes: [row("1")] },
+    null,
+    waiting[2] as Change,
+    waiting[3] as Change,
+    waiting[4] as Change,
+    null,
+  ]);
+  expect(fitting.lost).toBe(true);
+});
+
+test("a sheet that is in already or gone already takes no change, and the last sheet stays", () => {
+  const fitting = new SheetFitting(["1", "2"]);
+  expect(fitting.fit({ kind: "addSheet", id: "2", name: "Again" })).toBeNull();
+  expect(fitting.fit({ kind: "removeSheet", sheet: "gone" })).toBeNull();
+  expect(fitting.lost).toBe(false);
+  expect(fitting.fit({ kind: "removeSheet", sheet: "1" })).not.toBeNull();
+  expect(fitting.fit({ kind: "removeSheet", sheet: "2" })).toBeNull();
+  expect(fitting.lost).toBe(true);
+});
+
+test("what waits for a sheet that another person removed goes with it", () => {
+  const cells: Change = { kind: "cells", sheet: "2", cells: [{ row: 0, column: 0, value: 1 }] };
+  const added: Change = { kind: "addSheet", id: "3", name: "Notes" };
+  expect(withoutSheet({ kind: "group", changes: [cells, added] }, "2")).toEqual({
+    kind: "group",
+    changes: [added],
+  });
+  expect(withoutSheet({ kind: "removeSheet", sheet: "2" }, "2")).toBeNull();
+  expect(withoutSheet(cells, "1")).toBe(cells);
 });

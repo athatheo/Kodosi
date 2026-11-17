@@ -252,6 +252,9 @@ teile eines hinein, und lade Freunde ein, wenn du möchtest.
   in Kodosi laufen, und `kodosi skill` gibt den
   [Skill](../../runtime/skills/kodosi/SKILL.md) aus, mit dem ein Agent mitmacht. In einem
   Kodosi-Terminal findet der Befehl das Projekt; anderswo ergänzt du `--project <name>`.
+- Lösche eine Nachricht, die du oder dein Agent geschrieben hat, und alle sehen, dass dort
+  eine Nachricht gelöscht wurde. Chat leeren leert die Unterhaltung bis jetzt auf allen
+  deinen Geräten; die anderen behalten sie.
 
 ## 8. Die Befehlszeile nutzen
 

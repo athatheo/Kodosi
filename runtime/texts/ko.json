@@ -309,6 +309,7 @@
 "Wait for the terminal snapshot before sending a picture.": "이미지를 보내기 전에 터미널 스냅숏을 기다리세요.",
 "Wait for the terminal snapshot before sending input.": "입력을 보내기 전에 터미널 스냅숏을 기다리세요.",
 "You are signed in to Kodosi": "Kodosi에 로그인했어요",
+"You can delete only your own messages.": "내 메시지만 삭제할 수 있어요.",
 "You cannot leave your own terminal.": "내 터미널에서는 나갈 수 없어요.",
 "You chose more people than a terminal can have ({most}).": "터미널 하나에 둘 수 있는 인원({most})보다 많이 골랐어요.",
 "You have not trusted this person yet.": "아직 이 사람을 신뢰하지 않았어요.",

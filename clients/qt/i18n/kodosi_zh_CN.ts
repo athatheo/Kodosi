@@ -491,6 +491,14 @@
         <translation>地址</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>此终端已共享，因此它的浏览器有独立于你的登录信息。终端中的每个人都会使用这些登录信息。</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>已共享</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 个标签页</translation>
     </message>
@@ -505,6 +513,18 @@
     <message>
         <source>Shared browser</source>
         <translation>共享浏览器</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>复制链接</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -801,6 +821,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>剪切</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -821,6 +855,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi 无法打开此链接。</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
     </message>
 </context>
 <context>
@@ -2379,6 +2420,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -2762,6 +2810,14 @@
         <translation>复制指令，然后粘贴到你的 Agent 中。</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>聊天选项</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>清空聊天…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>对话未能加载</translation>
     </message>
@@ -2798,6 +2854,10 @@
         <translation>为了给新消息腾出空间，Kodosi 删除了最早的消息。</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>消息已删除</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>给 %1</translation>
     </message>
@@ -2825,6 +2885,14 @@
         <source>Report…</source>
         <translation>举报…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>消息选项</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>删除消息…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2846,6 +2914,30 @@
     <message>
         <source>Send message</source>
         <translation>发送消息</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>删除这条消息？</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>删除消息</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>项目中的每个人都会看到有一条消息已被删除。</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>为你清空聊天？</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>清空聊天</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>到目前为止的消息会从你的所有设备上消失。其他人仍会保留。</translation>
     </message>
 </context>
 <context>
@@ -3130,6 +3222,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>确定(&amp;O)</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>取消(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>关闭(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3152,6 +3274,13 @@
         <translation>
             <numerusform>这台电脑上的 %n 个终端会停止，Kodosi 打开时会重新启动。</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>重做</translation>
     </message>
 </context>
 <context>
@@ -3224,6 +3353,13 @@
     <message>
         <source>No repositories found</source>
         <translation>未找到仓库</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>全选</translation>
     </message>
 </context>
 <context>
@@ -4112,6 +4248,13 @@
     <message>
         <source>Fast mode</source>
         <translation>快速模式</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>撤销</translation>
     </message>
 </context>
 <context>

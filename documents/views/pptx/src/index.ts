@@ -11,6 +11,7 @@ import {
   opensLink,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -24,67 +25,29 @@ import { EditorView } from "@tiptap/pm/view";
 import Konva from "konva";
 import { Plus, TextCursorInput, Trash2, Undo2 } from "lucide";
 import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
+import {
+  type Change,
+  type Fields,
+  Fitting,
+  type Shape,
+  type Slide,
+  type Snapshot,
+  touches,
+} from "./deck";
 import { newId } from "./ids";
 import {
+  colorIn,
+  familyIn,
   type Link,
   layOut,
   levelRules,
   linkTitle,
   type Measure,
   schema,
-  type TextLook,
+  unsentText,
 } from "./text";
 import "./pptx.css";
 import { say } from "@documents/words";
-
-interface Shape {
-  id: string;
-  name: string;
-  kind: string;
-  placeholder: string | null;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  geometry: string | null;
-  fill: string | null;
-  line: string | null;
-  asset: string | null;
-  link: Link | null;
-  text: unknown;
-  look: TextLook | null;
-  order: number;
-}
-
-interface Slide {
-  id: string;
-  position: number;
-  shapes: Shape[];
-  behind: Shape[];
-  background: string | null;
-}
-
-interface Snapshot {
-  width: number;
-  height: number;
-  slides: Slide[];
-  theme: Record<string, string> | null;
-}
-
-type Fields = Partial<
-  Pick<Shape, "x" | "y" | "width" | "height" | "rotation" | "fill" | "line" | "order">
->;
-
-type Change =
-  | { kind: "shape"; slide: string; shape: string; fields: Fields }
-  | { kind: "text"; slide: string; shape: string; steps: unknown[] }
-  | { kind: "moveSlide"; slide: string; position: number }
-  | { kind: "addSlide"; slide: string; position: number }
-  | { kind: "removeSlide"; slide: string }
-  | { kind: "addShape"; slide: string; shape: Shape }
-  | { kind: "removeShape"; slide: string; shape: string }
-  | { kind: "group"; changes: Change[] };
 
 interface Place {
   slide?: string;
@@ -94,7 +57,6 @@ interface Place {
 const EMU_PER_PIXEL = 9525;
 const ROTATION_UNITS = 60000;
 const TEXT_INSET = 9;
-const SCHEME_NAMES: Record<string, string> = { bg1: "lt1", tx1: "dk1", bg2: "lt2", tx2: "dk2" };
 const TEXT_BOX_WIDTH = 3_000_000;
 const TEXT_BOX_HEIGHT = 900_000;
 const TEXT_BOX_AT = 1_000_000;
@@ -119,6 +81,7 @@ function textKey(slide: string, shape: string): string {
 }
 
 class PptxEditor implements Editor, Pictures {
+  private readonly client: Client;
   private readonly list: HTMLElement;
   private readonly stageHolder: HTMLElement;
   private readonly stageRoot: HTMLDivElement;
@@ -144,10 +107,8 @@ class PptxEditor implements Editor, Pictures {
   private canEdit = true;
   private holding = false;
 
-  constructor(
-    root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.client = client;
     this.status = new Status(root);
     this.bar = new Bar(root, say("Slides"));
     root.append(this.bar.element);
@@ -200,9 +161,19 @@ class PptxEditor implements Editor, Pictures {
     }
   }
 
-  load(raw: unknown, person: Person): void {
-    this.closeText();
+  load(raw: unknown, person: Person, sent: Sent): void {
     const deck = raw as Snapshot;
+    const dropped = this.outbox.loaded(sent);
+    const fitting = new Fitting(deck.slides);
+    this.outbox.move((change) => fitting.fit(change));
+    this.closeText();
+    const shown = new Map(
+      deck.slides.flatMap((slide) =>
+        slide.shapes.map((shape) => [textKey(slide.id, shape.id), shape.text] as const),
+      ),
+    );
+    const unsent = unsentText(this.texts, (key) => shown.get(key));
+    this.undoes.length = 0;
     this.deck = deck;
     this.canEdit = person.canEdit;
     this.showBar();
@@ -210,6 +181,8 @@ class PptxEditor implements Editor, Pictures {
     for (const slide of deck.slides) {
       for (const shape of slide.shapes) this.addText(slide.id, shape);
     }
+    for (const change of this.outbox.unanswered()) this.showChange(change);
+    if (unsent || dropped || fitting.lost) this.status.kept(unsent);
     if (!deck.slides.some((slide) => slide.id === this.current)) {
       this.current = deck.slides[0]?.id ?? "";
     }
@@ -240,11 +213,7 @@ class PptxEditor implements Editor, Pictures {
   }
 
   private color(value: string | null | undefined): string | undefined {
-    if (!value) return undefined;
-    if (!value.startsWith("scheme:")) return `#${value}`;
-    const name = value.slice("scheme:".length);
-    const color = this.deck?.theme?.[SCHEME_NAMES[name] ?? name];
-    return color ? `#${color}` : undefined;
+    return colorIn(this.deck?.theme, value);
   }
 
   private drawList(): void {
@@ -333,10 +302,14 @@ class PptxEditor implements Editor, Pictures {
       }),
     );
     for (const shape of slide.behind) this.drawShape(shape, false);
-    for (const shape of [...slide.shapes].sort((left, right) => left.order - right.order)) {
+    for (const shape of slide.shapes.toSorted((left, right) => left.order - right.order)) {
       this.drawShape(shape, this.canEdit);
     }
-    this.transformer = new Konva.Transformer({ keepRatio: false, ignoreStroke: true });
+    this.transformer = new Konva.Transformer({
+      keepRatio: false,
+      ignoreStroke: true,
+      flipEnabled: false,
+    });
     layer.add(this.transformer);
     const chosen = this.selected ? this.nodeOf(this.selected) : undefined;
     if (chosen && !this.textView) this.transformer.nodes([chosen]);
@@ -464,7 +437,7 @@ class PptxEditor implements Editor, Pictures {
   private fontMeasure(): Measure {
     return {
       width: textWidth,
-      face: (font) => `"${this.deck?.theme?.[font] ?? font}", Carlito, sans-serif`,
+      face: (font) => familyIn(this.deck?.theme, font),
     };
   }
 
@@ -628,9 +601,7 @@ class PptxEditor implements Editor, Pictures {
     holder.style.padding = `${TEXT_INSET}px`;
     holder.style.transform = `scale(${scale}) rotate(${shape.rotation / ROTATION_UNITS}deg)`;
     holder.style.color = this.color("scheme:tx1") ?? "#1a1a1a";
-    this.textLook.textContent = levelRules(shape.look, this.fontMeasure(), (color) =>
-      this.color(color),
-    );
+    this.textLook.textContent = levelRules(shape.look, this.deck?.theme ?? null);
   }
 
   private closeText(): void {
@@ -662,6 +633,7 @@ class PptxEditor implements Editor, Pictures {
       look: null,
       link: null,
       order: slide.shapes.length,
+      source: null,
     };
     slide.shapes.push(shape);
     this.addText(slide.id, shape);
@@ -706,7 +678,10 @@ class PptxEditor implements Editor, Pictures {
     if (!slide) return;
     if (this.selected) {
       const shape = slide.shapes.find((known) => known.id === this.selected);
-      if (shape) this.undoes.push({ kind: "addShape", slide: slide.id, shape });
+      if (shape) {
+        const text = this.texts.get(textKey(slide.id, shape.id))?.doc.toJSON() ?? shape.text;
+        this.undoes.push({ kind: "addShape", slide: slide.id, shape: { ...shape, text } });
+      }
       const change: Change = { kind: "removeShape", slide: slide.id, shape: this.selected };
       this.selected = null;
       this.showChange(change);
@@ -784,6 +759,13 @@ class PptxEditor implements Editor, Pictures {
     if (this.current === slide && this.textShape === shape) this.textView?.updateState(next);
   }
 
+  /** A collaborator took away what these changes touch, and the document would refuse them. */
+  private forget(touching: (change: Change) => boolean): void {
+    this.outbox.move((waiting) => (touching(waiting) ? null : waiting));
+    const kept = this.undoes.filter((undo) => !touching(undo));
+    this.undoes.splice(0, this.undoes.length, ...kept);
+  }
+
   /** A view's own change is on this copy already, but for its text. */
   private showChange(change: Change, own = false, author: string = this.clientKey): void {
     const deck = this.deck;
@@ -802,7 +784,7 @@ class PptxEditor implements Editor, Pictures {
       case "shape": {
         const shape = slide?.shapes.find((known) => known.id === change.shape);
         if (!shape) break;
-        const covered = this.covered(shape.id);
+        const covered = author === this.clientKey ? new Set<string>() : this.covered(shape.id);
         Object.assign(
           shape,
           Object.fromEntries(Object.entries(change.fields).filter(([name]) => !covered.has(name))),
@@ -814,6 +796,7 @@ class PptxEditor implements Editor, Pictures {
         deck.slides.sort((left, right) => left.position - right.position);
         break;
       case "addSlide":
+        if (slide) break;
         deck.slides.push({
           id: change.slide,
           position: change.position,
@@ -826,6 +809,7 @@ class PptxEditor implements Editor, Pictures {
       case "removeSlide":
         deck.slides = deck.slides.filter((known) => known.id !== change.slide);
         if (change.slide === this.current) this.current = deck.slides[0]?.id ?? "";
+        if (author !== this.clientKey) this.forget((waiting) => touches(waiting, change.slide));
         break;
       case "addShape":
         if (slide && !slide.shapes.some((known) => known.id === change.shape.id)) {
@@ -837,12 +821,36 @@ class PptxEditor implements Editor, Pictures {
         if (slide) slide.shapes = slide.shapes.filter((known) => known.id !== change.shape);
         this.texts.delete(textKey(change.slide, change.shape));
         if (this.current === change.slide && this.textShape === change.shape) this.closeText();
+        if (author !== this.clientKey) {
+          this.forget((waiting) => touches(waiting, change.slide, change.shape));
+        }
         break;
     }
   }
 
+  /**
+   * The document can bring a shape back other than as it went, such as a box whose piece of the
+   * file went, and later steps in its text name only what the document holds.
+   */
+  private takeBack(change: Change): void {
+    if (change.kind === "group") {
+      for (const inner of change.changes) this.takeBack(inner);
+      return;
+    }
+    if (change.kind !== "addShape") return;
+    const slide = this.deck?.slides.find((known) => known.id === change.slide);
+    const index = slide?.shapes.findIndex((known) => known.id === change.shape.id) ?? -1;
+    if (!slide || index < 0 || slide.shapes[index]?.source === change.shape.source) return;
+    slide.shapes[index] = change.shape;
+    this.addText(slide.id, change.shape);
+    this.redraw();
+  }
+
   apply(changed: Changed, own: boolean): void {
-    if (own) this.outbox.answered();
+    if (own) {
+      this.outbox.answered();
+      this.takeBack(changed.body as Change);
+    }
     this.showChange(changed.body as Change, own, own ? this.clientKey : changed.client);
     if (own) return;
     this.drawList();

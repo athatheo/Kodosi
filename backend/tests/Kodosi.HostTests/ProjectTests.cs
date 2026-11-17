@@ -134,8 +134,7 @@ internal sealed class EventSocket : FakeSocket
     public async Task<JsonElement> NextAsync()
     {
         var bytes = await frames.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        using var json = JsonDocument.Parse(bytes);
-        return json.RootElement.Clone();
+        return JsonElement.Parse(bytes);
     }
     public async Task<string?> NextSurfaceAsync() => (await NextAsync()).GetProperty("surface").GetString();
 }

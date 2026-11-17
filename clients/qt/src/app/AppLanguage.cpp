@@ -4,6 +4,7 @@
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QTranslator>
+#include <array>
 #include <utility>
 
 namespace kodosi::AppLanguage {
@@ -12,6 +13,24 @@ namespace {
 QString g_current = QStringLiteral("en");
 QTranslator* g_own = nullptr;
 QTranslator* g_qt = nullptr;
+
+// Kodosi gives these texts of Qt their words, because Qt has no Greek words and words its text
+// menu only in German. Qt's own words come first, as its translator is installed last.
+[[maybe_unused]] constexpr std::array qtTexts {
+    QT_TRANSLATE_NOOP("QPlatformTheme", "OK"),
+    QT_TRANSLATE_NOOP("QPlatformTheme", "Cancel"),
+    QT_TRANSLATE_NOOP("QPlatformTheme", "Close"),
+    QT_TRANSLATE_NOOP("QGnomeTheme", "&OK"),
+    QT_TRANSLATE_NOOP("QGnomeTheme", "&Cancel"),
+    QT_TRANSLATE_NOOP("QGnomeTheme", "&Close"),
+    QT_TRANSLATE_NOOP("UndoAction", "Undo"),
+    QT_TRANSLATE_NOOP("RedoAction", "Redo"),
+    QT_TRANSLATE_NOOP("CutAction", "Cut"),
+    QT_TRANSLATE_NOOP("CopyAction", "Copy"),
+    QT_TRANSLATE_NOOP("PasteAction", "Paste"),
+    QT_TRANSLATE_NOOP("DeleteAction", "Delete"),
+    QT_TRANSLATE_NOOP("SelectAllAction", "Select All"),
+};
 
 // Qt names Simplified Chinese by its region.
 QString qtName(const QString& tag)

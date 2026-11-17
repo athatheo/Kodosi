@@ -4,6 +4,7 @@ import SwiftUI
 struct BrowserInputArea {
     let feed: BrowserFeed
     let typing: Bool
+    let ask: CanvasAsk?
 }
 
 private extension BrowserFeed {
@@ -54,19 +55,96 @@ extension BrowserKeys {
 
         func updateNSView(_ view: BrowserInputView, context _: Context) {
             view.feed = feed
+            view.ask = ask
             view.show(shape: feed.window.shape)
+            view.show(menu: feed.window.menu)
         }
     }
 
     final class BrowserInputView: NSView {
         var feed: BrowserFeed
+        var ask: CanvasAsk?
         private var shape = ""
+        private var pageMenu: BrowserWindow.Menu?
+        private var shownMenu: NSMenu?
 
         func show(shape: String) {
             if shape != self.shape {
                 self.shape = shape
                 window?.invalidateCursorRects(for: self)
             }
+        }
+
+        func show(menu: BrowserWindow.Menu?) {
+            guard menu != pageMenu else { return }
+            pageMenu = menu
+            if let shownMenu {
+                shownMenu.cancelTracking()
+            } else if let menu {
+                Task { [weak self] in self?.pop(menu) }
+            }
+        }
+
+        /// A page opens its list on the press, so the menu can come while the button is still
+        /// down; the menu then takes the release, and the page gets it here instead.
+        private func pop(_ menu: BrowserWindow.Menu) {
+            guard menu == pageMenu, shownMenu == nil, window != nil,
+                  let place = feed.viewPoint(x: menu.x, y: menu.y, in: bounds.size) else { return }
+            let held = NSEvent.pressedMouseButtons
+            for (bit, button) in [(0, BrowserInput.MouseButton.left), (1, .right), (2, .middle)] where held & 1 << bit != 0 {
+                feed.send(.mouse(.mouseReleased, x: menu.x, y: menu.y, button: button, clicks: 1))
+            }
+            let native = menu.context.map { context in contextMenu(menu, context) } ?? list(menu)
+            shownMenu = native
+            let chose = native.popUp(positioning: native.items.first { $0.state == .on }, at: place, in: self)
+            shownMenu = nil
+            if menu == pageMenu {
+                if !chose {
+                    feed.send(.choose(menu: menu.id, choice: nil))
+                }
+            } else if let next = pageMenu {
+                Task { [weak self] in self?.pop(next) }
+            }
+        }
+
+        private func list(_ menu: BrowserWindow.Menu) -> NSMenu {
+            let native = NSMenu()
+            native.autoenablesItems = false
+            for (index, item) in menu.items.enumerated() {
+                let entry = MenuAction.item(item.label, enabled: item.enabled) { [feed] in
+                    feed.send(.choose(menu: menu.id, choice: index))
+                }
+                entry.state = item.chosen ? .on : .off
+                native.addItem(entry)
+            }
+            return native
+        }
+
+        private func contextMenu(_ menu: BrowserWindow.Menu, _ context: BrowserWindow.MenuContext) -> NSMenu {
+            let native = NSMenu()
+            native.autoenablesItems = false
+            let feed = feed
+            native.addItem(MenuAction.item(String(localized: "Copy", bundle: .module), enabled: !context.selection.isEmpty) {
+                feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copySelection))
+            })
+            if context.link != nil {
+                native.addItem(MenuAction.item(String(localized: "Copy Link", bundle: .module)) {
+                    feed.send(.choose(menu: menu.id, choice: BrowserWindow.MenuContext.copyLink))
+                })
+            }
+            let paste = NSMenuItem(title: String(localized: "Paste", bundle: .module), action: #selector(paste(_:)), keyEquivalent: "")
+            paste.target = self
+            paste.representedObject = menu.id
+            paste.isEnabled = NSPasteboard.general.availableType(from: [.string]) != nil
+            native.addItem(paste)
+            if let ask {
+                native.addItem(.separator())
+                native.addItem(MenuAction.item(ask.title) {
+                    feed.send(.choose(menu: menu.id, choice: nil))
+                    ask.send(context.words)
+                })
+            }
+            return native
         }
 
         init(feed: BrowserFeed) {
@@ -91,22 +169,38 @@ extension BrowserKeys {
             true
         }
 
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: Self.cursor(feed.window.shape))
-        }
+        private static let cursors: [String: NSCursor] = [
+            "pointer": .pointingHand,
+            "text": .iBeam,
+            "vertical-text": .iBeamCursorForVerticalLayout,
+            "crosshair": .crosshair,
+            "cell": .crosshair,
+            "context-menu": .contextualMenu,
+            "alias": .dragLink,
+            "copy": .dragCopy,
+            "grab": .openHand,
+            "grabbing": .closedHand,
+            "not-allowed": .operationNotAllowed,
+            "col-resize": .columnResize,
+            "ew-resize": .columnResize,
+            "w-resize": .columnResize(directions: .left),
+            "e-resize": .columnResize(directions: .right),
+            "row-resize": .rowResize,
+            "ns-resize": .rowResize,
+            "n-resize": .rowResize(directions: .up),
+            "s-resize": .rowResize(directions: .down),
+            "ne-resize": .frameResize(position: .topRight, directions: .all),
+            "nesw-resize": .frameResize(position: .topRight, directions: .all),
+            "nw-resize": .frameResize(position: .topLeft, directions: .all),
+            "nwse-resize": .frameResize(position: .topLeft, directions: .all),
+            "se-resize": .frameResize(position: .bottomRight, directions: .all),
+            "sw-resize": .frameResize(position: .bottomLeft, directions: .all),
+            "zoom-in": .zoomIn,
+            "zoom-out": .zoomOut,
+        ]
 
-        private static func cursor(_ shape: String) -> NSCursor {
-            switch shape {
-            case "pointer": .pointingHand
-            case "text", "vertical-text": .iBeam
-            case "crosshair": .crosshair
-            case "grab": .openHand
-            case "grabbing": .closedHand
-            case "not-allowed": .operationNotAllowed
-            case "col-resize", "ew-resize", "e-resize", "w-resize": .resizeLeftRight
-            case "row-resize", "ns-resize", "n-resize", "s-resize": .resizeUpDown
-            default: .arrow
-            }
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: Self.cursors[feed.window.shape] ?? .arrow)
         }
 
         override func updateTrackingAreas() {
@@ -174,7 +268,12 @@ extension BrowserKeys {
             key(event, down: false)
         }
 
-        @objc func paste(_: Any?) {
+        /// macOS asks the person before an app reads the pasteboard, unless one of their pastes
+        /// reads it, so a menu looks only at the type and its Paste is the paste action.
+        @objc func paste(_ sender: Any?) {
+            if let menu = (sender as? NSMenuItem)?.representedObject as? Int {
+                feed.send(.choose(menu: menu, choice: nil))
+            }
             if let text = NSPasteboard.general.string(forType: .string), !text.isEmpty {
                 feed.send(.text(text))
             }
@@ -229,6 +328,29 @@ extension BrowserKeys {
         }
     }
 
+    @MainActor
+    private final class MenuAction: NSObject {
+        private let run: () -> Void
+
+        private init(_ run: @escaping () -> Void) {
+            self.run = run
+        }
+
+        @objc private func choose() {
+            run()
+        }
+
+        /// A menu item holds its target weakly, so the item also keeps it.
+        static func item(_ title: String, enabled: Bool = true, run: @escaping () -> Void) -> NSMenuItem {
+            let action = MenuAction(run)
+            let item = NSMenuItem(title: title, action: #selector(choose), keyEquivalent: "")
+            item.target = action
+            item.representedObject = action
+            item.isEnabled = enabled
+            return item
+        }
+    }
+
 #else
     import UIKit
 
@@ -255,7 +377,14 @@ extension BrowserKeys {
             self.feed = feed
             super.init(frame: .zero)
             backgroundColor = .clear
-            addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+            let hold = UILongPressGestureRecognizer(target: self, action: #selector(held))
+            let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            tap.require(toFail: hold)
+            let secondary = UITapGestureRecognizer(target: self, action: #selector(held))
+            secondary.buttonMaskRequired = .secondary
+            addGestureRecognizer(hold)
+            addGestureRecognizer(tap)
+            addGestureRecognizer(secondary)
             let pan = UIPanGestureRecognizer(target: self, action: #selector(panning))
             pan.allowedScrollTypesMask = .all
             addGestureRecognizer(pan)
@@ -320,6 +449,13 @@ extension BrowserKeys {
             guard let point = feed.browserPoint(gesture.location(in: self), in: bounds.size) else { return }
             feed.send(.mouse(.mousePressed, x: point.x, y: point.y, button: .left, clicks: 1))
             feed.send(.mouse(.mouseReleased, x: point.x, y: point.y, button: .left, clicks: 1))
+        }
+
+        @objc private func held(_ gesture: UIGestureRecognizer) {
+            guard gesture.state == (gesture is UILongPressGestureRecognizer ? .began : .ended),
+                  let point = feed.browserPoint(gesture.location(in: self), in: bounds.size) else { return }
+            feed.send(.mouse(.mousePressed, x: point.x, y: point.y, button: .right, clicks: 1))
+            feed.send(.mouse(.mouseReleased, x: point.x, y: point.y, button: .right, clicks: 1))
         }
 
         @objc private func panning(_ gesture: UIPanGestureRecognizer) {

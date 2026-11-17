@@ -6,7 +6,7 @@ extension PresenceSource {
         isActive: { NSApp?.isActive == true },
         secondsSinceInput: secondsSinceSystemInput,
         after: { seconds, action in
-            let task = Task { @MainActor in
+            let task = Task {
                 try? await Task.sleep(for: .seconds(max(seconds, 0)))
                 guard !Task.isCancelled else { return }
                 action()
@@ -20,7 +20,6 @@ extension PresenceSource {
     )
 }
 
-@MainActor
 private func secondsSinceSystemInput() -> TimeInterval {
     CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0) ?? .null)
 }
@@ -28,7 +27,6 @@ private func secondsSinceSystemInput() -> TimeInterval {
 /// Without the Accessibility permission macOS gives a global monitor no keys. The mouse, the keys
 /// in Kodosi and a change of the app in front tell at once that the person is back, and the time
 /// since the last input, read again and again, tells it for a person who only types in another app.
-@MainActor
 private final class InputWatch {
     private static let input: NSEvent.EventTypeMask = [
         .mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel, .keyDown, .flagsChanged,
@@ -36,8 +34,8 @@ private final class InputWatch {
     private static let readAgain: TimeInterval = 10
 
     private var monitors: [Any] = []
-    private var activation: NSObjectProtocol?
-    private var reading: DispatchSourceTimer?
+    private var activation: any NSObjectProtocol?
+    private var reading: any DispatchSourceTimer?
 
     init(_ action: @escaping @MainActor () -> Void) {
         let fire: @MainActor () -> Void = { [weak self] in
@@ -84,7 +82,6 @@ private final class InputWatch {
 /// macOS has no API for the lock of the screen, so Kodosi takes each sign of it: the loss of
 /// protected data, and the notifications and the session value that the login window gives for a
 /// locked screen, which other apps also use for want of an API.
-@MainActor
 enum SystemPresenceSignals {
     static func observe(_ reporter: PresenceReporter) {
         let session = CGSessionCopyCurrentDictionary() as? [String: Any]

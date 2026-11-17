@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -367,12 +366,11 @@ private fun TrustChoices(account: AccountStore, reset: () -> Unit) {
 
 @Composable
 private fun RecoveryKeyField(recover: (String) -> Unit) {
-    var key by rememberSaveable { mutableStateOf("") }
+    val key = rememberTextFieldState()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         KodosiField(
-            value = key,
-            onValueChange = { key = it },
-            singleLine = true,
+            key,
+            lineLimits = TextFieldLineLimits.SingleLine,
             placeholder = stringResource(R.string.recovery_key),
             textStyle = KodosiType.callout.copy(fontFamily = FontFamily.Monospace),
             keyboardOptions = KeyboardOptions(
@@ -380,10 +378,14 @@ private fun RecoveryKeyField(recover: (String) -> Unit) {
                 autoCorrectEnabled = false,
                 imeAction = ImeAction.Go
             ),
-            keyboardActions = KeyboardActions(onGo = { if (key.isNotBlank()) recover(key) }),
+            onKeyboardAction = { if (key.text.isNotBlank()) recover(key.text.toString()) },
             modifier = Modifier.fillMaxWidth()
         )
-        KodosiButton(stringResource(R.string.approve), onClick = { recover(key) }, enabled = key.isNotBlank())
+        KodosiButton(
+            stringResource(R.string.approve),
+            onClick = { recover(key.text.toString()) },
+            enabled = key.text.isNotBlank()
+        )
     }
 }
 

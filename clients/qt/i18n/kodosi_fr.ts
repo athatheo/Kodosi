@@ -492,6 +492,14 @@
         <translation>Adresse</translation>
     </message>
     <message>
+        <source>This terminal is shared, so its browser has its own sign-ins, apart from yours. Everyone in the terminal uses them.</source>
+        <translation>Ce terminal est partagé : son navigateur a donc ses propres connexions, distinctes des vôtres. Tout le monde dans le terminal les utilise.</translation>
+    </message>
+    <message>
+        <source>Shared</source>
+        <translation>Partagé</translation>
+    </message>
+    <message>
         <source>%1 tabs</source>
         <translation>%1 onglets</translation>
     </message>
@@ -506,6 +514,18 @@
     <message>
         <source>Shared browser</source>
         <translation>Navigateur partagé</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copier</translation>
+    </message>
+    <message>
+        <source>Copy link</source>
+        <translation>Copier le lien</translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation>Coller</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -802,6 +822,20 @@
     </message>
 </context>
 <context>
+    <name>CopyAction</name>
+    <message>
+        <source>Copy</source>
+        <translation>Copier</translation>
+    </message>
+</context>
+<context>
+    <name>CutAction</name>
+    <message>
+        <source>Cut</source>
+        <translation>Couper</translation>
+    </message>
+</context>
+<context>
     <name>DeepLinkRouter</name>
     <message>
         <source>The link is too long to open safely.</source>
@@ -822,6 +856,13 @@
     <message>
         <source>Kodosi could not open this link.</source>
         <translation>Kodosi n&apos;a pas pu ouvrir ce lien.</translation>
+    </message>
+</context>
+<context>
+    <name>DeleteAction</name>
+    <message>
+        <source>Delete</source>
+        <translation>Supprimer</translation>
     </message>
 </context>
 <context>
@@ -2382,6 +2423,13 @@
     </message>
 </context>
 <context>
+    <name>PasteAction</name>
+    <message>
+        <source>Paste</source>
+        <translation>Coller</translation>
+    </message>
+</context>
+<context>
     <name>PeopleView</name>
     <message>
         <source>Friends can join your terminals</source>
@@ -2769,6 +2817,14 @@
         <translation>Copiez les instructions. Collez-les dans votre agent.</translation>
     </message>
     <message>
+        <source>Chat options</source>
+        <translation>Options du chat</translation>
+    </message>
+    <message>
+        <source>Clear chat…</source>
+        <translation>Effacer le chat…</translation>
+    </message>
+    <message>
         <source>The conversation did not load</source>
         <translation>La conversation n&apos;a pas pu être chargée</translation>
     </message>
@@ -2805,6 +2861,10 @@
         <translation>Kodosi a retiré les messages les plus anciens pour faire de la place aux nouveaux.</translation>
     </message>
     <message>
+        <source>Message deleted</source>
+        <translation>Message supprimé</translation>
+    </message>
+    <message>
         <source>for %1</source>
         <translation>pour %1</translation>
     </message>
@@ -2832,6 +2892,14 @@
         <source>Report…</source>
         <translation>Signaler…</translation>
     </message>
+    <message>
+        <source>Message options</source>
+        <translation>Options du message</translation>
+    </message>
+    <message>
+        <source>Delete message…</source>
+        <translation>Supprimer le message…</translation>
+    </message>
     <message numerus="yes">
         <source>%n new</source>
         <translation>
@@ -2854,6 +2922,30 @@
     <message>
         <source>Send message</source>
         <translation>Envoyer le message</translation>
+    </message>
+    <message>
+        <source>Delete this message?</source>
+        <translation>Supprimer ce message&#xa0;?</translation>
+    </message>
+    <message>
+        <source>Delete message</source>
+        <translation>Supprimer le message</translation>
+    </message>
+    <message>
+        <source>Everyone in the project sees that a message was deleted.</source>
+        <translation>Tous les membres du projet voient qu&apos;un message a été supprimé.</translation>
+    </message>
+    <message>
+        <source>Clear the chat for you?</source>
+        <translation>Effacer le chat pour vous&#xa0;?</translation>
+    </message>
+    <message>
+        <source>Clear chat</source>
+        <translation>Effacer le chat</translation>
+    </message>
+    <message>
+        <source>The messages up to now disappear from all your devices. Everyone else keeps them.</source>
+        <translation>Les messages jusqu&apos;à maintenant disparaissent de tous vos appareils. Les autres les conservent.</translation>
     </message>
 </context>
 <context>
@@ -3141,6 +3233,36 @@
     </message>
 </context>
 <context>
+    <name>QGnomeTheme</name>
+    <message>
+        <source>&amp;OK</source>
+        <translation>&amp;OK</translation>
+    </message>
+    <message>
+        <source>&amp;Cancel</source>
+        <translation>&amp;Annuler</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>&amp;Fermer</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fermer</translation>
+    </message>
+</context>
+<context>
     <name>QuitDialog</name>
     <message>
         <source>Restart Kodosi?</source>
@@ -3164,6 +3286,13 @@
             <numerusform>%n terminal de cet ordinateur s&apos;arrête. Il redémarre à l&apos;ouverture de Kodosi.</numerusform>
             <numerusform>%n terminaux de cet ordinateur s&apos;arrêtent. Ils redémarrent à l&apos;ouverture de Kodosi.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>RedoAction</name>
+    <message>
+        <source>Redo</source>
+        <translation>Rétablir</translation>
     </message>
 </context>
 <context>
@@ -3236,6 +3365,13 @@
     <message>
         <source>No repositories found</source>
         <translation>Aucun dépôt trouvé</translation>
+    </message>
+</context>
+<context>
+    <name>SelectAllAction</name>
+    <message>
+        <source>Select All</source>
+        <translation>Tout sélectionner</translation>
     </message>
 </context>
 <context>
@@ -4125,6 +4261,13 @@
     <message>
         <source>Fast mode</source>
         <translation>Mode rapide</translation>
+    </message>
+</context>
+<context>
+    <name>UndoAction</name>
+    <message>
+        <source>Undo</source>
+        <translation>Annuler</translation>
     </message>
 </context>
 <context>

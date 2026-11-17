@@ -74,6 +74,7 @@ fn received_content_requires_the_signed_identity_metadata_and_matching_project_k
         kind: "message".into(),
         version: 1,
         sequence: 1,
+        position: 1,
         key_version: 1,
         user_id: user,
         device_id: keys.device_id.clone(),
@@ -98,10 +99,8 @@ fn received_content_requires_the_signed_identity_metadata_and_matching_project_k
     missing.states.clear();
     assert!(BackendClient::project_payload(&missing, project, &item).is_err());
     content.epoch = 2;
-    let (body, signature) =
+    (changed.body, changed.signature) =
         project_crypto::sign(project_crypto::CONTENT_DOMAIN, &keys, &content).unwrap();
-    changed.body = body;
-    changed.signature = signature;
     assert!(BackendClient::project_payload(&cached, project, &changed).is_err());
 }
 
@@ -257,8 +256,7 @@ fn recipient_key(keys: &DeviceKeys, user: &str) -> RecipientKey {
         user_id: user.to_owned(),
         device_id: keys.device_id.clone(),
         public_key: BASE64.encode(keys.project_public()),
-        signature: BASE64
-            .encode(crypto::sign_control_message(keys.signing_pkcs8(), &proof).unwrap()),
+        signature: BASE64.encode(crypto::sign(keys.signing_key(), &proof).unwrap()),
     }
 }
 
@@ -592,12 +590,15 @@ struct FakeProject {
     items: std::sync::Mutex<Vec<Value>>,
     requests: std::sync::Mutex<Vec<String>>,
     trimmed: AtomicBool,
+    cleared: AtomicU64,
 }
 
 impl FakeProject {
     fn add(&self, id: Uuid, version: u64, payload: &Payload) -> u64 {
         let kind = match payload {
-            Payload::Message { .. } | Payload::Dosi { .. } => "message",
+            Payload::Message { .. } | Payload::DeletedMessage { .. } | Payload::Dosi { .. } => {
+                "message"
+            }
             Payload::Task { .. } | Payload::DosiInstructions { .. } => "task",
             Payload::Repository { .. } => "repository",
         };
@@ -618,16 +619,30 @@ impl FakeProject {
             .unwrap();
         let (body, signature) =
             project_crypto::sign(project_crypto::CONTENT_DOMAIN, &self.keys, &content).unwrap();
-        self.store(id, kind, version, &body, &signature)
+        self.store(id, kind, version, &body, &signature)["sequence"]
+            .as_u64()
+            .unwrap()
     }
 
-    fn store(&self, id: Uuid, kind: &str, version: u64, body: &str, signature: &str) -> u64 {
+    fn sequence(items: &[Value]) -> u64 {
+        items
+            .iter()
+            .filter_map(|item| item["sequence"].as_u64())
+            .max()
+            .unwrap_or_default()
+    }
+
+    fn store(&self, id: Uuid, kind: &str, version: u64, body: &str, signature: &str) -> Value {
         let mut items = self.items.lock().unwrap();
-        let sequence = items.len() as u64 + 1;
-        items.push(json!({"id":id,"kind":kind,"version":version,"sequence":sequence,"keyVersion":1,
-            "userId":self.user,"deviceId":self.keys.device_id,"createdAt":"now","body":body,"signature":signature}));
-        drop(items);
-        sequence
+        let sequence = Self::sequence(&items) + 1;
+        let mut item = json!({"id":id,"kind":kind,"version":version,"sequence":sequence,"position":sequence,
+            "keyVersion":1,"userId":self.user,"deviceId":self.keys.device_id,"createdAt":"now","body":body,
+            "signature":signature});
+        if let Some(index) = items.iter().position(|kept| kept["id"] == id.to_string()) {
+            item["position"] = items.remove(index)["position"].clone();
+        }
+        items.push(item.clone());
+        item
     }
 
     fn page(&self, query: &str) -> Value {
@@ -638,25 +653,35 @@ impl FakeProject {
         };
         let number = |name: &str| field(name).and_then(|value| value.parse::<u64>().ok());
         let items = self.items.lock().unwrap().clone();
+        let cleared = self.cleared.load(Ordering::Relaxed);
+        let order = if field("before").is_some() {
+            "position"
+        } else {
+            "sequence"
+        };
         let mut selected = items
             .iter()
             .filter(|item| field("kind").is_none_or(|kind| item["kind"] == kind))
+            .filter(|item| {
+                item["kind"] != "message" || item["position"].as_u64().unwrap() > cleared
+            })
             .filter(|item| item["sequence"].as_u64().unwrap() > number("after").unwrap_or(0))
             .filter(|item| {
-                number("before").is_none_or(|before| item["sequence"].as_u64().unwrap() < before)
+                number("before").is_none_or(|before| item["position"].as_u64().unwrap() < before)
             })
             .cloned()
             .collect::<Vec<_>>();
+        selected.sort_by_key(|item| item[order].as_u64().unwrap());
         if field("before").is_some() {
             selected.reverse();
         }
         let limit = usize::try_from(number("limit").unwrap_or(100)).unwrap();
         let has_more = selected.len() > limit;
         selected.truncate(limit);
-        selected.sort_by_key(|item| item["sequence"].as_u64().unwrap());
+        selected.sort_by_key(|item| item[order].as_u64().unwrap());
         let trimmed = self.trimmed.load(Ordering::Relaxed);
-        json!({"projectId":self.project,"sequence":items.len(),"keyVersion":1,"hasMore":has_more,
-            "historyTrimmed":trimmed,"items":selected})
+        json!({"projectId":self.project,"sequence":Self::sequence(&items),"keyVersion":1,"hasMore":has_more,
+            "historyTrimmed":trimmed,"clearedPosition":cleared,"items":selected})
     }
 
     fn answer(&self, line: &str, body: &[u8]) -> Value {
@@ -675,17 +700,21 @@ impl FakeProject {
             return self.page(query);
         }
         let written: Value = serde_json::from_slice(body).unwrap();
+        if path.ends_with("/cleared") {
+            let position = written["position"].as_u64().unwrap();
+            self.cleared.fetch_max(position, Ordering::Relaxed);
+            return Value::Null;
+        }
         let encoded = written["body"].as_str().unwrap();
         let content: Value = serde_json::from_slice(&BASE64.decode(encoded).unwrap()).unwrap();
         let id = Uuid::parse_str(path.rsplit('/').next().unwrap()).unwrap();
-        let sequence = self.store(
+        self.store(
             id,
             content["kind"].as_str().unwrap(),
             content["version"].as_u64().unwrap(),
             encoded,
             written["signature"].as_str().unwrap(),
-        );
-        self.items.lock().unwrap()[usize::try_from(sequence).unwrap() - 1].clone()
+        )
     }
 
     fn take_requests(&self) -> Vec<String> {
@@ -714,6 +743,7 @@ async fn fake_project() -> (
         items: std::sync::Mutex::default(),
         requests: std::sync::Mutex::default(),
         trimmed: AtomicBool::default(),
+        cleared: AtomicU64::default(),
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -887,7 +917,7 @@ async fn a_project_tells_when_the_server_removed_its_oldest_messages() {
     let shown = network.show_project(&credentials, project).await.unwrap();
     assert!(shown.history_trimmed);
     let older = network
-        .older_messages(&credentials, project, shown.messages[0].sequence)
+        .older_messages(&credentials, project, shown.messages[0].position)
         .await
         .unwrap();
     assert!(older.history_trimmed && !older.has_older);
@@ -957,31 +987,257 @@ async fn a_post_keeps_its_own_item_and_reads_only_what_others_wrote_in_between()
     );
 }
 
+async fn act(
+    network: &BackendClient,
+    credentials: &Credentials,
+    project: Uuid,
+    action: Value,
+) -> Snapshot {
+    *network.inner.credentials.write().unwrap() = Some(credentials.clone());
+    let mut cache = network.inner.projects.lock().await;
+    cache.projects.get_mut(&project).unwrap().members_checked = Some(tokio::time::Instant::now());
+    drop(cache);
+    let events = network
+        .act_in_project(&json!({"projectId":project,"requestId":Uuid::now_v7(),"action":action}))
+        .await
+        .unwrap();
+    serde_json::from_value(events[0]["content"].clone()).unwrap()
+}
+
+fn kept(snapshot: &Snapshot) -> Vec<(u64, &str, bool, Option<&str>)> {
+    snapshot
+        .messages
+        .iter()
+        .map(|message| {
+            (
+                message.position,
+                message.text.as_str(),
+                message.deleted,
+                message.agent.as_deref(),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_deleted_message_keeps_its_place_and_loses_its_text_on_every_device() {
+    let (_root, network, credentials, fake) = fake_project().await;
+    let project = fake.project;
+    let (mine, theirs) = (Uuid::now_v7(), Uuid::now_v7());
+    let by_agent = Payload::Message {
+        text: "two".into(),
+        author_name: "Alice".into(),
+        agent: Some("Claude".into()),
+        terminal_id: None,
+    };
+    fake.add(Uuid::now_v7(), 1, &message("one"));
+    fake.add(mine, 1, &by_agent);
+    fake.add(theirs, 1, &message("three"));
+    network
+        .sync_project(&credentials, project, None)
+        .await
+        .unwrap();
+    network.show_project(&credentials, project).await.unwrap();
+
+    let deleted = act(
+        &network,
+        &credentials,
+        project,
+        json!({"type":"deleteMessage","messageId":mine}),
+    )
+    .await;
+    assert_eq!(
+        kept(&deleted),
+        [
+            (1, "one", false, None),
+            (2, "", true, Some("Claude")),
+            (3, "three", false, None)
+        ]
+    );
+    fake.add(theirs, 2, &Payload::DeletedMessage { agent: None });
+    fake.add(mine, 1, &by_agent);
+    assert!(
+        network
+            .sync_project(&credentials, project, None)
+            .await
+            .unwrap()
+    );
+    let shown = network.show_project(&credentials, project).await.unwrap();
+    assert_eq!(
+        kept(&shown),
+        [
+            (1, "one", false, None),
+            (2, "", true, Some("Claude")),
+            (3, "", true, None)
+        ],
+        "a server that serves a deleted message again does not bring back its text"
+    );
+}
+
+#[tokio::test]
+async fn a_clear_hides_the_conversation_up_to_now_and_the_messages_before_it() {
+    let (_root, network, credentials, fake) = fake_project().await;
+    let project = fake.project;
+    for number in 0..=SHOWN_MESSAGES {
+        fake.add(Uuid::now_v7(), 1, &message(&number.to_string()));
+    }
+    network
+        .sync_project(&credentials, project, None)
+        .await
+        .unwrap();
+    assert!(
+        network
+            .show_project(&credentials, project)
+            .await
+            .unwrap()
+            .has_older
+    );
+
+    let cleared = act(
+        &network,
+        &credentials,
+        project,
+        json!({"type":"clearConversation"}),
+    )
+    .await;
+    let position = u64::try_from(SHOWN_MESSAGES).unwrap() + 1;
+    assert_eq!(
+        (
+            cleared.messages.len(),
+            cleared.cleared_position,
+            cleared.has_older
+        ),
+        (0, position, false)
+    );
+    fake.add(Uuid::now_v7(), 1, &message("after"));
+    assert!(
+        network
+            .sync_project(&credentials, project, None)
+            .await
+            .unwrap()
+    );
+    let shown = network.show_project(&credentials, project).await.unwrap();
+    assert_eq!(kept(&shown), [(position + 1, "after", false, None)]);
+}
+
+fn message_at(position: u64, deleted: bool) -> projects::Message {
+    projects::Message {
+        id: position.to_string(),
+        position,
+        author_id: "user".into(),
+        author_name: "Alice".into(),
+        agent: None,
+        terminal_id: None,
+        text: String::new(),
+        deleted,
+        created_at: String::new(),
+    }
+}
+
+#[test]
+fn a_change_of_a_message_before_the_newest_reaches_only_the_apps_that_keep_it() {
+    let project = Uuid::now_v7();
+    let mut content = Content {
+        has_older: true,
+        ..Content::default()
+    };
+    for position in 51..=250 {
+        content.keep(message_at(position, false));
+    }
+    content.remember_shown(&message_at(10, false));
+    content.show(project);
+    for position in [10, 60, 200] {
+        content.keep(message_at(position, true));
+    }
+    let shown = content.show(project);
+    assert_eq!(
+        shown
+            .replacements
+            .iter()
+            .map(|message| (message.position, message.deleted))
+            .collect::<Vec<_>>(),
+        [(10, true), (60, true)]
+    );
+    assert!(
+        shown
+            .messages
+            .iter()
+            .any(|message| message.position == 200 && message.deleted)
+    );
+    assert!(content.messages[&60].deleted && !content.messages.contains_key(&10));
+    assert_eq!(content.show(project).replacements, Vec::new());
+}
+
+#[test]
+fn a_deletion_changes_only_the_message_of_its_own_id_and_author() {
+    let project = Uuid::now_v7();
+    let mut content = Content {
+        has_older: true,
+        ..Content::default()
+    };
+    for position in 51..=60 {
+        content.keep(message_at(position, false));
+    }
+    content.show(project);
+    let mut elsewhere = message_at(52, true);
+    elsewhere.position = 51;
+    let mut other_author = message_at(53, true);
+    other_author.author_id = "someone else".into();
+    let mut never_shown = message_at(52, true);
+    never_shown.position = 10;
+    let mut other_older = message_at(20, true);
+    other_older.author_id = "someone else".into();
+    let mut page = Content::default();
+    for position in [20, 30] {
+        page.keep(message_at(position, false));
+    }
+    let mut cache = ProjectCache::default();
+    cache.contents.insert(project, content);
+    cache.remember_older(project, &page);
+    let content = cache.contents.get_mut(&project).unwrap();
+    for deletion in [
+        elsewhere,
+        other_author,
+        never_shown,
+        other_older,
+        message_at(54, true),
+        message_at(30, true),
+    ] {
+        content.keep(deletion);
+    }
+    let shown = content.show(project);
+    assert_eq!(
+        shown
+            .messages
+            .iter()
+            .filter(|message| message.deleted)
+            .map(|message| message.position)
+            .collect::<Vec<_>>(),
+        [54]
+    );
+    assert_eq!(
+        shown
+            .replacements
+            .iter()
+            .map(|message| message.position)
+            .collect::<Vec<_>>(),
+        [30]
+    );
+}
+
 #[test]
 fn a_snapshot_has_the_newest_hundred_messages_and_every_message_not_shown_yet() {
     let project = Uuid::now_v7();
     let mut content = Content::default();
-    let add = |content: &mut Content, sequences: std::ops::RangeInclusive<u64>| {
-        for sequence in sequences {
-            content.messages.insert(
-                sequence,
-                projects::Message {
-                    id: sequence.to_string(),
-                    sequence,
-                    author_id: "user".into(),
-                    author_name: "Alice".into(),
-                    agent: None,
-                    terminal_id: None,
-                    text: String::new(),
-                    created_at: String::new(),
-                },
-            );
+    let add = |content: &mut Content, positions: std::ops::RangeInclusive<u64>| {
+        for position in positions {
+            content.keep(message_at(position, false));
         }
         content.trim();
     };
     let range = |snapshot: &Snapshot| {
         (
-            snapshot.messages.first().map(|m| m.sequence),
+            snapshot.messages.first().map(|m| m.position),
             snapshot.messages.len(),
             snapshot.has_older,
         )
@@ -997,7 +1253,7 @@ fn a_snapshot_has_the_newest_hundred_messages_and_every_message_not_shown_yet() 
         content
             .messages
             .first_key_value()
-            .map(|(sequence, _)| *sequence),
+            .map(|(position, _)| *position),
         Some(276)
     );
     assert_eq!(range(&content.show(project)), (Some(276), 1025, true));

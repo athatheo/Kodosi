@@ -12,7 +12,6 @@ struct LauncherDraft: Equatable {
     var remoteFolders: [String: String] = [:]
 }
 
-@MainActor
 @Observable
 final class WorkbenchState {
     enum Section {

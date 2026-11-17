@@ -10,6 +10,7 @@ import {
   opensLink,
   type Person,
   type Pictures,
+  type Sent,
   Status,
   settled,
 } from "@documents/client";
@@ -45,9 +46,11 @@ import {
   movesLines,
   type Place,
   rangeOf,
+  SheetFitting,
   type SheetLink,
   type Snapshot,
   touches,
+  withoutSheet,
 } from "./change";
 import { SheetControl } from "./control";
 import { fromUniver, toUniver, type UniverStyle } from "./look";
@@ -287,6 +290,8 @@ function sizes(
 }
 
 class XlsxEditor implements Editor, Pictures {
+  private readonly root: HTMLElement;
+  private readonly client: Client;
   private readonly canvas: HTMLElement;
   private readonly marks: HTMLElement;
   private readonly status: Status;
@@ -311,10 +316,9 @@ class XlsxEditor implements Editor, Pictures {
   /** The keys that the person held at the last press, which Univer's click does not carry. */
   private pressed: Pick<MouseEvent, "metaKey" | "ctrlKey"> = { metaKey: false, ctrlKey: false };
 
-  constructor(
-    private readonly root: HTMLElement,
-    private readonly client: Client,
-  ) {
+  constructor(root: HTMLElement, client: Client) {
+    this.root = root;
+    this.client = client;
     this.status = new Status(root);
     this.bar = new XlsxBar(root, this.status.element);
     root.append(this.bar.element);
@@ -341,7 +345,14 @@ class XlsxEditor implements Editor, Pictures {
     return scheme ? scheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
-  load(raw: unknown, person: Person): void {
+  load(raw: unknown, person: Person, sent: Sent): void {
+    const snapshot = raw as Snapshot;
+    const dropped = this.outbox.loaded(sent);
+    // The changes after a batch that went name rows and columns as that batch left them.
+    if (dropped) this.outbox.clear();
+    const fitting = new SheetFitting(snapshot.sheets.map(({ id }) => id));
+    this.outbox.move((change) => fitting.fit(change));
+    if (dropped || fitting.lost) this.status.kept("");
     this.univer?.univer.dispose();
     const worker = new Worker(new URL("./formula-worker.ts", import.meta.url), { type: "module" });
     const made = createUniver({
@@ -361,10 +372,10 @@ class XlsxEditor implements Editor, Pictures {
     this.editing = null;
     this.held = [];
     this.marked = [];
-    this.fileLooks = (raw as Snapshot).looks.length;
-    this.links = (raw as Snapshot).sheets.flatMap(linksOf);
+    this.fileLooks = snapshot.looks.length;
+    this.links = snapshot.sheets.flatMap(linksOf);
     this.canEdit = person.canEdit;
-    made.univerAPI.createWorkbook(workbookData(raw as Snapshot) as never);
+    made.univerAPI.createWorkbook(workbookData(snapshot) as never);
     const injector = made.univer.__getInjector();
     this.commands = injector.get(ICommandService);
     this.interceptor = injector.get(SheetInterceptorService);
@@ -404,6 +415,10 @@ class XlsxEditor implements Editor, Pictures {
       this.sendPlace();
       this.client.pull();
     });
+    for (const change of this.outbox.unanswered()) {
+      this.show(change, true);
+      this.moveLinks(change);
+    }
     if (!person.canEdit) {
       made.univerAPI.getActiveWorkbook()?.setEditable(false);
     }
@@ -563,15 +578,20 @@ class XlsxEditor implements Editor, Pictures {
 
   private run(mutations: Mutation[]): void {
     this.remote = true;
-    for (const { id, params } of mutations) this.commands?.syncExecuteCommand(id, params, REMOTE);
-    this.remote = false;
+    try {
+      for (const { id, params } of mutations) this.commands?.syncExecuteCommand(id, params, REMOTE);
+    } finally {
+      this.remote = false;
+    }
   }
 
-  private showCells(sheet: string, cells: CellChange[]): void {
+  private showCells(sheet: string, cells: CellChange[], own: boolean): void {
     const cellValue: Record<number, Record<number, UniverCell>> = {};
     const unanswered = this.outbox.unanswered();
     for (const cell of cells) {
-      if (unanswered.some((change) => covers(change, sheet, cell.row, cell.column))) continue;
+      if (!own && unanswered.some((change) => covers(change, sheet, cell.row, cell.column))) {
+        continue;
+      }
       const shown: UniverCell = {};
       if (cell.value === null) Object.assign(shown, { v: null, t: null });
       else if (cell.value !== undefined) Object.assign(shown, cellOf({ value: cell.value }));
@@ -596,8 +616,14 @@ class XlsxEditor implements Editor, Pictures {
    * lines as that command names them, so this side rewrites its formulas and merges, and the
    * person's undo steps go.
    */
-  private showLines(kind: "rows" | "columns", sheet: string, at: number, count: number): void {
-    this.outbox.move((change) => moveChange(change, sheet, kind, at, count));
+  private showLines(
+    kind: "rows" | "columns",
+    sheet: string,
+    at: number,
+    count: number,
+    own: boolean,
+  ): void {
+    if (!own) this.outbox.move((change) => moveChange(change, sheet, kind, at, count));
     const worksheet = this.univer?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheet);
     const last = at + Math.abs(count) - 1;
     const range =
@@ -653,15 +679,21 @@ class XlsxEditor implements Editor, Pictures {
     }
   }
 
-  private show(change: Change): void {
+  /** A change of the person's own that waits shows again on a snapshot, over what it covers. */
+  private show(change: Change, own = false): void {
+    if (change.kind === "removeSheet" && !own) {
+      this.outbox.move((waiting) => withoutSheet(waiting, change.sheet));
+    }
+    // Only a removal of this person's that waits takes a sheet away before the document does.
+    if ("sheet" in change && !this.holds(change.sheet)) return;
     const unit = { unitId: WORKBOOK };
     switch (change.kind) {
       case "cells":
-        this.showCells(change.sheet, change.cells);
+        this.showCells(change.sheet, change.cells, own);
         break;
       case "rows":
       case "columns":
-        this.showLines(change.kind, change.sheet, change.at, change.count);
+        this.showLines(change.kind, change.sheet, change.at, change.count, own);
         break;
       case "renameSheet":
         this.run([
@@ -728,9 +760,13 @@ class XlsxEditor implements Editor, Pictures {
         ]);
         break;
       case "group":
-        for (const inner of change.changes) this.show(inner);
+        for (const inner of change.changes) this.show(inner, own);
         break;
     }
+  }
+
+  private holds(sheet: string): boolean {
+    return Boolean(this.univer?.univerAPI.getActiveWorkbook()?.getSheetBySheetId(sheet));
   }
 
   private showSizes(change: Extract<Change, { kind: "size" }>): void {

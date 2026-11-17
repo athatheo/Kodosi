@@ -1,5 +1,5 @@
 use lopdf::{
-    Dictionary, Document, Object, ObjectId, Stream,
+    DEFAULT_MAX_DECOMPRESSED_SIZE, Dictionary, Document, Object, ObjectId, Stream,
     content::{Content, Operation},
 };
 
@@ -295,7 +295,9 @@ impl Redaction<'_> {
                 .ok_or_else(|| "A form has broken resources.".to_owned())?,
             Err(_) => outer.clone(),
         };
-        let content = stream.decompressed_content().map_err(failed)?;
+        let content = stream
+            .decompressed_content_with_limit(DEFAULT_MAX_DECOMPRESSED_SIZE)
+            .map_err(failed)?;
         let operations = Content::decode(&content).map_err(failed)?.operations;
         let start = State::new(graphics, state.font_size, state.leading);
         let kept = self.operations(operations, &resources, start, depth)?;
@@ -348,7 +350,9 @@ pub(crate) fn redact(file: &[u8], page: ObjectId, rects: &[[f64; 4]]) -> Result<
         .and_then(|dictionary| inherited(&document, dictionary, b"Resources"))
         .and_then(|resources| dictionary_of(&document, resources))
         .unwrap_or_default();
-    let content = document.get_page_content(page);
+    let content = document
+        .get_page_content_with_limit(page, DEFAULT_MAX_DECOMPRESSED_SIZE)
+        .map_err(failed)?;
     let operations = Content::decode(&content).map_err(failed)?.operations;
     let mut redaction = Redaction {
         document: &mut document,

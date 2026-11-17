@@ -152,6 +152,8 @@ public struct CanvasBrowser: Decodable, Equatable, Sendable {
     public let doing: BrowserDoing?
     public let last: BrowserAction?
     public let problem: String?
+    /// The terminal is shared, so its browser keeps sign-ins of its own.
+    public let ownSignIns: Bool
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -164,9 +166,10 @@ public struct CanvasBrowser: Decodable, Equatable, Sendable {
         doing = try container.decodeIfPresent(BrowserDoing.self, forKey: .doing)
         last = try container.decodeIfPresent(BrowserAction.self, forKey: .last)
         problem = try container.decodeIfPresent(String.self, forKey: .problem)
+        ownSignIns = try container.decodeIfPresent(Bool.self, forKey: .ownSignIns) ?? false
     }
 
-    private enum CodingKeys: String, CodingKey { case state, changed, tabs, width, height, getting, doing, last, problem }
+    private enum CodingKeys: String, CodingKey { case state, changed, tabs, width, height, getting, doing, last, problem, ownSignIns }
 
     public var activeTab: BrowserTab? {
         tabs.first(where: \.active)
@@ -257,7 +260,24 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
 
     public struct Menu: Decodable, Equatable, Sendable {
         public let id: Int
+        /// Where the menu opens, in the CSS pixels of the page.
+        public let x: Double
+        public let y: Double
         public let items: [MenuItem]
+        public let context: MenuContext?
+    }
+
+    /// What a right-click was on; the app gives its menu the items.
+    public struct MenuContext: Decodable, Equatable, Sendable {
+        public static let copySelection = 0
+        public static let copyLink = 1
+
+        public let selection: String
+        public let link: String?
+
+        public var words: String? {
+            selection.isEmpty ? link : selection
+        }
     }
 
     public enum DialogKind: String, Decodable, Sendable { case alert, confirm, prompt, beforeunload }
@@ -297,6 +317,8 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
     public var dialog: Dialog?
     public var chooser: Chooser?
     public var copied: String?
+    /// The icons that changed, as PNG in base64; an empty one takes a tab's icon away.
+    public var icons: [String: String] = [:]
 
     public var size: CGSize {
         CGSize(width: width, height: height)
@@ -315,9 +337,10 @@ public struct BrowserWindow: Decodable, Equatable, Sendable {
         dialog = try container.decodeIfPresent(Dialog.self, forKey: .dialog)
         chooser = try container.decodeIfPresent(Chooser.self, forKey: .chooser)
         copied = try container.decodeIfPresent(String.self, forKey: .copied)
+        icons = try container.decodeIfPresent([String: String].self, forKey: .icons) ?? [:]
     }
 
-    private enum CodingKeys: String, CodingKey { case tabs, width, height, shape, pointers, menu, dialog, chooser, copied }
+    private enum CodingKeys: String, CodingKey { case tabs, width, height, shape, pointers, menu, dialog, chooser, copied, icons }
 }
 
 /// Positions are in the CSS pixels of the page.

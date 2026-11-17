@@ -1,9 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex, PoisonError,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -13,14 +13,15 @@ use serde_json::json;
 use tokio::sync::{Notify, mpsc, oneshot, watch};
 
 use crate::{
-    Error, driver,
+    Error,
+    driver::{self, Driver},
     engine::Engine,
     flow::{self, Flow},
     input,
-    link::{EncodedFrame, EngineTab, ToEngine},
+    link::{EncodedFrame, EngineTab, MOST_ICON, ToEngine},
     message::{
-        Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuItem, MouseAction,
-        MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
+        Chooser, Dialog, Download, Frame, Input, KeyAction, Menu, MenuContext, MenuItem,
+        MouseAction, MouseButton, Pointer, Size, State, Tab, ToViewer, ToWindow, Viewer,
     },
 };
 
@@ -43,6 +44,8 @@ const MOST_MESSAGE: usize = 16 * 1024;
 const MOST_ITEMS: usize = 1000;
 /// The menu that a right-click opens, which the page does not know about.
 const CONTEXT_MENU: u32 = u32::MAX;
+const COPY_SELECTION: u32 = 0;
+const COPY_LINK: u32 = 1;
 const BLANK: &str = "about:blank";
 /// Numbers each join, so that a pipe that goes frees only the seat that it took.
 static SEATS: AtomicU64 = AtomicU64::new(1);
@@ -90,6 +93,10 @@ pub(crate) enum Event {
         link: Option<String>,
     },
     Copied(String),
+    Icon {
+        tab: i64,
+        png: String,
+    },
     Dialog {
         tab: i64,
         dialog: Dialog,
@@ -114,11 +121,12 @@ pub(crate) enum Event {
 
 #[derive(Clone)]
 pub struct Window {
-    driver: Arc<str>,
+    driver: Arc<Driver>,
     events: mpsc::Sender<Event>,
     state: watch::Receiver<State>,
     open: watch::Receiver<bool>,
     used: watch::Receiver<Option<Instant>>,
+    emptied: Arc<AtomicBool>,
 }
 
 impl Window {
@@ -146,7 +154,7 @@ impl Window {
         })
     }
 
-    pub fn driver(&self) -> &str {
+    pub fn driver(&self) -> &Driver {
         &self.driver
     }
 
@@ -161,6 +169,11 @@ impl Window {
     pub async fn closed(&self) {
         let mut open = self.open.clone();
         drop(open.wait_for(|open| !open).await);
+    }
+
+    /// Whether the window ended because its last tab closed, as a browser's window does.
+    pub fn emptied(&self) -> bool {
+        self.emptied.load(Ordering::Acquire)
     }
 
     pub fn used_at(&self) -> Option<Instant> {
@@ -205,8 +218,13 @@ pub(crate) struct Mailbox {
 impl Mailbox {
     fn put(&self, mut state: State) {
         let mut waiting = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        if state.copied.is_none() {
-            state.copied = waiting.take().and_then(|waiting| waiting.copied);
+        if let Some(earlier) = waiting.take() {
+            if state.copied.is_none() {
+                state.copied = earlier.copied;
+            }
+            for (tab, icon) in earlier.icons {
+                state.icons.entry(tab).or_insert(icon);
+            }
         }
         *waiting = Some(state);
         drop(waiting);
@@ -278,14 +296,16 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
     });
     let (open_in, open) = watch::channel(true);
     let (used_in, used) = watch::channel(None);
-    let driver = Arc::from(driver.serve(Arc::clone(&engine), id, open.clone()));
+    let driver = Arc::new(driver.serve(Arc::clone(&engine), id, open.clone()));
     let window = Window {
         driver,
         events: events_in,
         state,
         open,
         used,
+        emptied: Arc::default(),
     };
+    let emptied = Arc::clone(&window.emptied);
     let stopped = engine.stopped();
     let live = Live::new(
         engine,
@@ -296,7 +316,7 @@ pub(crate) fn open(engine: Arc<Engine>, address: &str, folder: PathBuf) -> Resul
         window.events.downgrade(),
     );
     tokio::spawn(async move {
-        live.run(events, stopped).await;
+        emptied.store(live.run(events, stopped).await, Ordering::Release);
         open_in.send_replace(false);
     });
     Ok(window)
@@ -334,7 +354,8 @@ struct Waiting {
 }
 
 struct Context {
-    copies: Vec<String>,
+    selection: String,
+    link: Option<String>,
 }
 
 /// The viewer whose press, key or scroll came last, or the first viewer while nobody acted: the
@@ -394,6 +415,10 @@ struct Live {
     /// A copy goes once, with the next state, so that each copy reaches the pasteboard, also
     /// the same words again, and an old copy never comes back.
     copied: Option<Copied>,
+    /// The icon of each tab, and those that changed since the last state, which go to every
+    /// viewer once.
+    icons: BTreeMap<String, String>,
+    new_icons: BTreeMap<String, String>,
     open_menu: Option<OpenMenu>,
     context: Option<Context>,
     /// The dialogs of the window's tabs, one for each tab, oldest first. The window shows the
@@ -444,6 +469,8 @@ impl Live {
             answering: false,
             events,
             copied: None,
+            icons: BTreeMap::new(),
+            new_icons: BTreeMap::new(),
             open_menu: None,
             context: None,
             dialogs: Vec::new(),
@@ -455,9 +482,15 @@ impl Live {
         }
     }
 
-    async fn run(mut self, mut events: mpsc::Receiver<Event>, mut stopped: watch::Receiver<bool>) {
+    /// Returns whether the window ended because its last tab closed.
+    async fn run(
+        mut self,
+        mut events: mpsc::Receiver<Event>,
+        mut stopped: watch::Receiver<bool>,
+    ) -> bool {
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut emptied = false;
         loop {
             tokio::select! {
                 event = events.recv() => {
@@ -465,7 +498,10 @@ impl Live {
                     if matches!(event, Event::Close) {
                         break;
                     }
-                    self.handle(event).await;
+                    emptied = self.handle(event).await;
+                    if emptied {
+                        break;
+                    }
                 }
                 _ = tick.tick() => {
                     if self.tick() {
@@ -479,6 +515,7 @@ impl Live {
         self.engine
             .command(ToEngine::CloseWindow { window: self.id });
         self.engine.window_closed(self.id).await;
+        emptied
     }
 
     fn tick(&mut self) -> bool {
@@ -523,8 +560,11 @@ impl Live {
             })
             .collect();
         self.published.send_replace(self.state.clone());
+        let icons = std::mem::take(&mut self.new_icons);
         for seat in self.seats.values() {
-            seat.mailbox.put(self.state_for(&seat.viewer.id));
+            let mut state = self.state_for(&seat.viewer.id);
+            state.icons.clone_from(&icons);
+            seat.mailbox.put(state);
         }
         self.copied = None;
     }
@@ -547,7 +587,8 @@ impl Live {
         state
     }
 
-    async fn handle(&mut self, event: Event) {
+    /// Returns whether the window ends.
+    async fn handle(&mut self, event: Event) -> bool {
         match event {
             Event::Join {
                 viewer,
@@ -555,7 +596,9 @@ impl Live {
                 outgoing,
                 mailbox,
             } => {
-                mailbox.put(self.state_for(&viewer.id));
+                let mut state = self.state_for(&viewer.id);
+                state.icons.clone_from(&self.icons);
+                mailbox.put(state);
                 self.seats.insert(
                     viewer.id.clone(),
                     Seat {
@@ -588,7 +631,7 @@ impl Live {
                 self.capturing = None;
                 self.capture_failed_at = Some(Instant::now());
             }
-            Event::Tabs { tabs, active } => self.tabs(tabs, active),
+            Event::Tabs { tabs, active } => return self.tabs(tabs, active),
             // The person's own pointer takes this shape, so it cannot wait for the tick.
             Event::Shape(shape) => {
                 self.state.shape = shape;
@@ -602,6 +645,7 @@ impl Live {
             } => self.open_list(tab, frame, menu, items),
             Event::Context { selection, link } => self.context_menu(&selection, link),
             Event::Copied(text) => self.copy(&text),
+            Event::Icon { tab, png } => self.icon(tab, png),
             Event::Dialog { tab, mut dialog } => {
                 dialog.message = cut(&dialog.message, MOST_MESSAGE);
                 dialog.text = cut(&dialog.text, MOST_MESSAGE);
@@ -622,28 +666,29 @@ impl Live {
                 self.state.chooser = Some(Chooser { several });
                 self.dirty = true;
             }
-            Event::DownloadBegan { guid, name } => {
-                if !std::mem::take(&mut self.may_download) {
-                    self.engine.devtools().send(
-                        "Browser.cancelDownload",
-                        &json!({ "guid": guid }),
-                        None,
-                    );
-                    self.refused.insert(guid);
-                    return;
-                }
-                self.state.downloads.push(Download {
-                    name: name.clone(),
-                    path: String::new(),
-                    done: false,
-                });
-                let extra = self.state.downloads.len().saturating_sub(MOST_DOWNLOADS);
-                self.state.downloads.drain(..extra);
-                self.downloads.insert(guid, name);
-                self.dirty = true;
-            }
+            Event::DownloadBegan { guid, name } => self.download_began(guid, name),
             Event::DownloadEnded { guid, done } => self.download_ended(&guid, done).await,
         }
+        false
+    }
+
+    fn download_began(&mut self, guid: String, name: String) {
+        if !std::mem::take(&mut self.may_download) {
+            self.engine
+                .devtools()
+                .send("Browser.cancelDownload", &json!({ "guid": guid }), None);
+            self.refused.insert(guid);
+            return;
+        }
+        self.state.downloads.push(Download {
+            name: name.clone(),
+            path: String::new(),
+            done: false,
+        });
+        let extra = self.state.downloads.len().saturating_sub(MOST_DOWNLOADS);
+        self.state.downloads.drain(..extra);
+        self.downloads.insert(guid, name);
+        self.dirty = true;
     }
 
     fn message(&mut self, viewer: &str, message: ToWindow) {
@@ -706,7 +751,9 @@ impl Live {
         }
     }
 
-    fn tabs(&mut self, tabs: Vec<EngineTab>, active: Option<i64>) {
+    /// Returns whether the last tab closed.
+    fn tabs(&mut self, tabs: Vec<EngineTab>, active: Option<i64>) -> bool {
+        let emptied = !self.state.tabs.is_empty() && tabs.is_empty();
         self.active = active;
         self.state.tabs = tabs
             .iter()
@@ -719,9 +766,36 @@ impl Live {
             })
             .collect();
         self.reported = tabs;
+        let open: HashSet<&str> = self.state.tabs.iter().map(|tab| tab.id.as_str()).collect();
+        self.icons.retain(|tab, _| open.contains(tab.as_str()));
+        self.new_icons.retain(|tab, _| open.contains(tab.as_str()));
         self.dirty = true;
         self.send_waiting();
         self.update_capture();
+        emptied
+    }
+
+    fn icon(&mut self, tab: i64, png: String) {
+        let tab = tab.to_string();
+        let png = if png.len() <= MOST_ICON {
+            png
+        } else {
+            String::new()
+        };
+        if self
+            .icons
+            .get(&tab)
+            .map_or(png.is_empty(), |icon| *icon == png)
+        {
+            return;
+        }
+        if png.is_empty() {
+            self.icons.remove(&tab);
+        } else {
+            self.icons.insert(tab.clone(), png.clone());
+        }
+        self.new_icons.insert(tab, png);
+        self.dirty = true;
     }
 
     fn update_capture(&mut self) {
@@ -1047,11 +1121,7 @@ impl Live {
                 ..item
             })
             .collect();
-        self.state.menu = Some(Menu {
-            id: menu,
-            viewer,
-            items,
-        });
+        self.state.menu = Some(self.menu_of(viewer, menu, items, None));
         self.dirty = true;
     }
 
@@ -1059,25 +1129,45 @@ impl Live {
         let Some(viewer) = self.control.as_ref().map(|control| control.viewer.clone()) else {
             return;
         };
-        let item = |label: &str, enabled: bool| MenuItem {
-            label: label.to_owned(),
-            enabled,
-            chosen: false,
+        let context = MenuContext {
+            selection: cut(selection, MOST_LINE),
+            link: link.as_deref().map(|link| cut(link, MOST_ADDRESS)),
         };
-        let mut items = vec![item("Copy", !selection.is_empty())];
-        let mut copies = vec![cut(selection, MOST_TEXT)];
-        if let Some(link) = link {
-            items.push(item("Copy Link", true));
-            copies.push(link);
-        }
         self.open_menu = None;
-        self.context = Some(Context { copies });
-        self.state.menu = Some(Menu {
-            id: CONTEXT_MENU,
-            viewer,
-            items,
+        self.context = Some(Context {
+            selection: cut(selection, MOST_TEXT),
+            link,
         });
+        self.state.menu = Some(self.menu_of(viewer, CONTEXT_MENU, Vec::new(), Some(context)));
         self.dirty = true;
+    }
+
+    /// A menu opens where its viewer last pointed, which is where a press opened it.
+    fn menu_of(
+        &self,
+        viewer: String,
+        id: u32,
+        items: Vec<MenuItem>,
+        context: Option<MenuContext>,
+    ) -> Menu {
+        let (x, y) = self
+            .seats
+            .get(&viewer)
+            .and_then(|seat| seat.pointer)
+            .unwrap_or_else(|| {
+                (
+                    f64::from(self.state.width) / 2.0,
+                    f64::from(self.state.height) / 2.0,
+                )
+            });
+        Menu {
+            id,
+            viewer,
+            x,
+            y,
+            items,
+            context,
+        }
     }
 
     fn copy(&mut self, text: &str) {
@@ -1094,17 +1184,25 @@ impl Live {
     }
 
     fn choose(&mut self, viewer: &str, menu: u32, choice: Option<u32>) {
-        self.state.menu = None;
+        if self
+            .state
+            .menu
+            .take_if(|open| open.id == menu && open.viewer == viewer)
+            .is_none()
+        {
+            return;
+        }
         self.dirty = true;
         if menu == CONTEXT_MENU {
-            let context = self.context.take();
-            if let (Some(mut context), Some(choice)) = (context, choice)
-                && let Ok(choice) = usize::try_from(choice)
-                && choice < context.copies.len()
-            {
+            let copy = self.context.take().and_then(|context| match choice {
+                Some(COPY_SELECTION) => Some(context.selection).filter(|words| !words.is_empty()),
+                Some(COPY_LINK) => context.link,
+                _ => None,
+            });
+            if let Some(text) = copy {
                 self.copied = Some(Copied {
                     viewer: viewer.to_owned(),
-                    text: context.copies.swap_remove(choice),
+                    text,
                 });
             }
             return;
@@ -1218,11 +1316,7 @@ fn fitted(size: Size) -> Option<Size> {
 }
 
 fn cut(text: &str, most: usize) -> String {
-    let mut end = text.len().min(most);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    text[..end].to_owned()
+    text[..text.floor_char_boundary(most)].to_owned()
 }
 
 /// A page names the file, so only its last part counts, and an equal name gets a number.
@@ -1471,6 +1565,113 @@ mod tests {
         );
         live.handle(Event::Shape("pointer".to_owned())).await;
         assert_eq!(copied(&ana), None);
+    }
+
+    #[tokio::test]
+    async fn a_right_click_menu_opens_where_its_viewer_pressed_and_copies_its_link_for_that_viewer()
+    {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
+        let right = json!({ "kind": "mouse", "action": "press", "x": 40, "y": 30, "button": "right", "clicks": 1 });
+        say(&mut live, "ana", right).await;
+        live.handle(Event::Context {
+            selection: String::new(),
+            link: Some("https://kodosi.com/".to_owned()),
+        })
+        .await;
+        live.publish();
+        let menu = newest(&ana).and_then(|state| state.menu).unwrap();
+        assert_eq!((menu.x, menu.y), (40.0, 30.0));
+        assert_eq!(newest(&bob).and_then(|state| state.menu), None);
+
+        say(&mut live, "ana", json!({ "kind": "choose", "menu": 7 })).await;
+        live.publish();
+        assert_eq!(
+            newest(&ana).and_then(|state| state.menu),
+            Some(menu.clone())
+        );
+
+        let link = json!({ "kind": "choose", "menu": menu.id, "choice": COPY_LINK });
+        say(&mut live, "ana", link).await;
+        live.publish();
+        assert_eq!(copied(&ana).as_deref(), Some("https://kodosi.com/"));
+    }
+
+    #[tokio::test]
+    async fn each_viewer_gets_a_tab_icon_once_also_through_a_newer_state_and_after_joining_late() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        live.handle(Event::Icon {
+            tab: 5,
+            png: "aWNvbg==".to_owned(),
+        })
+        .await;
+        live.publish();
+        live.handle(Event::Shape("text".to_owned())).await;
+        let icon = |state: Option<State>| state.and_then(|state| state.icons.get("5").cloned());
+        assert_eq!(icon(newest(&ana)).as_deref(), Some("aWNvbg=="));
+
+        live.handle(Event::Shape("pointer".to_owned())).await;
+        assert_eq!(icon(newest(&ana)), None);
+
+        let bob = join(&mut live, "bob").await;
+        assert_eq!(icon(newest(&bob)).as_deref(), Some("aWNvbg=="));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_window_ends_when_its_last_tab_closes_but_not_while_it_waits_for_its_first() {
+        let (events_in, events) = mpsc::channel(8);
+        let (_stop, stopped) = watch::channel(false);
+        let running = tokio::spawn(live().run(events, stopped));
+        let tabs = |ids: &[i64]| Event::Tabs {
+            tabs: ids
+                .iter()
+                .map(|id| EngineTab {
+                    id: *id,
+                    window: 1,
+                    target: None,
+                    title: String::new(),
+                    address: String::new(),
+                    active: true,
+                    loading: false,
+                })
+                .collect(),
+            active: ids.first().copied(),
+        };
+        events_in.send(tabs(&[])).await.unwrap();
+        tokio::time::sleep(Duration::from_mins(1)).await;
+        assert!(!running.is_finished());
+
+        events_in.send(tabs(&[5])).await.unwrap();
+        events_in.send(tabs(&[])).await.unwrap();
+        let ended = tokio::time::timeout(Duration::from_mins(1), running).await;
+        assert!(ended.unwrap().unwrap());
+    }
+
+    #[tokio::test]
+    async fn each_viewer_sees_where_the_others_point_but_not_its_own_pointer() {
+        let mut live = live();
+        let ana = join(&mut live, "ana").await;
+        let bob = join(&mut live, "bob").await;
+        say(
+            &mut live,
+            "ana",
+            json!({ "kind": "mouse", "action": "move", "x": 40, "y": 30 }),
+        )
+        .await;
+        live.tick();
+        let pointers = |pipe: &Pipe| {
+            newest(pipe).map(|state| {
+                state
+                    .pointers
+                    .into_iter()
+                    .map(|pointer| (pointer.viewer, pointer.x, pointer.y))
+                    .collect::<Vec<_>>()
+            })
+        };
+        assert_eq!(pointers(&bob), Some(vec![("ana".to_owned(), 40.0, 30.0)]));
+        assert_eq!(pointers(&ana), Some(Vec::new()));
     }
 
     #[tokio::test]
