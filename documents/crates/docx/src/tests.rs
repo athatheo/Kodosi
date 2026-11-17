@@ -234,6 +234,31 @@ fn a_view_can_send_steps_and_the_saved_file_reads_the_same() {
 }
 
 #[test]
+fn undoing_superscript_over_subscript_is_taken_and_names_its_block() {
+    let mut model = read(&docx_file(THREE));
+    let first = first_id(&model);
+    let mark = |kind: &str, name: &str| json!({ "stepType": kind, "from": 1, "to": 3, "mark": { "type": name } });
+    stepped(&mut model, vec![mark("addMark", "subscript")]);
+    let subscript = model.doc.clone();
+    stepped(&mut model, vec![mark("addMark", "superscript")]);
+    let undo = json!({
+        "stepType": "markSet",
+        "steps": [mark("removeMark", "superscript"), mark("addMark", "subscript")],
+    });
+    let change = Change::Steps {
+        steps: vec![undo],
+        touched: Vec::new(),
+        keep: BTreeMap::default(),
+        sources: BTreeMap::default(),
+    };
+    match applied(&mut model, change).unwrap() {
+        Change::Steps { touched, .. } => assert_eq!(touched, [first]),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(model.doc, subscript);
+}
+
+#[test]
 fn a_place_moves_with_steps_before_it_and_reads_as_its_block_and_words() {
     let mut model = read(&docx_file(THREE));
     let second = blocks(&model)[1]["id"].clone();

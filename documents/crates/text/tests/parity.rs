@@ -25,12 +25,14 @@ fn each_step_gives_the_same_tree_as_prosemirror() {
     let spec: SchemaSpec = serde_json::from_str(lines.next().unwrap()).unwrap();
     let schema = Schema::new(&spec).unwrap();
     let mut steps = 0;
+    let mut mark_sets = 0;
     for (case, line) in lines.enumerate() {
         let case_json: Value = serde_json::from_str(line).unwrap();
         let mut doc = Node::from_json(&schema, &case_json["doc"]).unwrap();
         assert_eq!(doc.to_json(&schema), case_json["doc"], "case {case}");
         for (index, entry) in case_json["steps"].as_array().unwrap().iter().enumerate() {
             let step = Step::from_json(&schema, &entry["step"]).unwrap();
+            mark_sets += usize::from(matches!(step, Step::MarkSet { .. }));
             assert_eq!(
                 step.to_json(&schema),
                 entry["step"],
@@ -55,4 +57,5 @@ fn each_step_gives_the_same_tree_as_prosemirror() {
         }
     }
     assert!(steps > 1000, "only {steps} steps ran");
+    assert!(mark_sets > 100, "only {mark_sets} markSet steps ran");
 }

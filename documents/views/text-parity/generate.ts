@@ -7,8 +7,9 @@ import {
   canSplit,
   findWrapping,
   liftTarget,
+  RemoveMarkStep,
   ReplaceStep,
-  type Step,
+  Step,
   Transform,
 } from "prosemirror-transform";
 
@@ -149,11 +150,22 @@ function randomMark(random: Random) {
   ]);
 }
 
+/** A mark change and its undo, whose inverted steps can make a markSet step. */
+function undoneMarkChange(random: Random, transform: Transform, from: number, to: number) {
+  const first = transform.steps.length;
+  if (random.below(2) === 0) transform.addMark(from, to, randomMark(random));
+  else transform.removeMark(from, to, randomMark(random));
+  for (let index = transform.steps.length - 1; index >= first; index--) {
+    const step = transform.steps[index] as Step;
+    transform.step(step.invert(transform.docs[index] as Node));
+  }
+}
+
 function randomEdit(random: Random, transform: Transform, other: Node) {
   const doc = transform.doc;
   const [from, to] = randomRange(random, doc, 12);
   const $from = doc.resolve(from);
-  switch (random.below(14)) {
+  switch (random.below(15)) {
     case 0:
       if ($from.parent.inlineContent) transform.insert(from, schema.text(random.pick(WORDS)));
       break;
@@ -213,16 +225,31 @@ function randomEdit(random: Random, transform: Transform, other: Node) {
     case 12:
       transform.replaceRangeWith(from, to, schema.nodes.horizontal_rule.create());
       break;
+    case 13:
+      if (to > from) undoneMarkChange(random, transform, from, to);
+      break;
     default:
       transform.deleteRange(from, to);
       break;
   }
 }
 
+function randomMarkSet(random: Random, doc: Node): Step {
+  const steps: unknown[] = [];
+  for (let count = random.below(4); count > 0; count--) {
+    const [from, to] = randomRange(random, doc, doc.content.size + 1);
+    const kind = random.below(2) === 0 ? AddMarkStep : RemoveMarkStep;
+    steps.push(new kind(from, to, randomMark(random)).toJSON());
+  }
+  return Step.fromJSON(schema, { stepType: "markSet", steps });
+}
+
 /** A step that nothing built with care, as a view that went wrong could send. */
 function randomRawStep(random: Random, doc: Node, other: Node): Step {
   const [from, to] = randomRange(random, doc, doc.content.size + 1);
-  if (random.below(4) === 0) return new AddMarkStep(from, to, randomMark(random));
+  const kind = random.below(8);
+  if (kind < 2) return new AddMarkStep(from, to, randomMark(random));
+  if (kind === 2) return randomMarkSet(random, doc);
   return new ReplaceStep(from, to, randomSlice(random, other), random.below(5) === 0);
 }
 
