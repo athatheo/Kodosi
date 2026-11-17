@@ -2,6 +2,7 @@ package com.kodosi.signin;
 
 import jakarta.ws.rs.core.Response;
 import org.keycloak.Config;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
@@ -16,6 +17,13 @@ import org.keycloak.services.validation.Validation;
  */
 public final class MailCodeAction implements RequiredActionProvider, RequiredActionFactory {
     static final String ID = "kodosi-mail-code";
+
+    // Keycloak lets a sign-in that names a pending required action in kc_action skip that action when the
+    // action does not take kc_action (CVE-2026-118959).
+    @Override
+    public InitiatedActionSupport initiatedActionSupport() {
+        return InitiatedActionSupport.SUPPORTED;
+    }
 
     @Override
     public void evaluateTriggers(RequiredActionContext context) {
