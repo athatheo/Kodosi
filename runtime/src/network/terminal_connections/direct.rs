@@ -307,6 +307,7 @@ fn own_addresses() -> Vec<Ipv4Addr> {
     let interfaces = if_addrs::get_if_addrs().unwrap_or_default();
     interfaces
         .into_iter()
+        .filter(if_addrs::Interface::is_oper_up)
         .filter_map(|interface| match interface.ip() {
             IpAddr::V4(address) if !address.is_loopback() && !address.is_link_local() => {
                 Some(address)
